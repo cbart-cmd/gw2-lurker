@@ -4,6 +4,7 @@
 //! English text is the key, so nothing here needs touching when a language changes.
 
 mod alerts;
+mod follow;
 mod guilds;
 mod map;
 mod matchup;
@@ -122,15 +123,11 @@ pub fn register() {
 /// everything that the mouse cannot reach (RF-02).
 fn draw_options(ui: &nexus::imgui::Ui) {
     draw_openers(ui);
-    let (candidates, guilds, names) = {
+    let (candidates, names) = {
         let board = crate::worker::dashboard();
-        (
-            board.candidates.clone(),
-            board.guilds.clone(),
-            board.guild_names.clone(),
-        )
+        (board.candidates.clone(), board.guild_names.clone())
     };
-    let change = settings::draw_inline(ui, &candidates, &guilds, &names);
+    let change = settings::draw_inline(ui, &candidates, &names);
     match change {
         Some(settings::TeamChange::Pick(team_id)) => crate::team::remember(team_id),
         Some(settings::TeamChange::Clear) => crate::team::forget(),
@@ -310,6 +307,7 @@ fn draw_tabs(
                             names: data.objectives,
                             maps: data.maps,
                             follow: data.follow,
+                            guild_names: data.names,
                             history: &history,
                         },
                         &mut map_choice(),
@@ -341,6 +339,7 @@ fn draw_tabs(
                         ui,
                         data.guilds,
                         data.names,
+                        &mut config.guild_labels,
                         data.follow,
                         data.current,
                         |guild| crate::worker::dashboard().guild_history(guild),
@@ -349,7 +348,7 @@ fn draw_tabs(
                     }
                 }
                 3 => alerts::log_body(ui, data.alerts),
-                _ => change = settings::body(ui, config, data.candidates, data.guilds, data.names),
+                _ => change = settings::body(ui, config, data.candidates, data.names),
             });
         }
     }
@@ -420,26 +419,81 @@ fn draw_health(ui: &nexus::imgui::Ui, config: &mut crate::config::Config, data: 
     }
 }
 
+/// When the *Test pop-up* button of the settings wants a fake alert on screen (milliseconds).
+static TEST_POPUP_UNTIL: std::sync::atomic::AtomicI64 = std::sync::atomic::AtomicI64::new(0);
+
+/// Shows a fake pop-up for a few seconds, so it can be placed without waiting for a capture.
+pub fn start_test_popup() {
+    let until = chrono::Utc::now().timestamp_millis() + 5000;
+    TEST_POPUP_UNTIL.store(until, Ordering::Relaxed);
+}
+
 /// Pop-up with what just happened, on top of the screen (RF-19a).
 fn draw_popup(
     ui: &nexus::imgui::Ui,
     alerts: &[crate::worker::AlertLine],
     now: chrono::DateTime<chrono::Utc>,
 ) {
-    let (enabled, secs, opacity) = {
+    let (enabled, secs, opacity, mut position) = {
         let config = crate::config();
         let opacity = config
             .windows
             .get(WIDGET)
             .map(|state| state.opacity)
             .unwrap_or_default();
-        (config.popup_enabled, config.popup_secs, opacity)
+        (
+            config.popup_enabled,
+            config.popup_secs,
+            opacity,
+            config.popup_pos,
+        )
     };
     if !enabled {
         return;
     }
-    let showing = alerts::popup_lines(alerts, now, secs);
-    alerts::draw_popup(ui, &showing, opacity);
+
+    let mut showing = alerts::popup_lines(alerts, now, secs);
+    if let Some(test) = test_popup_line(now) {
+        showing.insert(0, test);
+    }
+    if showing.is_empty() {
+        return;
+    }
+
+    // Fade during the last half second: a pop-up that blinks out reads as a glitch.
+    let fade = showing
+        .iter()
+        .map(|line| {
+            let left = f64::from(secs)
+                - now.signed_duration_since(line.received).num_milliseconds() as f64 / 1000.0;
+            (left / 0.5).clamp(0.0, 1.0) as f32
+        })
+        .fold(1.0f32, f32::min);
+
+    alerts::draw_popup(ui, &showing, opacity, &mut position, fade);
+
+    if position != crate::config().popup_pos {
+        crate::runtime().popup_pos = position;
+    }
+}
+
+/// A fake line while the settings ask for one, so the pop-up can be placed at will.
+fn test_popup_line(now: chrono::DateTime<chrono::Utc>) -> Option<crate::worker::AlertLine> {
+    if now.timestamp_millis() >= TEST_POPUP_UNTIL.load(Ordering::Relaxed) {
+        return None;
+    }
+    Some(crate::worker::AlertLine {
+        at: now,
+        received: now,
+        map_role: gw2lurker_core::MapRole::Center,
+        kind: crate::worker::AlertKind::Claim,
+        objective: i18n::text("Sample objective").to_owned(),
+        guild: None,
+        guild_name: Some(i18n::text("Test guild").to_owned()),
+        from: None,
+        to: None,
+        late: false,
+    })
 }
 
 /// The two switches Nexus' options pane offers first (T-42).

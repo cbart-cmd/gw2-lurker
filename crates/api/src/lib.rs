@@ -116,6 +116,35 @@ impl<T: Transport> Api<T> {
         parse(&body)
     }
 
+    /// Ids of the guilds whose name contains `text` (T-44).
+    ///
+    /// `/v2/guild/search` needs no API key and only matches on the name, so the caller still has
+    /// to resolve each id with [`Self::guild`] to get the tag and to know which team it plays for.
+    pub fn guild_search(&self, text: &str) -> Result<Vec<String>, ApiError> {
+        let body = self
+            .transport
+            .get(&format!("{BASE}/guild/search?name={}", url_encode(text)))?;
+        parse(&body)
+    }
+
+    /// Guild id → team id for a region, the official source of "which team is this guild on".
+    ///
+    /// It is a big answer (~280 KB for EU) that only changes at reset, so the caller has to cache
+    /// it instead of asking per keystroke.
+    pub fn wvw_guilds(
+        &self,
+        region: gw2lurker_core::Region,
+    ) -> Result<std::collections::BTreeMap<String, u32>, ApiError> {
+        let body = self.transport.get(&format!(
+            "{BASE}/wvw/guilds/{}",
+            match region {
+                gw2lurker_core::Region::Eu => "eu",
+                gw2lurker_core::Region::Na => "na",
+            }
+        ))?;
+        parse(&body)
+    }
+
     /// The four WvW maps with the boxes the projection needs (RF-30, ADR-011).
     ///
     /// Asking for the four ids instead of `ids=all` keeps the answer at a couple of kilobytes;
@@ -126,6 +155,21 @@ impl<T: Transport> Api<T> {
             .get(&format!("{BASE}/maps?ids=38,95,96,1099"))?;
         parse(&body)
     }
+}
+
+/// Percent-encodes a query value: guild names have spaces, accents and apostrophes.
+fn url_encode(text: &str) -> String {
+    let mut out = String::with_capacity(text.len());
+    for byte in text.bytes() {
+        match byte {
+            b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' | b'-' | b'_' | b'.' | b'~' => {
+                out.push(byte as char)
+            }
+            b' ' => out.push('+'),
+            _ => out.push_str(&format!("%{byte:02X}")),
+        }
+    }
+    out
 }
 
 fn parse<T: for<'de> Deserialize<'de>>(body: &[u8]) -> Result<T, ApiError> {

@@ -13,6 +13,26 @@ Reglas:
 
 ---
 
+## HECHO – 2026-10-31 · Pop-ups que se van, mapa con fondo y selector de clanes nuevo (0.15.0)
+
+- **Pop-up que no se iba**: `alert_line` ponía `received = Utc::now()` **cada vez que se formateaba**
+  la línea, así que `popup_lines` comparaba "ahora" con "ahora" y nunca caducaba. Ahora el instante
+  se guarda con el evento (`worker::Received`) y el pop-up dura lo que dice el ajuste, con
+  desvanecido en el último medio segundo.
+- Pop-up sin marco (`no_decoration`), arrastrable y con la posición guardada (`popup_pos`), y botón
+  **Probar pop-up** en los ajustes para colocarlo sin esperar una captura.
+- El texto del aviso empieza por el **mapa**: «Eternos · Zanja de Mendon: Azul → Verde».
+- **Mapa**: tablero con rejilla cada 512 unidades, borde y el nombre del mapa; hover por objetivo
+  con `nearest`/`inside` (puras y con test) que enseña dueño, alto valor, clan y hora. Las teselas
+  reales siguen siendo T-29.
+- **T-44**: `ui::follow` sustituye a la lista gigante. Solo los seguidos, × para quitar, y dos vías
+  de añadir: los que han reclamado esta sesión (`Dashboard::session_guilds`) y un buscador por
+  equipo + palabra con `search` (hilo propio, sin red en el render). Límite de 10.
+- **T-43**: `Config::guild_labels` guarda el nombre que escribe el jugador para un clan y se enseña
+  detrás del nombre real; nunca lo pisa la API.
+- **T-15**: el tag del clan seguido se dibuja junto a su anillo.
+- Verificado que `/v2/guild/search` busca **una sola palabra por prefijo** (`Raven` sí, `avenous`
+  no, `legends of` no): anotado en `07-spikes.md` y dicho en la UI.
 ## HECHO – 2026-10-31 · Cierre al abrir el mapa: el draw list es un singleton (0.14.5)
 - **Causa encontrada en `Nexus.log` del usuario**, no adivinando:
   `panicked at arcdps-imgui-0.8.0/src/draw_list.rs:103: The DrawListMut instance for the window

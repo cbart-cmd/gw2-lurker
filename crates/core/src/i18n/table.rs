@@ -68,6 +68,89 @@ pub const TEXT: &[(&str, [&str; COLUMNS])] = &[
     ),
     ("Alert log", ["Registro de avisos", "Alert log", "Journal des alertes", "Hinweisprotokoll"]),
     ("Show widget", ["Ver la ventana", "Show widget", "Voir la fenêtre", "Fenster zeigen"]),
+    ("Test pop-up", ["Probar pop-up", "Test pop-up", "Tester le pop-up", "Pop-up testen"]),
+    (
+        "Your name for this guild",
+        [
+            "Tu nombre para este clan",
+            "Your name for this guild",
+            "Votre nom pour cette guilde",
+            "Dein Name für diese Gilde",
+        ],
+    ),
+    ("None followed yet", ["Ninguno seguido todavía", "None followed yet", "Aucune suivie pour l'instant", "Noch keine verfolgt"]),
+    ("Add guild", ["Añadir clan", "Add guild", "Ajouter une guilde", "Gilde hinzufügen"]),
+    (
+        "Claimed since the addon started",
+        [
+            "Han reclamado desde que arrancó",
+            "Claimed since the addon started",
+            "Ont revendiqué depuis le démarrage",
+            "Haben seit dem Start erobert",
+        ],
+    ),
+    ("None yet", ["Ninguno todavía", "None yet", "Aucun pour l'instant", "Noch keiner"]),
+    (
+        "Search a guild by team",
+        [
+            "Buscar un clan por equipo",
+            "Search a guild by team",
+            "Chercher une guilde par équipe",
+            "Gilde nach Team suchen",
+        ],
+    ),
+    ("Search", ["Buscar", "Search", "Chercher", "Suchen"]),
+    (
+        "Part of the name, one word",
+        [
+            "Parte del nombre, una palabra",
+            "Part of the name, one word",
+            "Une partie du nom, un mot",
+            "Teil des Namens, ein Wort",
+        ],
+    ),
+    (
+        "The API searches one word by prefix: «Raven», not «avenous».",
+        [
+            "La API busca una palabra por prefijo: «Raven», no «avenous».",
+            "The API searches one word by prefix: «Raven», not «avenous».",
+            "L'API cherche un mot par préfixe : « Raven », pas « avenous ».",
+            "Die API sucht ein Wort als Präfix: „Raven“, nicht „avenous“.",
+        ],
+    ),
+    (
+        "Pick a team, type a word and search.",
+        [
+            "Elige un equipo, escribe una palabra y busca.",
+            "Pick a team, type a word and search.",
+            "Choisissez une équipe, un mot, puis cherchez.",
+            "Team wählen, ein Wort eingeben und suchen.",
+        ],
+    ),
+    ("Searching…", ["Buscando…", "Searching…", "Recherche…", "Suche läuft…"]),
+    (
+        "Search failed: {0}",
+        ["La búsqueda falló: {0}", "Search failed: {0}", "Échec de la recherche : {0}", "Suche fehlgeschlagen: {0}"],
+    ),
+    (
+        "No guild of that team matches.",
+        [
+            "Ningún clan de ese equipo coincide.",
+            "No guild of that team matches.",
+            "Aucune guilde de cette équipe ne correspond.",
+            "Keine Gilde dieses Teams passt.",
+        ],
+    ),    (
+        "Point at an objective to see who holds it",
+        [
+            "Pasa el ratón por un objetivo para ver quién lo tiene",
+            "Point at an objective to see who holds it",
+            "Survolez un objectif pour voir qui le détient",
+            "Mit der Maus auf ein Ziel zeigen, um den Besitzer zu sehen",
+        ],
+    ),
+    ("Sample objective", ["Objetivo de ejemplo", "Sample objective", "Objectif d'exemple", "Beispielziel"]),
+    ("Test guild", ["[TEST] Clan de prueba", "[TEST] Test guild", "[TEST] Guilde de test", "[TEST] Testgilde"]),
     (
         "Click-through is on: {0} or the Nexus options to use the mouse.",
         [

@@ -151,3 +151,16 @@ Estado: `[ ]` pendiente · `[x]` hecho.
   `get_window_draw_list()` **una vez por objetivo** y esa llamada es un singleton por frame: la
   segunda panica. Ahora se pide una sola vez y se pasa por referencia. El `catch_unwind` de 0.14.3
   evitó la pantalla negra y dejó la traza, que es lo que ha permitido cerrarlo.
+
+## [x] Wiget y ventana emergente de popups - varios (2026-10-31)
+- Mapa: no muestra mapa detras, pasar el ratón encima de las cosas no hace nada
+- Venta de pop-ups: no desaparecen los avisos a los pocos segundos (deberia autocerrar la ventana y que no tenga bordes ni nada para que parezca un pop-up + opcion en settings para simular yt mover de sitio
+- ventana de pop-ups: debería indicar lo primero en qué mapa está pasando el aviso
+- **Hecho (0.15.0):**
+  - *Mapa sin fondo ni hover*: ahora hay tablero con rejilla, borde y nombre del mapa, y al pasar el
+    ratón por un objetivo se ve dueño, alto valor, clan y hora. Las teselas reales del juego siguen
+    siendo T-29 (necesitan texturas y caché en disco); si lo que quieres es el mapa de verdad, es eso.
+  - *El pop-up no desaparecía*: el instante de recepción se recalculaba cada frame, así que nada
+    caducaba nunca. Ya se guarda con el evento: dura lo que diga el ajuste y se desvanece al final.
+    Además va sin marco, se puede arrastrar (posición guardada) y hay un botón **Probar pop-up**.
+  - *El aviso no decía el mapa*: ahora empieza por el mapa, «Eternos · Zanja de Mendon: Azul → Verde».

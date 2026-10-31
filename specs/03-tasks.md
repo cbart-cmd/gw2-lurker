@@ -81,11 +81,11 @@ Cada tarea es pequeña y verificable. Orden recomendado; las dependencias se ind
   toda la ventana. El **pop-up** se activa y desactiva desde ahí (`popup_enabled` + `popup_secs`)
   y desde las opciones de Nexus, que además ofrecen **Ver la ventana**; el pop-up se dibuja
   aunque la ventana esté cerrada. (T-13, T-17) — RF-14, RF-16, RF-19a, RF-46
-- **T-43** Enseñar en la lista de clanes el **nombre en inglés y la traducción** cuando exista.
+- **T-43 ✔ (2026-10-31)** Enseñar en la lista de clanes el **nombre en inglés y la traducción** cuando exista.
   Falta decidir el origen de la traducción: el juego no traduce nombres de clan, así que solo puede
   salir de una tabla propia (como `data/team-names.json` para equipos) o de un campo que escriba el
   usuario, reutilizando el patrón de `team_translations`. (T-37)
-- **T-44** Selector de clanes a seguir rediseñado (pedido del usuario, 2026-10-31). Hoy la lista de
+- **T-44 ✔ (2026-10-31)** Selector de clanes a seguir rediseñado (pedido del usuario, 2026-10-31). Hoy la lista de
   «clanes seguidos» de los ajustes vuelca **todos** los clanes del matchup, así que crece sin freno y
   acabará pesando. Debe quedar así:
   1. La sección enseña **solo los clanes que ya sigo**, con su `[TAG] Nombre` y un botón para dejar
@@ -105,6 +105,19 @@ Cada tarea es pequeña y verificable. Orden recomendado; las dependencias se ind
     hace que «obligatorio que sea de mi zona» no necesite configuración extra.
   Rendimiento: la búsqueda se lanza a mano (nunca por frame), con resultados acotados y cacheados
   como los nombres de clan (`catalog::resolve_guild_names`). (T-37, T-13) — RF-73, RF-31
+- **T-45** Nombres de equipo decentes. Los que hay ahora («Lutgar», traducciones literales del Excel)
+  están mal y hay que rehacerlos con los **nombres en inglés y alemán de gw2mists**
+  (`/en/teams/eu`, `/de/teams/eu`, `/en/teams/na`, `/de/teams/na`):
+  - Borrar las traducciones actuales de `data/team-names.json` y sustituirlas por las de esas
+    cuatro páginas.
+  - **Respetar siempre lo que el usuario haya escrito** en sus ajustes (`team_translations` del
+    `settings.json`): son suyas y mandan sobre cualquier tabla.
+  - **Español y francés**: si un nombre de la lista actual coincide con el inglés, se conserva esa
+    traducción; los que no se encuentren se dejan **con el nombre en inglés**, para que el usuario
+    los cambie con el campo de traducción de los ajustes.
+  - Ojo con el acceso: gw2mists responde **403 sin cabeceras de navegador** (verificado en
+    `07-spikes.md`), así que la descarga necesita `User-Agent`/`Accept` de navegador y hay que
+    comprobar la forma del HTML antes de escribir el parser. (T-30) — RF-03f
 - **T-17 ✔ (2026-10-31, parcial)** Contrato de ventana compartido en `addon::ui::window`:
   barra de título propia con `×`, plegado con doble clic, mover/redimensionar solo si no está
   bloqueada, opacidad sobre el fondo, menú contextual (bloquear, opacidad, restablecer) y
@@ -127,9 +140,9 @@ Cada tarea es pequeña y verificable. Orden recomendado; las dependencias se ind
   temporal, línea entre ellos, gris si el claim no trae hora, y anillo en el más reciente (RF-32).
   Falta el selector de rango temporal, el trazo discontinuo para `late`/`gap` (RF-33) y el tooltip
   por nodo (RF-34). (T-15) — RF-32, RF-33, RF-34
-- **T-15 (parcial)** Capa de claims sobre el mapa: los objetivos de las guilds seguidas llevan
-  anillo dorado (RF-31). Falta la etiqueta con el tag y la vista de estado por guild. (T-14, T-11)
-  — RF-31, RF-23
+- **T-15 ✔ (2026-10-31, parcial)** Capa de claims sobre el mapa: los objetivos de las guilds seguidas
+  llevan anillo dorado **y su tag** (RF-31), y el hover enseña dueño, alto valor, clan y hora. Falta
+  la vista de estado por guild (RF-23). (T-14, T-11) — RF-31, RF-23
 - **T-16** Vista Histórico: ruta simulada numerada, flechas, selector de rango, banner de "inferida", estilo para `late`/`gap`, tooltip. (T-15) — RF-32, RF-33, RF-34
 
 - **T-26 ✔ (2026-10-31)** Modo seguro: un `settings.json` ilegible se renombra a

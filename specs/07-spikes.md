@@ -275,3 +275,15 @@ Comprobado `[API]` en vivo, para el rediseño del selector de clanes (T-44).
 - **`GET /v2/wvw/guilds/:region`** (`eu`/`na`) devuelve `{ "<guild_id>": "<team_id>" }`; 282 644
   bytes para EU. Es la única fuente oficial para saber en qué equipo está un clan.
 - La región del jugador no se expone: se deduce del equipo configurado (`1-x` = NA, `2-x` = EU).
+### Notas de verificación: `/v2/guild/search` (T-44, 2026-10-31)
+
+Medido con `curl` contra la API en vivo, porque el buscador de clanes depende de esto.
+
+- **`GET /v2/guild/search?name=<palabra>`** no pide clave y devuelve ids de clan.
+- **Busca por prefijo, sin distinguir mayúsculas y solo una palabra**:
+  `name=Raven` → 1 id (de *Legends Of Ravenous…*), `name=raven` → el mismo, `name=avenous` → **[]**
+  y `name=legends+of` → **[]**. Con dos palabras no encuentra nada, así que la UI pide una.
+- `%20` y `+` dan el mismo resultado: el problema no es la codificación, es que solo acepta un
+  término.
+- `/v2/wvw/guilds/:region` sigue siendo la forma de saber de qué equipo es cada clan: 282 644 bytes
+  para EU, así que se cachea por región.

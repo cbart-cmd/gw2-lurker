@@ -1,6 +1,27 @@
 # Changelog
 Formato [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/), versionado [SemVer](https://semver.org/lang/es/).
 
+## [0.15.0] - 2026-10-31
+### Corregido
+- **El pop-up ya se va solo**: el instante de recepción se recalculaba en cada frame, así que
+  ninguna alerta envejecía nunca. Ahora se guarda con el evento, el pop-up se apaga a los segundos
+  elegidos y se desvanece en el último medio segundo.
+- **El pop-up parece un pop-up**: sin marco ni barra de título, y se puede arrastrar a donde
+  quieras (la posición se guarda). Botón **Probar pop-up** en los ajustes para colocarlo sin
+  esperar a una captura.
+- **El pop-up dice primero el mapa** de la alerta: es lo que decide si te importa.
+- **El mapa tiene fondo**: tablero oscuro con rejilla, borde y el nombre del mapa, y **al pasar el
+  ratón por un objetivo** se ve su dueño, si es de alto valor, el clan y la hora. Las teselas
+  reales siguen siendo T-29 (necesitan texturas y caché).
+### Añadido
+- **Selector de clanes a seguir rediseñado (T-44)**: la sección enseña solo los que sigues, con una
+  × para dejar de seguir; *Añadir clan* ofrece primero **los que han reclamado desde que arrancó**
+  (un clic, sin red) y un **buscador por equipo y nombre** (el equipo, obligatorio y de tu región).
+  Máximo 10.
+- **Tu nombre para cada clan (T-43)**: en la pestaña de clanes, el clan elegido tiene un campo para
+  escribir su nombre o traducción; se enseña detrás del nombre real y manda sobre la API.
+- **El tag del clan seguido** se dibuja junto a su anillo en el mapa (T-15).
+
 ## [0.14.6] - 2026-10-31
 ### Cambiado
 - La línea de carga del registro dice la **versión** (`WvW Lurker v0.14.6 cargado…`). Sin eso no habia

@@ -126,6 +126,14 @@ pub struct Config {
     /// Whether the pop-up alerts are shown at all (T-42). Separate from `popup_secs` so turning
     /// them off and on again keeps the duration the player chose.
     pub popup_enabled: bool,
+    /// Text the player wrote for a guild, per guild id (T-43).
+    ///
+    /// Guild names are not translated by the game, so the only translations that can exist are
+    /// the player's own: they win over the API name and are never overwritten by it.
+    pub guild_labels: BTreeMap<String, String>,
+    /// Where the player dragged the pop-up, `None` until it is moved (RF-19a).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub popup_pos: Option<[f32; 2]>,
     /// Language preference.
     pub language: LanguagePreference,
     /// Guilds marked as favourites (RF-73).
@@ -154,6 +162,8 @@ impl Default for Config {
             alerts: gw2lurker_core::AlertFilter::default(),
             popup_secs: 2.0,
             popup_enabled: true,
+            guild_labels: BTreeMap::new(),
+            popup_pos: None,
             language: LanguagePreference::default(),
             followed: FollowList::default(),
             widget_opacity: 0.85,

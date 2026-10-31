@@ -15,6 +15,7 @@ mod ffi;
 mod i18n;
 mod lang;
 mod net;
+mod search;
 mod team;
 mod ui;
 mod worker;

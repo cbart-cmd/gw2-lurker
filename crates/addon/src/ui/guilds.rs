@@ -50,16 +50,23 @@ pub fn body(
     ui: &Ui,
     guilds: &[GuildSummary],
     names: &std::collections::BTreeMap<String, String>,
+    labels: &mut std::collections::BTreeMap<String, String>,
     follow: &FollowList,
     current: Option<MapRole>,
     history: impl Fn(&str) -> Vec<gw2lurker_core::matchup::ClaimRow>,
 ) -> Option<Action> {
     let mut action = None;
+    // El nombre del clan no lo traduce el juego: lo que escriba el jugador manda y se enseña
+    // detrás del nombre real (T-43).
     let label = |guild: &str| {
-        names
+        let base = names
             .get(guild)
             .cloned()
-            .unwrap_or_else(|| guild.to_owned())
+            .unwrap_or_else(|| guild.to_owned());
+        match labels.get(guild) {
+            Some(own) if !own.trim().is_empty() => format!("{base}  ·  {own}"),
+            _ => base,
+        }
     };
 
     {
@@ -129,6 +136,18 @@ pub fn body(
 
         ui.separator();
         ui.text(label(&chosen));
+        // Campo libre: es la única traducción posible para un nombre de clan (T-43).
+        let mut own = labels.get(&chosen).cloned().unwrap_or_default();
+        if nexus::imgui::InputText::new(ui, "###guildlabel", &mut own)
+            .hint(i18n::text("Your name for this guild"))
+            .build()
+        {
+            if own.trim().is_empty() {
+                labels.remove(&chosen);
+            } else {
+                labels.insert(chosen.clone(), own);
+            }
+        }
         let rows = history(&chosen);
         if rows.is_empty() {
             ui.text_disabled(i18n::text("No claims yet"));

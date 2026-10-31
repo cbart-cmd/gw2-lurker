@@ -76,8 +76,12 @@ pub struct Dashboard {
     pub map_roles: std::collections::BTreeMap<u32, MapRole>,
     /// Claims seen during this session, oldest first: the guild history of ADR-012.
     pub history: Vec<ClaimRow>,
-    /// Most recent events, newest last (RF-19).
-    pub alerts: Vec<Event>,
+    /// Most recent events, newest last (RF-19), each with **when we saw it**.
+    ///
+    /// The instant is stored here and not rebuilt when the line is formatted: recomputing it
+    /// made every alert look brand new on every frame, so the pop-up never expired (bug of
+    /// 2026-10-31).
+    pub alerts: Vec<Received>,
     /// When the dashboard was last rebuilt.
     pub updated_at: Option<DateTime<Utc>>,
 }
@@ -85,7 +89,10 @@ pub struct Dashboard {
 impl Dashboard {
     fn push_alert(&mut self, event: Event) {
         if !matches!(event, Event::Baseline { .. } | Event::Gap { .. }) {
-            self.alerts.push(event);
+            self.alerts.push(Received {
+                event,
+                received: Utc::now(),
+            });
             if self.alerts.len() > MAX_ALERTS {
                 let excess = self.alerts.len() - MAX_ALERTS;
                 self.alerts.drain(..excess);
@@ -108,7 +115,7 @@ impl Dashboard {
         self.alerts
             .iter()
             .rev()
-            .filter_map(|event| self.alert_line(event))
+            .filter_map(|received| self.alert_line(&received.event, received.received))
             // What was already claimed when the addon started is not news: showing it made the
             // widget look like it never forgot anything (bug of 2026-10-31). The exception is a
             // followed guild, which is followed precisely to hear about it (RF-21, RF-25).
@@ -124,7 +131,7 @@ impl Dashboard {
             .collect()
     }
 
-    fn alert_line(&self, event: &Event) -> Option<AlertLine> {
+    fn alert_line(&self, event: &Event, received: DateTime<Utc>) -> Option<AlertLine> {
         let name = |id: &str| {
             self.objective_name(id)
                 .map(str::to_owned)
@@ -143,7 +150,6 @@ impl Dashboard {
                 })
                 .unwrap_or(MapRole::Unknown)
         };
-        let received = Utc::now();
         match event {
             Event::Flip {
                 objective,
@@ -204,6 +210,29 @@ impl Dashboard {
         matchup::guild_timeline(&self.history, guild)
     }
 
+    /// Guilds that claimed something this session, with their number of claims and the last one.
+    ///
+    /// It is what the *Add guild* panel offers first: those are the guilds the player has just
+    /// seen on screen, so following one is a click and no network (T-44).
+    pub fn session_guilds(&self) -> Vec<(String, usize, Option<DateTime<Utc>>)> {
+        let mut acc: std::collections::BTreeMap<&str, (usize, Option<DateTime<Utc>>)> =
+            std::collections::BTreeMap::new();
+        for row in &self.history {
+            let entry = acc.entry(row.guild.as_str()).or_insert((0, None));
+            entry.0 += 1;
+            if row.claimed_at > entry.1 {
+                entry.1 = row.claimed_at;
+            }
+        }
+        let mut rows: Vec<(String, usize, Option<DateTime<Utc>>)> = acc
+            .into_iter()
+            .map(|(guild, (claims, last))| (guild.to_owned(), claims, last))
+            .collect();
+        // Lo más reciente arriba: es lo que se busca al añadir.
+        rows.sort_by_key(|row| std::cmp::Reverse(row.2));
+        rows
+    }
+
     /// Human name of an objective, for the alert lines (T-13).
     pub fn objective_name(&self, id: &str) -> Option<&str> {
         self.names
@@ -240,6 +269,14 @@ pub struct AlertLine {
     pub to: Option<TeamColor>,
     /// Discovered at a baseline instead of seen live (RF-25).
     pub late: bool,
+}
+
+/// An event and the instant this addon learnt about it.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Received {
+    pub event: Event,
+    /// When the poll that found it finished; the pop-up timer runs from here (RF-19a).
+    pub received: DateTime<Utc>,
 }
 
 static DASHBOARD: OnceLock<Mutex<Dashboard>> = OnceLock::new();

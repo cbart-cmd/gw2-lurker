@@ -11,9 +11,8 @@
 
 use std::sync::Mutex;
 
-use gw2lurker_core::matchup::GuildSummary;
 use gw2lurker_core::model::{Region, TeamColor};
-use gw2lurker_core::{select, AlertFilter, Candidate, FollowList, TeamTable, MAX_FOLLOWED};
+use gw2lurker_core::{select, AlertFilter, Candidate, FollowList, TeamTable};
 use nexus::imgui::{ComboBox, Slider, StyleColor, Ui};
 
 use crate::config::{AlertScope, LanguagePreference};
@@ -82,7 +81,6 @@ pub fn body(
     ui: &Ui,
     config: &mut crate::config::Config,
     candidates: &[Candidate],
-    guilds: &[GuildSummary],
     names: &std::collections::BTreeMap<String, String>,
 ) -> Option<TeamChange> {
     let table = gw2lurker_core::bundled();
@@ -106,7 +104,7 @@ pub fn body(
     };
     let before = edits.team_id;
 
-    let save_now = draw_body(ui, table, &mut edits, candidates, guilds, names);
+    let save_now = draw_body(ui, table, &mut edits, candidates, names);
 
     remember_translation(config, edits.translation.as_str(), language);
     config.language = edits.language;
@@ -142,11 +140,10 @@ pub fn body(
 pub fn draw_inline(
     ui: &Ui,
     candidates: &[Candidate],
-    guilds: &[GuildSummary],
     names: &std::collections::BTreeMap<String, String>,
 ) -> Option<TeamChange> {
     let mut config = crate::runtime();
-    body(ui, &mut config, candidates, guilds, names)
+    body(ui, &mut config, candidates, names)
 }
 
 fn team_change(before: Option<u32>, now: Option<u32>) -> Option<TeamChange> {
@@ -191,7 +188,6 @@ fn draw_body(
     table: &TeamTable,
     edits: &mut Edits,
     candidates: &[Candidate],
-    guilds: &[GuildSummary],
     names: &std::collections::BTreeMap<String, String>,
 ) -> bool {
     // imgui puts the label to the right of the widget: cap the widget so the translated labels
@@ -227,9 +223,17 @@ fn draw_body(
     ui.input_int(i18n::widget("Poll interval"), &mut edits.poll_secs)
         .build();
     draw_scope(ui, edits);
-    let mut follow = edits.follow.clone();
-    draw_alert_filters(ui, edits, guilds, names, &mut follow);
-    edits.follow = follow;
+    draw_alert_filters(ui, edits);
+    // El selector de clanes vive en su módulo: listar y añadir es lo que crecía sin freno (T-44).
+    let session = crate::worker::dashboard().session_guilds();
+    crate::ui::follow::body(
+        ui,
+        &mut edits.follow,
+        names,
+        candidates,
+        edits.team_id,
+        &session,
+    );
 
     ui.separator();
     ui.text(i18n::text("Windows"));
@@ -241,6 +245,10 @@ fn draw_body(
         &mut edits.widget_click_through,
     );
     let popups = ui.checkbox(i18n::widget("Pop-up alerts"), &mut edits.popup_enabled);
+    ui.same_line();
+    if ui.button(i18n::widget("Test pop-up")) {
+        crate::ui::start_test_popup();
+    }
     if popups && edits.popup_enabled && edits.popup_secs <= 0.0 {
         edits.popup_secs = 2.0;
     }
@@ -264,13 +272,7 @@ fn draw_body(
 }
 
 /// Which maps and guilds deserve an alert (RF-19a), plus how long the pop-up lasts.
-fn draw_alert_filters(
-    ui: &Ui,
-    edits: &mut Edits,
-    guilds: &[GuildSummary],
-    names: &std::collections::BTreeMap<String, String>,
-    follow: &mut FollowList,
-) {
+fn draw_alert_filters(ui: &Ui, edits: &mut Edits) {
     ui.separator();
     ui.text(i18n::text("Alert on"));
     ui.checkbox(i18n::widget("Eternals"), &mut edits.alerts.ebg);
@@ -295,35 +297,6 @@ fn draw_alert_filters(
         ui.tooltip_text(i18n::text(
             "The pop-up disappears after this. The alert stays in the list.",
         ));
-    }
-
-    ui.separator();
-    let count = format!("{}/{MAX_FOLLOWED}", follow.len());
-    ui.text(i18n::format("Followed guilds ({0})", &[&count]));
-    if follow.is_full() {
-        ui.text_disabled(i18n::text(
-            "The list is full: stop following one to add another.",
-        ));
-    }
-    if guilds.is_empty() {
-        ui.text_disabled(i18n::text("No claims yet"));
-        return;
-    }
-    for summary in guilds {
-        let mut followed = follow.contains(&summary.guild);
-        // `[TAG] Nombre` cuando se conoce: un UUID no lo reconoce nadie (bug de 2026-10-31).
-        let shown = names
-            .get(&summary.guild)
-            .cloned()
-            .unwrap_or_else(|| summary.guild.clone());
-        let label = format!("{shown}###follow{}", summary.guild);
-        if ui.checkbox(label, &mut followed) {
-            if followed {
-                follow.add(&summary.guild);
-            } else {
-                follow.remove(&summary.guild);
-            }
-        }
     }
 }
 

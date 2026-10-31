@@ -29,7 +29,7 @@ struct GuildNameCache {
 }
 
 /// `[TAG] Nombre`, the way the game shows a guild.
-fn guild_label(info: &gw2lurker_api::GuildInfo) -> String {
+pub fn guild_label(info: &gw2lurker_api::GuildInfo) -> String {
     match (info.tag.trim(), info.name.trim()) {
         ("", name) => name.to_owned(),
         (tag, "") => format!("[{tag}]"),

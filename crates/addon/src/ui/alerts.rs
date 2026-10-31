@@ -96,26 +96,39 @@ pub fn popup_lines(lines: &[AlertLine], now: DateTime<Utc>, secs: f32) -> Vec<Al
         .collect()
 }
 
-/// Draws the transient pop-up, top centre of the screen.
-pub fn draw_popup(ui: &Ui, lines: &[AlertLine], opacity: f32) {
+/// Draws the transient pop-up: no frame, no title, and it can be dragged where you want it.
+///
+/// `position` is where the player left it, and comes back with the new one. The frame is gone on
+/// purpose: with borders it reads as another window instead of a pop-up (bug of 2026-10-31).
+pub fn draw_popup(
+    ui: &Ui,
+    lines: &[AlertLine],
+    opacity: f32,
+    position: &mut Option<[f32; 2]>,
+    fade: f32,
+) {
     if lines.is_empty() {
         return;
     }
     let [width, _] = ui.io().display_size;
     let language = i18n::effective();
+    let at = position.unwrap_or([(width - 420.0) / 2.0, 90.0]);
 
     Window::new(i18n::widget(POPUP_KEY))
         .title_bar(false)
+        .no_decoration()
         .resizable(false)
-        .movable(false)
+        .movable(true)
         .always_auto_resize(true)
-        .position([(width - 420.0) / 2.0, 90.0], Condition::Always)
-        .bg_alpha(opacity)
+        .position(at, Condition::FirstUseEver)
+        .bg_alpha((opacity * fade).clamp(0.0, 1.0))
         .build(ui, || {
             for line in lines {
                 draw_line(ui, line, language);
             }
         });
+
+    *position = Some(ui.window_pos());
 }
 
 fn draw_line(ui: &Ui, line: &AlertLine, language: gw2lurker_core::i18n::Language) {
@@ -134,7 +147,9 @@ fn draw_line(ui: &Ui, line: &AlertLine, language: gw2lurker_core::i18n::Language
 /// panics outside the game and would make this untestable.
 fn describe(line: &AlertLine, language: gw2lurker_core::i18n::Language) -> String {
     use gw2lurker_core::i18n::{f, t};
-    match line.kind {
+    // The map goes first: of the four, that is what tells you whether it matters to you
+    // (report of 2026-10-31). Unknown roles are left out instead of printing a placeholder.
+    let what = match line.kind {
         AlertKind::Flip => {
             let to = match line.to {
                 Some(colour) => colour_label(colour, language).to_owned(),
@@ -156,6 +171,26 @@ fn describe(line: &AlertLine, language: gw2lurker_core::i18n::Language) -> Strin
             (Some(guild), None) => f(language, "{0} released by {1}", &[&line.objective, guild]),
             (None, _) => line.objective.clone(),
         },
+    };
+    match map_name(line.map_role, language) {
+        Some(map) => f(language, "{0} · {1}", &[map, &what]),
+        None => what,
+    }
+}
+
+/// Name of the map of an alert, `None` when the id was not one of the four.
+fn map_name(
+    role: gw2lurker_core::MapRole,
+    language: gw2lurker_core::i18n::Language,
+) -> Option<&'static str> {
+    use gw2lurker_core::i18n::t;
+    use gw2lurker_core::MapRole;
+    match role {
+        MapRole::Center => Some(t(language, "Eternals")),
+        MapRole::BlueHome => Some(t(language, "Blue alpine")),
+        MapRole::GreenHome => Some(t(language, "Green alpine")),
+        MapRole::RedHome => Some(t(language, "Red desert")),
+        MapRole::Unknown => None,
     }
 }
 

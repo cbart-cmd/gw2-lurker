@@ -7,6 +7,8 @@
 //!
 //! Only draws: coordinates, owners and guilds are resolved by the worker.
 
+use std::collections::BTreeMap;
+
 use gw2lurker_core::matchup::ClaimRow;
 use gw2lurker_core::model::{MapRole, ObjectiveInfo, ObjectiveType, TeamColor, WvwMap};
 use gw2lurker_core::{project, FollowList, Frame};
@@ -38,6 +40,8 @@ pub struct View<'a> {
     pub maps: &'a [WvwMap],
     /// Guilds the player follows: their objectives get a ring (RF-31).
     pub follow: &'a FollowList,
+    /// Guild id → `[TAG] Nombre`, to label the objectives of the followed guilds (RF-31).
+    pub guild_names: &'a BTreeMap<String, String>,
     /// What the guild chosen in the *Guilds* tab claimed this session, for the route (T-16).
     pub history: &'a [ClaimRow],
 }
@@ -51,6 +55,7 @@ pub fn body(ui: &Ui, view: &View<'_>, role: &mut MapRole, here: Option<MapRole>)
         names,
         maps,
         follow,
+        guild_names,
         history,
     } = *view;
 
@@ -94,16 +99,13 @@ pub fn body(ui: &Ui, view: &View<'_>, role: &mut MapRole, here: Option<MapRole>)
     // already alive ("You can only load one instance of it!", `arcdps-imgui` draw_list.rs:103).
     // Asking for it inside the loop took the game down the first time the tab was opened
     // (reported and confirmed in `Nexus.log`, 2026-10-31).
-    let list = ui.get_window_draw_list();
-    let corner = [origin[0] + width, origin[1] + MAP_HEIGHT];
-    list.add_rect(origin, corner, [0.10, 0.11, 0.13, 0.85])
-        .filled(true)
-        .build();
-    list.add_rect(origin, corner, [0.32, 0.34, 0.38, 1.0])
-        .thickness(1.0)
-        .build();
-
     let size = [width, MAP_HEIGHT];
+    let list = ui.get_window_draw_list();
+    draw_background(&list, origin, size, &frame, map_label(*role));
+
+    // One pass to know where every objective lands: the drawing and the hover check need the
+    // same points, and asking `get_window_draw_list` twice per frame is a panic (see above).
+    let mut drawn: Vec<([f32; 2], &ObjectiveInfo, Option<&ClaimRow>)> = Vec::new();
     for objective in names.iter().filter(|objective| objective.map_id == map.id) {
         let Some(coord) = objective.coord else {
             continue; // `coord: null` se omite, no se dibuja en (0,0) (RF-30)
@@ -115,17 +117,161 @@ pub fn body(ui: &Ui, view: &View<'_>, role: &mut MapRole, here: Option<MapRole>)
             continue;
         };
         let row = rows.iter().find(|row| row.objective_id == objective.id);
+        drawn.push((point, objective, row));
+    }
+
+    // Hover: the cursor position is enough, no imgui item needed for a drawing made by hand.
+    let mouse = ui.io().mouse_pos;
+    let spots: Vec<[f32; 2]> = drawn.iter().map(|(point, ..)| *point).collect();
+    let hovered = if inside(mouse, origin, size) {
+        nearest(&spots, mouse, 12.0)
+    } else {
+        None
+    };
+
+    for (index, (point, objective, row)) in drawn.iter().enumerate() {
+        let followed = row.is_some_and(|row| follow.contains(&row.guild));
         draw_objective(
             &list,
-            point,
+            *point,
             objective.kind,
             row.and_then(|row| row.owner),
             row.is_none_or(|row| row.is_high_value()),
-            row.is_some_and(|row| follow.contains(&row.guild)),
+            followed,
         );
+        if let (true, Some(row)) = (followed, row) {
+            // El tag del clan, junto al anillo: el color no puede ser la única información (RF-31).
+            if let Some(tag) = guild_names.get(&row.guild).and_then(|label| tag_of(label)) {
+                list.add_text([point[0] + 10.0, point[1] - 6.0], FOLLOWED_RING, tag);
+            }
+        }
+        if hovered == Some(index) {
+            list.add_circle(*point, 13.0, [1.0, 1.0, 1.0, 0.9])
+                .thickness(1.5)
+                .build();
+        }
     }
 
     draw_route(&list, &frame, origin, size, map.id, names, history);
+
+    match hovered.and_then(|index| drawn.get(index)) {
+        Some((_, objective, row)) => {
+            ui.text(detail_line(objective, *row, names, follow));
+        }
+        None => ui.text_disabled(i18n::text("Point at an objective to see who holds it")),
+    }
+}
+
+/// Dark board with a grid and the map name: no textures (ADR-002), but the objectives are not
+/// floating on nothing either (report of 2026-10-31). Real tiles are T-29.
+fn draw_background(
+    list: &nexus::imgui::DrawListMut<'_>,
+    origin: [f32; 2],
+    size: [f32; 2],
+    frame: &Frame,
+    name: &str,
+) {
+    let corner = [origin[0] + size[0], origin[1] + size[1]];
+    list.add_rect(origin, corner, [0.10, 0.11, 0.13, 0.9])
+        .filled(true)
+        .build();
+
+    // A line every 512 continent units, which is a quarter of a borderland.
+    let step_x = (512.0 / (frame.x[1] - frame.x[0])) as f32 * size[0];
+    let step_y = (512.0 / (frame.y[1] - frame.y[0])) as f32 * size[1];
+    if step_x > 6.0 && step_y > 6.0 {
+        let colour = [1.0, 1.0, 1.0, 0.06];
+        let mut x = origin[0] + step_x;
+        while x < corner[0] {
+            list.add_line([x, origin[1]], [x, corner[1]], colour)
+                .build();
+            x += step_x;
+        }
+        let mut y = origin[1] + step_y;
+        while y < corner[1] {
+            list.add_line([origin[0], y], [corner[0], y], colour)
+                .build();
+            y += step_y;
+        }
+    }
+
+    list.add_rect(origin, corner, [0.32, 0.34, 0.38, 1.0])
+        .thickness(1.0)
+        .build();
+    list.add_text(
+        [origin[0] + 6.0, origin[1] + 4.0],
+        [0.75, 0.78, 0.82, 1.0],
+        name,
+    );
+}
+
+/// `[TAG] Nombre` → `TAG`, which is what fits next to a ring.
+fn tag_of(label: &str) -> Option<&str> {
+    let start = label.find('[')? + 1;
+    let end = label[start..].find(']')? + start;
+    Some(&label[start..end])
+}
+
+/// Inside the drawing area?
+fn inside(point: [f32; 2], origin: [f32; 2], size: [f32; 2]) -> bool {
+    point[0] >= origin[0]
+        && point[0] <= origin[0] + size[0]
+        && point[1] >= origin[1]
+        && point[1] <= origin[1] + size[1]
+}
+
+/// Index of the spot closest to `mouse`, if there is one within `max_distance` pixels.
+///
+/// Pure so the rule can be tested without a game: the closest wins, not the first, because two
+/// objectives can be a few pixels apart on a borderland.
+fn nearest(spots: &[[f32; 2]], mouse: [f32; 2], max_distance: f32) -> Option<usize> {
+    let mut best: Option<(usize, f32)> = None;
+    for (index, spot) in spots.iter().enumerate() {
+        let dx = spot[0] - mouse[0];
+        let dy = spot[1] - mouse[1];
+        let distance = (dx * dx + dy * dy).sqrt();
+        if distance <= max_distance && best.is_none_or(|(_, best)| distance < best) {
+            best = Some((index, distance));
+        }
+    }
+    best.map(|(index, _)| index)
+}
+
+/// One line with everything the tooltip would say.
+fn detail_line(
+    objective: &ObjectiveInfo,
+    row: Option<&ClaimRow>,
+    names: &[ObjectiveInfo],
+    follow: &FollowList,
+) -> String {
+    let _ = names;
+    let mut parts = vec![objective.name.clone()];
+    if let Some(row) = row {
+        if let Some(owner) = row.owner {
+            parts.push(
+                i18n::text(match owner {
+                    TeamColor::Red => "Red",
+                    TeamColor::Green => "Green",
+                    TeamColor::Blue => "Blue",
+                })
+                .to_owned(),
+            );
+        }
+        if row.is_high_value() {
+            parts.push(i18n::text("High value").to_owned());
+        }
+        parts.push(if follow.contains(&row.guild) {
+            format!("★ {}", row.guild)
+        } else {
+            row.guild.clone()
+        });
+        if let Some(at) = row.claimed_at {
+            parts.push(at.format("%H:%M").to_string());
+        }
+    } else {
+        parts.push(i18n::text("Unclaimed").to_owned());
+    }
+    parts.join("  ·  ")
 }
 
 /// Numbered, directed path of the chosen guild on this map (T-16, RF-32).
@@ -318,6 +464,35 @@ fn map_label(role: MapRole) -> &'static str {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn rf30_the_closest_objective_wins_the_hover() {
+        let spots = [[10.0, 10.0], [100.0, 100.0], [20.0, 12.0]];
+
+        assert_eq!(
+            nearest(&spots, [11.0, 11.0], 12.0),
+            Some(0),
+            "el más cercano, no el primero"
+        );
+        assert_eq!(nearest(&spots, [95.0, 95.0], 12.0), Some(1));
+        assert_eq!(
+            nearest(&spots, [200.0, 200.0], 12.0),
+            None,
+            "lejos de todo no hay nada que enseñar"
+        );
+        assert_eq!(nearest(&[], [0.0, 0.0], 12.0), None);
+    }
+
+    #[test]
+    fn rf30_only_the_inside_of_the_board_has_hover() {
+        let origin = [100.0, 50.0];
+        let size = [200.0, 100.0];
+
+        assert!(inside([150.0, 80.0], origin, size));
+        assert!(inside([100.0, 50.0], origin, size), "la esquina cuenta");
+        assert!(!inside([99.0, 80.0], origin, size), "a la izquierda, fuera");
+        assert!(!inside([150.0, 151.0], origin, size), "por debajo, fuera");
+    }
 
     #[test]
     fn rf30a_scoring_objectives_are_the_only_ones_drawn() {
