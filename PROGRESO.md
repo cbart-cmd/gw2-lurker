@@ -13,6 +13,28 @@ Reglas:
 
 ---
 
+## HECHO – 2026-10-31 · Live map de verdad: 5 s, ruta desde el primer minuto y avisos «solo los míos» (0.23.0)
+
+- El jugador pidió lo que hace gw2mists: lista de favoritos, seguimiento de sus reclamos mientras no
+  se reinicie el juego, ruta al clicar un favorito y avisos configurados. Tres de las cuatro ya
+  estaban (RF-73, RF-70…72, RF-19a); lo que faltaba era el **sondeo rápido**, el **historial desde el
+  baseline** y dos comodidades.
+- **Sondeo cada 5 s** (RNF-02 actualizado): el coste se arregla pidiendo **una** partida por id
+  (`match_by_id`, 44 096 B con sus cuatro mapas) en vez de `match_for_team` —que por dentro pide
+  `ids=all`, 400 KB—. Con el id conocido el gasto baja de 13 KB/s a 9 KB/s. `ids=all` queda para el
+  selector en pantalla y la detección (cada 15 min).
+- **Historial desde el baseline** (ADR-012 punto 2, que el código incumplía): `history_row` ya no
+  tira los reclamos `late`; entran con su `claimed_at` real. Los avisos siguen ignorándolos
+  (`AlertLine::late`), que era el motivo del filtro.
+- **Clic en favorito o en un aviso → pestaña Mapa** (`TabItemFlags::SET_SELECTED` en el fotograma
+  siguiente). **Flecha de dirección** en el último tramo y un solo reclamo ya dibuja punto.
+- **«Solo los clanes que sigo»**: `AlertFilter::only_followed`, una casilla.
+- Verificación: 227 tests en verde, clippy y fmt limpios, sin ficheros >800 líneas.
+- **Trampa nueva:** Nexus **sustituye** nuestra DLL en cada arranque si difiere de la publicada
+  (`UpdateProvider::Direct`). Instalar en local una versión que no esté publicada no sirve: el
+  `install.ps1` copia, pero al abrir el juego el updater vuelve a bajar la del repo. Para probar,
+  publicar.
+
 ## HECHO – 2026-10-31 · Los cuatro bugs de la bandeja, con el juego abierto como testigo (0.22.10)
 
 - Se miró `bugs.md` (el jugador lo reescribió mientras trabajábamos: «a los 10 minutos deja de
@@ -1334,6 +1356,9 @@ Leídos de `bugs.md` y diagnosticados con el `Nexus.log` y el `settings.json` re
   ventana está en `crate::runtime()`. Leer `config()` desde el render hizo que el clic derecho no
   viera el click-through, que las listas de clanes no se refrescaran y que el clic derecho no
   deshiciera nada (0.22.10).
+- **La DLL instalada no se queda**: Nexus (`UpdateProvider::Direct`) la sobrescribe en cada arranque
+  con la que haya publicada en `gw2addonsreleases`. Probar una versión local exige publicarla
+  (`scripts/release.ps1`) o desactivar la comprobación de actualización en Nexus (0.23.0).
 - MumbleLink `name` = «Guild Wars 2», **no** el personaje: el personaje está en `identity`
   (`{"name":"Jhoin",…}`). Y `shard_id` en WvW vale `0x80000001` (medido 2026-10-31): no es el mundo
   ni la partida, así que no sirve para detectar el emparejamiento.

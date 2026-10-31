@@ -1,6 +1,25 @@
 # Changelog
 Formato [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/), versionado [SemVer](https://semver.org/lang/es/).
 
+## [0.23.0] - 2026-10-31
+### Añadido
+- **Sondeo cada 5 segundos**, como la live map de gw2mists. El sondeo pide ahora **una** partida por
+  id (`/v2/wvw/matches/{id}`, ~44 KB con sus **cuatro mapas**) en vez de resolver el equipo contra
+  `ids=all` (~400 KB): a 5 s mueve menos datos por segundo que antes a 30 s. El intervalo se puede
+  subir en Ajustes (5–600 s).
+- **La ruta y el historial empiezan con lo que ya está reclamado** (ADR-012): los reclamos que
+  existen al cargar entran en el historial con su hora real, así que un clan seguido enseña su
+  ruta desde el primer minuto en vez de quedarse vacío hasta que vuelva a reclamar.
+- **Clic en un clan seguido (o en un aviso) → pestaña Mapa** con su ruta dibujada. Antes
+  seleccionaba el clan pero había que cambiar de pestaña a mano y parecía que no hacía nada.
+- **Flecha de dirección** en el último tramo de la ruta y **un solo reclamo ya se dibuja** (punto
+  numerado): es la única pista honesta de «hacia dónde va» sin inventar el recorrido (ADR-005).
+- **«Solo los clanes que sigo»**: un interruptor único en Avisos. Antes había que destildar los
+  cuatro mapas y «el mapa en el que estoy» uno a uno.
+### Cambiado
+- El atajo de *Añadir clan* se llama ahora «Con algo reclamado ahora», que es lo que enseña.
+- Incluye todo lo de la 0.22.10, que no llegó a publicarse.
+
 ## [0.22.10] - 2026-10-31
 ### Corregido
 - **Un reclamo caducado ya no pinta el anillo de un clan en un campa de otro color.** La API no
