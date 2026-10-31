@@ -144,6 +144,15 @@ Regla: si un resultado contradice la spec, no se "arregla" el código; se abre u
   - Nexus descarga a `<NexusDLL>.update` y conserva `<NexusDLL>.old` (`Nexus/Index/Index.cpp`, rutas `EPath::NexusDLL_Update` / `NexusDLL_Old`) ⇒ indicio de intercambio de fichero con respaldo. Falta ver si hace lo mismo con addons de terceros.
 - Método de detección viable: `pendiente`. Candidatos a probar en el spike: comparar fecha/tamaño de `<juego>/addons/<nombre>/*.dll` al arrancar, y confirmar si el `.old` aparece para el addon.
 
+### Notas de verificación: idioma y Ctrl derecho (2026-10-31)
+
+Comprobado `[src]` en el checkout de `nexus-rs` etiqueta 0.12.0 y en `arcdps-imgui` 0.8.0. No cambia ningún requisito; fija detalles de implementación de RF-44/RF-45.
+
+- `GameData::language` es `Result<GameLanguage, u32>` (`nexus/src/api/rtapi/game.rs`). `GameLanguage` deriva `IntoPrimitive`, así que `u32::from(game.language.ok()?)` da el código crudo: **0=English, 1=Korean, 2=French, 3=German, 4=Spanish, 5=Chinese**. Coreano y chino no tienen columna en la tabla ⇒ caen a inglés, igual que un valor futuro.
+- `RealTimeApi::get() -> Option<Self>` y `read_game(&self) -> Option<GameData>` (`nexus/src/api/rtapi/mod.rs`); `None` cuando el addon RealTime API no está instalado. No es un error: se cae a inglés.
+- `nexus::localization::set_translation(identifier, language, string)` existe y no devuelve nada (`nexus/src/api/localization.rs`); necesita `AddonApi::get()`, por lo que solo se puede llamar desde `load`.
+- **No existe** `UiState::GAME_HAS_FOCUS` en `nexus-rs` (la spec lo citaba de memoria). imgui tampoco distingue Ctrl izquierdo de derecho: solo hay `io.key_ctrl`. Por eso el override de RF-45 se lee de Win32 (`GetAsyncKeyState(VK_RCONTROL)`) y el foco se comprueba con `GetForegroundWindow` + `GetWindowThreadProcessId` comparado con `std::process::id()`, el mismo método que usa `../fight_analysis_danger/src/i18n.rs`. Ambas funciones viven en `user32`, al que se enlaza con `extern "system"`; no hace falta añadir el crate `windows`.
+
 ### Notas de verificación (fuera de los spikes; afectan a `02-design.md` §5, ADR-002/ADR-011 y ADR-010)
 
 Comprobado `[API]` el 2026-10-31 sobre los 5 mapas jugables. **No se ha cambiado la spec**; ADR-011 ya recoge el cambio.

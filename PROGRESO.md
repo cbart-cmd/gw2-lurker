@@ -26,6 +26,25 @@ Reglas:
   primera prueba para las licencias de `nexus`. Si vuelve a fallar, hay que calcular el hash
   real de los ficheros de licencia, no seguir probando variantes.
 
+## HECHO – 2026-10-31 · i18n es/en/fr/de con override de Ctrl derecho (T-31)
+
+- `core::i18n`: 36 claves indexadas por el texto inglés, columnas `[es, en, fr, de]`, `t`/`w`
+  (`###clave` para que el id de imgui no cambie al traducir) y `f` con `{0}`/`{1}`. Columna
+  vacía → inglés; clave desconocida → la propia clave. 9 tests, entre ellos el de completitud
+  de las cuatro columnas (falla si alguien añade una clave solo en un idioma).
+- `addon::i18n`: preferencia del usuario (si no es *Auto*) → `RealTimeApi::read_game().language`
+  → inglés; override a inglés mientras se mantiene Ctrl derecho con el juego en primer plano.
+  Registra las claves en Nexus con `set_translation` desde `load`.
+- `ffi::keys`: `GetAsyncKeyState(VK_RCONTROL)` y foco por proceso en primer plano, con
+  `extern "system"` contra `user32` (no se añade el crate `windows`).
+- Verificado: `clippy -D warnings` limpio, 9 tests en `core`, 8 en el addon (3 nuevos), DLL de
+  release **1 062 400 bytes** (+8,7 KB sobre la anterior) dentro del objetivo.
+- Trampa para quien siga: la spec citaba `UiState::GAME_HAS_FOCUS`, que **no existe** en
+  `nexus-rs` 0.12; lo he dejado documentado en `07-spikes.md` y corregido en `02-design.md`
+  §7c. Tampoco imgui distingue Ctrl izquierdo de derecho: de ahí Win32.
+- Pendiente: probar en juego que el cambio de idioma y el override funcionan (T-35) y la
+  revisión de terminología por nativos (T-41).
+
 ## HECHO – 2026-10-31 · Publicación automatizada de la DLL (T-34)
 
 - `scripts/release.ps1`: compila, comprueba `MZ` y tamaño (`check_size.sh`), escribe el `.md5`

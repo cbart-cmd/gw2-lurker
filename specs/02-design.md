@@ -122,14 +122,16 @@ JSON-lines, un fichero por mes: `history/2026-10.jsonl`. Una línea por evento:
 Patrón adoptado tras revisar `../fight_analysis_danger` y `../gw2-rotation-builds`.
 
 **Idioma**
-- `crates/addon/src/i18n.rs`: tabla `TEXT: &[(&str, [&str; 4])]` indexada por el texto original en inglés, columnas `[es, en, fr, de]`. Funciones `t(&str) -> &str`, `w(&str) -> String` (añade `###<clave>` para que el id de imgui sea estable al cambiar de idioma) y `f(&str, args)` con `{0}`, `{1}`.
+- `crates/core/src/i18n.rs`: tabla `TEXT: &[(&str, [&str; 4])]` indexada por el texto original en inglés, columnas `[es, en, fr, de]`. Funciones `t(&str) -> &str`, `w(&str) -> String` (añade `###<clave>` para que el id de imgui sea estable al cambiar de idioma) y `f(&str, args)` con `{0}`, `{1}`.
+  - *Implementación:* la tabla vive en `core` (no en `addon`) porque es pura y así el test de completitud corre en el job de Linux, que no compila el addon. `addon::i18n` queda como la capa que decide el idioma y añade el override de Ctrl derecho.
 - Detección, en este orden: preferencia del usuario (si no es *Auto*) → `nexus::rtapi::RealTimeApi::get().and_then(|a| a.read_game()).language` (0=en, 2=fr, 3=de, 4=es) → evento `EV_UNOFFICIAL_EXTRAS_LANGUAGE_CHANGED` → `nexus::localization::translate(...)` → inglés.
 - Se registran las claves propias con `nexus::localization::set_translation` para que Nexus traduzca lo suyo.
 - Nombres de la API: `?lang=<código>` y caché en disco **por idioma**, para que el override no necesite red.
 
 **Ctrl derecho (RF-45)**
-- `crates/addon/src/ffi/keys.rs`: `is_right_ctrl_down() -> bool` con `GetAsyncKeyState(VK_RCONTROL)` y `// SAFETY`. Es el único punto `unsafe`; el resto del addon solo ve un `bool`.
-- Se aplica si `UiState::GAME_HAS_FOCUS` (Mumble) o si el cursor está sobre una ventana del addon, para no reaccionar mientras se escribe en otra aplicación.
+- `crates/addon/src/ffi/keys.rs`: `right_ctrl_down() -> bool` con `GetAsyncKeyState(VK_RCONTROL)` y `// SAFETY`. Es el único punto `unsafe`; el resto del addon solo ve un `bool`.
+  - *Implementación:* `user32` entra por un bloque `extern "system"` con `#[link(name = "user32")]`, no por el crate `windows`: evita una dependencia nueva y la única `unsafe` sigue siendo la llamada. `GameLanguage` no distingue izquierda/derecha (imgui solo expone `io.key_ctrl`), así que la tecla se lee de Win32.
+- Se aplica si el proceso en primer plano es el nuestro (`GetForegroundWindow` + `GetWindowThreadProcessId` frente a `std::process::id()`, igual que en `../fight_analysis_danger`), para no reaccionar mientras se escribe en otra aplicación.
 - Se evalúa **cada frame** y afecta al render, no a lo persistido.
 
 **Contrato de ventana (RF-46)**

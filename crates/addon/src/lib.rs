@@ -10,6 +10,7 @@
 mod config;
 mod context;
 mod ffi;
+mod i18n;
 mod ui;
 
 use std::sync::OnceLock;
@@ -38,8 +39,9 @@ fn load() {
         log::warn!("config: {error}");
     }
     let _ = CONFIG.set(config);
+    i18n::register_translations();
     ui::register();
-    log::info!("WvW Lurker cargado");
+    log::info!("WvW Lurker cargado (idioma {})", i18n::effective().code());
 }
 
 fn unload() {

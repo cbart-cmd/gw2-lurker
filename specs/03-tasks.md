@@ -34,7 +34,14 @@ Cada tarea es pequeña y verificable. Orden recomendado; las dependencias se ind
 
 ## Fase 3 – Integración Nexus
 
-- **T-31** `i18n`: tabla es/en/fr/de, detección del idioma del juego (RTAPI + fallbacks) y override con Ctrl derecho tras `ffi/`. *Hecho:* test que recorre las claves y falla si falta una columna; el idioma cambia con Ctrl der. en el juego. (T-03) — RF-44, RF-45, RNF-08
+- **T-31 ✔ (2026-10-31, parcial)** `i18n`: tabla es/en/fr/de en `core::i18n` (36 claves),
+  funciones `t`/`w`/`f` con `###clave` para ids estables de imgui, fallback a inglés y mapa de
+  `GameLanguage` verificado en `nexus-rs` (0=en, 1=coreano, 2=fr, 3=de, 4=es, 5=chino).
+  `addon::i18n` resuelve preferencia → idioma del juego → inglés, aplica el override de Ctrl
+  derecho (`ffi::keys`, `GetAsyncKeyState` + proceso en primer plano) y registra las claves en
+  Nexus con `set_translation`. Tests: 9 en `core` (incluida la completitud de las cuatro
+  columnas), 3 en el addon. Falta la prueba en juego (T-35) y que T-41 confirme la
+  terminología de tipos con nativos. (T-03) — RF-44, RF-45, RNF-08
 
 - **T-12 ✔ (2026-10-31, parcial)** `context` + `config`: activación solo en WvW, persistencia y export real. Hecho: `export!` con `Direct` + `DisableHotloading` + URL de distribución (verificada dentro de la DLL), lectura de `NexusLink::is_gameplay` y del mapa de Mumble en `ffi/`, `config.json` con valores por defecto, saneo y copia `.corrupt-*` ante JSON dañado (5 tests), y ventana de estado mínima que respeta `core::gate`. Falta: selector de equipo (T-30), ventana de configuración (T-17) y la prueba dentro del juego (T-35). (T-01, T-05) — RF-01, RF-02, RF-02a, RF-03a/c, RF-40, RF-41
 

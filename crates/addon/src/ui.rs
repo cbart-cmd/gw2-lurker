@@ -1,11 +1,13 @@
 //! Minimal overlay for T-12: proves the wiring and gives the in-game test something to
 //! look at. The alert widget itself is T-13.
 //!
-//! Text is in English on purpose: per RF-44 the English string is the translation key,
-//! so T-31 only has to move these literals into the table.
+//! Every literal comes from the translation table through [`crate::i18n`] (RF-44); the
+//! English text is the key, so nothing here needs touching when a language changes.
 
 use nexus::gui::{register_render, render, RenderType};
 use nexus::imgui::Window;
+
+use crate::i18n;
 
 /// Registers the render callback. Must be called from `load`, never per frame.
 pub fn register() {
@@ -25,15 +27,20 @@ pub fn register() {
 fn draw_status(ui: &nexus::imgui::Ui) {
     let state = crate::context::snapshot();
     let config = crate::config();
+    let title = i18n::widget("WvW Lurker");
 
-    Window::new("WvW Lurker##gw2_lurker_status").build(ui, || {
-        ui.text(format!("map {} (type {})", state.map_id, state.map_type));
+    Window::new(title).build(ui, || {
+        let map_id = state.map_id.to_string();
+        let map_type = state.map_type.to_string();
+        ui.text(i18n::format("Map {0} (type {1})", &[&map_id, &map_type]));
+
         match config.team_id {
-            Some(id) => ui.text(format!("team {id}")),
-            None => ui.text("no team configured yet"),
+            Some(id) => ui.text(i18n::format("Team {0}", &[&id.to_string()])),
+            None => ui.text(i18n::text("No team configured yet")),
         }
-        ui.text(format!("poll every {} s", config.poll_secs));
-        ui.separator();
-        ui.text("alerts and map views land in T-13 / T-36");
+        ui.text(i18n::format(
+            "Polling every {0} s",
+            &[&config.poll_secs.to_string()],
+        ));
     });
 }

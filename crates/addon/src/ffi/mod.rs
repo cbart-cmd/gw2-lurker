@@ -1,5 +1,7 @@
 //! Reads what Nexus and Mumble expose. The only place with `unsafe`.
 
+pub mod keys;
+
 use nexus::data_link::mumble::get_mumble_link;
 
 /// `NexusLink::is_gameplay`: `false` on loading screens and character select.
