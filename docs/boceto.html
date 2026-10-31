@@ -1,0 +1,463 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>gw2-lurker · boceto de interfaz</title>
+<style>
+  :root{
+    --ink:#070a0e; --panel:#0f151c; --panel2:#141c25; --line:#22303d;
+    --text:#eef4fa; --muted:#a3b5c4; --bronze:#c9a227;
+    --red:#d0453b; --green:#4fa564; --blue:#3f86d6;
+    --shadow:0 6px 16px rgba(0,0,0,.38);
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%}
+  body{
+    background-color:var(--ink);
+    background:
+      radial-gradient(1200px 600px at 70% -10%, rgba(63,134,214,.10), transparent 60%),
+      radial-gradient(900px 500px at 10% 110%, rgba(201,162,39,.07), transparent 60%),
+      var(--ink);
+    color:var(--text);
+    font:14px/1.5 "Segoe UI",system-ui,-apple-system,sans-serif;
+  }
+  .wrap{max-width:1360px;margin:0 auto;padding:22px 22px 60px;display:grid;gap:18px;
+        grid-template-columns:minmax(0,1fr) 360px}
+  @media (max-width:1100px){ .wrap{grid-template-columns:1fr} }
+
+  /* ---------- cabecera ---------- */
+  header.top{grid-column:1/-1;display:flex;align-items:center;gap:18px;flex-wrap:wrap;
+             border-bottom:1px solid var(--line);padding-bottom:14px}
+  .brand{display:flex;align-items:center;gap:12px}
+  .crest{width:38px;height:38px;border:1px solid var(--bronze);border-radius:9px;
+         display:grid;place-items:center;font:700 15px/1 Georgia,serif;color:var(--bronze);
+         letter-spacing:.5px;background:linear-gradient(180deg,#141b24,#0b1016)}
+  .brand h1{margin:0;font:600 17px/1.1 Georgia,"Iowan Old Style",serif;letter-spacing:.2px}
+  .brand small{display:block;color:var(--muted);font-size:12px;letter-spacing:.06em;
+               margin-top:3px}
+  .meta{display:flex;gap:8px;flex-wrap:wrap;margin-left:auto}
+  .pill{border:1px solid var(--line);background:var(--panel);border-radius:999px;
+        padding:6px 12px;font-size:12.5px;color:var(--muted)}
+  .pill b{color:var(--text);font-weight:600}
+  .dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:7px;
+       background:var(--green);box-shadow:0 0 0 3px rgba(79,165,100,.16)}
+  .dot.warn{background:var(--bronze);box-shadow:0 0 0 3px rgba(201,162,39,.16)}
+
+  /* ---------- pestañas ---------- */
+  .tabs{grid-column:1/-1;display:flex;gap:6px;flex-wrap:wrap}
+  .tabs button{appearance:none;border:1px solid transparent;background:transparent;color:var(--muted);
+       padding:9px 15px;border-radius:9px;cursor:pointer;font:inherit;font-size:13.5px}
+  .tabs button:hover{color:var(--text);background:var(--panel)}
+  .tabs button[aria-selected="true"]{color:var(--text);background:var(--panel2);
+       border-color:var(--line);box-shadow:inset 0 1px 0 rgba(255,255,255,.04)}
+  .tabs button:focus-visible{outline:2px solid var(--bronze);outline-offset:2px}
+
+  /* ---------- paneles ---------- */
+  section.tab{display:none}
+  section.tab.on{display:block}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:14px;
+        padding:16px 18px;box-shadow:var(--shadow)}
+  .card + .card{margin-top:14px}
+  .card h2{margin:0 0 4px;font:600 15px/1.2 Georgia,serif;letter-spacing:.15px}
+  .card p.sub{margin:0 0 14px;color:var(--muted);font-size:12.5px}
+
+  /* ---------- alertas ---------- */
+  .alert{display:grid;grid-template-columns:26px 1fr auto;gap:12px;align-items:center;
+         padding:10px 12px;border-radius:10px;background:var(--panel2);border:1px solid var(--line)}
+  .alert + .alert{margin-top:8px}
+  .alert .glyph{width:26px;height:26px;display:grid;place-items:center;font-size:13px;
+                border-radius:7px;background:#0b1116;border:1px solid var(--line)}
+  .alert .what{font-weight:600}
+  .alert .where{color:var(--muted);font-size:12.5px}
+  .alert .when{color:var(--muted);font-size:12px;white-space:nowrap}
+  .tag{display:inline-block;padding:1px 7px;border-radius:999px;font-size:11.5px;
+       border:1px solid var(--line);color:var(--muted);margin-left:6px}
+  .tag.own{border-color:rgba(63,134,214,.5);color:#9dc4ee}
+  .tag.follow{border-color:rgba(201,162,39,.55);color:#e3cb7c}
+
+  /* ---------- mapa ---------- */
+  .toolbar{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:12px}
+  .chip{appearance:none;border:1px solid var(--line);background:var(--panel2);color:var(--muted);
+        border-radius:999px;padding:5px 12px;font:inherit;font-size:12.5px;cursor:pointer;
+        display:inline-flex;align-items:center;gap:7px}
+  .chip[aria-pressed="true"]{color:var(--text);border-color:#3b4f63;background:#1a2530}
+  .chip:focus-visible{outline:2px solid var(--bronze);outline-offset:2px}
+  .chip .shape{font-size:12px}
+  .mapbox{position:relative;border:1px solid var(--line);border-radius:12px;overflow:hidden;
+          background:radial-gradient(ellipse at 50% 45%,#101821 0%,#0a0f14 75%)}
+  .mapbox svg{display:block;width:100%;height:auto}
+  .legend{display:flex;gap:16px;flex-wrap:wrap;color:var(--muted);font-size:12px;margin-top:10px}
+  .legend span{display:inline-flex;align-items:center;gap:6px}
+  .tip{position:fixed;pointer-events:none;z-index:9;background:#0b1116;border:1px solid #33475a;
+       border-radius:9px;padding:8px 11px;font-size:12.5px;box-shadow:var(--shadow);max-width:260px;
+       opacity:0;transition:opacity .12s}
+  .tip.on{opacity:1}
+  .tip b{display:block;margin-bottom:2px}
+  .tip .k{color:var(--muted)}
+
+  /* ---------- guilds ---------- */
+  .guild{display:grid;grid-template-columns:34px 1fr auto auto;gap:12px;align-items:center;
+         padding:11px 13px;border:1px solid var(--line);border-radius:11px;background:var(--panel2);
+         cursor:pointer}
+  .guild + .guild{margin-top:8px}
+  .guild:hover{border-color:#38506a}
+  .guild.sel{border-color:var(--bronze);box-shadow:0 0 0 1px rgba(201,162,39,.25) inset}
+  .guild .tagline{font-weight:700;letter-spacing:.4px}
+  .guild .name{color:var(--muted);font-size:12.5px}
+  .guild .count{font-variant-numeric:tabular-nums;color:var(--text);font-weight:600}
+  .guild .meta2{color:var(--muted);font-size:12px;text-align:right;white-space:nowrap}
+  .star{appearance:none;background:none;border:0;color:#4a5c6d;font-size:17px;cursor:pointer;padding:4px}
+  .star[aria-pressed="true"]{color:var(--bronze)}
+  .star:focus-visible{outline:2px solid var(--bronze);outline-offset:2px;border-radius:6px}
+
+  /* ---------- historial ---------- */
+  .banner{display:flex;gap:10px;align-items:center;border:1px dashed #3b4f63;border-radius:10px;
+          padding:9px 12px;color:#c3d3e0;background:rgba(201,162,39,.06);font-size:12.5px;margin-bottom:14px}
+  .split{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+  @media (max-width:820px){ .split{grid-template-columns:1fr} }
+  .list{list-style:none;margin:0;padding:0}
+  .list li{display:grid;grid-template-columns:22px 1fr auto;gap:10px;padding:7px 0;
+           border-bottom:1px solid #1a232d;font-size:13px}
+  .list li:last-child{border-bottom:0}
+  .list .n{color:var(--bronze);font-variant-numeric:tabular-nums;font-weight:700}
+  .list .t{color:var(--muted);font-variant-numeric:tabular-nums;font-size:12.5px}
+
+  /* ---------- escenario "en el juego" ---------- */
+  aside.stage{position:sticky;top:22px;align-self:start}
+  .stage-frame{border:1px solid var(--line);border-radius:14px;overflow:hidden;box-shadow:var(--shadow)}
+  .stage-scene{position:relative;height:270px;
+     background:
+       linear-gradient(180deg,rgba(9,14,20,.35),rgba(9,14,20,.85)),
+       radial-gradient(700px 260px at 30% 20%, #1d3a4d 0%, transparent 60%),
+       radial-gradient(500px 220px at 80% 80%, #2a1d16 0%, transparent 65%),
+       #0a1118}
+  .stage-scene::after{content:"";position:absolute;inset:0;
+     background-image:linear-gradient(rgba(255,255,255,.03) 1px,transparent 1px),
+                      linear-gradient(90deg,rgba(255,255,255,.03) 1px,transparent 1px);
+     background-size:38px 38px;opacity:.5}
+  .widget{position:absolute;left:14px;top:14px;width:290px;border-radius:10px;
+          background:rgba(8,12,16,.78);border:1px solid rgba(255,255,255,.10);
+          padding:8px 10px;backdrop-filter:blur(2px)}
+  .widget .row{display:grid;grid-template-columns:16px 1fr auto;gap:8px;align-items:baseline;
+          font-size:12.5px;padding:3px 0;text-shadow:0 1px 2px rgba(0,0,0,.9)}
+  .widget .row + .row{border-top:1px solid rgba(255,255,255,.06)}
+  .widget .row .age{color:#b9c8d4;font-size:11.5px}
+  .widget .row .who{font-weight:600}
+  .controls{display:grid;grid-template-columns:1fr;gap:10px;padding:14px}
+  .controls label{display:flex;align-items:center;gap:10px;font-size:13px;color:var(--muted)}
+  .controls input[type=range]{flex:1;accent-color:var(--bronze)}
+  .controls .lock{display:flex;align-items:center;gap:9px;color:var(--text)}
+  .hint{color:var(--muted);font-size:12px;line-height:1.45}
+  .kbd{border:1px solid var(--line);border-bottom-width:2px;border-radius:6px;padding:1px 6px;
+       font-size:11.5px;color:var(--text)}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="top">
+    <div class="brand">
+      <div class="crest">GL</div>
+      <div>
+        <h1>gw2-lurker</h1>
+        <small>Boceto de interfaz · validación</small>
+      </div>
+    </div>
+    <div class="meta">
+      <div class="pill"><span class="dot"></span>polling <b>30 s</b> · hace <b id="updated">8 s</b></div>
+      <div class="pill">match <b id="match">2-2</b> · EU</div>
+      <div class="pill">mi equipo <b>Great House Aviary (12014)</b> · azul</div>
+      <div class="pill" title="El boceto usa una captura real del match, no datos en vivo">datos: captura 11:52</div>
+    </div>
+  </header>
+
+  <nav class="tabs" role="tablist" aria-label="Vistas del addon">
+    <button role="tab" aria-selected="true" data-tab="alertas">Widget de alertas</button>
+    <button role="tab" aria-selected="false" data-tab="mapa">Mapa</button>
+    <button role="tab" aria-selected="false" data-tab="guilds">Guilds</button>
+    <button role="tab" aria-selected="false" data-tab="historial">Historial</button>
+  </nav>
+
+  <main>
+    <section class="tab on" id="tab-alertas" role="tabpanel">
+      <div class="card">
+        <h2>Lo que se ve sin mirar</h2>
+        <p class="sub">Solo lo relevante, la más reciente arriba. Se desvanece a los 60 s y el widget se oculta si no hay nada.</p>
+        <div id="alerts"></div>
+      </div>
+      <div class="card">
+        <h2>Estados que debe distinguir</h2>
+        <p class="sub">Los tres salen de un solo snapshot diffeado (RF-27b), sin inventar nada.</p>
+        <div class="alert"><div class="glyph">◍</div><div><div class="what">Torre del Oeste <span class="tag">sin reclamar</span></div>
+          <div class="where">capturada hace 20 s · nadie la ha reclamado todavía</div></div><div class="when">ahora</div></div>
+        <div class="alert"><div class="glyph">◈</div><div><div class="what">Fortaleza de la Cumbre <span class="tag follow">reclamada</span></div>
+          <div class="where">por <b>SUN</b> · Crusaders Of The Sun · hace 12 min</div></div><div class="when">antigüedad</div></div>
+        <div class="alert"><div class="glyph">◇</div><div><div class="what">Campamento de la Bahía <span class="tag">claim liberado</span></div>
+          <div class="where">VK lo tenía desde las 13:04 y lo soltó</div></div><div class="when">detectado</div></div>
+      </div>
+    </section>
+
+    <section class="tab" id="tab-mapa" role="tabpanel">
+      <div class="card">
+        <h2>Mapa · Ojos de Aguas Eternas</h2>
+        <p class="sub">Forma por tipo, tamaño y contorno doble por valor. Los datos son del match 2-2 capturado hoy.</p>
+        <div class="toolbar" id="filters"></div>
+        <div class="mapbox"><svg id="map" viewBox="0 0 640 460" role="img" aria-label="Mapa esquemático de Ojos de Aguas Eternas"></svg></div>
+        <div class="legend">
+          <span>● campamento</span><span>■ torre</span><span>◆ fortaleza</span><span>★ castillo</span>
+          <span>◎ alto valor</span>
+          <span>◌ sin reclamar</span>
+          <span><i style="display:inline-block;width:9px;height:9px;border-radius:2px;background:var(--red)"></i> rojo</span>
+          <span><i style="display:inline-block;width:9px;height:9px;border-radius:2px;background:var(--green)"></i> verde</span>
+          <span><i style="display:inline-block;width:9px;height:9px;border-radius:2px;background:var(--blue)"></i> azul</span>
+        </div>
+      </div>
+    </section>
+
+    <section class="tab" id="tab-guilds" role="tabpanel">
+      <div class="card">
+        <h2>Guilds con algo reclamado</h2>
+        <p class="sub">Orden por el claim <b>más reciente</b>. La estrella la sigue y la sube arriba.</p>
+        <div id="guilds"></div>
+      </div>
+    </section>
+
+    <section class="tab" id="tab-historial" role="tabpanel">
+      <div class="card">
+        <h2 id="hist-title">Historial</h2>
+        <p class="sub">Ruta reconstruida a partir de los claims vistos, no del recorrido real.</p>
+        <div class="banner">◆ <span>Ruta <b>inferida</b>. El origen se deduce: garrison si es su mapa y lo tienen, colinas/bahía si el objetivo está al norte, respawn en el resto.</span></div>
+        <div class="mapbox" style="margin-bottom:14px"><svg id="route" viewBox="0 0 640 300" role="img" aria-label="Ruta de la guild seleccionada"></svg></div>
+        <div class="split">
+          <div><h3 style="font-size:13px;color:var(--muted);margin:0 0 8px">En este mapa</h3><ul class="list" id="here"></ul></div>
+          <div><h3 style="font-size:13px;color:var(--muted);margin:0 0 8px">En otros mapas</h3><ul class="list" id="elsewhere"></ul></div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <aside class="stage">
+    <div class="stage-frame">
+      <div class="stage-scene">
+        <div class="widget" id="widget"></div>
+      </div>
+      <div class="controls">
+        <label>Opacidad <input id="opacity" type="range" min="30" max="100" value="78"></label>
+        <label class="lock"><input id="locked" type="checkbox" checked> Bloqueado (los clics pasan al juego)</label>
+        <div class="hint">Atajo <span class="kbd">Alt</span>+<span class="kbd">Shift</span>+<span class="kbd">L</span> ·
+          mantén <span class="kbd">Ctrl der.</span> para verlo todo en inglés</div>
+      </div>
+    </div>
+  </aside>
+</div>
+
+<div class="tip" id="tip" role="status" aria-live="polite"></div>
+
+<script>
+const DATA = {"maps":{"96":{"rect":[[12798,10878],[15358,14462]],"name":" Alpine Borderlands","role":"BlueHome"},"1099":{"rect":[[9214,8958],[12286,12030]],"name":" Desert Borderlands","role":"RedHome"},"95":{"rect":[[5630,11518],[8190,15102]],"name":" Alpine Borderlands","role":"GreenHome"},"38":{"rect":[[8958,12798],[12030,15870]],"name":"Eternal Battlegrounds","role":"Center"},"968":{"rect":[[5994,8446],[9066,11518]],"name":"Edge of the Mists","role":"EdgeOfTheMists"}},"me":"Blue","match":"2-2","objectives":[{"id":"38-20","mapId":38,"name":"Veloka Slope","type":"Tower","x":11090.4,"y":13488.2,"owner":"Red","claim":"230C9E95-E509-4B3E-AAF2-A320DB7506E5","pointsTick":8},{"id":"38-10","mapId":38,"name":"Rogue's Quarry","type":"Camp","x":9570.97,"y":14423.2,"owner":"Green","claim":"C205572A-E26E-46BD-8EE0-EC5D4FAAC111","pointsTick":2},{"id":"38-9","mapId":38,"name":"Stonemist Castle","type":"Castle","x":10606.3,"y":14580.3,"owner":"Blue","claim":"457E046F-322B-45F1-B59B-9AE1EC91038B","pointsTick":12},{"id":"38-4","mapId":38,"name":"Golanta Clearing","type":"Camp","x":10202.6,"y":15437.1,"owner":"Blue","claim":null,"pointsTick":2},{"id":"38-6","mapId":38,"name":"Speldan Clearcut","type":"Camp","x":9841.05,"y":13545.8,"owner":"Green","claim":null,"pointsTick":2},{"id":"38-11","mapId":38,"name":"Aldon's Ledge","type":"Tower","x":9413.84,"y":14792.8,"owner":"Green","claim":"1DB147F0-E895-451B-B620-D8A7D279CC41","pointsTick":4},{"id":"38-12","mapId":38,"name":"Wildcreek Run","type":"Tower","x":9906.21,"y":14624.6,"owner":"Green","claim":"D2E57B4B-C309-E811-81A1-02909F6AA9AA","pointsTick":6},{"id":"38-5","mapId":38,"name":"Pangloss Rise","type":"Camp","x":11279.8,"y":13736.8,"owner":"Blue","claim":null,"pointsTick":2},{"id":"38-16","mapId":38,"name":"Quentin Lake","type":"Tower","x":10850.1,"y":15224.4,"owner":"Blue","claim":"568D7455-0BAC-478E-B014-6CE3FC7E6AD3","pointsTick":8},{"id":"38-8","mapId":38,"name":"Umberglade Woods","type":"Camp","x":11565.5,"y":14444.8,"owner":"Red","claim":null,"pointsTick":2},{"id":"38-1","mapId":38,"name":"Overlook","type":"Keep","x":10763.6,"y":13655.8,"owner":"Red","claim":"59D2F5A6-4DD4-4D23-B87A-F835FD0B73A0","pointsTick":8},{"id":"38-22","mapId":38,"name":"Bravost Escarpment","type":"Tower","x":11766.3,"y":14793.5,"owner":"Blue","claim":"666D5443-90FC-E711-81A1-06AAF25406CE","pointsTick":6},{"id":"38-17","mapId":38,"name":"Mendon's Gap","type":"Tower","x":10256.6,"y":13514.4,"owner":"Red","claim":"2F3863FF-51B4-E511-80D3-E4115BD7186D","pointsTick":6},{"id":"38-14","mapId":38,"name":"Klovan Gully","type":"Tower","x":10171.8,"y":15081.8,"owner":"Green","claim":"2B32D2BF-4F00-F011-81AB-8B4A188BDE13","pointsTick":4},{"id":"38-19","mapId":38,"name":"Ogrewatch Cut","type":"Tower","x":10965.2,"y":14054.6,"owner":"Red","claim":"4E0BFF81-26FF-473F-9E08-69B35A19D26B","pointsTick":4},{"id":"38-3","mapId":38,"name":"Lowlands","type":"Keep","x":9604.47,"y":15129.9,"owner":"Green","claim":"BFD9B5EB-1F5F-EA11-81A8-CDE2AC1EED30","pointsTick":8},{"id":"38-21","mapId":38,"name":"Durios Gulch","type":"Tower","x":11156.4,"y":14527.8,"owner":"Blue","claim":"8AE90FC1-68E8-E411-925A-AC162DAE5AD5","pointsTick":4},{"id":"38-18","mapId":38,"name":"Anzalias Pass","type":"Tower","x":10188.8,"y":14082.3,"owner":"Red","claim":"38B8D5A0-A05F-ED11-81B7-C3B1C0E42B51","pointsTick":6},{"id":"38-2","mapId":38,"name":"Valley","type":"Keep","x":11496.5,"y":15120.6,"owner":"Blue","claim":"4A4C00E4-FC70-EF11-BA1F-06F2763BE7D0","pointsTick":16},{"id":"38-7","mapId":38,"name":"Danelon Passage","type":"Camp","x":11037.9,"y":15556.2,"owner":"Green","claim":null,"pointsTick":2},{"id":"38-13","mapId":38,"name":"Jerrifer's Slough","type":"Tower","x":9805.96,"y":15406.4,"owner":"Green","claim":"7FAE80D5-4B04-E511-925A-AC162DAE5AD5","pointsTick":4},{"id":"38-15","mapId":38,"name":"Langor Gulch","type":"Tower","x":11452.7,"y":15490.7,"owner":"Blue","claim":"76E00FEB-BE7B-E411-AA11-AC162DAAE275","pointsTick":8},{"id":"1099-116","mapId":1099,"name":"Dustwhisper Well","type":"Camp","x":10754.8,"y":11854.4,"owner":"Blue","claim":null,"pointsTick":2},{"id":"1099-118","mapId":1099,"name":"Higgins's Ascent","type":"Ruins","x":10913.3,"y":11198.2,"owner":"Blue","claim":null,"pointsTick":0},{"id":"1099-114","mapId":1099,"name":"Osprey's Palace","type":"Keep","x":12203,"y":10706.2,"owner":"Red","claim":"E42D663D-8E71-4CCF-8DF9-B70AAADBAE23","pointsTick":8},{"id":"1099-99","mapId":1099,"name":"Hamm's Lab","type":"Camp","x":10743.8,"y":9492.51,"owner":"Red","claim":"E68BE9F5-6079-E811-81A8-CDE2AC1EED30","pointsTick":2},{"id":"1099-113","mapId":1099,"name":"Stoic Rampart","type":"Keep","x":10776.6,"y":10120.4,"owner":"Red","claim":"BE8841BE-3F13-457B-99D3-6E63268E542E","pointsTick":16},{"id":"1099-119","mapId":1099,"name":"Bearce's Dwelling","type":"Ruins","x":10446.7,"y":10761.6,"owner":"Green","claim":null,"pointsTick":0},{"id":"1099-115","mapId":1099,"name":"Boettiger's Hideaway","type":"Camp","x":9310.12,"y":10008,"owner":"Red","claim":"7F42B838-0109-ED11-81B7-AD7CCA945DAC","pointsTick":2},{"id":"1099-110","mapId":1099,"name":"Parched Outpost","type":"Tower","x":10243.9,"y":11331.3,"owner":"Green","claim":"17447907-4AF0-E811-81A8-E944283D67C1","pointsTick":4},{"id":"1099-106","mapId":1099,"name":"Blistering Undercroft","type":"Keep","x":9327.72,"y":10634.1,"owner":"Green","claim":"5B685EE5-7FEF-46E1-89B6-1C822FE5F5CB","pointsTick":8},{"id":"1099-122","mapId":1099,"name":"Tilly's Encampment","type":"Ruins","x":10725.3,"y":10453.5,"owner":"Green","claim":null,"pointsTick":0},{"id":"1099-105","mapId":1099,"name":"Crankshaft Depot","type":"Tower","x":11256.9,"y":11551.1,"owner":"Blue","claim":"D6B71168-3F48-EB11-81B7-AD7CCA945DAC","pointsTick":4},{"id":"1099-102","mapId":1099,"name":"O'del Academy","type":"Tower","x":9831.82,"y":9507.67,"owner":"Red","claim":"8AE90FC1-68E8-E411-925A-AC162DAE5AD5","pointsTick":6},{"id":"1099-120","mapId":1099,"name":"Zak's Overlook","type":"Ruins","x":10989.5,"y":10778.3,"owner":"Green","claim":null,"pointsTick":0},{"id":"1099-109","mapId":1099,"name":"Roy's Refuge","type":"Camp","x":12097.5,"y":10018.3,"owner":"Red","claim":"C0A152AB-3956-4F2A-AD56-F71700FA67CB","pointsTick":2},{"id":"1099-101","mapId":1099,"name":"McLain's Encampment","type":"Camp","x":9584.13,"y":11316.1,"owner":"Green","claim":"90DB47E2-A909-4FCB-9D54-4477D8627BF1","pointsTick":2},{"id":"1099-121","mapId":1099,"name":"Darra's Maze","type":"Ruins","x":10399.4,"y":11059.5,"owner":"Green","claim":null,"pointsTick":0},{"id":"1099-104","mapId":1099,"name":"Eternal Necropolis","type":"Tower","x":11739.2,"y":9654.33,"owner":"Red","claim":"6B0EC95A-0B82-46F7-BF19-C0BD3444DC26","pointsTick":6},{"id":"1099-100","mapId":1099,"name":"Bauer Farmstead","type":"Camp","x":11891.4,"y":11286.6,"owner":"Red","claim":null,"pointsTick":2},{"id":"96-53","mapId":96,"name":"Redvale Refuge","type":"Camp","x":13262.3,"y":13457.1,"owner":"Green","claim":null,"pointsTick":2},{"id":"96-40","mapId":96,"name":"Dawn's Eyrie","type":"Tower","x":14683.4,"y":12030.3,"owner":"Blue","claim":"996A9C35-99F6-ED11-8465-068565E44296","pointsTick":4},{"id":"96-35","mapId":96,"name":"Redbriar","type":"Tower","x":13688.9,"y":13339,"owner":"Blue","claim":null,"pointsTick":4},{"id":"96-36","mapId":96,"name":"Greenlake","type":"Tower","x":14581,"y":13409.9,"owner":"Blue","claim":null,"pointsTick":4},{"id":"96-33","mapId":96,"name":"Ascension Bay","type":"Keep","x":13035.1,"y":12956.6,"owner":"Blue","claim":"ED6CA44D-DAAE-E311-88E3-AC162DC0E835","pointsTick":8},{"id":"96-64","mapId":96,"name":"Bauer's Estate","type":"Ruins","x":13859.2,"y":12703.1,"owner":"Blue","claim":null,"pointsTick":0},{"id":"96-39","mapId":96,"name":"The Spiritholme","type":"Camp","x":14082.8,"y":11228.4,"owner":"Blue","claim":null,"pointsTick":2},{"id":"96-52","mapId":96,"name":"Godslore","type":"Camp","x":13211.9,"y":12195.7,"owner":"Blue","claim":null,"pointsTick":2},{"id":"96-66","mapId":96,"name":"Carver's Ascent","type":"Ruins","x":14362.3,"y":13112.1,"owner":"Blue","claim":null,"pointsTick":0},{"id":"96-34","mapId":96,"name":"Champion's Demesne","type":"Camp","x":14083.2,"y":14033.2,"owner":"Green","claim":null,"pointsTick":2},{"id":"96-32","mapId":96,"name":"Askalion Hills","type":"Keep","x":15252.2,"y":12880.7,"owner":"Blue","claim":"400D9DF0-6A7F-451C-80EA-6516CDBAB61F","pointsTick":8},{"id":"96-62","mapId":96,"name":"Temple of Lost Prayers","type":"Ruins","x":14065.1,"y":13339.5,"owner":"Blue","claim":null,"pointsTick":0},{"id":"96-51","mapId":96,"name":"Stargrove","type":"Camp","x":15025.5,"y":12168.3,"owner":"Blue","claim":null,"pointsTick":2},{"id":"96-37","mapId":96,"name":"Garrison","type":"Keep","x":14056.6,"y":12430.9,"owner":"Blue","claim":"43E7AB8E-3E08-4C65-B5E8-D7A82C11C411","pointsTick":20},{"id":"96-65","mapId":96,"name":"Orchard Overlook","type":"Ruins","x":14327.1,"y":12757,"owner":"Blue","claim":null,"pointsTick":0},{"id":"96-38","mapId":96,"name":"Woodhaven","type":"Tower","x":13444.8,"y":12078.2,"owner":"Blue","claim":"4BCC324E-096E-E511-A3E6-AC162DC0E835","pointsTick":4},{"id":"96-50","mapId":96,"name":"Greenwater Lowlands","type":"Camp","x":15015.7,"y":13502.9,"owner":"Green","claim":null,"pointsTick":2},{"id":"96-63","mapId":96,"name":"Battle's Hollow","type":"Ruins","x":13761,"y":13074.7,"owner":"Blue","claim":null,"pointsTick":0},{"id":"95-53","mapId":95,"name":"Bluevale Refuge","type":"Camp","x":6094.29,"y":14097.1,"owner":"Blue","claim":null,"pointsTick":2},{"id":"95-40","mapId":95,"name":"Cragtop","type":"Tower","x":7515.42,"y":12670.3,"owner":"Green","claim":"1DB147F0-E895-451B-B620-D8A7D279CC41","pointsTick":6},{"id":"95-35","mapId":95,"name":"Bluebriar","type":"Tower","x":6520.89,"y":13979,"owner":"Red","claim":null,"pointsTick":4},{"id":"95-36","mapId":95,"name":"Redlake","type":"Tower","x":7413.05,"y":14049.9,"owner":"Red","claim":"1AFDDC93-CDC8-E711-81A1-06AEA39922EA","pointsTick":4},{"id":"95-33","mapId":95,"name":"Dreadfall Bay","type":"Keep","x":5867.06,"y":13596.6,"owner":"Green","claim":"26960843-746A-4CA0-8580-18FEA8FA400C","pointsTick":12},{"id":"95-64","mapId":95,"name":"Gertzz's Estate","type":"Ruins","x":6691.21,"y":13343.1,"owner":"Green","claim":null,"pointsTick":0},{"id":"95-39","mapId":95,"name":"The Titanpaw","type":"Camp","x":6914.78,"y":11868.4,"owner":"Green","claim":null,"pointsTick":2},{"id":"95-52","mapId":95,"name":"Faithleap","type":"Camp","x":6043.87,"y":12835.7,"owner":"Red","claim":null,"pointsTick":2},{"id":"95-66","mapId":95,"name":"Patrick's Ascent","type":"Ruins","x":7194.27,"y":13752.1,"owner":"Green","claim":null,"pointsTick":0},{"id":"95-34","mapId":95,"name":"Hero's Lodge","type":"Camp","x":6915.25,"y":14673.2,"owner":"Red","claim":null,"pointsTick":2},{"id":"95-32","mapId":95,"name":"Shadaran Hills","type":"Keep","x":8084.25,"y":13520.7,"owner":"Green","claim":"360AADBC-47C3-E311-A53D-AC162DC028B5","pointsTick":8},{"id":"95-62","mapId":95,"name":"Temple of the Fallen","type":"Ruins","x":6897.13,"y":13979.5,"owner":"Green","claim":null,"pointsTick":0},{"id":"95-51","mapId":95,"name":"Foghaven","type":"Camp","x":7857.45,"y":12808.3,"owner":"Red","claim":"B7930BF2-69E5-4C98-9685-D994F8A4A6D0","pointsTick":2},{"id":"95-37","mapId":95,"name":"Garrison","type":"Keep","x":6888.59,"y":13070.9,"owner":"Green","claim":"615D478E-C1FA-E611-80D3-E83935B5B448","pointsTick":20},{"id":"95-65","mapId":95,"name":"Cohen's Overlook","type":"Ruins","x":7159.09,"y":13397,"owner":"Green","claim":null,"pointsTick":0},{"id":"95-38","mapId":95,"name":"Sunnyhill","type":"Tower","x":6276.77,"y":12718.2,"owner":"Green","claim":"4F1337AB-5EF8-49B6-BA22-1CE57C2415F3","pointsTick":8},{"id":"95-50","mapId":95,"name":"Redwater Lowlands","type":"Camp","x":7847.75,"y":14142.9,"owner":"Red","claim":"88B67355-CA92-EF11-81B8-D206D0C515D3","pointsTick":2},{"id":"95-63","mapId":95,"name":"Norfolk's Hollow","type":"Ruins","x":6593,"y":13714.7,"owner":"Green","claim":null,"pointsTick":0}],"claims":[{"mapId":38,"mapRole":"Center","objId":"38-20","objName":"Veloka Slope","guild":"230C9E95-E509-4B3E-AAF2-A320DB7506E5","at":"2026-10-31T07:02:24Z"},{"mapId":38,"mapRole":"Center","objId":"38-10","objName":"Rogue's Quarry","guild":"C205572A-E26E-46BD-8EE0-EC5D4FAAC111","at":"2026-10-31T10:49:46Z"},{"mapId":38,"mapRole":"Center","objId":"38-9","objName":"Stonemist Castle","guild":"457E046F-322B-45F1-B59B-9AE1EC91038B","at":"2026-10-31T10:19:30Z"},{"mapId":38,"mapRole":"Center","objId":"38-11","objName":"Aldon's Ledge","guild":"1DB147F0-E895-451B-B620-D8A7D279CC41","at":"2026-10-31T10:14:49Z"},{"mapId":38,"mapRole":"Center","objId":"38-12","objName":"Wildcreek Run","guild":"D2E57B4B-C309-E811-81A1-02909F6AA9AA","at":"2026-10-31T10:22:17Z"},{"mapId":38,"mapRole":"Center","objId":"38-16","objName":"Quentin Lake","guild":"568D7455-0BAC-478E-B014-6CE3FC7E6AD3","at":"2026-10-31T08:20:22Z"},{"mapId":38,"mapRole":"Center","objId":"38-1","objName":"Overlook","guild":"59D2F5A6-4DD4-4D23-B87A-F835FD0B73A0","at":"2026-10-31T10:35:29Z"},{"mapId":38,"mapRole":"Center","objId":"38-22","objName":"Bravost Escarpment","guild":"666D5443-90FC-E711-81A1-06AAF25406CE","at":"2026-10-31T07:45:12Z"},{"mapId":38,"mapRole":"Center","objId":"38-17","objName":"Mendon's Gap","guild":"2F3863FF-51B4-E511-80D3-E4115BD7186D","at":"2026-10-31T07:48:34Z"},{"mapId":38,"mapRole":"Center","objId":"38-14","objName":"Klovan Gully","guild":"2B32D2BF-4F00-F011-81AB-8B4A188BDE13","at":"2026-10-31T10:44:32Z"},{"mapId":38,"mapRole":"Center","objId":"38-19","objName":"Ogrewatch Cut","guild":"4E0BFF81-26FF-473F-9E08-69B35A19D26B","at":"2026-10-31T09:18:48Z"},{"mapId":38,"mapRole":"Center","objId":"38-3","objName":"Lowlands","guild":"BFD9B5EB-1F5F-EA11-81A8-CDE2AC1EED30","at":"2026-10-31T10:18:53Z"},{"mapId":38,"mapRole":"Center","objId":"38-21","objName":"Durios Gulch","guild":"8AE90FC1-68E8-E411-925A-AC162DAE5AD5","at":"2026-10-31T10:12:38Z"},{"mapId":38,"mapRole":"Center","objId":"38-18","objName":"Anzalias Pass","guild":"38B8D5A0-A05F-ED11-81B7-C3B1C0E42B51","at":"2026-10-31T08:51:20Z"},{"mapId":38,"mapRole":"Center","objId":"38-2","objName":"Valley","guild":"4A4C00E4-FC70-EF11-BA1F-06F2763BE7D0","at":"2026-10-31T05:16:00Z"},{"mapId":38,"mapRole":"Center","objId":"38-13","objName":"Jerrifer's Slough","guild":"7FAE80D5-4B04-E511-925A-AC162DAE5AD5","at":"2026-10-31T10:14:54Z"},{"mapId":38,"mapRole":"Center","objId":"38-15","objName":"Langor Gulch","guild":"76E00FEB-BE7B-E411-AA11-AC162DAAE275","at":"2026-10-31T05:11:22Z"},{"mapId":1099,"mapRole":"RedHome","objId":"1099-114","objName":"Osprey's Palace","guild":"E42D663D-8E71-4CCF-8DF9-B70AAADBAE23","at":"2026-10-31T09:45:45Z"},{"mapId":1099,"mapRole":"RedHome","objId":"1099-99","objName":"Hamm's Lab","guild":"E68BE9F5-6079-E811-81A8-CDE2AC1EED30","at":"2026-10-31T10:44:47Z"},{"mapId":1099,"mapRole":"RedHome","objId":"1099-113","objName":"Stoic Rampart","guild":"BE8841BE-3F13-457B-99D3-6E63268E542E","at":"2026-10-31T08:06:13Z"},{"mapId":1099,"mapRole":"RedHome","objId":"1099-115","objName":"Boettiger's Hideaway","guild":"7F42B838-0109-ED11-81B7-AD7CCA945DAC","at":"2026-10-31T10:51:14Z"},{"mapId":1099,"mapRole":"RedHome","objId":"1099-110","objName":"Parched Outpost","guild":"17447907-4AF0-E811-81A8-E944283D67C1","at":"2026-10-31T10:48:43Z"},{"mapId":1099,"mapRole":"RedHome","objId":"1099-106","objName":"Blistering Undercroft","guild":"5B685EE5-7FEF-46E1-89B6-1C822FE5F5CB","at":"2026-10-31T10:46:43Z"},{"mapId":1099,"mapRole":"RedHome","objId":"1099-105","objName":"Crankshaft Depot","guild":"D6B71168-3F48-EB11-81B7-AD7CCA945DAC","at":"2026-10-31T10:25:48Z"},{"mapId":1099,"mapRole":"RedHome","objId":"1099-102","objName":"O'del Academy","guild":"8AE90FC1-68E8-E411-925A-AC162DAE5AD5","at":"2026-10-31T09:20:51Z"},{"mapId":1099,"mapRole":"RedHome","objId":"1099-109","objName":"Roy's Refuge","guild":"C0A152AB-3956-4F2A-AD56-F71700FA67CB","at":"2026-10-31T10:49:27Z"},{"mapId":1099,"mapRole":"RedHome","objId":"1099-101","objName":"McLain's Encampment","guild":"90DB47E2-A909-4FCB-9D54-4477D8627BF1","at":"2026-10-31T10:32:08Z"},{"mapId":1099,"mapRole":"RedHome","objId":"1099-104","objName":"Eternal Necropolis","guild":"6B0EC95A-0B82-46F7-BF19-C0BD3444DC26","at":"2026-10-31T09:54:00Z"},{"mapId":96,"mapRole":"BlueHome","objId":"96-40","objName":"Dawn's Eyrie","guild":"996A9C35-99F6-ED11-8465-068565E44296","at":"2026-10-31T09:58:22Z"},{"mapId":96,"mapRole":"BlueHome","objId":"96-33","objName":"Ascension Bay","guild":"ED6CA44D-DAAE-E311-88E3-AC162DC0E835","at":"2026-10-31T10:12:40Z"},{"mapId":96,"mapRole":"BlueHome","objId":"96-32","objName":"Askalion Hills","guild":"400D9DF0-6A7F-451C-80EA-6516CDBAB61F","at":"2026-10-31T10:08:42Z"},{"mapId":96,"mapRole":"BlueHome","objId":"96-37","objName":"Garrison","guild":"43E7AB8E-3E08-4C65-B5E8-D7A82C11C411","at":"2026-10-30T23:57:43Z"},{"mapId":96,"mapRole":"BlueHome","objId":"96-38","objName":"Woodhaven","guild":"4BCC324E-096E-E511-A3E6-AC162DC0E835","at":"2026-10-31T10:08:41Z"},{"mapId":95,"mapRole":"GreenHome","objId":"95-40","objName":"Cragtop","guild":"1DB147F0-E895-451B-B620-D8A7D279CC41","at":"2026-10-31T08:59:02Z"},{"mapId":95,"mapRole":"GreenHome","objId":"95-36","objName":"Redlake","guild":"1AFDDC93-CDC8-E711-81A1-06AEA39922EA","at":"2026-10-31T10:30:46Z"},{"mapId":95,"mapRole":"GreenHome","objId":"95-33","objName":"Dreadfall Bay","guild":"26960843-746A-4CA0-8580-18FEA8FA400C","at":"2026-10-31T07:01:36Z"},{"mapId":95,"mapRole":"GreenHome","objId":"95-32","objName":"Shadaran Hills","guild":"360AADBC-47C3-E311-A53D-AC162DC028B5","at":"2026-10-31T08:55:17Z"},{"mapId":95,"mapRole":"GreenHome","objId":"95-51","objName":"Foghaven","guild":"B7930BF2-69E5-4C98-9685-D994F8A4A6D0","at":"2026-10-31T10:52:51Z"},{"mapId":95,"mapRole":"GreenHome","objId":"95-37","objName":"Garrison","guild":"615D478E-C1FA-E611-80D3-E83935B5B448","at":"2026-10-31T06:54:29Z"},{"mapId":95,"mapRole":"GreenHome","objId":"95-38","objName":"Sunnyhill","guild":"4F1337AB-5EF8-49B6-BA22-1CE57C2415F3","at":"2026-10-31T06:36:29Z"},{"mapId":95,"mapRole":"GreenHome","objId":"95-50","objName":"Redwater Lowlands","guild":"88B67355-CA92-EF11-81B8-D206D0C515D3","at":"2026-10-31T10:26:53Z"}],"tags":{"90DB47E2-A909-4FCB-9D54-4477D8627BF1":{"name":"Dolyaks In Disguise","tag":"DD"},"43E7AB8E-3E08-4C65-B5E8-D7A82C11C411":{"name":"Time For Tea And Biscuits","tag":"UKUS"},"4BCC324E-096E-E511-A3E6-AC162DC0E835":{"name":"Légion Eternelle","tag":"GeT"},"ED6CA44D-DAAE-E311-88E3-AC162DC0E835":{"name":"Garde Eternelle","tag":"GeT"},"26960843-746A-4CA0-8580-18FEA8FA400C":{"name":"Peacemaker Illuminati","tag":"PMI"},"C205572A-E26E-46BD-8EE0-EC5D4FAAC111":{"name":"The Farseers Brotherhood","tag":"TFB"},"7FAE80D5-4B04-E511-925A-AC162DAE5AD5":{"name":"Heroes Villains And Clowns","tag":"HVC"},"5B685EE5-7FEF-46E1-89B6-1C822FE5F5CB":{"name":"We Will Rise Again","tag":"Rise"},"D2E57B4B-C309-E811-81A1-02909F6AA9AA":{"name":"Kingdom Of The Grove","tag":"KGDM"},"4E0BFF81-26FF-473F-9E08-69B35A19D26B":{"name":"Tränen Der Ewigkeit","tag":"TdE"},"666D5443-90FC-E711-81A1-06AAF25406CE":{"name":"Proud Krauts","tag":"SAUR"},"BE8841BE-3F13-457B-99D3-6E63268E542E":{"name":"Angels Of Flowing Tears","tag":"AofT"},"4F1337AB-5EF8-49B6-BA22-1CE57C2415F3":{"name":"Kriegsgötter","tag":"Odin"},"E42D663D-8E71-4CCF-8DF9-B70AAADBAE23":{"name":"Infernals","tag":"InS"},"76E00FEB-BE7B-E411-AA11-AC162DAAE275":{"name":"We Are Slackeur","tag":"WaS"},"615D478E-C1FA-E611-80D3-E83935B5B448":{"name":"Spieler Im Rausch","tag":"SiR"},"2B32D2BF-4F00-F011-81AB-8B4A188BDE13":{"name":"Collect Your Gravity","tag":"Tax"},"B7930BF2-69E5-4C98-9685-D994F8A4A6D0":{"name":"Univers Virtuels","tag":"UV"},"457E046F-322B-45F1-B59B-9AE1EC91038B":{"name":"I Legendary Nonames I","tag":"LN"},"230C9E95-E509-4B3E-AAF2-A320DB7506E5":{"name":"Laxfarm","tag":"LAX"},"996A9C35-99F6-ED11-8465-068565E44296":{"name":"Club Hysteriques Urgentiste","tag":"CHU"},"2F3863FF-51B4-E511-80D3-E4115BD7186D":{"name":"Die Letzten Kreuzritter","tag":"Krit"},"59D2F5A6-4DD4-4D23-B87A-F835FD0B73A0":{"name":"Alliance Of Elona","tag":"AoE"},"BFD9B5EB-1F5F-EA11-81A8-CDE2AC1EED30":{"name":"All In Squadron","tag":"AIS"},"D6B71168-3F48-EB11-81B7-AD7CCA945DAC":{"name":"Schmutzbuilds E V","tag":"SBeV"},"17447907-4AF0-E811-81A8-E944283D67C1":{"name":"Dostlar Birligi","tag":"db"},"38B8D5A0-A05F-ED11-81B7-C3B1C0E42B51":{"name":"Guardians Of Memories","tag":"Soul"},"568D7455-0BAC-478E-B014-6CE3FC7E6AD3":{"name":"Dolly Jumper","tag":"DoJu"},"C0A152AB-3956-4F2A-AD56-F71700FA67CB":{"name":"Die Anmutig Reisenden Krieger","tag":"Dark"},"E68BE9F5-6079-E811-81A8-CDE2AC1EED30":{"name":"A New Name For Bomb","tag":"gub"},"1DB147F0-E895-451B-B620-D8A7D279CC41":{"name":"Crusaders Of The Sun","tag":"SUN"},"8AE90FC1-68E8-E411-925A-AC162DAE5AD5":{"name":"Vikingur","tag":"VK"},"7F42B838-0109-ED11-81B7-AD7CCA945DAC":{"name":"The Twisted Marionette","tag":"Mari"},"6B0EC95A-0B82-46F7-BF19-C0BD3444DC26":{"name":"Zimtböcke","tag":"zB"},"400D9DF0-6A7F-451C-80EA-6516CDBAB61F":{"name":"Origine Online","tag":"Oo"},"360AADBC-47C3-E311-A53D-AC162DC028B5":{"name":"Lucky Vibration","tag":"Brrr"},"88B67355-CA92-EF11-81B8-D206D0C515D3":{"name":"Please Excuse The Silly Tictocs","tag":"PEST"},"4A4C00E4-FC70-EF11-BA1F-06F2763BE7D0":{"name":"Glub Glub Glub Glub Glub","tag":"GLUB"},"1AFDDC93-CDC8-E711-81A1-06AEA39922EA":{"name":"Please Excuse The Silly Tactics","tag":"PEST"}}};
+const TYPE = {Camp:{shape:'●',label:'Campamento',r:7.5},Tower:{shape:'■',label:'Torre',r:8.5},
+               Keep:{shape:'◆',label:'Fortaleza',r:10.5},Castle:{shape:'★',label:'Castillo',r:12}};
+const EBG = '38';
+const rectOf = id => (DATA.maps[String(id)] || DATA.maps[EBG]).rect;
+const W=640,H=460,PAD=28;
+const sxIn = (rect,x) => PAD + (x-rect[0][0])/(rect[1][0]-rect[0][0])*(W-2*PAD);
+const syIn = (rect,y,h) => h-PAD - (y-rect[0][1])/(rect[1][1]-rect[0][1])*(h-2*PAD);
+const sx = x => sxIn(rectOf(EBG), x);
+const sy = y => syIn(rectOf(EBG), y, H);   // el continente crece hacia arriba
+const tagOf = g => (DATA.tags[g] || {}).tag || '#'+(g || '—').slice(0,4);
+const nameOf = g => (DATA.tags[g] || {}).name || '';
+const teamColor = t => t==='Red'?'var(--red)':t==='Green'?'var(--green)':t==='Blue'?'var(--blue)':'#7b8b99';
+
+function age(iso){
+  const d = Math.max(0,(Date.now()-Date.parse(iso))/1000);
+  if(d<60) return Math.round(d)+' s';
+  if(d<3600) return Math.round(d/60)+' min';
+  return Math.round(d/3600)+' h';
+}
+function fmt(iso){ return new Date(iso).toLocaleTimeString('es-ES',{hour:'2-digit',minute:'2-digit'}); }
+
+/* ---------- pestañas ---------- */
+document.querySelectorAll('.tabs button').forEach(b=>{
+  b.addEventListener('click',()=>{
+    document.querySelectorAll('.tabs button').forEach(x=>x.setAttribute('aria-selected', x===b));
+    document.querySelectorAll('section.tab').forEach(s=>s.classList.toggle('on', s.id==='tab-'+b.dataset.tab));
+    if(b.dataset.tab==='mapa') drawMap();
+    if(b.dataset.tab==='historial') drawRoute();
+  });
+});
+
+/* ---------- alertas: claims recientes, sin inventar ---------- */
+const recent = [...DATA.claims].sort((a,b)=>Date.parse(b.at)-Date.parse(a.at)).slice(0,4);
+document.getElementById('alerts').innerHTML = recent.map(c=>{
+  const o = DATA.objectives.find(x=>x.id===c.objId) || {};
+  const known = Object.keys(DATA.tags).includes(c.guild);
+  return `<div class="alert">
+    <div class="glyph">${(TYPE[o.type]||{}).shape||'■'}</div>
+    <div><div class="what">${o.name||c.objName} <span class="tag">${c.mapId===38?'este mapa':'mapa '+c.mapId}</span></div>
+    <div class="where">reclamado por <b>${tagOf(c.guild)}</b>${nameOf(c.guild)?' · '+nameOf(c.guild):' · nombre no en la tabla'} · hace ${age(c.at)}</div></div>
+    <div class="when">${fmt(c.at)}${known?'':' · tag desconocido'}</div></div>`;
+}).join('');
+document.getElementById('widget').innerHTML = recent.slice(0,3).map(c=>{
+  const o = DATA.objectives.find(x=>x.id===c.objId) || {};
+  return `<div class="row"><span style="color:${teamColor((o.owner||''))}">${(TYPE[o.type]||{}).shape||'■'}</span>
+    <span><span class="who">${tagOf(c.guild)}</span> · ${o.name||c.objName}</span>
+    <span class="age">${age(c.at)}</span></div>`;
+}).join('');
+
+/* ---------- controles del widget ---------- */
+const widget = document.getElementById('widget');
+document.getElementById('opacity').addEventListener('input', e=>{
+  widget.style.background = `rgba(8,12,16,${e.target.value/100})`;
+});
+document.getElementById('locked').addEventListener('change', e=>{
+  widget.style.borderColor = e.target.checked ? 'rgba(255,255,255,.10)' : 'rgba(201,162,39,.6)';
+});
+
+/* ---------- mapa ---------- */
+let active = new Set(['Camp','Tower','Keep','Castle']);
+
+document.getElementById('filters').innerHTML = Object.entries(TYPE).map(([k,v])=>
+  `<button class="chip" data-type="${k}" aria-pressed="${active.has(k)}"><span class="shape">${v.shape}</span>${v.label}</button>`
+).join('') + `<span class="hint" style="margin-left:6px">Ruinas, mercenarios y spawn no puntúan: no se dibujan</span>`;
+document.querySelectorAll('.chip[data-type]').forEach(ch=>{
+  ch.addEventListener('click',()=>{
+    const t = ch.dataset.type;
+    active.has(t) ? active.delete(t) : active.add(t);
+    ch.setAttribute('aria-pressed', active.has(t));
+    drawMap();
+  });
+});
+
+const tip = document.getElementById('tip');
+function drawMap(){
+  const svg = document.getElementById('map');
+  const pts = DATA.objectives.filter(o=>o.mapId==Number(EBG) && active.has(o.type));
+  let out = `<defs><radialGradient id="glow"><stop offset="0%" stop-color="rgba(201,162,39,.20)"/>
+             <stop offset="100%" stop-color="rgba(201,162,39,0)"/></radialGradient></defs>`;
+  out += `<rect x="${PAD}" y="${PAD}" width="${W-2*PAD}" height="${H-2*PAD}" fill="none"
+            stroke="#1d2937" stroke-width="1" rx="6"/>`;
+  pts.forEach(o=>{
+    const x=sx(o.x), y=sy(o.y), t=TYPE[o.type]||TYPE.Tower, hv=o.pointsTick>=8;
+    const col=teamColor(o.owner), size=t.r*(hv?1.25:1);
+    if(hv) out += `<circle cx="${x}" cy="${y}" r="${size*2.4}" fill="url(#glow)"/>`;
+    out += `<g class="obj" data-id="${o.id}" tabindex="0">
+      <circle cx="${x}" cy="${y}" r="${size+7}" fill="transparent"/>
+      ${hv?`<circle cx="${x}" cy="${y}" r="${size+3.5}" fill="none" stroke="${col}" stroke-width="1.3" opacity=".85"/>`:''}
+      ${!o.claim?`<circle cx="${x}" cy="${y}" r="${size+2.5}" fill="none" stroke="#5d7185"
+            stroke-width="1" stroke-dasharray="2 2.5" opacity=".9"/>`:''}
+      <text x="${x}" y="${y}" text-anchor="middle" dominant-baseline="central"
+            font-size="${size*1.9}" fill="${col}">${t.shape}</text>
+      ${o.claim?`<text x="${x}" y="${y+size+11}" text-anchor="middle" font-size="8.5"
+            fill="#c8d6e2" opacity=".9">${tagOf(o.claim)}</text>`:''}
+    </g>`;
+  });
+  svg.innerHTML = out;
+  svg.querySelectorAll('.obj').forEach(g=>{
+    const o = DATA.objectives.find(x=>x.id===g.dataset.id);
+    const show = ev=>{
+      const claimed = o.claim ? `reclamado por <b>${tagOf(o.claim)}</b> (${nameOf(o.claim)})` : 'sin reclamar';
+      tip.innerHTML = `<b>${o.name}</b>
+        <span class="k">${(TYPE[o.type]||{}).label||o.type} · alto valor: ${o.pointsTick>=8?'sí':'no'} · ${o.pointsTick} pts/tick</span>
+        dueño: ${o.owner||'neutral'}<br>${claimed}`;
+      tip.classList.add('on');
+      const r = ev.clientX ?? g.getBoundingClientRect().left;
+      tip.style.left = Math.min(r+14, innerWidth-280)+'px';
+      tip.style.top  = (ev.clientY ?? 0)+14+'px';
+    };
+    g.addEventListener('mousemove', show);
+    g.addEventListener('focus', e=>{ const r=g.getBoundingClientRect(); show({clientX:r.left, clientY:r.bottom}); });
+    g.addEventListener('mouseleave', ()=>tip.classList.remove('on'));
+    g.addEventListener('blur', ()=>tip.classList.remove('on'));
+  });
+}
+
+/* ---------- guilds ---------- */
+const byGuild = {};
+DATA.claims.forEach(c=>{
+  const g = byGuild[c.guild] ||= {id:c.guild, count:0, last:c.at, lastMap:c.mapId, objs:[]};
+  g.count++; g.objs.push(c);
+  if(Date.parse(c.at) > Date.parse(g.last)){ g.last = c.at; g.lastMap = c.mapId; }
+});
+const guilds = Object.values(byGuild).sort((a,b)=>Date.parse(b.last)-Date.parse(a.last));
+const favs = new Set();
+let selected = guilds[0]?.id ?? null;
+
+function drawGuilds(){
+  document.getElementById('guilds').innerHTML = guilds
+    .slice().sort((a,b)=>(favs.has(b.id)-favs.has(a.id)) || (Date.parse(b.last)-Date.parse(a.last)))
+    .map(g=>`<div class="guild ${g.id===selected?'sel':''}" data-id="${g.id}" tabindex="0">
+      <button class="star" aria-pressed="${favs.has(g.id)}" aria-label="seguir ${tagOf(g.id)}" data-star="${g.id}">★</button>
+      <div><div class="tagline">${tagOf(g.id)}</div><div class="name">${nameOf(g.id) || g.id.slice(0,8)+'…'}</div></div>
+      <div class="count">${g.count}</div>
+      <div class="meta2">${g.lastMap===38?'este mapa':'mapa '+g.lastMap}<br>hace ${age(g.last)}</div>
+    </div>`).join('');
+
+  document.querySelectorAll('.star').forEach(b=>{
+    b.addEventListener('click', ev=>{
+      ev.stopPropagation();
+      const id = b.dataset.star;
+      favs.has(id) ? favs.delete(id) : favs.add(id);
+      drawGuilds();
+    });
+  });
+  document.querySelectorAll('.guild').forEach(el=>{
+    const pick = ()=>{
+      selected = el.dataset.id;
+      drawGuilds(); drawRoute();
+      document.querySelector('[data-tab="historial"]').click();
+    };
+    el.addEventListener('click', pick);
+    el.addEventListener('keydown', e=>{ if(e.key==='Enter'||e.key===' '){ e.preventDefault(); pick(); } });
+  });
+}
+
+/* ---------- historial y ruta ---------- */
+function drawRoute(){
+  const g = byGuild[selected];
+  if(!g) return;
+  document.getElementById('hist-title').textContent = `Historial · ${tagOf(g.id)} (${nameOf(g.id)})`;
+  const sorted = [...g.objs].sort((a,b)=>Date.parse(a.at)-Date.parse(b.at));
+  const here = sorted.filter(c=>c.mapId===38);
+  const elsewhere = sorted.filter(c=>c.mapId!==38);
+  const rows = (arr, mapfn) => arr.length ? arr.map(mapfn).join('')
+      : '<li style="grid-template-columns:1fr;color:var(--muted)">sin claims observados</li>';
+  document.getElementById('here').innerHTML = rows(here,(c,i)=>{
+    const o = DATA.objectives.find(x=>x.id===c.objId)||{};
+    return `<li><span class="n">${i+1}</span><span>${o.name||c.objName}</span><span class="t">${fmt(c.at)}</span></li>`;
+  });
+  document.getElementById('elsewhere').innerHTML = rows(elsewhere,c=>
+    `<li><span class="n">·</span><span>${c.objName}<br><span class="t">mapa ${c.mapId}</span></span><span class="t">${fmt(c.at)}</span></li>`);
+
+  const svg = document.getElementById('route');
+  const last = [...g.objs].sort((a,b)=>Date.parse(b.at)-Date.parse(a.at))[0];
+  const mapId = last ? last.mapId : Number(EBG);
+  const rect = rectOf(mapId);
+  const mapName = (DATA.maps[String(mapId)]||{}).name || ('mapa '+mapId);
+  document.getElementById('hist-title').innerHTML =
+    `Historial · ${tagOf(g.id)} <span style="color:var(--muted);font-weight:400">(${nameOf(g.id)})</span>`
+    + `<div style="font-size:12.5px;color:var(--muted);font-weight:400;margin-top:4px">ruta en su último mapa: ${mapName}</div>`;
+  const pts = g.objs.filter(c=>c.mapId===mapId)
+    .sort((a,b)=>Date.parse(a.at)-Date.parse(b.at))
+    .map(c=>DATA.objectives.find(o=>o.id===c.objId && o.mapId===mapId))
+    .filter(Boolean);
+  if(!pts.length){ svg.innerHTML = `<text x="320" y="150" text-anchor="middle" fill="#7b8b99" font-size="13">
+      Sin coordenadas para ese mapa: no se puede dibujar la ruta.</text>`; return; }
+  const xs = pts.map(o=>sxIn(rect,o.x)), ys = pts.map(o=>syIn(rect,o.y,300));
+  let out = `<path d="M ${xs.map((x,i)=>`${x} ${ys[i]}`).join(' L ')}" fill="none"
+       stroke="#c9a227" stroke-width="1.6" stroke-dasharray="5 4" opacity=".8"/>`;
+  pts.forEach((o,i)=>{
+    const lastNode = i===pts.length-1;
+    out += `<circle cx="${xs[i]}" cy="${ys[i]}" r="${lastNode?9:7}" fill="${lastNode?'#c9a227':'#0b1116'}"
+             stroke="#c9a227" stroke-width="1.5"/>
+            <text x="${xs[i]}" y="${ys[i]+3.5}" text-anchor="middle" font-size="9"
+             fill="${lastNode?'#0b1116':'#e3cb7c'}" font-weight="700">${i+1}</text>
+            <text x="${xs[i]}" y="${ys[i]-14}" text-anchor="middle" font-size="9" fill="#9fb0bf">${o.name}</text>`;
+  });
+  svg.innerHTML = out;
+}
+
+drawGuilds(); drawMap(); drawRoute();
+</script>
+</body>
+</html>

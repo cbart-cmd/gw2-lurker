@@ -13,13 +13,27 @@ Reglas:
 
 ---
 
-## EN CURSO – 2026-10-31 · Bocetos HTML (T-32)
+## EN CURSO – 2026-10-31 · Siguiente: T-33 (gating) y validación del boceto
 
-- Objetivo: `docs/boceto.html` navegable con widget, mapa, lista de guilds e historial, con
-  datos de ejemplo reales, para validar la UI antes de escribirla en imgui.
-- Bloqueado por: la skill `impeccable` exige `PRODUCT.md` (`PRODUCT_INIT_REQUIRED`); hay
-  preguntas al usuario sin responder (superficie a validar, tono visual).
-- Siguiente: escribir `PRODUCT.md` con las respuestas y construir el HTML.
+- El boceto está hecho (ver abajo). Falta que el usuario lo mire y diga "así sí / así no".
+- Después: T-33 (`is_gameplay`) y T-39/T-36 según prioridad acordada.
+- Pendiente de decidir: coste de la feature `rtapi` de `nexus-rs` para leer el idioma del juego.
+
+## HECHO – 2026-10-31 · Bocetos HTML (T-32)
+
+- `docs/boceto.html`: una página, sin red, con cuatro pestañas (alertas, mapa, guilds,
+  historial) y una columna "en el juego" con el widget sobre un fondo simulado.
+- **Datos reales**: 76 objetivos con coordenadas de los cuatro mapas y los 41 claims del
+  match `2-2`, capturados de las fixtures. Los 39 tags de guild salen de `/v2/guild/:id`.
+- Decisiones visibles que hay que validar: tamaño y contorno doble por `points_tick`,
+  anillo discontinuo para "sin reclamar", lista de guilds por claim más reciente,
+  separación "este mapa / otros mapas" y ruta dibujada en el último mapa con su nombre.
+- `PRODUCT.md` escrito para que la skill `impeccable` tenga contexto (suposiciones marcadas).
+- Detector `impeccable detect`: corregidos texto en mayúsculas, sombra difusa con borde fino
+  y contraste del texto atenuado. Quedan avisos de tipo *slop* (radial-halo, grid) y tres
+  de contraste que son falsos positivos: el detector no resuelve el fondo oscuro que se
+  aplica con `background` + degradados; el texto real sobre `#0f151c` pasa AA de sobra.
+- No verificado: que el usuario lo encuentre útil. Es justo lo que toca preguntar.
 
 ## HECHO – 2026-10-31 · Cimiento: T-03, T-03a, T-04, T-05, T-06, T-07
 

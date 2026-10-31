@@ -37,6 +37,8 @@ Cada tarea es pequeña y verificable. Orden recomendado; las dependencias se ind
 - **T-31** `i18n`: tabla es/en/fr/de, detección del idioma del juego (RTAPI + fallbacks) y override con Ctrl derecho tras `ffi/`. *Hecho:* test que recorre las claves y falla si falta una columna; el idioma cambia con Ctrl der. en el juego. (T-03) — RF-44, RF-45, RNF-08
 
 - **T-12** `context` + `config`: activación solo en WvW, persistencia, selector de mundo. (T-01, T-05) — RF-01, RF-02, RF-03a/c, RF-40, RF-41
+
+- **T-30 (M)** `addon::ui::world_picker`: selector de **equipo** alimentado por `all_worlds` y `data/wvw-teams.json`, con `nombre (id)`, comprobación de los dos rivales y alias editable. *Hecho:* un id sin nombre se muestra como `(id)` y el usuario puede continuar. (T-05) — RF-03a, RF-03f, RF-03g
 - **T-13** Widget fijo de alertas: lista, fade, colores/formas por tipo, mover/redimensionar y persistir posición. (T-08, T-12) — RF-10, RF-16, RF-17, RF-19, RF-19a
 - **T-13b** Modo bloqueado click-through, atajo de bloqueo/desbloqueo y ventana de log ampliada. (T-13) — RF-14, RF-18
 - **T-17** Ventana de configuración completa e indicador de estado/obsoleto. (T-12) — RF-43
@@ -46,6 +48,8 @@ Cada tarea es pequeña y verificable. Orden recomendado; las dependencias se ind
 - **T-14** Proyección `world_to_screen` + mapa simplificado con colores y formas. (T-04, T-12) — RF-30
 - **T-15** Capa de claims y vista de estado por guild. (T-14, T-11) — RF-31, RF-23
 - **T-16** Vista Histórico: ruta simulada numerada, flechas, selector de rango, banner de "inferida", estilo para `late`/`gap`, tooltip. (T-15) — RF-32, RF-33, RF-34
+
+- **T-29 (S)** `map::background` y `map::icons`: fondo opcional con teselas oficiales e iconos de objetivo del campo `marker`, con caché en disco y sin empaquetar imágenes (ADR-011). Desactivado por defecto. *Hecho:* el mapa se ve igual con el fondo apagado. (T-14) — RF-37, RF-38
 
 ## Fase 4b – Actualización y fallo seguro
 
