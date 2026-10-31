@@ -120,7 +120,10 @@ pub fn draw(
         }
     });
 
-    if !state.locked && !state.click_through {
+    // The box is recorded even in click-through: it cannot be dragged there, so there is nothing
+    // to fight over, and the right-click escape needs to know where the window is (T-49). A
+    // locked window still keeps its box, so the lock cannot be undone by dragging.
+    if !state.locked {
         state.position = Some(ui.window_pos());
         if !state.collapsed {
             state.size = Some(clamp_size(ui.window_size()));

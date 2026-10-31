@@ -1,6 +1,13 @@
 # Changelog
 Formato [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/), versionado [SemVer](https://semver.org/lang/es/).
 
+## [0.17.4] - 2026-10-31
+### Corregido
+- **El clic derecho funciona a la primera**: con click-through la ventana no apuntaba su caja, así que
+  hasta haberla movido alguna vez no había dónde acertar. Ahora la caja se guarda también en
+  click-through (no se puede arrastrar allí, así que no hay nada que discutir); bloqueada se sigue
+  respetando.
+
 ## [0.17.3] - 2026-10-31
 ### Añadido
 - **El widget funciona en el Bastión del Armisticio**: antes se ocultaba por no tener objetivos. Ahora se

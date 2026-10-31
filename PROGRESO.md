@@ -13,6 +13,15 @@ Reglas:
 
 ---
 
+## HECHO – 2026-10-31 · La caja de la ventana se guarda también en click-through (0.17.4)
+
+- El clic derecho de T-49 se prueba contra la caja guardada de la ventana, y esa caja **no se
+  escribía con click-through**: hasta haber movido el widget alguna vez, el clic derecho no acertaba.
+  Ahora la caja se apunta siempre que la ventana no esté bloqueada (en click-through no se puede
+  arrastrar, así que apuntarla no le quita nada al jugador; bloqueada se sigue respetando, que era el
+  bug original de 0.14.2).
+- Verificación: 192 tests en verde, `clippy -D warnings` limpio.
+
 ## HECHO – 2026-10-31 · El widget en el Bastión y el clic derecho para salir del click-through (0.17.3)
 
 - **T-48 · el widget en el Bastión del Armisticio**: `map_type` 18 se ocultaba entero por no tener
