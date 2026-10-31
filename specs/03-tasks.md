@@ -36,7 +36,7 @@ Cada tarea es pequeña y verificable. Orden recomendado; las dependencias se ind
 
 - **T-31** `i18n`: tabla es/en/fr/de, detección del idioma del juego (RTAPI + fallbacks) y override con Ctrl derecho tras `ffi/`. *Hecho:* test que recorre las claves y falla si falta una columna; el idioma cambia con Ctrl der. en el juego. (T-03) — RF-44, RF-45, RNF-08
 
-- **T-12** `context` + `config`: activación solo en WvW, persistencia, selector de mundo. (T-01, T-05) — RF-01, RF-02, RF-03a/c, RF-40, RF-41
+- **T-12 ✔ (2026-10-31, parcial)** `context` + `config`: activación solo en WvW, persistencia y export real. Hecho: `export!` con `Direct` + `DisableHotloading` + URL de distribución (verificada dentro de la DLL), lectura de `NexusLink::is_gameplay` y del mapa de Mumble en `ffi/`, `config.json` con valores por defecto, saneo y copia `.corrupt-*` ante JSON dañado (5 tests), y ventana de estado mínima que respeta `core::gate`. Falta: selector de equipo (T-30), ventana de configuración (T-17) y la prueba dentro del juego (T-35). (T-01, T-05) — RF-01, RF-02, RF-02a, RF-03a/c, RF-40, RF-41
 
 - **T-30 (M)** `addon::ui::world_picker`: selector de **equipo** alimentado por `all_worlds` y `data/wvw-teams.json`, con `nombre (id)`, comprobación de los dos rivales y alias editable. *Hecho:* un id sin nombre se muestra como `(id)` y el usuario puede continuar. (T-05) — RF-03a, RF-03f, RF-03g
 - **T-13** Widget fijo de alertas: lista, fade, colores/formas por tipo, mover/redimensionar y persistir posición. (T-08, T-12) — RF-10, RF-16, RF-17, RF-19, RF-19a

@@ -1,0 +1,234 @@
+//! Addon configuration, stored as JSON in the addon directory (RF-41).
+//!
+//! Read once on load and never inside the render callback. A broken file is renamed to
+//! `config.json.corrupt-<fecha>` and the addon continues with defaults (the visible
+//! notice is T-26 / RF-51).
+
+use std::fs;
+use std::io;
+use std::path::PathBuf;
+
+use chrono::Utc;
+use gw2lurker_core::model::TeamColor;
+use gw2lurker_core::FollowList;
+use serde::{Deserialize, Serialize};
+
+/// Where the alerts apply (RF-12).
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum AlertScope {
+    /// Only the map the player is on.
+    #[default]
+    CurrentMap,
+    /// Every map of the matchup.
+    AllMaps,
+}
+
+/// Language preference (RF-44). `Auto` follows the game language.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum LanguagePreference {
+    #[default]
+    Auto,
+    Es,
+    En,
+    Fr,
+    De,
+}
+
+/// Everything the addon remembers between runs.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(default)]
+pub struct Config {
+    /// Configured team id (`11xxx`/`12xxx`), `None` until the user picks one (RF-03a).
+    pub team_id: Option<u32>,
+    /// Alias shown instead of the table name (RF-03f).
+    pub team_alias: Option<String>,
+    /// Polling interval in seconds; the measured default is 30 (RNF-02).
+    pub poll_secs: u32,
+    /// Where alerts apply.
+    pub alert_scope: AlertScope,
+    /// Language preference.
+    pub language: LanguagePreference,
+    /// Guilds marked as favourites (RF-73).
+    pub followed: FollowList,
+    /// Widget opacity, 0.0–1.0 (RF-46).
+    pub widget_opacity: f32,
+    /// Whether the widget is locked (RF-18).
+    pub widget_locked: bool,
+}
+
+impl Default for Config {
+    fn default() -> Self {
+        Self {
+            team_id: None,
+            team_alias: None,
+            poll_secs: 30,
+            alert_scope: AlertScope::default(),
+            language: LanguagePreference::default(),
+            followed: FollowList::default(),
+            widget_opacity: 0.85,
+            widget_locked: true,
+        }
+    }
+}
+
+impl Config {
+    /// Colour of the configured team inside the given match, if it can be resolved.
+    pub fn team_color(&self, m: &gw2lurker_core::Match) -> Option<TeamColor> {
+        let id = self.team_id?;
+        m.color_of(id)
+    }
+
+    /// Clamps values that could make the UI unusable if edited by hand.
+    fn sanitize(&mut self) {
+        self.poll_secs = self.poll_secs.clamp(15, 600);
+        self.widget_opacity = if self.widget_opacity.is_finite() {
+            self.widget_opacity.clamp(0.0, 1.0)
+        } else {
+            Config::default().widget_opacity
+        };
+    }
+}
+
+/// Directory where the addon may write, created if needed.
+pub fn addon_dir() -> io::Result<PathBuf> {
+    let dir = nexus::paths::get_addon_dir(crate::ADDON_DIR)?;
+    fs::create_dir_all(&dir)?;
+    Ok(dir)
+}
+
+/// Path of the configuration file.
+pub fn config_path() -> io::Result<PathBuf> {
+    Ok(addon_dir()?.join("config.json"))
+}
+
+/// Loads the configuration.
+///
+/// The second element explains what happened when the file had to be discarded, so the
+/// caller can log it and, later, show the safe-mode notice.
+pub fn load() -> (Config, Option<String>) {
+    let path = match config_path() {
+        Ok(path) => path,
+        Err(e) => {
+            return (
+                Config::default(),
+                Some(format!("sin directorio de addon: {e}")),
+            )
+        }
+    };
+
+    let raw = match fs::read_to_string(&path) {
+        Ok(raw) => raw,
+        Err(e) if e.kind() == io::ErrorKind::NotFound => return (Config::default(), None),
+        Err(e) => return (Config::default(), Some(format!("no se pudo leer: {e}"))),
+    };
+
+    match serde_json::from_str::<Config>(&raw) {
+        Ok(mut config) => {
+            config.sanitize();
+            (config, None)
+        }
+        Err(e) => {
+            let backup = path.with_extension(format!(
+                "json.corrupt-{}",
+                Utc::now().format("%Y%m%d-%H%M%S")
+            ));
+            let renamed = fs::rename(&path, &backup).is_ok();
+            let detail = if renamed {
+                format!("config.json dañado ({e}); copia en {}", backup.display())
+            } else {
+                format!("config.json dañado ({e}) y no se pudo conservar copia")
+            };
+            (Config::default(), Some(detail))
+        }
+    }
+}
+
+/// Writes the configuration. Called from configuration changes, never from render.
+///
+/// Nothing calls it yet: the settings window that edits values is T-17.
+#[allow(dead_code)]
+pub fn save(config: &Config) -> io::Result<()> {
+    let path = config_path()?;
+    let mut config = config.clone();
+    config.sanitize();
+    let json = serde_json::to_string_pretty(&config).map_err(io::Error::other)?;
+    fs::write(path, json)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn rf41_defaults_are_usable() {
+        let c = Config::default();
+        assert_eq!(c.team_id, None);
+        assert_eq!(c.poll_secs, 30, "RNF-02: 30 s medido");
+        assert!(c.widget_locked);
+        assert_eq!(c.alert_scope, AlertScope::CurrentMap);
+        assert_eq!(c.language, LanguagePreference::Auto);
+    }
+
+    #[test]
+    fn rf41_old_files_without_fields_still_load() {
+        let c: Config = serde_json::from_str(r#"{"team_id": 12014}"#).unwrap();
+        assert_eq!(c.team_id, Some(12014));
+        assert_eq!(
+            c.poll_secs, 30,
+            "los campos nuevos toman su valor por defecto"
+        );
+    }
+
+    #[test]
+    fn rf41_out_of_range_values_are_clamped() {
+        let mut c = Config {
+            poll_secs: 1,
+            widget_opacity: 5.0,
+            ..Config::default()
+        };
+        c.sanitize();
+        assert_eq!(c.poll_secs, 15);
+        assert_eq!(c.widget_opacity, 1.0);
+
+        let mut nan = Config {
+            widget_opacity: f32::NAN,
+            ..Config::default()
+        };
+        nan.sanitize();
+        assert_eq!(nan.widget_opacity, 0.85, "NaN no puede llegar a imgui");
+    }
+
+    #[test]
+    fn rf03b_configured_team_resolves_its_colour() {
+        const MATCH: &str = include_str!(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/../api/tests/fixtures/match_2-2.json"
+        ));
+        let m: gw2lurker_core::Match = serde_json::from_str(MATCH).unwrap();
+
+        let with_team = Config {
+            team_id: Some(12014),
+            ..Config::default()
+        };
+        assert_eq!(with_team.team_color(&m), Some(TeamColor::Blue));
+
+        assert_eq!(
+            Config::default().team_color(&m),
+            None,
+            "sin equipo no hay color"
+        );
+    }
+
+    #[test]
+    fn rf73_followed_guilds_round_trip() {
+        let mut c = Config::default();
+        c.followed.add("1DB147F0");
+
+        let json = serde_json::to_string(&c).unwrap();
+        let back: Config = serde_json::from_str(&json).unwrap();
+        assert_eq!(back, c);
+        assert!(back.followed.contains("1DB147F0"));
+    }
+}

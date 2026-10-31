@@ -22,6 +22,24 @@ Reglas:
 - **Requiere GW2**: T-12 (leer `NexusLink`/`Context`), T-35, T-01, T-02b, T-25.
 - Decidido: **sí** a la feature `rtapi` (RF-44); su coste en DLL se mide en T-02b.
 
+## HECHO – 2026-10-31 · Addon real: export, contexto y configuración (T-12 parcial)
+
+- `nexus` 0.12.0 (tag fijo) con `log`, `log_filter`, `mumble` y `rtapi`; añadido `log` y
+  `clock` de chrono. `deny.toml` gana `allow-git` para los tres repos de `zerthox`.
+- `export!` con **`UpdateProvider::Direct`**, `DisableHotloading` y la URL de
+  `gw2addonsreleases`. Comprobado dentro del binario: contiene `GetAddonDef`, "WvW Lurker",
+  `gw2_lurker.dll` y `raw.githubusercontent.com`.
+- `ffi/mod.rs` (único `unsafe`, con `SAFETY`): `is_gameplay()` por `read_volatile` y
+  `mumble_map()`. `context.rs` los convierte en el `GameState` de `core::gate`.
+- `config.rs`: JSON en `addons/gw2_lurker/config.json`, defaults, saneo de rangos (incluido
+  NaN), renombrado a `config.json.corrupt-<fecha>` si está dañado, `save()` listo para T-17.
+- Ventana de estado mínima, gateada por `core::gate`: solo se dibuja en WvW jugable.
+- **Tamaño medido: 1.053.696 bytes (1,00 MB)**, `MZ`, bajo el objetivo de 1,5 MB de ADR-008
+  y aún sin cliente HTTP. Apuntado en T-02b.
+- 61 tests (50 core + 6 store + 5 addon). Clippy en verde.
+- Trampa: `Utc::now()` exige la feature `clock` de chrono; y `log` es dependencia directa,
+  no basta con la feature de nexus.
+
 ## HECHO – 2026-10-31 · Claims tardíos con bandera `late` (T-09)
 
 - `Event::Claim` gana `late: bool`. Un baseline emite `Baseline` y después **un claim por

@@ -15,3 +15,9 @@ wildcards = "deny"
 [sources]
 unknown-registry = "deny"
 unknown-git = "deny"
+# Dependencias de `nexus-rs`: su workspace usa git para los bindings de Mumble y arcdps.
+allow-git = [
+    "https://github.com/zerthox/nexus-rs",
+    "https://github.com/zerthox/gw2-mumble-rs",
+    "https://github.com/zerthox/arcdps-rs",
+]

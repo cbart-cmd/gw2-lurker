@@ -135,6 +135,7 @@ Regla: si un resultado contradice la spec, no se "arregla" el código; se abre u
 | ureq + rustls | `pendiente` | `pendiente` |
 | ureq + TLS nativo | `pendiente` | `pendiente` |
 | otra | `pendiente` | `pendiente` |
+- **Base ya medida (2026-10-31):** con `nexus` 0.12.0 (features `log`, `log_filter`, `mumble`, `rtapi`) + ImGui y **sin cliente HTTP todavía**: **1.053.696 bytes (1,00 MB)**, PE válido (`MZ`) que exporta `GetAddonDef`. Queda 1,5 MB de objetivo menos eso para el cliente HTTP y el resto del addon.
 - Elección y motivo: `pendiente`. Requiere compilar el addon mínimo y medir (nada de esto se puede deducir de la API).
 
 ### T-25
