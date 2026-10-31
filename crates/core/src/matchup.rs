@@ -44,6 +44,22 @@ impl ClaimRow {
     }
 }
 
+/// Whether the guild that claimed the objective still holds it.
+///
+/// The API keeps `claimed_by` after the objective changes hands: only a **new guild claim**
+/// replaces it. So a claim is stale as soon as the objective flipped after the claim was made
+/// (`last_flipped` later than `claimed_at`), and listing it paints a guild's ring on a camp of
+/// another colour — exactly what the player saw on 2026-10-31 («el mapa ponía que YaK tenía
+/// reclamado un campa que en verdad era de otro color»).
+fn claim_holds(objective: &crate::model::MatchObjective) -> bool {
+    match (objective.claimed_at, objective.last_flipped) {
+        (Some(claimed), Some(flipped)) => flipped <= claimed,
+        // Without both stamps the claim cannot be dated, so it is kept: dropping it would hide
+        // claims the API simply did not date.
+        _ => true,
+    }
+}
+
 /// Flattens every claimed objective of the match (RF-70).
 ///
 /// Ordering is `(map id, objective id)` so the same snapshot always produces the same
@@ -55,19 +71,22 @@ pub fn claims(m: &Match, names: &[ObjectiveInfo]) -> Vec<ClaimRow> {
         .maps
         .iter()
         .flat_map(|map| {
-            map.objectives.iter().filter_map(|o| {
-                o.claimed_by.as_ref().map(|guild| ClaimRow {
-                    map_id: map.id,
-                    map_role: map.role,
-                    objective_id: o.id.clone(),
-                    name: by_id.get(o.id.as_str()).map(|i| i.name.clone()),
-                    kind: o.kind,
-                    owner: o.owner,
-                    guild: guild.clone(),
-                    claimed_at: o.claimed_at,
-                    points_tick: o.points_tick,
+            map.objectives
+                .iter()
+                .filter(|o| claim_holds(o))
+                .filter_map(|o| {
+                    o.claimed_by.as_ref().map(|guild| ClaimRow {
+                        map_id: map.id,
+                        map_role: map.role,
+                        objective_id: o.id.clone(),
+                        name: by_id.get(o.id.as_str()).map(|i| i.name.clone()),
+                        kind: o.kind,
+                        owner: o.owner,
+                        guild: guild.clone(),
+                        claimed_at: o.claimed_at,
+                        points_tick: o.points_tick,
+                    })
                 })
-            })
         })
         .collect();
 
@@ -199,6 +218,72 @@ mod tests {
             serde_json::from_str(MATCH).unwrap(),
             serde_json::from_str(OBJECTIVES).unwrap(),
         )
+    }
+
+    #[test]
+    fn rf70_a_claim_that_flipped_away_is_not_listed() {
+        // La API no borra `claimed_by` al cambiar el color: solo un **nuevo reclamo** lo
+        // sustituye. Si el objetivo dio la vuelta después del reclamo, el clan ya no lo tiene y
+        // pintarlo deja un anillo en un campa de otro color (informe de 2026-10-31).
+        let json = r#"{
+            "id": "1-1",
+            "scores": {"green": 0, "blue": 0, "red": 0},
+            "all_worlds": {"green": [], "blue": [], "red": []},
+            "maps": [{
+                "id": 38,
+                "type": "Center",
+                "objectives": [
+                    {"id": "38-1", "type": "Camp", "owner": "Blue",
+                     "claimed_by": "AAAA", "claimed_at": "2026-10-31T22:02:34Z",
+                     "last_flipped": "2026-10-31T22:02:32Z"},
+                    {"id": "38-2", "type": "Camp", "owner": "Red",
+                     "claimed_by": "AAAA", "claimed_at": "2026-10-31T20:00:00Z",
+                     "last_flipped": "2026-10-31T21:30:00Z"},
+                    {"id": "38-3", "type": "Camp", "owner": "Green",
+                     "claimed_by": "BBBB"}
+                ]
+            }]
+        }"#;
+        let m: Match = serde_json::from_str(json).unwrap();
+        let rows = claims(&m, &[]);
+
+        let ids: Vec<&str> = rows.iter().map(|r| r.objective_id.as_str()).collect();
+        assert_eq!(
+            ids,
+            ["38-1", "38-3"],
+            "38-2 se dio la vuelta después del reclamo; 38-3 no tiene fechas y se queda"
+        );
+        assert!(
+            rows.iter()
+                .all(|r| r.guild != "AAAA" || r.objective_id == "38-1"),
+            "un reclamo caducado no debe aparecer ni como fila del clan"
+        );
+    }
+
+    #[test]
+    fn rf70_the_fixture_claims_are_all_current() {
+        // Invariante de los datos reales: en la fixture el reclamo es posterior a la captura.
+        // Si algún día no lo es, este test lo dice antes de que la lista se vacíe sin motivo.
+        let (m, names) = fixture();
+        let claimed: Vec<_> = m
+            .maps
+            .iter()
+            .flat_map(|map| &map.objectives)
+            .filter(|o| o.claimed_by.is_some())
+            .collect();
+        assert!(!claimed.is_empty());
+        for objective in claimed {
+            if let (Some(claimed_at), Some(flipped)) =
+                (objective.claimed_at, objective.last_flipped)
+            {
+                assert!(
+                    flipped <= claimed_at,
+                    "{} se capturó después de reclamarse: regla o fixture, una de las dos está mal",
+                    objective.id
+                );
+            }
+        }
+        assert_eq!(claims(&m, &names).len(), 41, "la fixture no pierde filas");
     }
 
     #[test]

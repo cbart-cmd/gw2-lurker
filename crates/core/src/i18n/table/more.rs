@@ -424,4 +424,22 @@ pub const TEXT: &[(&str, [&str; COLUMNS])] = &[
             "Weg aus Beanspruchungen abgeleitet; nicht der tatsächliche Verlauf.",
         ],
     ),
+    (
+        "{0} · you already follow it",
+        [
+            "{0} · ya lo sigues",
+            "{0} · you already follow it",
+            "{0} · vous la suivez déjà",
+            "{0} · du folgst ihr schon",
+        ],
+    ),
+    (
+        "The API has nothing else by that name; the guild you already follow is above.",
+        [
+            "El API no tiene nada más con ese nombre; el clan que ya sigues está arriba.",
+            "The API has nothing else by that name; the guild you already follow is above.",
+            "L'API n'a rien d'autre sous ce nom ; la guilde que vous suivez déjà est au-dessus.",
+            "Die API hat nichts weiter unter diesem Namen; die bereits gefolgte Gilde steht oben.",
+        ],
+    ),
 ];
