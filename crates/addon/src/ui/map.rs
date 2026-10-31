@@ -140,6 +140,13 @@ pub fn body(ui: &Ui, view: &View<'_>, role: &mut MapRole, here: Option<MapRole>)
         None
     };
 
+    // El detalle del objetivo se pinta **encima del ratón**: la línea de abajo obligaba a hacer
+    // scroll para leerla (informe de 2026-10-31). Se calcula aquí porque necesita `ui`, y se
+    // dibuja dentro del recorte del mapa, que es donde está el ratón.
+    let hover_text = hovered
+        .and_then(|index| drawn.get(index))
+        .map(|(_, objective, row)| detail_line(objective, *row, guild_names, follow));
+
     let since =
         range_choice(ui).map(|minutes| chrono::Utc::now() - chrono::Duration::minutes(minutes));
     // Reproducción animada de la ruta (RF-36): play/pausa y una barra de progreso. Sin reproducir
@@ -198,13 +205,33 @@ pub fn body(ui: &Ui, view: &View<'_>, role: &mut MapRole, here: Option<MapRole>)
             since,
             played,
         );
+
+        if let Some(text) = &hover_text {
+            let [text_w, text_h] = ui.calc_text_size(text);
+            let pad = 4.0;
+            // Pegado al ratón, pero sin salirse del mapa: el recorte se lo comería.
+            let x = (mouse[0] + 14.0)
+                .min(origin[0] + size[0] - text_w - pad)
+                .max(origin[0] + pad);
+            let y = (mouse[1] + 12.0)
+                .min(origin[1] + size[1] - text_h - pad)
+                .max(origin[1] + pad);
+            let at = [x, y];
+            list.add_rect(
+                [at[0] - pad, at[1] - pad],
+                [at[0] + text_w + pad, at[1] + text_h + pad],
+                [0.02, 0.02, 0.03, 0.85],
+            )
+            .filled(true)
+            .build();
+            list.add_text(at, [1.0, 1.0, 1.0, 1.0], text);
+        }
     });
 
-    match hovered.and_then(|index| drawn.get(index)) {
-        Some((_, objective, row)) => {
-            ui.text(detail_line(objective, *row, guild_names, follow));
-        }
-        None => ui.text_disabled(i18n::text("Point at an objective to see who holds it")),
+    // Con el ratón sobre un objetivo el detalle ya va encima de él; abajo solo queda la pista,
+    // para que no se lea dos veces y para no empujar la ventana hacia abajo.
+    if hover_text.is_none() {
+        ui.text_disabled(i18n::text("Point at an objective to see who holds it"));
     }
 }
 
@@ -694,83 +721,4 @@ pub(super) fn map_label(role: MapRole) -> &'static str {
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn rf30_the_map_keeps_the_real_proportions() {
-        // Frontera alpina: 2560×3584 en `/v2/maps`, así que es 1,4 veces más alta que ancha.
-        let alps = Frame {
-            x: [0.0, 2560.0],
-            y: [0.0, 3584.0],
-        };
-        let [w, h] = map_size(&alps, [400.0, 2000.0]);
-        assert!((h / w - 1.4).abs() < 0.01, "sale {w}×{h}");
-
-        // Eternos es cuadrada.
-        let eternals = Frame {
-            x: [8958.0, 12030.0],
-            y: [12798.0, 15870.0],
-        };
-        let [w, h] = map_size(&eternals, [400.0, 2000.0]);
-        assert!((h / w - 1.0).abs() < 0.01, "sale {w}×{h}");
-
-        // Si no hay proporción que valga, el tamaño de siempre.
-        let flat = Frame {
-            x: [0.0, 100.0],
-            y: [0.0, 100.0],
-        };
-        assert_eq!(map_size(&flat, [300.0, 1000.0]), [300.0, 300.0]);
-    }
-
-    #[test]
-    fn rf30_the_closest_objective_wins_the_hover() {
-        let spots = [[10.0, 10.0], [100.0, 100.0], [20.0, 12.0]];
-
-        assert_eq!(
-            nearest(&spots, [11.0, 11.0], 12.0),
-            Some(0),
-            "el más cercano, no el primero"
-        );
-        assert_eq!(nearest(&spots, [95.0, 95.0], 12.0), Some(1));
-        assert_eq!(
-            nearest(&spots, [200.0, 200.0], 12.0),
-            None,
-            "lejos de todo no hay nada que enseñar"
-        );
-        assert_eq!(nearest(&[], [0.0, 0.0], 12.0), None);
-    }
-
-    #[test]
-    fn rf30_only_the_inside_of_the_board_has_hover() {
-        let origin = [100.0, 50.0];
-        let size = [200.0, 100.0];
-
-        assert!(inside([150.0, 80.0], origin, size));
-        assert!(inside([100.0, 50.0], origin, size), "la esquina cuenta");
-        assert!(!inside([99.0, 80.0], origin, size), "a la izquierda, fuera");
-        assert!(!inside([150.0, 151.0], origin, size), "por debajo, fuera");
-    }
-
-    #[test]
-    fn rf30a_scoring_objectives_are_the_only_ones_drawn() {
-        for kind in [
-            ObjectiveType::Camp,
-            ObjectiveType::Tower,
-            ObjectiveType::Keep,
-            ObjectiveType::Castle,
-        ] {
-            assert!(is_drawable(kind), "{kind:?} puntúa");
-        }
-        for kind in [
-            ObjectiveType::Ruins,
-            ObjectiveType::Mercenary,
-            ObjectiveType::Spawn,
-            ObjectiveType::Resource,
-            ObjectiveType::Generic,
-            ObjectiveType::Unknown,
-        ] {
-            assert!(!is_drawable(kind), "{kind:?} no se dibuja por defecto");
-        }
-    }
-}
+mod tests;

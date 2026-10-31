@@ -1,6 +1,17 @@
 # Changelog
 Formato [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/), versionado [SemVer](https://semver.org/lang/es/).
 
+## [0.22.4] - 2026-10-31
+### Corregido
+- **El buscador de clanes vuelve a funcionar**: el API manda el equipo de cada clan como **cadena**
+  (`{ "id-de-clan": "12008" }`), y el addon lo leía como número, así que fallaba con
+  `LA BÚSQUEDA FALLÓ … INVALID TYPE: STRING "12008"`. Ahora se lee el texto y se convierte (y un
+  número pelado sigue valiendo, por si el API vuelve a mandarlo así). Comprobado contra el API real:
+  5 542 clanes en EU, todos con equipo válido.
+- **El detalle de un objetivo sale encima del ratón**: antes se escribía debajo del mapa y había que
+  hacer scroll para leerlo. Ahora es una etiqueta pegada al cursor, con fondo para que se lea sobre
+  el mapa, y no se sale del recuadro.
+
 ## [0.22.3] - 2026-10-31
 ### Corregido
 - **El pop-up enseña los avisos de uno en uno**: antes salían todos los de la ventana a la vez, así

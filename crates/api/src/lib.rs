@@ -131,6 +131,11 @@ impl<T: Transport> Api<T> {
     ///
     /// It is a big answer (~280 KB for EU) that only changes at reset, so the caller has to cache
     /// it instead of asking per keystroke.
+    ///
+    /// The API sends the team as a **string**: `{ "0006EDDA-…": "12008" }` (measured 2026-10-31).
+    /// Parsing straight into `u32` gave `invalid type: string "12008"`, which is the error the
+    /// player saw in the guild search, so the value is read as text and converted — and a plain
+    /// number is still accepted in case it flips back.
     pub fn wvw_guilds(
         &self,
         region: gw2lurker_core::Region,
@@ -142,7 +147,11 @@ impl<T: Transport> Api<T> {
                 gw2lurker_core::Region::Na => "na",
             }
         ))?;
-        parse(&body)
+        let raw: std::collections::BTreeMap<String, TeamRef> = parse(&body)?;
+        Ok(raw
+            .into_iter()
+            .filter_map(|(guild, team)| team.into_id().map(|id| (guild, id)))
+            .collect())
     }
 
     /// The four WvW maps with the boxes the projection needs (RF-30, ADR-011).
@@ -177,6 +186,26 @@ struct World {
     id: u32,
     #[serde(default)]
     name: String,
+}
+
+/// The team of a guild in `/v2/wvw/guilds/:region`, which arrives as text.
+///
+/// `12008` today, a bare number if the API ever goes back to it; anything else is ignored instead
+/// of failing the whole 280 KB answer over one guild.
+#[derive(Debug, Clone, serde::Deserialize)]
+#[serde(untagged)]
+enum TeamRef {
+    Number(u32),
+    Text(String),
+}
+
+impl TeamRef {
+    fn into_id(self) -> Option<u32> {
+        match self {
+            Self::Number(id) => Some(id),
+            Self::Text(text) => text.trim().parse().ok(),
+        }
+    }
 }
 
 /// Percent-encodes a query value: guild names have spaces, accents and apostrophes.
@@ -336,6 +365,26 @@ mod tests {
         let all = api.objectives("fr").unwrap();
         assert!(all.len() > 100);
         assert_eq!(api.transport().asked.borrow().as_slice(), [url]);
+    }
+
+    #[test]
+    fn rf03a_the_team_of_a_guild_is_read_whatever_the_api_uses() {
+        // El API manda el equipo **como cadena** (`{ "id-de-clan": "12008" }`, medido el
+        // 2026-10-31). Parsearlo directo a `u32` daba `invalid type: string "12008"`, que es lo
+        // que el jugador veía como «LA BÚSQUEDA FALLÓ … INVALID TYPE: STRING "12008"» en el
+        // buscador de clanes.
+        let url = format!("{BASE}/wvw/guilds/eu");
+        let text = br#"{ "AAAA-1": "12008", "BBBB-2": "12014" }"#;
+        let api = Api::new(Fake::with(&url, text));
+        let teams = api.wvw_guilds(gw2lurker_core::Region::Eu).unwrap();
+        assert_eq!(teams.get("AAAA-1"), Some(&12008));
+        assert_eq!(teams.get("BBBB-2"), Some(&12014));
+
+        // Y un número pelado sigue valiendo, por si el API vuelve a mandarlo así.
+        let numbers = br#"{ "CCCC-3": 12014 }"#;
+        let api = Api::new(Fake::with(&url, numbers));
+        let teams = api.wvw_guilds(gw2lurker_core::Region::Eu).unwrap();
+        assert_eq!(teams.get("CCCC-3"), Some(&12014));
     }
 
     #[test]

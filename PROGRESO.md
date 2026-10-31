@@ -13,6 +13,28 @@ Reglas:
 
 ---
 
+## HECHO – 2026-10-31 · El buscador de clanes y el detalle del mapa (0.22.4)
+
+Los dos bugs que quedaban en `bugs.md`, con captura (`image-2.png`).
+
+- **`invalid type: string "12008"` en el buscador, la causa de verdad.** El API cambió la forma de
+  `/v2/wvw/guilds/:region`: ahora manda `{ "id-de-clan": "12008" }`, es decir el **equipo como
+  cadena**, y `api::wvw_guilds` parseaba a `BTreeMap<String, u32>`, así que el paso «equipos» de la
+  búsqueda moría siempre. Medido con `curl`: 282 644 bytes en EU, 5 542 clanes, **todos** los valores
+  cadenas numéricas, y `0006EDDA-…` resuelve a *Les Ringardes Dansants* `[LrD]`. Arreglo: `TeamRef`
+  (`#[serde(untagged)]`) que acepta texto o número y convierte, con test
+  `rf03a_the_team_of_a_guild_is_read_whatever_the_api_uses`. Lo de 0.18.0 (comprobar la forma del id)
+  ya estaba bien; el fallo no venía de ahí.
+- **El detalle del objetivo, encima del ratón.** Se dibujaba como texto debajo del mapa y con el mapa
+  ya a tamaño real había que hacer scroll. Ahora es una etiqueta con fondo junto al cursor, dentro
+  del recorte del mapa y sin salirse del recuadro (`ui.calc_text_size`). Debajo queda solo la pista,
+  y solo cuando no hay nada bajo el ratón.
+- Refactor: los tests de `ui::map` a `ui/map/tests.rs` (el fichero había llegado a 803 líneas).
+- Verificación: 210 tests en verde (90 addon · 16 api · 98 core · 6 store), `clippy -D warnings`
+  limpio, `cargo fmt --check` limpio, ningún fichero por encima de 800 líneas.
+- **No verificado en el juego**: la etiqueta del ratón y la búsqueda completa (el buscador necesita
+  pulsar «Buscar» con el juego abierto).
+
 ## HECHO – 2026-10-31 · El pop-up va de uno en uno y el mapa con su proporción (0.22.3)
 
 Tres bugs nuevos del jugador, apuntados de golpe en `bugs.md`:
