@@ -257,7 +257,7 @@ dependencies = [
 
 [[package]]
 name = "gw2lurker-addon"
-version = "0.5.0"
+version = "0.5.1"
 dependencies = [
  "chrono",
  "gw2lurker-api",
@@ -271,7 +271,7 @@ dependencies = [
 
 [[package]]
 name = "gw2lurker-api"
-version = "0.5.0"
+version = "0.5.1"
 dependencies = [
  "gw2lurker-core",
  "serde",
@@ -280,7 +280,7 @@ dependencies = [
 
 [[package]]
 name = "gw2lurker-core"
-version = "0.5.0"
+version = "0.5.1"
 dependencies = [
  "chrono",
  "serde",
@@ -289,7 +289,7 @@ dependencies = [
 
 [[package]]
 name = "gw2lurker-store"
-version = "0.5.0"
+version = "0.5.1"
 dependencies = [
  "chrono",
  "gw2lurker-core",

@@ -1,6 +1,14 @@
 # Changelog
 Formato [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/), versionado [SemVer](https://semver.org/lang/es/).
 
+## [0.5.1] - 2026-10-31
+### Añadido
+- Nombres de equipo traducidos a español, francés y alemán, extraídos de `data/equipos.xlsx`
+  con `scripts/merge_team_names.ps1`. Se resuelven por el nombre inglés, así que siguen
+  sirviendo cuando un equipo cambia de nombre la temporada siguiente.
+  Aviso: son traducciones literales; donde no coinciden con el nombre del cliente se sigue
+  viendo el inglés.
+
 ## [0.5.0] - 2026-10-31
 ### Añadido
 - **Selector de equipo en tres pasos**: región (EU/NA) → color (rojo/verde/azul) → equipo. Con

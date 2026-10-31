@@ -1,0 +1,136 @@
+{
+  "note": "Traducciones de nombres de equipo indexadas por el nombre ingles. Las genera scripts/merge_team_names.ps1 desde data/equipos.xlsx; se resuelven por nombre, no por id, porque los nombres rotan cada temporada y los ids no.",
+  "source": "data/equipos.xlsx",
+  "updated_at": "2026-10-31T15:45:28Z",
+  "normalized": [
+    "Modremoth's Canopy -> Mordremoth's Canopy"
+  ],
+  "names": {
+    "Grenth's Door": {
+      "es": "Puerta de Grenth",
+      "fr": "Porte de Grenth",
+      "de": "Grenths Tor",
+      "source": "spreadsheet"
+    },
+    "Melandru's Dome": {
+      "es": "Cúpula de Melandru",
+      "fr": "Dôme de Melandru",
+      "de": "Melandrus Kuppel",
+      "source": "spreadsheet"
+    },
+    "Lyssa's Muse": {
+      "es": "Musa de Lyssa",
+      "fr": "Muse de Lyssa",
+      "de": "Lyssas Muse",
+      "source": "spreadsheet"
+    },
+    "Balthazar's Blight": {
+      "es": "Plaga de Balthazar",
+      "fr": "Fléau de Balthazar",
+      "de": "Balthasars Seuche",
+      "source": "spreadsheet"
+    },
+    "Kormir's Library": {
+      "es": "Biblioteca de Kormir",
+      "fr": "Bibliothèque de Kormir",
+      "de": "Kormirs Bibliothek",
+      "source": "spreadsheet"
+    },
+    "Dwayna's Temple": {
+      "es": "Templo de Dwayna",
+      "fr": "Temple de Dwayna",
+      "de": "Dwaynas Tempel",
+      "source": "spreadsheet"
+    },
+    "Abaddon's Prison": {
+      "es": "Prisión de Abaddon",
+      "fr": "Prison d'Abaddon",
+      "de": "Abaddons Gefängnis",
+      "source": "spreadsheet"
+    },
+    "Mursaat's Sanctuary": {
+      "es": "Santuario Mursaat",
+      "fr": "Sanctuaire mursaat",
+      "de": "Mursaat-Zuflucht",
+      "source": "spreadsheet"
+    },
+    "Jormag's Glacier": {
+      "es": "Glaciar de Jormag",
+      "fr": "Glacier de Jormag",
+      "de": "Jormags Gletscher",
+      "source": "spreadsheet"
+    },
+    "Primordus's Caldera": {
+      "es": "Caldera de Primordus",
+      "fr": "Caldeira de Primordus",
+      "de": "Primordus' Krater",
+      "source": "spreadsheet"
+    },
+    "Kralkatorrik's Eye": {
+      "es": "Ojo de Kralkatorrik",
+      "fr": "Œil de Kralkatorrik",
+      "de": "Kralkatorriks Auge",
+      "source": "spreadsheet"
+    },
+    "Soo-Won's Haven": {
+      "es": "Refugio de Soo-Won",
+      "fr": "Havre de Soo-Won",
+      "de": "Soo-Wons Zuflucht",
+      "source": "spreadsheet"
+    },
+    "Zhaitan's Rest": {
+      "es": "Reposo de Zhaitan",
+      "fr": "Repos de Zhaitan",
+      "de": "Zhaitans Ruh",
+      "source": "spreadsheet"
+    },
+    "Mordremoth's Canopy": {
+      "es": "Dosel de Mordremoth",
+      "fr": "Canopée de Mordremoth",
+      "de": "Mordremoths Blätterdach",
+      "source": "spreadsheet"
+    },
+    "Bloodstone Gulch": {
+      "es": "Barranco de la Piedra de Sangre",
+      "fr": "Ravin de la Pierre de sang",
+      "de": "Blutstein-Schlucht",
+      "source": "spreadsheet"
+    },
+    "Frost Citadel": {
+      "es": "Ciudadela de la Helada",
+      "fr": "Citadelle du Givre",
+      "de": "Frost-Zitadelle",
+      "source": "spreadsheet"
+    },
+    "Ettin's Back": {
+      "es": "Lomo de Ettin",
+      "fr": "Dos d'ettin",
+      "de": "Ettin-Rücken",
+      "source": "spreadsheet"
+    },
+    "Mirror of Lyssa": {
+      "es": "Espejo de Lyssa",
+      "fr": "Miroir de Lyssa",
+      "de": "Lyssas Spiegel",
+      "source": "spreadsheet"
+    },
+    "Great House Aviary": {
+      "es": "Pajar de la Gran Casa",
+      "fr": "Volière de la Grande Maison",
+      "de": "Voliere des Großen Hauses",
+      "source": "spreadsheet"
+    },
+    "Palawadan": {
+      "es": "Palawadan",
+      "fr": "Palawadan",
+      "de": "Palawadan",
+      "source": "spreadsheet"
+    },
+    "Fortune's Vale": {
+      "es": "Valle de la Fortuna",
+      "fr": "Vallon de la Fortune",
+      "de": "Tal des Glücks",
+      "source": "spreadsheet"
+    }
+  }
+}

@@ -3,7 +3,7 @@
 //! The official API exposes team ids but not their names, so the names travel
 //! inside the binary. A missing id is not an error: the UI falls back to the id.
 
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
 use std::sync::OnceLock;
 
 use serde::Deserialize;
@@ -13,6 +13,61 @@ pub const BUNDLED_JSON: &str = include_str!(concat!(
     env!("CARGO_MANIFEST_DIR"),
     "/../../data/wvw-teams.json"
 ));
+
+/// Curated translations, keyed by the **English** name.
+///
+/// Generated from `data/equipos.xlsx` by `scripts/merge_team_names.ps1`. Keyed by name and not
+/// by id on purpose: WvW team names rotate every season while the ids stay, so a translation
+/// must survive an id changing its name and come back if the name returns.
+pub const NAMES_JSON: &str = include_str!(concat!(
+    env!("CARGO_MANIFEST_DIR"),
+    "/../../data/team-names.json"
+));
+
+/// One translation entry.
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+pub struct TeamName {
+    #[serde(default)]
+    pub es: Option<String>,
+    #[serde(default)]
+    pub fr: Option<String>,
+    #[serde(default)]
+    pub de: Option<String>,
+    /// Where the translation came from (`spreadsheet`, `game`…), so curated names can win.
+    #[serde(default)]
+    pub source: Option<String>,
+}
+
+impl TeamName {
+    /// Translation for a two-letter language code, if there is one.
+    pub fn get(&self, language: &str) -> Option<&str> {
+        match language {
+            "es" => self.es.as_deref(),
+            "fr" => self.fr.as_deref(),
+            "de" => self.de.as_deref(),
+            _ => None,
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+struct NamesFile {
+    #[serde(default)]
+    names: BTreeMap<String, TeamName>,
+}
+
+/// Translations by English name, parsed once.
+///
+/// A broken file yields an empty map: the UI falls back to the English name, which is always
+/// correct even if it is not translated (RNF-06).
+pub fn translations() -> &'static BTreeMap<String, TeamName> {
+    static NAMES: OnceLock<BTreeMap<String, TeamName>> = OnceLock::new();
+    NAMES.get_or_init(|| {
+        serde_json::from_str::<NamesFile>(NAMES_JSON)
+            .map(|file| file.names)
+            .unwrap_or_default()
+    })
+}
 
 /// One entry of the table.
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
@@ -27,7 +82,7 @@ pub struct TeamEntry {
     /// in client strings we cannot read, so any translation here is typed by a human and has
     /// to be preserved when the table is regenerated.
     #[serde(default)]
-    pub names: std::collections::BTreeMap<String, String>,
+    pub names: BTreeMap<String, String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
@@ -70,12 +125,18 @@ impl TeamTable {
     }
 
     /// Name of the team in a language, falling back to the curated English name.
+    ///
+    /// Three sources, most specific first: the `names` map of the entry itself (curated per
+    /// id, what an official in-game name would be), the translation pool keyed by the English
+    /// name, and finally English.
     pub fn name_in(&self, language: &str, id: u32) -> Option<&str> {
         let entry = self.teams.get(&id)?;
-        entry
-            .names
-            .get(language)
-            .map(String::as_str)
+        if let Some(name) = entry.names.get(language) {
+            return Some(name.as_str());
+        }
+        translations()
+            .get(&entry.name)
+            .and_then(|translation| translation.get(language))
             .or(Some(entry.name.as_str()))
     }
 
@@ -153,12 +214,53 @@ mod tests {
         assert_eq!(table.name_in("es", 12014), Some("Bosquemugoso"));
         assert_eq!(table.label_in("es", 12014), "Bosquemugoso (12014)");
         assert_eq!(
-            table.name_in("de", 12014),
-            Some("Great House Aviary"),
-            "sin traducción alemana se usa el nombre inglés"
+            table.name_in("fr", 11001),
+            Some("Moogooloo"),
+            "un nombre que no está en el Excel se queda en inglés"
         );
         assert_eq!(table.label_in("fr", 11001), "Moogooloo (11001)");
         assert_eq!(table.label_in("es", 99999), "(99999)");
+        assert_eq!(
+            table.name_in("it", 12014),
+            Some("Great House Aviary"),
+            "un idioma que no está en el mapa ni en el Excel cae al inglés"
+        );
+    }
+
+    #[test]
+    fn rf44_spreadsheet_names_are_used_by_english_name() {
+        // 12010 is `Grenth's Door`; the spreadsheet translates that name, not that id.
+        let table = bundled();
+        assert_eq!(table.name_in("es", 12010), Some("Puerta de Grenth"));
+        assert_eq!(table.name_in("de", 12010), Some("Grenths Tor"));
+        assert_eq!(table.label_in("fr", 12010), "Porte de Grenth (12010)");
+
+        // 12014 matches the spreadsheet too.
+        assert_eq!(
+            table.name_in("es", 12014),
+            Some("Pajar de la Gran Casa"),
+            "traduccion literal del Excel; el nombre oficial en el juego es otro"
+        );
+
+        // Lutgardis Conservatory is not in the spreadsheet: English, never empty.
+        assert_eq!(table.name_in("es", 11011), Some("Lutgardis Conservatory"));
+    }
+
+    #[test]
+    fn rf44_the_translation_pool_survives_a_seasonal_renaming() {
+        // The pool is keyed by name, so a name that is not in use today is still translated
+        // and will be found if that name comes back next season.
+        let pool = translations();
+        let old = pool
+            .get("Zhaitan's Rest")
+            .expect("nombre de una temporada anterior");
+        assert_eq!(old.get("es"), Some("Reposo de Zhaitan"));
+
+        let counts = pool.len();
+        assert!(counts >= 20, "el Excel trae 21 filas: {counts}");
+        assert!(pool
+            .values()
+            .all(|entry| entry.source.as_deref() == Some("spreadsheet")));
     }
 
     #[test]

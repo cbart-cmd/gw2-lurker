@@ -34,6 +34,26 @@ Reglas:
   bueno un HTTP 200. Se reintenta con `-VerifyOnly` pasados unos minutos; no se cambia la URL
   ni la versión para taparlo.
 
+## HECHO – 2026-10-31 · Nombres de equipo desde `data/equipos.xlsx` (0.5.1)
+
+- `scripts/merge_team_names.ps1`: lee el `.xlsx` sin dependencias (es un ZIP con XML,
+  `sharedStrings` + `sheet1`), detecta las columnas por la cabecera, normaliza erratas y escribe
+  `data/team-names.json`. Re-ejecutable cuando cambie el Excel; `-DryRun` para ver el resumen.
+- **Indexado por nombre inglés, no por id**: los nombres de equipo rotan cada temporada y los
+  ids no, así que una traducción debe sobrevivir a que un id cambie de nombre y volver si el
+  nombre regresa. `core::teams::translations()` es el pool y `name_in` lo consulta **después**
+  del mapa `names` por id (que es donde irían los nombres oficiales del juego).
+- Resultado: **21 nombres extraídos**, **12 coinciden** con los 33 vivos y 9 son de una
+  temporada anterior (se conservan igual). Errata corregida: `Modremoth's → Mordremoth's`.
+- Aviso importante para el usuario: el Excel son traducciones **literales**
+  (`Great House Aviary → Pajar de la Gran Casa`), y el juego en español dice *Bosquemugoso*;
+  `Lutgardis Conservatory` (*Invernadero de Lutgardis*) ni aparece. Sirven de etiqueta, y cada
+  entrada lleva `source: "spreadsheet"` para distinguirlas de las oficiales cuando las haya.
+- Trampa: el pool es global, así que un test que antes esperaba inglés para un nombre sin
+  traducción alemana ahora recibe la del Excel; los tests usan a propósito un nombre ausente
+  (`Moogooloo`) para probar la caída a inglés.
+- Verificado: 73 tests en `core` (2 nuevos), 36 en el addon, `clippy -D warnings` limpio.
+
 ## HECHO – 2026-10-31 · Selector de equipo en tres pasos (0.5.0)
 
 - `ui::settings` pide **región → color → equipo**. La lista sale de `worker::dashboard().candidates`
