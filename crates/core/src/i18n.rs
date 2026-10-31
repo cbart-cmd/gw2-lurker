@@ -148,6 +148,44 @@ pub const TEXT: &[(&str, [&str; COLUMNS])] = &[
         ],
     ),
     ("Language", ["Idioma", "Language", "Langue", "Sprache"]),
+    ("Team", ["Equipo", "Team", "Équipe", "Team"]),
+    ("Alias", ["Alias", "Alias", "Alias", "Alias"]),
+    (
+        "Poll interval",
+        [
+            "Intervalo de sondeo",
+            "Poll interval",
+            "Intervalle de sondage",
+            "Abfrageintervall",
+        ],
+    ),
+    (
+        "Alert scope",
+        [
+            "Alcance de los avisos",
+            "Alert scope",
+            "Portée des alertes",
+            "Umfang der Hinweise",
+        ],
+    ),
+    (
+        "Current map only",
+        [
+            "Solo el mapa actual",
+            "Current map only",
+            "Carte actuelle uniquement",
+            "Nur aktuelle Karte",
+        ],
+    ),
+    (
+        "All maps of the matchup",
+        [
+            "Todos los mapas del emparejamiento",
+            "All maps of the matchup",
+            "Toutes les cartes de la confrontation",
+            "Alle Karten des Matchups",
+        ],
+    ),
     (
         "Auto (game language)",
         [

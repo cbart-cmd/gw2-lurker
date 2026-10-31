@@ -45,7 +45,11 @@ Cada tarea es pequeña y verificable. Orden recomendado; las dependencias se ind
 
 - **T-12 ✔ (2026-10-31, parcial)** `context` + `config`: activación solo en WvW, persistencia y export real. Hecho: `export!` con `Direct` + `DisableHotloading` + URL de distribución (verificada dentro de la DLL), lectura de `NexusLink::is_gameplay` y del mapa de Mumble en `ffi/`, `config.json` con valores por defecto, saneo y copia `.corrupt-*` ante JSON dañado (5 tests), y ventana de estado mínima que respeta `core::gate`. Falta: selector de equipo (T-30), ventana de configuración (T-17) y la prueba dentro del juego (T-35). (T-01, T-05) — RF-01, RF-02, RF-02a, RF-03a/c, RF-40, RF-41
 
-- **T-30 (M)** `addon::ui::world_picker`: selector de **equipo** alimentado por `all_worlds` y `data/wvw-teams.json`, con `nombre (id)`, comprobación de los dos rivales y alias editable. *Hecho:* un id sin nombre se muestra como `(id)` y el usuario puede continuar. (T-05) — RF-03a, RF-03f, RF-03g
+- **T-30 ✔ (2026-10-31, parcial)** `addon::ui::settings`: selector de **equipo** con
+  `nombre (id)` sobre `data/wvw-teams.json`, opción «sin equipo», alias editable (un alias en
+  blanco no tapa el nombre real) y orden estable por región y nombre —un `HashMap` sin ordenar
+  haría bailar la lista entre frames—. Falta comprobar los dos rivales contra el matchup y el
+  resto de la ventana de ajustes. (T-05) — RF-03a, RF-03f, RF-03g
 - **T-13** Widget fijo de alertas: lista, fade, colores/formas por tipo, mover/redimensionar y persistir posición. (T-08, T-12) — RF-10, RF-16, RF-17, RF-19, RF-19a
 - **T-13b** Modo bloqueado click-through, atajo de bloqueo/desbloqueo y ventana de log ampliada. (T-13) — RF-14, RF-18
 - **T-17 ✔ (2026-10-31, parcial)** Contrato de ventana compartido en `addon::ui::window`:
@@ -53,8 +57,9 @@ Cada tarea es pequeña y verificable. Orden recomendado; las dependencias se ind
   bloqueada, opacidad sobre el fondo, menú contextual (bloquear, opacidad, restablecer) y
   estado por ventana (`visible`, `collapsed`, `locked`, `opacity`, `position`, `size`) en
   `config.json` bajo `windows.<clave>`, saneado y con mínimo de tamaño. La ventana de estado ya
-  lo usa. Falta el contenido de ajustes (selector de equipo T-30, idioma, sonido) y el
-  indicador de obsoleto. (T-12) — RF-43, RF-46
+  lo usa. Contenido de ajustes hecho: equipo + alias (T-30), idioma, intervalo de sondeo
+  (15–600 s, saneado al guardar) y alcance de los avisos. Falta el indicador de obsoleto y el
+  resto de opciones de sonido/atajos. (T-12) — RF-43, RF-46
 
 ## Fase 4 – Mapas
 

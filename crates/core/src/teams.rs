@@ -67,6 +67,21 @@ impl TeamTable {
         self.teams.len()
     }
 
+    /// Every team, ordered by region and then by name, for the picker (RF-03a).
+    ///
+    /// A stable order matters: an unsorted `HashMap` would make the list jump around
+    /// between frames while the user is choosing.
+    pub fn sorted(&self) -> Vec<&TeamEntry> {
+        let mut teams: Vec<&TeamEntry> = self.teams.values().collect();
+        teams.sort_by(|a, b| {
+            a.nation
+                .cmp(&b.nation)
+                .then_with(|| a.name.cmp(&b.name))
+                .then_with(|| a.id.cmp(&b.id))
+        });
+        teams
+    }
+
     /// Whether the table is empty.
     pub fn is_empty(&self) -> bool {
         self.teams.is_empty()
@@ -100,6 +115,39 @@ mod tests {
         let table = bundled();
         assert_eq!(table.label(12014), "Great House Aviary (12014)");
         assert_eq!(table.label(12099), "(12099)");
+    }
+
+    #[test]
+    fn rf03a_picker_order_is_stable_and_regional() {
+        let table = bundled();
+        let teams = table.sorted();
+        assert_eq!(teams.len(), table.len());
+
+        let mut nations: Vec<&str> = Vec::new();
+        for team in &teams {
+            if nations.last() != Some(&team.nation.as_str()) {
+                assert!(
+                    !nations.contains(&team.nation.as_str()),
+                    "la región {} aparece en dos bloques",
+                    team.nation
+                );
+                nations.push(&team.nation);
+            }
+        }
+        let mut ascending = nations.clone();
+        ascending.sort_unstable();
+        assert_eq!(nations, ascending, "las regiones van agrupadas y en orden");
+
+        for nation in nations {
+            let names: Vec<&str> = teams
+                .iter()
+                .filter(|team| team.nation == nation)
+                .map(|team| team.name.as_str())
+                .collect();
+            let mut expected = names.clone();
+            expected.sort_unstable();
+            assert_eq!(names, expected, "dentro de {nation}, por nombre");
+        }
     }
 
     #[test]

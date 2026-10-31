@@ -3,6 +3,7 @@
 //! Every literal comes from the translation table through [`crate::i18n`] (RF-44); the
 //! English text is the key, so nothing here needs touching when a language changes.
 
+mod settings;
 mod window;
 
 use nexus::gui::{register_render, render, RenderType};
@@ -22,6 +23,7 @@ pub fn register() {
                 return;
             }
             draw_status(ui);
+            settings::draw(ui, &mut crate::runtime());
         }),
     )
     .revert_on_unload();
@@ -31,7 +33,9 @@ fn draw_status(ui: &nexus::imgui::Ui) {
     let state = crate::context::snapshot();
     let mut config = crate::runtime();
     let team_id = config.team_id;
+    let team_alias = config.team_alias.clone();
     let poll_secs = config.poll_secs;
+    let mut open_settings = false;
     let window_state = config.window(STATUS);
 
     window::draw(ui, STATUS, 0, window_state, |ui| {
@@ -40,12 +44,24 @@ fn draw_status(ui: &nexus::imgui::Ui) {
         ui.text(i18n::format("Map {0} (type {1})", &[&map_id, &map_type]));
 
         match team_id {
-            Some(id) => ui.text(i18n::format("Team {0}", &[&id.to_string()])),
+            Some(id) => {
+                let label = match team_alias {
+                    Some(alias) => alias,
+                    None => gw2lurker_core::bundled().label(id),
+                };
+                ui.text(i18n::format("Team {0}", &[&label]));
+            }
             None => ui.text(i18n::text("No team configured yet")),
         }
         ui.text(i18n::format(
             "Polling every {0} s",
             &[&poll_secs.to_string()],
         ));
+        ui.separator();
+        open_settings = ui.button(i18n::widget("Settings"));
     });
+
+    if open_settings {
+        config.window(settings::KEY).visible = true;
+    }
 }

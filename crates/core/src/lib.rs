@@ -24,4 +24,4 @@ pub use model::{
     TeamScores, WvwMap, HIGH_VALUE_TICK,
 };
 pub use resolver::Resolution;
-pub use teams::TeamTable;
+pub use teams::{bundled, TeamEntry, TeamTable};

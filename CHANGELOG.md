@@ -1,6 +1,12 @@
 # Changelog
 Formato [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/), versionado [SemVer](https://semver.org/lang/es/).
 
+## [0.3.0] - 2026-10-31
+### Añadido
+- Ventana de ajustes: selector de equipo con los 33 equipos reales (`nombre (id)`), alias,
+  idioma (Auto/es/en/fr/de), intervalo de sondeo y alcance de los avisos. Se abre desde el
+  botón *Ajustes* de la ventana de estado y todo se guarda en `config.json`.
+
 ## [0.2.0] - 2026-10-31
 ### Añadido
 - Addon cargable en Nexus (`gw2_lurker.dll`) que solo se muestra en Mundo contra Mundo y se

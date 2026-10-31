@@ -26,6 +26,20 @@ Reglas:
   primera prueba para las licencias de `nexus`. Si vuelve a fallar, hay que calcular el hash
   real de los ficheros de licencia, no seguir probando variantes.
 
+## HECHO – 2026-10-31 · Ventana de ajustes con selector de equipo (T-30, T-17 parcial)
+
+- `addon::ui::settings`: ComboBox de equipo con `nombre (id)` sobre la tabla incluida, opción
+  «sin equipo», alias editable, idioma, intervalo de sondeo (`InputInt`, saneado a 15–600) y
+  alcance de los avisos. Se abre desde el botón *Ajustes* de la ventana de estado.
+- Las ediciones se acumulan en una copia local y se escriben al terminar de dibujar, porque
+  `window::draw` ya tiene prestado el estado de la ventana.
+- `core::teams::sorted()` devuelve la lista ordenada por región y nombre; sin orden, el
+  `HashMap` hacía bailar el desplegable entre frames. 6 claves nuevas de traducción.
+- Trampa: el orden alfabético deja **EU antes que NA** (`E` < `N`), no al revés como asumí en
+  el primer test; el test ahora comprueba bloques y orden, no cuántos NA hay al principio.
+- Verificado: `clippy -D warnings` limpio; 15 tests en el addon, 60 en `core`, 13 en `api`,
+  6 en `store`; DLL 0.3.0 publicada y verificada por bytes y MD5.
+
 ## HECHO – 2026-10-31 · Contrato de ventana compartido (T-17 parcial)
 
 - `addon::ui::window::draw` es el único sitio que dibuja cromo: barra de título propia (texto
