@@ -31,6 +31,11 @@ no lo usa Nexus.
 Todo esto lo hace `scripts/release.ps1`; los pasos quedan aquí como contrato de lo que el
 script comprueba y como salida manual si el script no se puede usar.
 
+Para **probar en local** sin publicar nada: `install.bat` (doble clic) o
+`pwsh -File install.ps1 [-Build] [-DryRun] [-Dest <ruta>]`. Compila si se pide, verifica
+tamaño, `MZ` y MD5, y copia `gw2_lurker.dll` a `<juego>\addons`, pidiendo elevación solo si
+hace falta. Se niega a copiar con GW2 abierto, porque el fichero está bloqueado.
+
 1. Subir la versión en `Cargo.toml` y en `CHANGELOG.md`.
 2. `cargo fmt --all --check`, `cargo clippy --workspace --all-targets -- -D warnings`,
    `cargo test --workspace`, `bash ./scripts/check_loc.sh`.

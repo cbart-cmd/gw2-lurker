@@ -34,6 +34,24 @@ Reglas:
   bueno un HTTP 200. Se reintenta con `-VerifyOnly` pasados unos minutos; no se cambia la URL
   ni la versión para taparlo.
 
+## HECHO – 2026-10-31 · Instalación local con install.bat / install.ps1
+
+- Copiados del patrón de los vecinos (`gw2-timers`, `fight_analysis_danger`):
+  [install.bat](/C:/Users/Usuario/OneDrive/proyectos/gw2-guild-lurker/install.bat) lanza
+  [install.ps1](/C:/Users/Usuario/OneDrive/proyectos/gw2-guild-lurker/install.ps1) con
+  `-NoProfile -ExecutionPolicy Bypass`, así que sirve el doble clic.
+- `install.ps1`: `-Build` (tests + `cargo build --release`), `-DryRun` y `-Dest <ruta>`.
+  Detecta la carpeta del juego por registro (`Install64Path`/`InstallPath`, comprobando que
+  exista `Gw2-64.exe`) con `C:\Program Files\Guild Wars 2\addons` como respaldo; verifica
+  tamaño (una DLL de 130 bytes sería un puntero LFS), cabecera `MZ` y MD5 antes **y después**
+  de copiar, y pide elevación solo si Program Files la exige.
+- Se niega a copiar con GW2 abierto (el fichero está bloqueado) y lo dice sin traza de
+  excepción, que es lo que ve alguien que ha hecho doble clic.
+- Trampa: lanzado desde `cmd` con `powershell` (5.1), `Get-FileHash` no se resuelve en esta
+  máquina; el MD5 se calcula con `System.Security.Cryptography.MD5` y funciona en 5.1 y en 7.
+- Verificado: `-DryRun`, copia real a una carpeta temporal (bytes y MD5 idénticos), rechazo
+  con GW2 abierto y error claro con un destino inexistente.
+
 ## HECHO – 2026-10-31 · Nombres traducidos, herramienta idempotente y etiqueta de equipo de arcdps
 
 - Pregunta del usuario: «saca las traducciones de gw2mists». Medido: gw2mists **solo tiene

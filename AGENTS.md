@@ -74,6 +74,7 @@ docs/          documentación de usuario final
 
 - Target de la DLL: `x86_64-pc-windows-msvc`, que es el del host en Windows. Se compila con `cargo build --release` **sin** `--target`, igual que los proyectos vecinos, para que la DLL quede en `target\release\gw2_lurker.dll`. Pasar `--target` anida la salida en `target\<triple>\release\` y duplica caché sin ganar nada. Si no puedes compilar el addon (p. ej. en Linux), indícalo y limita la verificación a `core`, `api` y `store`.
 - El nombre del fichero lo fija `[lib] name = "gw2_lurker"` en `crates/addon/Cargo.toml`. Sin esa línea Cargo usa el nombre del paquete y produce `gw2lurker_addon.dll`, que Nexus no buscaría.
+- Para probar en local: `install.bat` (doble clic) o `install.ps1 [-Build] [-DryRun] [-Dest <ruta>]`. Copia `gw2_lurker.dll` a `<juego>\addons` verificando tamaño, `MZ` y MD5, y se niega a copiar con GW2 abierto.
 - Idioma: código y comentarios en inglés; textos de UI, specs y commits de documentación en español (con claves i18n, RNF-08).
 - Commits convencionales (`feat:`, `fix:`, `test:`, `docs:`, `refactor:`, `chore:`).
 
