@@ -486,7 +486,16 @@ fn map_choice() -> std::sync::MutexGuard<'static, MapRole> {
 /// One line with the state of the worker and the configured team (RF-02, RF-46).
 fn draw_health(ui: &nexus::imgui::Ui, config: &mut crate::config::Config, data: &Tabbed) {
     let state = crate::context::snapshot();
-    let (health, match_id, updated, selection, last_claim_at, candidates, played_team) = {
+    let (
+        health,
+        match_id,
+        updated,
+        selection,
+        last_claim_at,
+        candidates,
+        played_team,
+        auto_detected,
+    ) = {
         let board = crate::worker::dashboard();
         (
             board.health.clone(),
@@ -496,6 +505,7 @@ fn draw_health(ui: &nexus::imgui::Ui, config: &mut crate::config::Config, data: 
             board.last_claim_at,
             board.candidates.clone(),
             board.played_team,
+            board.auto_detected,
         )
     };
     let team_id = crate::team::selected_in(config);
@@ -512,7 +522,15 @@ fn draw_health(ui: &nexus::imgui::Ui, config: &mut crate::config::Config, data: 
         ui.text_disabled(i18n::format("You are in {0}", &[map::map_label(role)]));
     }
     match team_id.map(|id| crate::team::display_name(config, language, id)) {
-        Some(label) => ui.text(i18n::format("Team {0}", &[&label])),
+        Some(label) => {
+            if auto_detected {
+                // Lo dice el juego, no los ajustes: así se ve de un vistazo que el addon está
+                // mirando la partida en la que estás (informe de 2026-10-31).
+                ui.text(i18n::format("Team {0} (from the game)", &[&label]));
+            } else {
+                ui.text(i18n::format("Team {0}", &[&label]));
+            }
+        }
         None => ui.text(i18n::text("No team configured yet")),
     }
     // Nada de «1-1»: eso es un código interno del API. Lo que el jugador reconoce es **quién

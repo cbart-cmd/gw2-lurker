@@ -90,6 +90,8 @@ pub struct Dashboard {
     /// If this differs from the configured team, the addon is watching a matchup the player is
     /// not in, which is what has made every alert look broken (report of 2026-10-31).
     pub played_team: Option<u32>,
+    /// Whether the watched matchup comes from the game and not from the saved team.
+    pub auto_detected: bool,
     /// When the game last saw a claim in this matchup, as the API tells it.
     ///
     /// `updated_at` is *our* poll; this is the game's own timestamp. Without it, «no recoge nada»
@@ -313,14 +315,15 @@ fn poll_once(
     differ: &mut Differ,
     store: Option<&mut SessionStore>,
 ) -> Result<(), String> {
-    let team_id = crate::team::selected();
+    let saved = crate::team::selected();
     // The picker lists every team of the region and colour, so it needs all nine matchups.
     // Inside WvW the worker would otherwise ask for the player's match alone and the list
     // showed one team per colour (bug of 2026-10-31).
-    let full = wants_full_list(team_id, NEEDS_TEAMS.load(Ordering::Relaxed));
-    let live = match team_id {
+    let full = wants_full_list(saved, NEEDS_TEAMS.load(Ordering::Relaxed));
+    let needs_all = full || crate::detect::due();
+    let live = match saved {
         // Known team: ask only for its match (~44 KB instead of ~400 KB).
-        Some(team) if !full => match api.match_for_team(team) {
+        Some(team) if !needs_all => match api.match_for_team(team) {
             Ok(found) => vec![found],
             // The team no longer plays: the ladder reshuffled, so refresh the whole list to
             // let the picker offer the live teams again.
@@ -328,6 +331,15 @@ fn poll_once(
         },
         _ => api.matches_all().map_err(|error| error.to_string())?,
     };
+
+    // El juego manda: si Mumble dice en qué partida está el jugador, se vigila ésa y no la del
+    // equipo guardado. Es la causa de todos los «no salen avisos» (informe de 2026-10-31).
+    let detected = if needs_all {
+        crate::detect::detect_in(&live, saved)
+    } else {
+        crate::detect::cached()
+    };
+    let team_id = detected.as_ref().map(|found| found.team).or(saved);
 
     let selection = select::evaluate(team_id, &live);
     let names = objectives_for(api)?;
@@ -418,12 +430,10 @@ fn poll_once(
     }
     board.updated_at = Some(now);
     board.last_claim_at = crate::diagnostics::last_claim_of(&live, match_id.as_deref());
-    board.played_team = crate::ffi::mumble_where().and_then(|(shard, _)| {
-        live.iter()
-            .find(|entry| Some(entry.id.as_str()) == match_id.as_deref())
-            .and_then(|entry| entry.team_of_shard(shard))
-            .map(|(_, team)| team)
-    });
+    board.played_team = detected.as_ref().map(|found| found.team);
+    board.auto_detected = detected
+        .as_ref()
+        .is_some_and(|found| Some(found.team) != saved);
     let board_last_claim = board.last_claim_at;
     drop(board);
     crate::diagnostics::heartbeat(
@@ -436,9 +446,6 @@ fn poll_once(
     Ok(())
 }
 
-/// Whether the next poll has to fetch every matchup instead of only the player's one.
-///
-/// The team picker offers the teams of the region and colour that are playing *now*, and those
 /// live in all nine matchups, not just the player's: inside WvW the list showed one team per
 /// colour (bug of 2026-10-31, RF-03a).
 fn wants_full_list(team_id: Option<u32>, picker_on_screen: bool) -> bool {

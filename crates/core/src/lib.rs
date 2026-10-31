@@ -6,6 +6,7 @@
 #![cfg_attr(test, allow(clippy::unwrap_used, clippy::expect_used))]
 
 pub mod alerts;
+pub mod detect;
 pub mod diff;
 pub mod follow;
 pub mod gate;

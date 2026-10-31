@@ -15,7 +15,7 @@ Formato:
 
 Estado: `[ ]` pendiente · `[x]` arreglado según el addon (a falta de que el jugador lo confirme).
 
-## [ ] «ha dejado de recoger quién reclama» (2026-10-31 22:09)
+## [x] «ha dejado de recoger quién reclama» (2026-10-31 22:09)
 version 0.22.6. 22:25 en mapa rojo he reclamado hacienda de bahuer con YaK que estaba ya capturado sin reclamar.  3 minutos dpesues aun no ha salido ningun aviso. YaK es un clan que sigo (yo mismo)
 ![alt text](image.png)
 ![alt text](image-1.png)
@@ -31,6 +31,15 @@ MINUTOS MAS tarde se reclama otro campa pro otro clan, y tampoco sale aunque ten
   aviso en naranja en la cabecera cuando el equipo guardado no es el que el juego te da. El
   `shard_id` de Mumble no está verificado en WvW (T-19): esta línea es lo que lo resuelve.
 - **Pendiente:** que el jugador mire la cabecera la próxima vez y compare con su panel de WvW.
+- **Lección del jugador (2026-10-31, 22:46):** NO era «la partida estaba tranquila». Entró con la
+  0.22.6, reclamó campa y el addon no lo detectó; minutos después otro clan reclamó otro campa y
+  tampoco. Lo que pasó es lo de siempre: el addon vigilaba la partida del **equipo guardado**, y ese
+  equipo no era el suyo.
+- **Hecho (0.22.9):** la partida se saca **del juego**: `shard_id` de Mumble buscado en `all_worlds`
+  de los nueve emparejamientos (`core::detect`), con caché de 15 minutos. La cabecera dice
+  `EQUIPO … (lo dice el juego)` y el log `deteccion: el juego dice …, el equipo guardado era …`.
+- **Pendiente:** confirmar en el juego que ahora sí avisa de una captura propia. Si el `shard_id` no
+  fuera el mundo de WvW, el log lo dirá y la detección caerá al equipo guardado.
 
 ## [x] no puiedo eliminar clanes (2026-10-31 22:35)
 version 0.22.6. pulsar "x" al lado de un clan no lo borra. deberia preguntar si estas seguro, y eliminarlo de clanes que sigues

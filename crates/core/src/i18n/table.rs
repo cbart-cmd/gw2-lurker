@@ -33,6 +33,15 @@ pub const TEXT: &[(&str, [&str; COLUMNS])] = &[
         ],
     ),
     (
+        "Team {0} (from the game)",
+        [
+            "Equipo {0} (lo dice el juego)",
+            "Team {0} (from the game)",
+            "Équipe {0} (d'après le jeu)",
+            "Team {0} (laut Spiel)",
+        ],
+    ),
+    (
         "Team {0}",
         ["Equipo {0}", "Team {0}", "Équipe {0}", "Team {0}"],
     ),

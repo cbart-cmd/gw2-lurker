@@ -13,6 +13,28 @@ Reglas:
 
 ---
 
+## HECHO – 2026-10-31 · La partida la dice el juego, no los ajustes (0.22.9)
+
+- El jugador corrigió el diagnóstico: **entró al juego con 0.22.6, reclamó campa y el addon no lo
+  detectó**; minutos después otro clan reclamó otro campa y tampoco. No era «la partida estaba
+  tranquila»: era que se vigilaba la partida del **equipo guardado**, y ese equipo no era el suyo
+  (la cabecera decía `PARTIDA EN NORTEAMÉRICA` con un equipo NA mientras él jugaba en Europa).
+  Todo lo que ocurre en su partida real es invisible para el addon.
+- Arreglo de raíz: `core::detect` (`of_shard`) + `addon::detect` (caché de 15 min). En cada arranque
+  y cada 15 minutos se piden los nueve emparejamientos, se lee el `shard_id` de Mumble y se busca en
+  `all_worlds` de cada uno (que mezcla mundos viejos y equipos nuevos); el que aparezca es la partida
+  del jugador, y de ahí sale también su equipo. La cabecera lo marca: `EQUIPO … (lo dice el juego)`.
+  Sin detección se sigue usando el equipo guardado, así que un shard raro no rompe nada.
+- Tests: `rf03a_the_shard_says_which_matchup_the_player_is_in`, `…_a_shard_nobody_knows_detects_nothing`,
+  `…_the_colour_is_reported_even_when_it_does_not_match`. El segundo es el que habría cazado el bug:
+  un mundo de EU **no** puede caer en `1-1`.
+- Refactor: la detección a `addon/src/detect.rs` (worker.rs había llegado a 850 líneas).
+- **UNVERIFIED(T-19)**: que `shard_id` sea el mundo/equipo de WvW no está confirmado en el juego.
+  Por eso el log escribe `deteccion: …` y `donde: mumble shard …`: la próxima sesión lo confirma o lo
+  desmiente, y mientras tanto se cae al equipo guardado.
+- Verificación: 215 tests en verde (91 addon · 16 api · 102 core · 6 store), `clippy -D warnings` y
+  `cargo fmt --check` limpios, ningún fichero por encima de 800 líneas.
+
 ## HECHO – 2026-10-31 · Cuatro bugs de la 0.22.6 y el aviso de equipo equivocado (0.22.8)
 
 Del informe de las 22:35, con el API y el log como evidencia.

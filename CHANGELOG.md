@@ -1,6 +1,17 @@
 # Changelog
 Formato [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/), versionado [SemVer](https://semver.org/lang/es/).
 
+## [0.22.9] - 2026-10-31
+### Corregido
+- **El addon mira la partida en la que estás, no la del equipo guardado.** Hasta ahora vigilaba el
+  emparejamiento del equipo que tuvieras en Ajustes; si no era el tuyo, las capturas y las
+  reclamaciones del juego **no aparecían por ningún lado**, aunque el sondeo funcionara. Ahora, en
+  cada arranque y cada 15 minutos, se pregunta a Mumble en qué mundo/equipo estás y se busca esa
+  partida entre las nueve; la que diga el juego es la que se vigila. La cabecera lo dice:
+  `EQUIPO … (lo dice el juego)`.
+- Si el equipo guardado no era el tuyo, el log deja una línea `deteccion: el juego dice …; el equipo
+  guardado era …` para no volver a adivinarlo.
+
 ## [0.22.8] - 2026-10-31
 ### Corregido
 - **Click-through vuelve a funcionar**: la ventana hija del cuerpo no heredaba `no_inputs`, así que
