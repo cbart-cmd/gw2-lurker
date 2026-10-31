@@ -22,6 +22,15 @@ Reglas:
 - **Requiere GW2**: T-12 (leer `NexusLink`/`Context`), T-35, T-01, T-02b, T-25.
 - Decidido: **sí** a la feature `rtapi` (RF-44); su coste en DLL se mide en T-02b.
 
+## HECHO – 2026-10-31 · Favoritos y limpieza de módulos (T-39 parcial)
+
+- `core::follow`: `FollowList` con `add`/`remove`/`toggle` idempotentes, sin duplicados y
+  serializable como array JSON; `favourites_first` sube las seguidas sin desordenar el resto.
+- `diff.rs` llegó a 501 líneas (aviso de RNF-10) al crecer los tests: partido en
+  `diff/mod.rs` (196) + `diff/tests.rs` (244). El fichero más grande ahora es `model.rs` (375).
+- 49 tests en verde; trazabilidad: 21 requisitos con test, 52 sin cubrir.
+- Trampa: `cargo fmt | Select-Object -First 5` corta el proceso y deja el formateo a medias.
+
 ## HECHO – 2026-10-31 · Vistas de claims y trazabilidad (T-36/37/38 parcial, T-03b)
 
 - `core::matchup`: `claims()` (41 filas reales), `by_map()` en orden fijo, `with_kinds()`

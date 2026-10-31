@@ -93,6 +93,9 @@ tarea indica de qué depende.
 7. **T-38 (M)** Historial por guild separando el mapa actual de los demás. (T-16, T-37) — RF-72
    - **Parcial (2026-10-31):** `split_by_map` y `guild_timeline` hechos y probados.
 8. **T-39 (M)** Favoritos (seguir/dejar de seguir) con persistencia. (T-37) — RF-73
+   - **Parcial (2026-10-31):** `core::follow::FollowList` (añadir/quitar/toggle, sin
+     duplicados, serializable como lista JSON) y `favourites_first`, que pone las seguidas
+     arriba sin romper el orden por recencia. Falta guardarlo en la config (T-12).
 9. **T-40 (C)** Ruta virtual con origen inferido (garrison → colinas/bahía → respawn).
    (T-38) — RF-32a
 10. **T-41 (S)** Cerrar i18n: terminología de tipos con hablantes nativos de fr/de. (T-31)

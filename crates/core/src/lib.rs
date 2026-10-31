@@ -6,6 +6,7 @@
 #![cfg_attr(test, allow(clippy::unwrap_used, clippy::expect_used))]
 
 pub mod diff;
+pub mod follow;
 pub mod gate;
 pub mod matchup;
 pub mod model;
@@ -13,6 +14,7 @@ pub mod resolver;
 pub mod teams;
 
 pub use diff::{BaselineReason, DiffConfig, Differ, Event, Snapshot};
+pub use follow::{favourites_first, FollowList};
 pub use gate::{evaluate, GameState, Gate, Hidden};
 pub use matchup::{by_map, claims, rank_guilds, split_by_map, ClaimRow, GuildSummary};
 pub use model::{
