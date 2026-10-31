@@ -180,10 +180,12 @@ Comprobado el **2026-10-31** contra la API real, el código fuente de `nexus-rs`
 
 ### E1. Idioma (i18n)
 
-**RF-44 (M)** Todo texto propio del addon saldrá de una **tabla de traducción** indexada por el texto original en inglés (nunca literales sueltos en la UI). Idiomas: **es, en, fr, de**; una clave sin traducir cae a inglés. El idioma efectivo se resuelve en este orden: (1) preferencia del usuario si no es *Auto*; (2) **idioma del juego** leído de Nexus RTAPI (`read_game().language`: 0=en, 2=fr, 3=de, 4=es); (3) idioma de Nexus / evento de Unofficial Extras `EV_UNOFFICIAL_EXTRAS_LANGUAGE_CHANGED`; (4) inglés. Por defecto: **Auto**.
-- GWT: *Given* el juego en español y preferencia *Auto*, *When* se abre la configuración, *Then* los textos salen en español sin tocar nada.
+**RF-44 (M)** Todo texto propio del addon saldrá de una **tabla de traducción** indexada por el texto original en inglés (nunca literales sueltos en la UI). Idiomas de primera clase: **es, en, fr, de** — hay usuarios reales en los cuatro, así que **ninguna columna puede quedar vacía** (lo comprueba un test); una clave sin traducir cae a inglés. El idioma efectivo se resuelve en este orden: (1) preferencia del usuario si no es *Auto*; (2) **idioma del juego** leído de Nexus RTAPI (`read_game().language`: 0=en, 2=fr, 3=de, 4=es); (3) idioma de Nexus / evento de Unofficial Extras `EV_UNOFFICIAL_EXTRAS_LANGUAGE_CHANGED`; (4) inglés. Por defecto: **Auto**.
+- GWT: *Given* el juego en francés y preferencia *Auto*, *When* se abre la configuración, *Then* los textos salen en francés sin tocar nada.
+- GWT: *Given* una clave nueva añadida solo en español e inglés, *When* corre `cargo test`, *Then* falla el test de completitud de columnas.
 - El addon registrará además sus claves en Nexus (`nexus::localization::set_translation`) para que Nexus muestre sus textos en el idioma del usuario.
-- Los nombres que vienen de la API (objetivos, mapas) se piden con `?lang=<código>` y se cachean **por idioma** (es y en como mínimo), para poder cambiar de idioma al instante sin red.
+- Los nombres que vienen de la API (objetivos, mapas) se piden con `?lang=<código>` y se cachean **por idioma** (los cuatro), para poder cambiar de idioma al instante sin red.
+- **Terminología de tipos de objetivo** (`Camp`, `Tower`, `Keep`, `Castle`, `Ruins`…): se traducen en la tabla y deben coincidir con el término que usa el juego en ese idioma, no con una traducción libre. Se verifican con el cliente en `fr` y `de` antes de dar la traducción por buena.
 
 **RF-45 (M)** Mientras se mantenga pulsado **Ctrl derecho** con el juego en primer plano, **todo** el texto del addon se renderizará en **inglés**; al soltar vuelve al idioma efectivo. No modifica la preferencia guardada.
 - La lectura del teclado estará en `ffi/` con `// SAFETY` (`GetAsyncKeyState(VK_RCONTROL)`), y solo se aplicará si `UiState::GAME_HAS_FOCUS` o el cursor está sobre una ventana del addon, para no dispararse al escribir en otra aplicación.
