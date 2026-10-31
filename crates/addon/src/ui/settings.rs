@@ -121,7 +121,9 @@ pub fn body(
     remember_translation(config, edits.translation.as_str(), language);
     config.language = edits.language;
     config.alert_scope = edits.scope;
-    config.poll_secs = edits.poll_secs.clamp(15, 600) as u32;
+    config.poll_secs = edits
+        .poll_secs
+        .clamp(crate::config::POLL_SECS_MIN as i32, 600) as u32;
     config.alerts = edits.alerts;
     config.popup_secs = edits.popup_secs.clamp(0.0, POPUP_MAX_SECS);
     config.popup_enabled = edits.popup_enabled;
@@ -403,6 +405,15 @@ fn draw_alert_filters(ui: &Ui, edits: &mut Edits) {
         &mut edits.alerts.current_map,
     );
     ui.checkbox(i18n::widget("Guilds I follow"), &mut edits.alerts.followed);
+    ui.checkbox(
+        i18n::widget("Only the guilds I follow"),
+        &mut edits.alerts.only_followed,
+    );
+    if ui.is_item_hovered() {
+        ui.tooltip_text(i18n::text(
+            "One switch for «only mine»: the map boxes above stop counting.",
+        ));
+    }
 
     ui.separator();
     let mut seconds = edits.popup_secs;

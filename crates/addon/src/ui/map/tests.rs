@@ -2,6 +2,7 @@
 //!
 //! Kept out of `map.rs` so the tab stays under the 800-line limit (AGENTS.md §2.7).
 
+use super::route::heading;
 use super::*;
 
 #[test]
@@ -28,6 +29,30 @@ fn rf30_the_map_keeps_the_real_proportions() {
         y: [0.0, 100.0],
     };
     assert_eq!(map_size(&flat, [300.0, 1000.0]), [300.0, 300.0]);
+}
+
+#[test]
+fn rf32_the_heading_is_the_last_jump_and_only_when_it_means_something() {
+    // Hacia dónde va: la dirección del último salto, no el camino (ADR-005).
+    let (ux, uy) = heading([0.0, 0.0], [100.0, 0.0]).expect("hay salto");
+    assert!(
+        (ux - 1.0).abs() < 0.001 && uy.abs() < 0.001,
+        "hacia la derecha"
+    );
+
+    let (ux, uy) = heading([10.0, 10.0], [10.0, 110.0]).expect("hay salto");
+    assert!(ux.abs() < 0.001 && (uy - 1.0).abs() < 0.001, "hacia abajo");
+
+    assert_eq!(
+        heading([10.0, 10.0], [14.0, 13.0]),
+        None,
+        "dos objetivos pegados no dan dirección"
+    );
+    assert_eq!(
+        heading([10.0, 10.0], [10.0, 10.0]),
+        None,
+        "el mismo objetivo dos veces tampoco"
+    );
 }
 
 #[test]

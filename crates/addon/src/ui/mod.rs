@@ -334,7 +334,7 @@ fn draw_tabs(
     filters: &mut matchup::Filters,
     data: &Tabbed,
 ) -> Option<settings::TeamChange> {
-    use nexus::imgui::{TabBar, TabBarFlags, TabItem};
+    use nexus::imgui::{TabBar, TabBarFlags, TabItem, TabItemFlags};
 
     let mut change = None;
     // Clan clicado en un aviso o en la lista de seguidos: se selecciona para la ruta.
@@ -356,12 +356,17 @@ fn draw_tabs(
     // Scroll instead of shrinking: with six tabs in a narrow window imgui used to squeeze them
     // until the last ones were unreachable. With the scroll policy it draws the little arrows in
     // the bar, which is the «...» that was asked for (report of 2026-10-31).
+    let jump = WANT_TAB.load(Ordering::Relaxed);
     if let Some(_bar) = TabBar::new("###gw2lurker_tabs")
         .flags(TabBarFlags::FITTING_POLICY_SCROLL)
         .begin(ui)
     {
         for (index, key) in TABS.iter().enumerate() {
-            TabItem::new(i18n::widget(key)).build(ui, || match index {
+            let mut item = TabItem::new(i18n::widget(key));
+            if jump == index {
+                item = item.flags(TabItemFlags::SET_SELECTED);
+            }
+            item.build(ui, || match index {
                 // Todas las ramas devuelven el clan que se ha clicado, si lo hay: con él se
                 // selecciona la ruta (petición de 2026-10-31).
                 0 => {
@@ -443,17 +448,31 @@ fn draw_tabs(
             });
         }
     }
+    // El cambio de pestaña dura un fotograma: al siguiente manda el jugador.
+    if jump != usize::MAX {
+        WANT_TAB.store(usize::MAX, Ordering::Relaxed);
+    }
 
     // Un clan clicado selecciona su ruta y lleva el mapa al último donde reclamó algo, que es lo
-    // que se está pidiendo al clicar (petición de 2026-10-31).
+    // que se está pidiendo al clicar (petición de 2026-10-31). Además se cambia a la pestaña
+    // *Mapa*, donde está esa ruta: antes había que ir a mano y parecía que el clic no hacía nada.
     if let Some(guild) = clicked {
         guilds::select(&guild);
         if let Some(role) = crate::worker::dashboard().last_map_of(&guild) {
             *map_choice() = role;
         }
+        WANT_TAB.store(TAB_MAP, Ordering::Relaxed);
     }
     change
 }
+
+/// Tab index of the *Map* tab inside [`TABS`].
+const TAB_MAP: usize = 1;
+
+/// Tab the widget has to switch to on this frame, `usize::MAX` for «stay where the player is».
+///
+/// Session state, like the map choice: it exists for the frame after a click on a guild.
+static WANT_TAB: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(usize::MAX);
 
 /// Which map the *Map* tab draws: the session's choice, `Unknown` until the player picks one.
 ///

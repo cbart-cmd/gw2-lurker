@@ -127,7 +127,9 @@ impl Dashboard {
             .filter(|role| *role != MapRole::Unknown)
     }
 
-    /// Guilds that claimed something this session, with their number of claims and the last one.
+    /// Guilds that hold something right now: the ones that claimed during this session plus the
+    /// ones that already held an objective when the addon started (ADR-012: the history starts
+    /// with the map as it is).
     ///
     /// It is what the *Add guild* panel offers first: those are the guilds the player has just
     /// seen on screen, so following one is a click and no network (T-44).
@@ -326,16 +328,11 @@ fn poll_once(
     // detectado dejaba al addon mirando otra partida 14 de cada 15 minutos (informe de
     // 2026-10-31).
     let polled = polled_team(saved, crate::detect::cached().map(|found| found.team));
-    let live = match polled {
-        // Known team: ask only for its match (~44 KB instead of ~400 KB).
-        Some(team) if !needs_all => match api.match_for_team(team) {
-            Ok(found) => vec![found],
-            // The team no longer plays: the ladder reshuffled, so refresh the whole list to
-            // let the picker offer the live teams again.
-            Err(_) => api.matches_all().map_err(|error| error.to_string())?,
-        },
-        _ => api.matches_all().map_err(|error| error.to_string())?,
-    };
+    let live = fetch_live(
+        api,
+        fetch_plan(needs_all, watched_match_id().as_deref(), polled),
+        polled,
+    )?;
 
     // El juego manda: si Mumble dice en qué partida está el jugador, se vigila ésa y no la del
     // equipo guardado. Es la causa de todos los «no salen avisos» (informe de 2026-10-31).
@@ -469,6 +466,69 @@ fn polled_team(saved: Option<u32>, detected: Option<u32>) -> Option<u32> {
     detected.or(saved)
 }
 
+/// What one poll has to ask the API for.
+#[derive(Debug, Clone, PartialEq, Eq)]
+enum Fetch {
+    /// The nine matchups: the picker is on screen, or it is time to look for the player's match
+    /// again (`~400 KB`).
+    All,
+    /// The match we already know, by id: `~44 KB` with its **four maps**, which is what makes a
+    /// five-second poll affordable.
+    ById(String),
+    /// The match of a team whose id is not known yet.
+    Team(u32),
+}
+
+/// Which request a poll needs. Pure, so the rule can be tested without the network.
+fn fetch_plan(needs_all: bool, known: Option<&str>, polled: Option<u32>) -> Fetch {
+    if needs_all {
+        return Fetch::All;
+    }
+    match known {
+        Some(id) => Fetch::ById(id.to_owned()),
+        None => polled.map_or(Fetch::All, Fetch::Team),
+    }
+}
+
+/// The match the poll is watching, from the last one published (cheap: one clone of an id).
+fn watched_match_id() -> Option<String> {
+    dashboard().match_id.clone()
+}
+
+/// Runs the plan. Every fallback ends in `ids=all`: it is the only request that can find a match
+/// whose id or team we no longer know.
+fn fetch_live(
+    api: &Api<WinHttpTransport>,
+    plan: Fetch,
+    polled: Option<u32>,
+) -> Result<Vec<Match>, String> {
+    match plan {
+        Fetch::All => api.matches_all().map_err(|error| error.to_string()),
+        Fetch::ById(id) => {
+            let found = api.match_by_id(&id).map_err(|error| error.to_string())?;
+            // La partida guardada puede haber terminado o el jugador haber cambiado de equipo:
+            // si el equipo que se vigila no está ahí, se busca otra vez.
+            if polled.is_none_or(|team| found.color_of(team).is_some()) {
+                return Ok(vec![found]);
+            }
+            fetch_by_team(api, polled)
+        }
+        Fetch::Team(_) => fetch_by_team(api, polled),
+    }
+}
+
+/// The match of a team, or every matchup when that team no longer plays (the ladder reshuffled,
+/// so the picker has to offer the live teams again).
+fn fetch_by_team(api: &Api<WinHttpTransport>, polled: Option<u32>) -> Result<Vec<Match>, String> {
+    match polled {
+        Some(team) => match api.match_for_team(team) {
+            Ok(found) => Ok(vec![found]),
+            Err(_) => api.matches_all().map_err(|error| error.to_string()),
+        },
+        None => api.matches_all().map_err(|error| error.to_string()),
+    }
+}
+
 /// Whether an event is worth writing to disk: only what a followed guild did.
 ///
 /// The claims of the rest of the matchup are the current state, and the API returns them on
@@ -494,16 +554,16 @@ fn history_row(
         objective,
         guild,
         at,
-        late,
+        ..
     } = event
     else {
         return None;
     };
-    // A claim that was already there when the addon started is not part of this session: the
-    // history has to start empty after a restart (bug of 2026-10-31).
-    if *late {
-        return None;
-    }
+    // Los reclamos que ya existían al cargar **sí** entran en el historial, con su `claimed_at`
+    // real: ADR-012 punto 2 pide que «la ruta empiece con el mapa tal y como está». Dejarlos
+    // fuera hacía que un clan seguido que ya tenía un campa apareciera sin historial ni ruta
+    // hasta que volviera a reclamar (informe de 2026-10-31). Lo que no entran es en los avisos:
+    // de eso se encarga `AlertLine::late` en `recent_alerts`.
     let map_id = objective
         .split_once('-')
         .and_then(|(map, _)| map.parse::<u32>().ok())?;

@@ -205,7 +205,7 @@ fn session_block(
     session: &[(String, usize, Option<DateTime<Utc>>)],
     names: &BTreeMap<String, String>,
 ) {
-    ui.text(i18n::text("Claimed since the addon started"));
+    ui.text(i18n::text("Holding something now"));
     // The ten most recent: the list is a shortcut, not an inventory, and it was growing without
     // bound (report of 2026-10-31).
     let candidates: Vec<_> = session

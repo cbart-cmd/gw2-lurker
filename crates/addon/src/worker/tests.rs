@@ -144,6 +144,71 @@ fn rf25_a_restart_does_not_refill_the_log_with_yesterdays_claims() {
 }
 
 #[test]
+fn t02_the_poll_asks_for_the_match_it_already_knows() {
+    // Un sondeo cada 5 s no puede pedir los nueve emparejamientos (400 KB): con el id conocido
+    // se pide **solo** la partida, que ya trae sus cuatro mapas (44 KB).
+    assert_eq!(
+        fetch_plan(false, Some("1-1"), Some(11011)),
+        Fetch::ById("1-1".to_owned())
+    );
+    assert_eq!(
+        fetch_plan(false, None, Some(11011)),
+        Fetch::Team(11011),
+        "sin partida conocida se busca la del equipo"
+    );
+    assert_eq!(
+        fetch_plan(false, None, None),
+        Fetch::All,
+        "sin equipo ni partida hay que pedirlo todo"
+    );
+    assert_eq!(
+        fetch_plan(true, Some("1-1"), Some(11011)),
+        Fetch::All,
+        "el selector en pantalla necesita los nueve"
+    );
+}
+
+#[test]
+fn rf25_the_history_starts_with_what_is_already_claimed() {
+    // ADR-012 punto 2: la ruta empieza con el mapa tal y como está. Sin esto, un clan seguido
+    // que ya tenía un campa al cargar salía sin historial hasta que volviera a reclamar
+    // (informe de 2026-10-31).
+    let entry: Match = serde_json::from_str(
+        r#"{
+            "id": "1-1",
+            "scores": {"green": 0, "blue": 0, "red": 0},
+            "all_worlds": {"green": [], "blue": [], "red": []},
+            "maps": [{
+                "id": 38,
+                "type": "Center",
+                "objectives": [{
+                    "id": "38-20", "type": "Camp", "owner": "Blue",
+                    "claimed_by": "1DB147F0", "claimed_at": "2026-10-31T22:02:34Z",
+                    "last_flipped": "2026-10-31T22:02:32Z"
+                }]
+            }]
+        }"#,
+    )
+    .expect("match válido");
+
+    let at = Utc::now() - chrono::Duration::hours(2);
+    let event = Event::Claim {
+        objective: "38-20".to_owned(),
+        guild: "1DB147F0".to_owned(),
+        at,
+        late: true,
+    };
+
+    let row = history_row(&event, &entry, &[], &std::collections::BTreeMap::new())
+        .expect("el reclamo del baseline entra en el historial");
+
+    assert_eq!(row.objective_id, "38-20");
+    assert_eq!(row.guild, "1DB147F0");
+    assert_eq!(row.claimed_at, Some(at), "con su hora real, no la de ahora");
+    assert_eq!(row.map_role, MapRole::Center);
+}
+
+#[test]
 fn t51_clicking_a_guild_knows_its_last_map() {
     // Al clicar un clan se lleva el mapa al último donde reclamó algo (petición de
     // 2026-10-31). El id del objetivo ya lleva el mapa delante.

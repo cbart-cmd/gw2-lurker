@@ -283,7 +283,7 @@ configuración y se restaura al arrancar.
 | ID | Requisito | Verificación |
 |---|---|---|
 | RNF-01 | Frame time añadido < 0.5 ms en render (widget y mapa abiertos) | Medición con temporizador en dev |
-| RNF-02 | Intervalo de polling configurable; mínimo 15 s; por defecto **30 s**, fijado con datos de T-02 (cambios de propiedad con mediana 19–20 s; 120 de las 600 peticiones/h) | Test + spike |
+| RNF-02 | Intervalo de polling configurable, **5–600 s**; por defecto **5 s** (decisión del jugador, 2026-10-31, para acercarse a gw2mists). Es asequible porque el sondeo pide **una** partida por id (~44 KB, con sus cuatro mapas) y no los nueve emparejamientos (~400 KB): 12 peticiones/min. La ventana del límite `X-Rate-Limit-Limit: 600` no viene en la cabecera; si fuera por hora, 5 s son 720/h y el worker recorta con su backoff | Test + spike |
 | RNF-03 | Historial acotado **por sesión** (ADR-012): tope de 2 MB con rotación dentro de la sesión; al arrancar se descarta la anterior | Test de rotación |
 | RNF-04 | Sin red: UI funcional con último estado y marca "obsoleto"; backoff exponencial con tope | Test con cliente simulado |
 | RNF-05 | El historial es "mejor esfuerzo": no se promete completitud | Documentado en UI y README |

@@ -97,6 +97,18 @@ impl WindowState {
 }
 
 /// Everything the addon remembers between runs.
+/// Fastest poll the addon allows, in seconds.
+///
+/// The player asked for the cadence of gw2mists (2026-10-31): **5 s**, which is affordable
+/// because the poll asks for one match by id (~44 KB, the four maps) and not for the nine
+/// (`~400 KB`). The worker still backs off on failures, and a poll every second would be the only
+/// thing that could exceed the budget (`X-Rate-Limit-Limit: 600`; the window is not in the header
+/// — see RNF-02).
+pub const POLL_SECS_MIN: u32 = 5;
+
+/// Interval used when the player has not chosen one.
+pub const POLL_SECS_DEFAULT: u32 = 5;
+
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(default)]
 pub struct Config {
@@ -225,7 +237,7 @@ impl Default for Config {
             team_alias: None,
             team_names: BTreeMap::new(),
             team_translations: BTreeMap::new(),
-            poll_secs: 30,
+            poll_secs: POLL_SECS_DEFAULT,
             alert_scope: AlertScope::default(),
             alerts: gw2lurker_core::AlertFilter::default(),
             popup_secs: 2.0,
@@ -304,7 +316,7 @@ impl Config {
 
     /// Extra widgets: the pop-up time is a duration, not a unitless number.
     fn sanitize(&mut self) {
-        self.poll_secs = self.poll_secs.clamp(15, 600);
+        self.poll_secs = self.poll_secs.clamp(POLL_SECS_MIN, 600);
         self.popup_secs = if self.popup_secs.is_finite() {
             self.popup_secs.clamp(0.0, 5.0)
         } else {
@@ -529,7 +541,10 @@ mod tests {
     fn rf41_defaults_are_usable() {
         let c = Config::default();
         assert_eq!(c.team_id, None);
-        assert_eq!(c.poll_secs, 30, "RNF-02: 30 s medido");
+        assert_eq!(
+            c.poll_secs, POLL_SECS_DEFAULT,
+            "RNF-02: 5 s por petición del jugador"
+        );
         assert!(c.widget_locked);
         assert_eq!(c.alert_scope, AlertScope::CurrentMap);
         assert_eq!(c.language, LanguagePreference::Auto);
@@ -540,7 +555,7 @@ mod tests {
         let c: Config = serde_json::from_str(r#"{"team_id": 12014}"#).unwrap();
         assert_eq!(c.team_id, Some(12014));
         assert_eq!(
-            c.poll_secs, 30,
+            c.poll_secs, POLL_SECS_DEFAULT,
             "los campos nuevos toman su valor por defecto"
         );
     }
@@ -553,7 +568,7 @@ mod tests {
             ..Config::default()
         };
         c.sanitize();
-        assert_eq!(c.poll_secs, 15);
+        assert_eq!(c.poll_secs, POLL_SECS_MIN);
         assert_eq!(c.widget_opacity, 1.0);
 
         let mut nan = Config {
