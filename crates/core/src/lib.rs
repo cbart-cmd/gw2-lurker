@@ -12,6 +12,7 @@ pub mod i18n;
 pub mod matchup;
 pub mod model;
 pub mod resolver;
+pub mod select;
 pub mod teams;
 
 pub use diff::{BaselineReason, DiffConfig, Differ, Event, Snapshot};
@@ -24,4 +25,5 @@ pub use model::{
     TeamScores, WvwMap, HIGH_VALUE_TICK,
 };
 pub use resolver::Resolution;
+pub use select::{candidates, evaluate as evaluate_team, rivals, Candidate, Selection};
 pub use teams::{bundled, TeamEntry, TeamTable};
