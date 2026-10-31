@@ -11,6 +11,7 @@ mod config;
 mod context;
 mod ffi;
 mod i18n;
+mod lang;
 #[allow(dead_code)] // used by the polling worker (T-11c)
 mod net;
 mod ui;
@@ -108,11 +109,14 @@ fn load() {
     }
     let (map_id, map_type) = ffi::mumble_map().unwrap_or((0, 0));
     log::info!(
-        "WvW Lurker cargado: mumble map {map_id} tipo {map_type}, gameplay {:?}, idioma {}",
+        "WvW Lurker cargado: mumble map {map_id} tipo {map_type}, gameplay {:?}, idioma {} (extras {:?}, nexus {:?})",
         ffi::is_gameplay(),
-        i18n::effective().code()
+        i18n::effective().code(),
+        lang::from_extras().map(gw2lurker_core::i18n::Language::code),
+        lang::from_nexus_settings().map(gw2lurker_core::i18n::Language::code)
     );
 
+    lang::subscribe();
     let _ = WRITER.set(Mutex::new(Some(writer::Writer::start())));
     ui::register();
 }

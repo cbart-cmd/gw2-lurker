@@ -144,6 +144,17 @@ Regla: si un resultado contradice la spec, no se "arregla" el código; se abre u
   - Nexus descarga a `<NexusDLL>.update` y conserva `<NexusDLL>.old` (`Nexus/Index/Index.cpp`, rutas `EPath::NexusDLL_Update` / `NexusDLL_Old`) ⇒ indicio de intercambio de fichero con respaldo. Falta ver si hace lo mismo con addons de terceros.
 - Método de detección viable: `pendiente`. Candidatos a probar en el spike: comparar fecha/tamaño de `<juego>/addons/<nombre>/*.dll` al arrancar, y confirmar si el `.old` aparece para el addon.
 
+### Notas de verificación: de dónde saca Nexus el idioma (2026-10-31)
+
+Comprobado `[src]` en `nexus-rs` 0.12.0, en el crate `unofficial_extras` de `arcdps-rs` y en la instalación real (`C:\Program Files\Guild Wars 2\addons\Nexus`).
+
+- **Nexus no expone el idioma por API**: `NexusLink` sólo tiene `width/height/scaling/is_moving/is_camera_moving/is_gameplay` y las fuentes; `AddonApi` no tiene campo de idioma. Lo que sí hay es `LocalizationApi::translate/translate_to/set`, que traduce identificadores pero no dice cuál es el idioma activo.
+- **Cómo lo sabe Nexus**: `Nexus/Settings.json` guarda `"Language": "Español"` (nombre visible) y Nexus carga `Nexus/Locales/<id>_Main.json`. Cada locale declara `{"Identifier": "es", "DisplayName": "Español", "Texts": {...}}`; hay 10 (br, cn, cz, de, en, es, fr, it, pl, ru).
+- **Idioma real del juego**: `unofficial_extras::Language` es `repr(i32)` con `English=0, French=2, German=3, Spanish=4, Chinese=5` (mismos códigos que RTAPI). Su documentación dice del callback de idioma: *"Called whenever the language is changed. Either by Changing it in the UI or by pressing the Right Ctrl (default) key. Will also be called directly after initialization, with the current language, to get the startup language."*
+- **Puente ya hecho por Nexus**: `nexus::event::extras::LANGUAGE_CHANGED` (`EV_UNOFFICIAL_EXTRAS_LANGUAGE_CHANGED`) con la feature `extras`; `subscribe(...).revert_on_unload()` deja la desuscripción a Nexus.
+- Coste medido en la DLL de release: **+15 872 bytes** (1 256 448 → 1 272 320), frente a los 1,5–2 MB de un cliente TLS embebido.
+- Trampa del macro: `event_consume!` sólo acepta una función (`fn(Option<&T>)`), no una closure con capturas; con una closure la plantilla acaba infiriendo `<()>` y falla el tipo.
+
 ### Notas de verificación: cliente HTTP sobre WinHTTP (2026-10-31)
 
 Medido `[medido]` ejecutando la prueba del propio crate del addon (`cargo test -p gw2lurker-addon live_get -- --ignored`) contra `https://api.guildwars2.com/v2/wvw/matches/2-2`:

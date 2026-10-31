@@ -20,24 +20,26 @@ pub fn active() -> Language {
     }
 }
 
-/// Saved preference unless it is *Auto*, then the game language, then the Windows language,
-/// then English (RF-44).
+/// Saved preference unless it is *Auto*, then the best source available, then English.
+///
+/// Order (RF-44): game language from RealTime API → game language from Unofficial Extras →
+/// language Nexus is using → Windows display language → English.
 pub fn effective() -> Language {
     resolve(
         crate::config().language,
-        game_language(),
-        Language::from_windows_language(crate::ffi::keys::os_primary_language()),
+        [
+            game_language(),
+            crate::lang::from_extras(),
+            crate::lang::from_nexus_settings(),
+            Language::from_windows_language(crate::ffi::keys::os_primary_language()),
+        ],
     )
 }
 
-/// Precedence between the saved preference, the language the game reports and the OS one.
-fn resolve(
-    preference: LanguagePreference,
-    game: Option<Language>,
-    os: Option<Language>,
-) -> Language {
+/// Precedence between the saved preference and the sources, most reliable first.
+fn resolve(preference: LanguagePreference, sources: [Option<Language>; 4]) -> Language {
     match preference {
-        LanguagePreference::Auto => game.or(os).unwrap_or(Language::En),
+        LanguagePreference::Auto => sources.into_iter().flatten().next().unwrap_or(Language::En),
         LanguagePreference::Es => Language::Es,
         LanguagePreference::En => Language::En,
         LanguagePreference::Fr => Language::Fr,
@@ -97,50 +99,55 @@ mod tests {
     use super::*;
 
     #[test]
-    fn rf44_auto_follows_the_game_language() {
+    fn rf44_auto_takes_the_most_reliable_source() {
         assert_eq!(
-            resolve(LanguagePreference::Auto, Some(Language::Fr), None),
-            Language::Fr
+            resolve(
+                LanguagePreference::Auto,
+                [Some(Language::Fr), Some(Language::Es), None, None]
+            ),
+            Language::Fr,
+            "RTAPI gana a Extras"
         );
         assert_eq!(
             resolve(
                 LanguagePreference::Auto,
-                Some(Language::De),
-                Some(Language::Es)
+                [None, Some(Language::De), Some(Language::Es), None]
             ),
             Language::De,
-            "el idioma del juego gana al de Windows"
+            "Extras (idioma real del juego) gana a lo que tenga Nexus"
         );
-    }
-
-    #[test]
-    fn rf44_without_rtapi_the_os_language_is_used() {
         assert_eq!(
-            resolve(LanguagePreference::Auto, None, Some(Language::Es)),
+            resolve(
+                LanguagePreference::Auto,
+                [None, None, Some(Language::Es), Some(Language::En)]
+            ),
             Language::Es,
-            "sin RTAPI, el idioma de Windows es mejor que inglés"
+            "Nexus gana al idioma de Windows"
         );
         assert_eq!(
-            resolve(LanguagePreference::Auto, None, None),
-            Language::En,
-            "y si tampoco hay, inglés"
+            resolve(
+                LanguagePreference::Auto,
+                [None, None, None, Some(Language::Es)]
+            ),
+            Language::Es,
+            "y Windows es el último recurso antes de inglés"
+        );
+        assert_eq!(
+            resolve(LanguagePreference::Auto, [None, None, None, None]),
+            Language::En
         );
     }
 
     #[test]
     fn rf44_explicit_preference_beats_everything() {
-        assert_eq!(
-            resolve(
-                LanguagePreference::De,
-                Some(Language::Fr),
-                Some(Language::Es)
-            ),
-            Language::De
-        );
-        assert_eq!(
-            resolve(LanguagePreference::Es, Some(Language::En), None),
-            Language::Es
-        );
+        let all = [
+            Some(Language::Fr),
+            Some(Language::Es),
+            Some(Language::De),
+            Some(Language::En),
+        ];
+        assert_eq!(resolve(LanguagePreference::De, all), Language::De);
+        assert_eq!(resolve(LanguagePreference::Es, all), Language::Es);
     }
 
     #[test]

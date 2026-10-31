@@ -34,6 +34,23 @@ Reglas:
   bueno un HTTP 200. Se reintenta con `-VerifyOnly` pasados unos minutos; no se cambia la URL
   ni la versión para taparlo.
 
+## HECHO – 2026-10-31 · Idioma real del juego vía Extras y Nexus (T-31 cerrada en lo posible)
+
+- Pregunta del usuario: «Nexus sabe el idioma que usas, ¿cómo lo hace?». Respuesta medida:
+  Nexus **no** lo expone por API; lo guarda en `Nexus/Settings.json` como nombre visible y
+  carga `Nexus/Locales/<id>_Main.json` (que sí lleva `"Identifier": "es"`).
+- Implementado `addon::lang` con las dos fuentes de verdad:
+  1. `nexus::event::extras::LANGUAGE_CHANGED` (feature `extras` de `nexus-rs`), que el plugin
+     Unofficial Extras emite **también al inicializar** con el idioma actual: idioma real del
+     juego, en vivo y sin sondeo. `revert_on_unload()` deja la desuscripción a Nexus.
+  2. `Nexus/Settings.json` + `Locales/*_Main.json` como respaldo (dos lecturas de fichero en
+     `load`, memorizadas; nunca en el hilo de render).
+- Cadena final: preferencia → Extras → RTAPI → Nexus → idioma de Windows → inglés.
+- Coste: **+15 872 bytes** de DLL (1 256 448 → 1 272 320). Nada de dependencias nuevas.
+- Trampa: `event_consume!` sólo acepta una función, no una closure; con closure infiere `<()>`
+  y falla con un error de tipos que no dice nada del macro.
+- Verificado: `clippy -D warnings` limpio; 23 tests en el addon (5 nuevos de `lang`).
+
 ## HECHO – 2026-10-31 · Cliente HTTP real sobre WinHTTP (T-11b cerrada)
 
 - `addon::ffi::http`: GET con WinHTTP del sistema (`WinHttpOpen/Connect/OpenRequest/Send/Receive/

@@ -1,6 +1,12 @@
 # Changelog
 Formato [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/), versionado [SemVer](https://semver.org/lang/es/).
 
+## [0.3.2] - 2026-10-31
+### Cambiado
+- El idioma sale ahora del juego de verdad: se escucha el evento de idioma de Unofficial Extras
+  (que también llega al arrancar) y, si no está, se lee el idioma que usa Nexus de sus propios
+  ficheros. El idioma de Windows queda como último recurso antes del inglés.
+
 ## [0.3.1] - 2026-10-31
 ### Cambiado
 - Los ajustes se guardan como `settings.json` dentro de la carpeta del addon, igual que los
