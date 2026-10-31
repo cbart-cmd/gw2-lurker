@@ -18,7 +18,7 @@ Cada tarea es pequeña y verificable. Orden recomendado; las dependencias se ind
 ## Fase 1 – Núcleo (sin juego)
 
 - **T-03** Workspace + CI local (`fmt`, `clippy`, `test`). *Hecho:* `cargo test` verde. **(Duplicado de la T-03 de la Fase 0b, que está hecha: el resto de esta tarea es T-03a.)**
-- **T-04** `core::model` y deserialización serde de fixtures reales del match y de objetivos. (T-03)
+- **T-04 ✔ (2026-10-31)** `core::model` y deserialización serde de fixtures reales del match y de objetivos. *Hecho:* 11 tests contra `crates/api/tests/fixtures/` (match `2-2`, objetivos, mapas). (T-03)
 - **T-05** `match_resolver`: equipo → color propio/enemigos buscando el `team_id` en `all_worlds`; nombres desde `data/wvw-teams.json`. *Hecho:* tests con equipo enlazado y con id sin nombre. (T-04) — RF-03b, RF-03i
 - **T-06** Baseline y cambio de match en `diff`. (T-04) — RF-03d, RF-04
 - **T-07** `diff` de flips y claims/unclaims con orden determinista. (T-06) — RF-10, RF-21, RF-22

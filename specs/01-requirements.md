@@ -147,8 +147,8 @@ Comprobado el **2026-10-31** contra la API real, el código fuente de `nexus-rs`
 **RF-30a (M)** El mapa tendrá filtros por tipo de objetivo (campamento, torre, fortaleza, castillo) activables individualmente y **persistentes** entre sesiones. Los tipos sin valor de puntuación (`Ruins`, `Mercenary`, `Spawn`, `Resource`, `Generic`) estarán ocultos por defecto.
 - GWT: *Given* solo "torre" y "castillo" activos, *When* se repinta el mapa, *Then* no se dibuja ningún campamento, pero la capa de claims seguidos sigue mostrando los suyos.
 
-**RF-30b (M)** El mapa marcará los objetivos de **alto valor** con un contorno doble, además de la forma y el color. El criterio es **de datos, no una lista cableada**: alto valor = `points_tick` ≥ 8 (hoy: castillos y fortalezas), medio = torres, bajo = campamentos. Un cambio de puntuación en la API se refleja sin tocar código.
-- GWT: *Given* el match `2-2`, *When* se aplica el umbral, *Then* se marcan las 12 fortalezas y el castillo, y no las 24 torres ni los 24 campamentos.
+**RF-30b (M)** El mapa marcará los objetivos de **alto valor** con un contorno doble, además de la forma y el color. El criterio es **de datos, no una lista cableada ni el tipo**: alto valor = `points_tick` ≥ 8. Medido en el match `2-2`: las 12 fortalezas y el castillo siempre lo superan, y **4 de 24 torres** también porque están totalmente mejoradas (tick 8); ningún campamento (tick 2) ni Ruinas/Mercenarios/Spawn (tick 0). Un cambio de puntuación en la API se refleja sin tocar código.
+- GWT: *Given* el match `2-2`, *When* se aplica el umbral, *Then* se marcan **17** objetivos (12 fortalezas, el castillo y 4 torres mejoradas) y ninguno de los 24 campamentos.
 - GWT: *Given* un snapshot, *When* se abre la vista, *Then* cada objetivo aparece en su posición relativa con el color de su dueño.
 
 **RF-31 (M)** Capa de claims: marca visualmente los objetivos reclamados por guilds seguidas (anillo/etiqueta con tag de guild).

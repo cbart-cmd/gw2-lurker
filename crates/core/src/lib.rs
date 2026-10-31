@@ -4,3 +4,10 @@
 
 #![forbid(unsafe_code)]
 #![cfg_attr(test, allow(clippy::unwrap_used, clippy::expect_used))]
+
+pub mod model;
+
+pub use model::{
+    MapRole, Match, MatchMap, MatchObjective, ObjectiveInfo, ObjectiveType, Region, TeamColor,
+    TeamScores, WvwMap, HIGH_VALUE_TICK,
+};

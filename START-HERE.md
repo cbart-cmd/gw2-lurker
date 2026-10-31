@@ -16,10 +16,10 @@ Esta guía te dice qué hacer tú y cómo trabajar con la IA. Los detalles de qu
 ## 2. Antes de pedir nada a la IA (checklist)
 
 **A. Cuenta y repositorio**
-- [ ] Crear el repositorio en GitHub (privado al principio sirve; público si quieres que Nexus lo actualice con `UpdateProvider::GitHub`).
-- [ ] Copiar todo este paquete a la raíz del repo y hacer el primer commit.
+- [x] Crear el repositorio en GitHub → `https://github.com/cbart-cmd/gw2-lurker` (privado).
+- [x] Copiar todo este paquete a la raíz del repo y hacer el primer commit.
 - [ ] Activar protección de la rama `main` (PR obligatorio y CI verde).
-- [ ] Decidir **nombre final** y **licencia** (hasta entonces, el nombre es provisional). Añadir `LICENSE`.
+- [x] Licencia decidida: **GPL-3.0-only**, con `LICENSE` en la raíz. Nombre del repo: `gw2-lurker`.
 
 **B. Entorno**
 - [ ] Instalar Rust con `rustup` y las herramientas de compilación de Windows (Visual Studio Build Tools, carga "Desarrollo de escritorio con C++").

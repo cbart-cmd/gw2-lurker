@@ -6,9 +6,9 @@ members = ["crates/*"]
 version = "0.1.0"
 edition = "2021"
 rust-version = "1.87.0"
+license = "GPL-3.0-only"
 authors = ["cbart-cmd"]
 repository = "https://github.com/cbart-cmd/gw2-lurker"
-# license: pendiente de decidir (START-HERE §2A). Hace falta antes de `cargo deny` en CI.
 
 [workspace.lints.rust]
 missing_debug_implementations = "warn"

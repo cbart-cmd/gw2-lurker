@@ -15,4 +15,5 @@ _Pendiente (T-20)._
 Lee `START-HERE.md` y `specs/`. Agentes de IA: `AGENTS.md`.
 
 ## Licencia
-_Pendiente de decidir._
+
+GPL-3.0-only. Ver [LICENSE](./LICENSE).

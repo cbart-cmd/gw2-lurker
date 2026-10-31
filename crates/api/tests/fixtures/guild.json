@@ -1,0 +1,24 @@
+{
+  "id": "230C9E95-E509-4B3E-AAF2-A320DB7506E5",
+  "name": "Laxfarm",
+  "tag": "LAX",
+  "emblem": {
+    "background": {
+      "id": 10,
+      "colors": [
+        27
+      ]
+    },
+    "foreground": {
+      "id": 130,
+      "colors": [
+        93,
+        93
+      ]
+    },
+    "flags": [
+      "FlipBackgroundVertical",
+      "FlipForegroundHorizontal"
+    ]
+  }
+}
