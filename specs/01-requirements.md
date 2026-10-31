@@ -96,8 +96,14 @@ Comprobado el **2026-10-31** contra la API real, el código fuente de `nexus-rs`
 
 **RF-17 (M)** El widget deberá poder moverse y redimensionarse libremente, y su posición y tamaño deberán persistir entre sesiones (mismo contrato de ventana que RF-46).
 
-**RF-18 (M)** El widget deberá tener modo **bloqueado**: sin cabecera ni bordes interactivos y sin capturar el ratón (los clics pasan al juego). Se alterna desde la configuración o con el atajo por defecto `Alt+Shift+L` (keybind gestionado por Nexus, reasignable).
-- GWT: *Given* el widget bloqueado, *When* el usuario hace clic sobre él, *Then* el clic llega al juego.
+**RF-18 (M)** El widget tendrá **dos interruptores independientes** (ADR-014; antes eran el mismo y por eso «bloquear» dejaba la ventana sin ratón):
+
+- **Bloquear posición**: no se puede mover ni redimensionar, pero **sí** acepta clics.
+- **Click-through**: sigue dibujándose y **no captura el ratón** (los clics pasan al juego).
+
+El click-through se alterna desde la configuración, desde las opciones de Nexus y con un atajo **keybind de Nexus, reasignable**. Por defecto `Ctrl+Shift+L`: **`Alt+Shift+L` no vale**, es el menú legacy de arcDPS y el juego se lo queda (comprobado en el juego, 2026-10-31).
+- GWT: *Given* el widget en click-through, *When* el usuario hace clic sobre él, *Then* el clic llega al juego.
+- GWT: *Given* el widget con la posición bloqueada, *When* el usuario hace clic en una pestaña, *Then* cambia de pestaña.
 
 **RF-19 (M)** Cada línea deberá mostrar: icono/forma de tipo de objetivo, texto, mapa y antigüedad ("hace 2 min"), con color según el equipo implicado y distinción por tipo de alerta (pérdida, claim de guild seguida, informativa). No se usará solo el color para distinguirlas.
 

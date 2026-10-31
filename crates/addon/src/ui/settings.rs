@@ -71,6 +71,7 @@ struct Edits {
     follow: FollowList,
     widget_visible: bool,
     widget_locked: bool,
+    widget_click_through: bool,
 }
 
 /// Body of the *Settings* tab: the whole form, without window chrome (T-42).
@@ -101,6 +102,7 @@ pub fn body(
         follow: config.followed.clone(),
         widget_visible: widget.visible,
         widget_locked: widget.locked,
+        widget_click_through: widget.click_through,
     };
     let before = edits.team_id;
 
@@ -121,6 +123,9 @@ pub fn body(
     }
     if edits.widget_locked != widget.locked {
         config.window(crate::ui::WIDGET).locked = edits.widget_locked;
+    }
+    if edits.widget_click_through != widget.click_through {
+        config.window(crate::ui::WIDGET).click_through = edits.widget_click_through;
     }
     set_narrowing(edits.narrowing);
 
@@ -230,13 +235,18 @@ fn draw_body(
     ui.text(i18n::text("Windows"));
     ui.checkbox(i18n::widget("Show widget"), &mut edits.widget_visible);
     ui.same_line();
-    ui.checkbox(i18n::widget("Click-through"), &mut edits.widget_locked);
+    ui.checkbox(i18n::widget("Lock position"), &mut edits.widget_locked);
+    ui.checkbox(
+        i18n::widget("Click-through"),
+        &mut edits.widget_click_through,
+    );
     let popups = ui.checkbox(i18n::widget("Pop-up alerts"), &mut edits.popup_enabled);
     if popups && edits.popup_enabled && edits.popup_secs <= 0.0 {
         edits.popup_secs = 2.0;
     }
-    ui.text_disabled(i18n::text(
-        "Alt+Shift+L locks or unlocks the overlay so clicks reach the game.",
+    ui.text_disabled(i18n::format(
+        "Click-through keeps the mouse for the game. Shortcut: {0}, rebindable in Nexus.",
+        &[crate::ui::LOCK_SHORTCUT],
     ));
 
     ui.separator();

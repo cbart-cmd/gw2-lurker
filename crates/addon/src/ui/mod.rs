@@ -34,8 +34,12 @@ const TABS: [&str; 5] = [
 /// Identifier of the lock keybind. Nexus lists it with this name, so the user can rebind it.
 const LOCK_KEYBIND: &str = "GW2LURKER_CLICK_THROUGH";
 
-/// Shortcut registered by default for the lock toggle.
-const LOCK_SHORTCUT: &str = "ALT+SHIFT+L";
+/// Shortcut registered by default for the click-through toggle.
+///
+/// **Not** `ALT+SHIFT+L`: that one is the arcDPS legacy window and the game gives it to arcDPS
+/// first, so the player pressed our shortcut and got somebody else's menu (reported 2026-10-31).
+/// Nexus lists this binding in its own UI, so it can be rebound without touching the addon.
+pub const LOCK_SHORTCUT: &str = "CTRL+SHIFT+L";
 
 /// Set by the keybind handler and consumed by the render callback.
 ///
@@ -53,15 +57,14 @@ fn take_lock_toggle() -> bool {
     LOCK_TOGGLE.swap(false, Ordering::Relaxed)
 }
 
-/// Locks the widget (click-through) or unlocks it, and returns the new state.
+/// Turns click-through on or off, and returns the new state.
 ///
-/// Only a window that already exists is touched: asking for a missing one would create it with
-/// `visible = true`, and a widget the user closed would reappear. Pure, so the rule is testable
-/// without a game.
-pub fn toggle_locked(config: &mut crate::config::Config) -> bool {
-    let lock = !config.window(WIDGET).locked;
-    config.window(WIDGET).locked = lock;
-    lock
+/// Click-through only: blocking the position is a separate switch that the mouse can always
+/// undo (bug of 2026-10-31: both were the same flag, and turning it on took the mouse away).
+pub fn toggle_click_through(config: &mut crate::config::Config) -> bool {
+    let through = !config.window(WIDGET).click_through;
+    config.window(WIDGET).click_through = through;
+    through
 }
 
 /// Registers the render callbacks. Must be called from `load`, never per frame.
@@ -83,13 +86,16 @@ pub fn register() {
 
             if take_lock_toggle() {
                 let mut config = crate::runtime();
-                let locked = toggle_locked(&mut config);
+                let locked = toggle_click_through(&mut config);
                 crate::request_save(&config);
                 log::info!("click-through: {locked}");
             }
 
             if gate.show_ui || crate::config().debug_show_everywhere {
-                draw_widget(ui);
+                // A panic in a tab must not take the game down with it: `catch_unwind` keeps the
+                // overlay alive and leaves the reason in the log (RNF-06). Clicking the *Map* tab
+                // crashed the game once (reported 2026-10-31).
+                guard("widget", || draw_widget(ui));
             }
             // The team picker needs the list of live teams even outside WvW, where polling is
             // off: without this the drop-down was empty (bug of 2026-10-31).
@@ -104,28 +110,50 @@ pub fn register() {
     register_render(
         RenderType::OptionsRender,
         render!(|ui| {
-            // Nexus' options pane is the way back to everything, including the widget itself
-            // and the pop-ups (T-42): it draws even when the overlay is hidden.
-            draw_openers(ui);
-            let (candidates, guilds) = {
-                let board = crate::worker::dashboard();
-                (board.candidates.clone(), board.guilds.clone())
-            };
-            let names = crate::worker::dashboard().guild_names.clone();
-            let change = settings::draw_inline(ui, &candidates, &guilds, &names);
-            match change {
-                Some(settings::TeamChange::Pick(team_id)) => crate::team::remember(team_id),
-                Some(settings::TeamChange::Clear) => crate::team::forget(),
-                Some(settings::TeamChange::SaveNow) => {
-                    let config = crate::runtime();
-                    crate::request_save(&config);
-                    log::info!("ajustes guardados a mano");
-                }
-                None => {}
-            }
+            guard("options", || draw_options(ui));
         }),
     )
     .revert_on_unload();
+}
+
+/// Nexus' options pane: the two openers, then the whole form (T-42).
+///
+/// It draws even when the overlay is hidden or click-through, so it is the way back to
+/// everything that the mouse cannot reach (RF-02).
+fn draw_options(ui: &nexus::imgui::Ui) {
+    draw_openers(ui);
+    let (candidates, guilds, names) = {
+        let board = crate::worker::dashboard();
+        (
+            board.candidates.clone(),
+            board.guilds.clone(),
+            board.guild_names.clone(),
+        )
+    };
+    let change = settings::draw_inline(ui, &candidates, &guilds, &names);
+    match change {
+        Some(settings::TeamChange::Pick(team_id)) => crate::team::remember(team_id),
+        Some(settings::TeamChange::Clear) => crate::team::forget(),
+        Some(settings::TeamChange::SaveNow) => {
+            let config = crate::runtime();
+            crate::request_save(&config);
+            log::info!("ajustes guardados a mano");
+        }
+        None => {}
+    }
+}
+
+/// Runs one render callback, turning a panic into a log line instead of a dead game.
+///
+/// A panic that crosses the `cdylib` boundary aborts the process, so one wrong tab would take
+/// Guild Wars 2 with it. This keeps the overlay alive; the message in `nexus.log` is what makes
+/// it fixable.
+fn guard(name: &'static str, draw: impl FnOnce()) {
+    static LOGGED: AtomicBool = AtomicBool::new(false);
+    let outcome = std::panic::catch_unwind(std::panic::AssertUnwindSafe(draw));
+    if outcome.is_err() && !LOGGED.swap(true, Ordering::Relaxed) {
+        log::error!("ui: pánico dibujando «{name}»; el overlay queda desactivado esta sesión");
+    }
 }
 
 /// Draws the only window: a tab bar and the body of the selected tab (T-42).
@@ -413,7 +441,7 @@ fn draw_popup(
 fn draw_openers(ui: &nexus::imgui::Ui) {
     let mut config = crate::runtime();
     let mut visible = config.window(WIDGET).visible;
-    let mut locked = config.window(WIDGET).locked;
+    let mut locked = config.window(WIDGET).click_through;
     let shown = ui.checkbox(i18n::widget("Show widget"), &mut visible);
     let clicked = ui.checkbox(i18n::widget("Click-through"), &mut locked);
     let popups = ui.checkbox(i18n::widget("Pop-up alerts"), &mut config.popup_enabled);
@@ -421,7 +449,7 @@ fn draw_openers(ui: &nexus::imgui::Ui) {
         config.window(WIDGET).visible = visible;
     }
     if clicked {
-        config.window(WIDGET).locked = locked;
+        config.window(WIDGET).click_through = locked;
     }
     if popups {
         // Turning them back on with a duration of zero would do nothing: 2 s is the default.
@@ -437,29 +465,36 @@ mod tests {
     use super::*;
 
     #[test]
-    fn rf18_the_shortcut_locks_and_unlocks_the_widget() {
+    fn rf18_the_shortcut_turns_click_through_on_and_off() {
         let mut config = crate::config::Config::default();
 
-        assert!(toggle_locked(&mut config), "la primera pulsación bloquea");
         assert!(
-            config.window(WIDGET).locked,
-            "bloqueada = click-through; si no, un clic se pierde en la pelea"
+            toggle_click_through(&mut config),
+            "la primera pulsación activa"
+        );
+        assert!(
+            config.window(WIDGET).click_through,
+            "click-through: los clics se van al juego, por eso el atajo lo enciende sin más"
+        );
+        assert!(
+            !config.window(WIDGET).locked,
+            "click-through no es bloquear: la posición se queda como estaba (bug de 2026-10-31)"
         );
 
-        assert!(!toggle_locked(&mut config), "la segunda desbloquea");
-        assert!(!config.window(WIDGET).locked);
+        assert!(!toggle_click_through(&mut config), "la segunda desactiva");
+        assert!(!config.window(WIDGET).click_through);
     }
 
     #[test]
-    fn rf46_locking_does_not_reopen_a_closed_widget() {
+    fn rf46_click_through_does_not_reopen_a_closed_widget() {
         let mut config = crate::config::Config::default();
         config.window(WIDGET).visible = false;
 
-        toggle_locked(&mut config);
+        toggle_click_through(&mut config);
 
         assert!(
             !config.window(WIDGET).visible,
-            "bloquear no puede resucitar una ventana que el usuario cerró"
+            "cambiar click-through no puede resucitar una ventana que el usuario cerró"
         );
     }
 

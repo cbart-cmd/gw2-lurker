@@ -69,12 +69,12 @@ pub const TEXT: &[(&str, [&str; COLUMNS])] = &[
     ("Alert log", ["Registro de avisos", "Alert log", "Journal des alertes", "Hinweisprotokoll"]),
     ("Show widget", ["Ver la ventana", "Show widget", "Voir la fenêtre", "Fenster zeigen"]),
     (
-        "Click-through is on: Alt+Shift+L or the Nexus options to use the mouse.",
+        "Click-through is on: {0} or the Nexus options to use the mouse.",
         [
-            "Click-through activo: Alt+Mayús+L o las opciones de Nexus para usar el ratón.",
-            "Click-through is on: Alt+Shift+L or the Nexus options to use the mouse.",
-            "Clics traversants actifs : Alt+Maj+L ou les options de Nexus pour utiliser la souris.",
-            "Klickdurchlässig aktiv: Alt+Umschalt+L oder die Nexus-Optionen für die Maus.",
+            "Click-through activo: {0} o las opciones de Nexus para usar el ratón.",
+            "Click-through is on: {0} or the Nexus options to use the mouse.",
+            "Clics traversants actifs : {0} ou les options de Nexus pour utiliser la souris.",
+            "Klickdurchlässig aktiv: {0} oder die Nexus-Optionen für die Maus.",
         ],
     ),
     (
@@ -143,12 +143,12 @@ pub const TEXT: &[(&str, [&str; COLUMNS])] = &[
     ("Save", ["Grabar", "Save", "Enregistrer", "Speichern"]),
     ("Windows", ["Ventanas", "Windows", "Fenêtres", "Fenster"]),
     (
-        "Alt+Shift+L locks or unlocks the overlay so clicks reach the game.",
+        "Click-through keeps the mouse for the game. Shortcut: {0}, rebindable in Nexus.",
         [
-            "Alt+Mayús+L bloquea o desbloquea el overlay para que los clics lleguen al juego.",
-            "Alt+Shift+L locks or unlocks the overlay so clicks reach the game.",
-            "Alt+Maj+L verrouille ou déverrouille l'overlay pour que les clics atteignent le jeu.",
-            "Alt+Umschalt+L sperrt oder entsperrt das Overlay, damit Klicks das Spiel erreichen.",
+            "Click-through deja el ratón para el juego. Atajo: {0}, reasignable en Nexus.",
+            "Click-through keeps the mouse for the game. Shortcut: {0}, rebindable in Nexus.",
+            "Les clics traversants laissent la souris au jeu. Raccourci : {0}, modifiable dans Nexus.",
+            "Klickdurchlässig lässt die Maus beim Spiel. Kürzel: {0}, in Nexus änderbar.",
         ],
     ),
     ("from their keep", ["desde su fortaleza", "from their keep", "depuis leur forteresse", "aus ihrer Festung"]),

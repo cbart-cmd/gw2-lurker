@@ -8,9 +8,12 @@
 //! The position comes from the configuration and is pushed every first use; it is read back
 //! from the mouse only when the window is not locked, so a lock cannot be undone by dragging.
 //!
-//! Locked means **click-through**: the window keeps drawing but imgui gives it no mouse input
-//! at all (`NO_INPUTS`), so during a fight every click goes to the game. The way back is the
-//! `Alt+Shift+L` shortcut or the *Windows* section of the settings (RF-18).
+//! Two different switches (bug of 2026-10-31, they used to be the same one):
+//!
+//! - **Locked**: cannot be moved or resized, but it still answers the mouse.
+//! - **Click-through**: the window keeps drawing and imgui gives it no mouse input at all
+//!   (`NO_INPUTS`), so during a fight every click goes to the game. The way back is the
+//!   shortcut or the Nexus options (RF-18).
 
 use nexus::imgui::{Condition, MenuItem, MouseButton, Slider, Ui, Window};
 
@@ -43,7 +46,8 @@ pub fn draw(
     let title_text = i18n::text(key);
     let title_id = i18n::widget(key);
     let menu_id = format!("###gw2lurker_menu_{key}");
-    let lock_id = i18n::widget("Click-through (no mouse)");
+    let lock_id = i18n::widget("Lock position");
+    let through_id = i18n::widget("Click-through (no mouse)");
     let opacity_id = i18n::widget("Opacity");
     let reset_id = i18n::widget("Reset position and size");
     let close_id = format!("×###gw2lurker_close_{key}");
@@ -63,7 +67,7 @@ pub fn draw(
     if state.collapsed {
         window = window.always_auto_resize(true);
     }
-    if state.locked {
+    if state.click_through {
         window = window.no_inputs();
     }
 
@@ -92,6 +96,9 @@ pub fn draw(
             MenuItem::new(lock_id)
                 .selected(state.locked)
                 .build_with_ref(ui, &mut state.locked);
+            MenuItem::new(through_id)
+                .selected(state.click_through)
+                .build_with_ref(ui, &mut state.click_through);
             ui.menu(opacity_id, || {
                 let mut percent = opacity_percent(state.opacity);
                 if Slider::new("###opacity", 0.0, 100.0)
@@ -113,7 +120,7 @@ pub fn draw(
         }
     });
 
-    if !state.locked {
+    if !state.locked && !state.click_through {
         state.position = Some(ui.window_pos());
         if !state.collapsed {
             state.size = Some(clamp_size(ui.window_size()));

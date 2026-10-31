@@ -54,6 +54,21 @@ pub fn body(ui: &Ui, view: &View<'_>, role: &mut MapRole, here: Option<MapRole>)
         history,
     } = *view;
 
+    // Once per session: if the tab ever takes the game down, this is the line that says with
+    // what it was working (reported 2026-10-31). Cheap and only on the first draw.
+    static LOGGED: std::sync::OnceLock<()> = std::sync::OnceLock::new();
+    if LOGGED.set(()).is_ok() {
+        let with_coord = names.iter().filter(|o| o.coord.is_some()).count();
+        log::info!(
+            "mapa: {} mapas, {} objetivos ({} con coord), rol {:?}, en {:?}",
+            maps.len(),
+            names.len(),
+            with_coord,
+            role,
+            here
+        );
+    }
+
     draw_selector(ui, role, here, maps);
 
     let Some(map) = maps

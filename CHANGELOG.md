@@ -1,6 +1,16 @@
 # Changelog
 Formato [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/), versionado [SemVer](https://semver.org/lang/es/).
 
+## [0.14.2] - 2026-10-31
+### Corregido
+- **«Bloquear» y «click-through» vuelven a ser dos cosas distintas**: bloquear impide mover o
+  redimensionar pero la ventana sigue aceptando clics; click-through deja pasar todos los clics al
+  juego. Antes eran el mismo interruptor y por eso no se podían apuntar los dos estados.
+- **El atajo ya no es `Alt+Shift+L`**: ese es el menú legacy de arcDPS y el juego se lo queda.
+  Ahora es **`Ctrl+Shift+L`**, y sigue siendo reasignable en Nexus.
+- Un pánico dibujando una pestaña ya no cierra el juego: se captura, se anota en `nexus.log` y el
+  overlay sigue vivo (RNF-06). La pestaña *Mapa* se cerró una vez al abrirla.
+
 ## [0.14.1] - 2026-10-31
 ### Corregido
 - **La ventana no respondía al ratón**: el modo click-through se había quedado guardado y no había

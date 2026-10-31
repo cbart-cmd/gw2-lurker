@@ -13,6 +13,26 @@ Reglas:
 
 ---
 
+## HECHO – 2026-10-31 · Bloquear ≠ click-through, atajo libre y sin cierres (0.14.2)
+
+- **Tres reportes del usuario a la vez:**
+  1. «La ventana tiene opción de bloquear, con o sin click-through»: en 0.11.2 junté los dos modos
+     en un solo `locked` y eso dejó sin nombre al bloqueo de posición. Ahora `WindowState` tiene
+     `locked` (no mover ni redimensionar, **sí** acepta clics) y `click_through` (`NO_INPUTS`). El
+     menú contextual, los ajustes y las opciones de Nexus tienen los dos por separado. `locked` ya
+     no quita el ratón, así que quien lo tuviera activo recupera la ventana al actualizar.
+  2. «Alt+Shift+L no abre el menú, abre el legacy de arcDPS»: el atajo por defecto chocaba y el
+     juego se lo da a arcDPS. Pasa a **`Ctrl+Shift+L`** y las tres menciones del atajo en la UI se
+     construyen con la constante (`LOCK_SHORTCUT`), así que no puede volver a desincronizarse.
+     RF-18 actualizado con el motivo.
+  3. «Al clicar Mapa ha hecho crash»: no he podido reproducirlo (haría falta el juego) y el
+     `catch_unwind` de RNF-06 no existía. Añadido `ui::guard` envolviendo los dos callbacks de
+     render: un pánico se anota en `nexus.log` como «pánico dibujando «widget»» y el overlay sigue
+     vivo. Además la pestaña Mapa deja una línea `mapa: N mapas, M objetivos (K con coord), rol…`
+     la primera vez que se dibuja, para que el próximo informe diga con qué datos murió.
+- Pendiente: si vuelve a cerrarse, el `nexus.log` dirá si fue un pánico nuestro o una aserción de
+  imgui (esas no se pueden capturar).
+
 ## HECHO – 2026-10-31 · La ventana no respondía al ratón (0.14.1)
 
 - **Diagnóstico con el fichero real del usuario**: su `settings.json` tenía

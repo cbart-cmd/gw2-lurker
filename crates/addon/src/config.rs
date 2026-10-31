@@ -45,8 +45,13 @@ pub struct WindowState {
     pub visible: bool,
     /// Collapsed to its title bar.
     pub collapsed: bool,
-    /// Locked: cannot be moved or resized.
+    /// Locked: cannot be moved or resized. The window keeps taking clicks.
     pub locked: bool,
+    /// Click-through: the window keeps drawing but every click goes to the game (RF-18).
+    ///
+    /// It is a different thing from [`Self::locked`] on purpose: blocking the position is what
+    /// you want while fighting, and giving up the mouse is not (bug of 2026-10-31).
+    pub click_through: bool,
     /// Background opacity, 0.0–1.0.
     pub opacity: f32,
     /// Last position, `None` until the window has been drawn once.
@@ -61,6 +66,7 @@ impl Default for WindowState {
             visible: true,
             collapsed: false,
             locked: false,
+            click_through: false,
             opacity: 0.9,
             position: None,
             size: None,

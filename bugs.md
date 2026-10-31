@@ -130,3 +130,14 @@ Estado: `[ ]` pendiente · `[x]` hecho.
    usar la tabla de equipos (`data/team-names.json`) solo cuando coincida, o dejar que el usuario
    escriba la suya. Lo dejo apuntado como T-43.
 ![alt text](image.png)
+
+## [x] Bloquear con o sin click-through, atajo pillado y crash al abrir Mapa (2026-10-31)
+- La ventana tiene la opcion de bloquear, con o sin click-through.
+- Alt+Shift+L no abre nuestro menu, abre el legacy de arcDPS.
+- Al clicar la pestana Mapa ha hecho crash.
+- **Hecho (0.14.2):** (1) `locked` (bloquear posicion; la ventana sigue aceptando clics) y
+  `click_through` (los clics van al juego) vuelven a ser interruptores separados: menu contextual,
+  ajustes y opciones de Nexus. (2) El atajo por defecto pasa a `Ctrl+Shift+L` porque `Alt+Shift+L`
+  es de arcDPS; las menciones en la UI se generan desde la constante. (3) El render va envuelto en
+  `catch_unwind`: un panico queda en `nexus.log` y el overlay sigue vivo. **Pendiente:** si vuelve a
+  cerrarse al abrir Mapa, manda esa linea del log.
