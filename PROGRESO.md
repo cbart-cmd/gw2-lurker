@@ -13,11 +13,12 @@ Reglas:
 
 ---
 
-## EN CURSO – 2026-10-31 · Siguiente: T-33 (gating) y validación del boceto
+## EN CURSO – 2026-10-31 · Siguiente: conectar el gate (T-12) y claims del matchup (T-36)
 
-- El boceto está hecho (ver abajo). Falta que el usuario lo mire y diga "así sí / así no".
-- Después: T-33 (`is_gameplay`) y T-39/T-36 según prioridad acordada.
-- Pendiente de decidir: coste de la feature `rtapi` de `nexus-rs` para leer el idioma del juego.
+- `core::gate` hecho (T-33 parcial). Lo que falta es leer `NexusLink::is_gameplay` y
+  `Context` desde el addon, y eso llega con T-12.
+- Decidido: **sí** a la feature `rtapi` (RF-44); su coste en DLL se mide en T-02b.
+- Siguiente pieza útil sin el juego: T-36 (vista de claims de los cuatro mapas).
 
 ## HECHO – 2026-10-31 · Bocetos HTML (T-32)
 

@@ -77,6 +77,8 @@ tarea indica de qué depende.
    — RF-16, RF-30, RF-70..73
 2. **T-33 (M)** No dibujar nada ni pollear en carga, selección/creación de personaje: señal
    `NexusLink::is_gameplay` con respaldo por `map_type`. (T-12) — RF-02, RF-02a
+   - **Parcial (2026-10-31):** la decisión pura está hecha en `core::gate` (6 tests). Falta
+     conectar `NexusLink::is_gameplay` y `Context` cuando exista T-12.
 3. **T-34 (M)** Publicar la DLL en `..\gw2addonsreleases` siguiendo `docs/RELEASE.md`
    (MD5, excepción LFS, tag `gw2-lurker-v*`, retención actual+anterior). (T-27) — RF-53
 4. **T-35 (M)** Arrancar el addon dentro del juego con este repo: `export!` real, versión
