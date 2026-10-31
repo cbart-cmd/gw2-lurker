@@ -52,11 +52,14 @@ Cada tarea es pequeña y verificable. Orden recomendado; las dependencias se ind
 
 - **T-12 ✔ (2026-10-31, parcial)** `context` + `config`: activación solo en WvW, persistencia y export real. Hecho: `export!` con `Direct` + `DisableHotloading` + URL de distribución (verificada dentro de la DLL), lectura de `NexusLink::is_gameplay` y del mapa de Mumble en `ffi/`, `config.json` con valores por defecto, saneo y copia `.corrupt-*` ante JSON dañado (5 tests), y ventana de estado mínima que respeta `core::gate`. Falta: selector de equipo (T-30), ventana de configuración (T-17) y la prueba dentro del juego (T-35). (T-01, T-05) — RF-01, RF-02, RF-02a, RF-03a/c, RF-40, RF-41
 
-- **T-30 ✔ (2026-10-31, parcial)** `addon::ui::settings`: selector de **equipo** con
-  `nombre (id)` sobre `data/wvw-teams.json`, opción «sin equipo», alias editable (un alias en
-  blanco no tapa el nombre real) y orden estable por región y nombre —un `HashMap` sin ordenar
-  haría bailar la lista entre frames—. Falta comprobar los dos rivales contra el matchup y el
-  resto de la ventana de ajustes. (T-05) — RF-03a, RF-03f, RF-03g
+- **T-30 ✔ (2026-10-31, parcial)** `addon::ui::settings`: selector en **tres pasos** — región
+  (EU/NA, solo las que tienen matchups vivos) → color (rojo/verde/azul, con su color real en la
+  lista) → equipo, con `nombre (id) · matchup`. Con los datos del 2026-10-31 son 5 filas en EU y
+  4 en NA, en vez de 27. El desplegable arranca en la región y color del equipo ya guardado. Si
+  no hay primer sondeo, lo dice en vez de mostrar una lista vacía; si la combinación no tiene
+  equipos, también. Alias editable con aviso de que es local, y campo de idioma, intervalo y
+  alcance. Falta comprobar los dos rivales contra el matchup y el resto de la ventana. (T-05)
+  — RF-03a, RF-03f, RF-03g
 - **T-13** Widget fijo de alertas: lista, fade, colores/formas por tipo, mover/redimensionar y persistir posición. (T-08, T-12) — RF-10, RF-16, RF-17, RF-19, RF-19a
 - **T-13b** Modo bloqueado click-through, atajo de bloqueo/desbloqueo y ventana de log ampliada. (T-13) — RF-14, RF-18
 - **T-17 ✔ (2026-10-31, parcial)** Contrato de ventana compartido en `addon::ui::window`:

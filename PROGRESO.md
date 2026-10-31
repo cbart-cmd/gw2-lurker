@@ -34,6 +34,23 @@ Reglas:
   bueno un HTTP 200. Se reintenta con `-VerifyOnly` pasados unos minutos; no se cambia la URL
   ni la versión para taparlo.
 
+## HECHO – 2026-10-31 · Selector de equipo en tres pasos (0.5.0)
+
+- `ui::settings` pide **región → color → equipo**. La lista sale de `worker::dashboard().candidates`
+  (los matchups vivos), filtrada con `core::select::of_region_and_color`: con los datos del
+  2026-10-31 son **5 filas en EU y 4 en NA** en vez de 27. Cada fila muestra `nombre (id) · 2-2`.
+- La región se ofrece solo si tiene matchups vivos; el color va con su color real en la lista,
+  como el panel de WvW del juego. Arranca en la región y el color del equipo guardado; lo que el
+  jugador elija se recuerda durante la sesión (`Narrowing`, no se persiste: es una forma de
+  navegar, no una preferencia).
+- Si el worker aún no ha sondeado, la ventana lo dice; si la combinación no tiene equipos,
+  también, en vez de un desplegable vacío sin explicación.
+- **Orden de candados**: los candidatos se copian del dashboard **antes** de bloquear la
+  configuración, y el worker nunca tiene el dashboard mientras pide la configuración. Así no se
+  repite el interbloqueo de 0.4.2.
+- Verificado: 36 tests en el addon (4 nuevos del selector), 71 en `core`, `clippy -D warnings`
+  limpio, DLL de 1 469 952 bytes. Datos reales comprobados con `curl`: 5 matchups EU, 4 NA.
+
 ## HECHO – 2026-10-31 · Ajustes en Documentos (como los vecinos) y nombre de personaje
 
 - `addon::ffi::paths::documents()`: `SHGetKnownFolderPath(FOLDERID_Documents)` + `CoTaskMemFree`

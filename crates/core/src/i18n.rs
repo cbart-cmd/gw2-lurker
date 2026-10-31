@@ -166,6 +166,48 @@ pub const TEXT: &[(&str, [&str; COLUMNS])] = &[
     ("Team", ["Equipo", "Team", "Équipe", "Team"]),
     ("Alias", ["Alias", "Alias", "Alias", "Alias"]),
     (
+        "Alias (only for you)",
+        [
+            "Alias (solo para ti)",
+            "Alias (only for you)",
+            "Alias (pour vous seulement)",
+            "Alias (nur für dich)",
+        ],
+    ),
+    ("Region", ["Región", "Region", "Région", "Region"]),
+    ("Colour", ["Color", "Colour", "Couleur", "Farbe"]),
+    ("Europe", ["Europa", "Europe", "Europe", "Europa"]),
+    (
+        "North America",
+        [
+            "Norteamérica",
+            "North America",
+            "Amérique du Nord",
+            "Nordamerika",
+        ],
+    ),
+    ("Red", ["Rojo", "Red", "Rouge", "Rot"]),
+    ("Green", ["Verde", "Green", "Vert", "Grün"]),
+    ("Blue", ["Azul", "Blue", "Bleu", "Blau"]),
+    (
+        "No live teams for that region and colour",
+        [
+            "No hay equipos en juego con esa región y color",
+            "No live teams for that region and colour",
+            "Aucune équipe en jeu pour cette région et cette couleur",
+            "Keine laufenden Teams für diese Region und Farbe",
+        ],
+    ),
+    (
+        "Pick region and colour, then your team",
+        [
+            "Elige región y color, luego tu equipo",
+            "Pick region and colour, then your team",
+            "Choisissez la région et la couleur, puis votre équipe",
+            "Wähle Region und Farbe, dann dein Team",
+        ],
+    ),
+    (
         "Poll interval",
         [
             "Intervalo de sondeo",

@@ -1,6 +1,14 @@
 # Changelog
 Formato [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/), versionado [SemVer](https://semver.org/lang/es/).
 
+## [0.5.0] - 2026-10-31
+### Añadido
+- **Selector de equipo en tres pasos**: región (EU/NA) → color (rojo/verde/azul) → equipo. Con
+  los datos actuales pasa de 27 equipos a 5 en EU y 4 en NA, y cada fila dice su matchup.
+  Arranca en la región y color del equipo ya guardado, y avisa si aún no hay datos o si esa
+  combinación no tiene equipos.
+- El alias del equipo se explica en la propia ventana (solo afecta a tu instalación).
+
 ## [0.4.3] - 2026-10-31
 ### Cambiado
 - Los ajustes se guardan en `<Documentos>\Guild Wars 2\addons\gw2_lurker\settings.json`, como

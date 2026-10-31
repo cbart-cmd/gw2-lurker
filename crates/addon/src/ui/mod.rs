@@ -27,9 +27,13 @@ pub fn register() {
                 draw_status(ui);
             }
             if gate.settings_available() || crate::config().debug_show_everywhere {
+                // Candidates come from the worker and are copied out before touching the
+                // configuration: two mutexes are involved and lock order must stay the same
+                // everywhere (dashboard is only ever held without the configuration).
+                let candidates = crate::worker::dashboard().candidates.clone();
                 let change = {
                     let mut config = crate::runtime();
-                    settings::draw(ui, &mut config)
+                    settings::draw(ui, &mut config, &candidates)
                 };
                 match change {
                     Some(settings::TeamChange::Pick(team_id)) => crate::team::remember(team_id),
@@ -45,7 +49,8 @@ pub fn register() {
     register_render(
         RenderType::OptionsRender,
         render!(|ui| {
-            let change = settings::draw_inline(ui);
+            let candidates = crate::worker::dashboard().candidates.clone();
+            let change = settings::draw_inline(ui, &candidates);
             match change {
                 Some(settings::TeamChange::Pick(team_id)) => crate::team::remember(team_id),
                 Some(settings::TeamChange::Clear) => crate::team::forget(),
