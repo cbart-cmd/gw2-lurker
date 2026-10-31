@@ -61,17 +61,25 @@ fn region_slot() -> std::sync::MutexGuard<'static, Option<Region>> {
 ///
 /// It lives in the *Guilds* tab and not in the settings: following a guild is something you
 /// decide while looking at the match, not a preference you go hunting for (report of 2026-10-31).
-pub fn followed_section(ui: &Ui, follow: &mut FollowList, names: &BTreeMap<String, String>) {
+pub fn followed_section(
+    ui: &Ui,
+    follow: &mut FollowList,
+    names: &BTreeMap<String, String>,
+) -> Option<String> {
     let count = format!("{}/{MAX_FOLLOWED}", follow.len());
     ui.text(i18n::format("Followed guilds ({0})", &[&count]));
 
     if follow.is_empty() {
         ui.text_disabled(i18n::text("None followed yet"));
-        return;
+        return None;
     }
     let mut remove = None;
+    let mut chosen = None;
     for guild in follow.clone().iter() {
-        ui.text(label(names, guild));
+        // Se puede clicar: el jugador quiere ver la ruta de ese clan (petición de 2026-10-31).
+        if Selectable::new(format!("{}###followed{guild}", label(names, guild))).build(ui) {
+            chosen = Some(guild.to_owned());
+        }
         ui.same_line();
         if ui.small_button(format!("×###unfollow{guild}")) {
             remove = Some(guild.to_owned());
@@ -80,6 +88,7 @@ pub fn followed_section(ui: &Ui, follow: &mut FollowList, names: &BTreeMap<Strin
     if let Some(guild) = remove {
         follow.remove(&guild);
     }
+    chosen
 }
 
 /// Ways of following a new guild: what claimed something this session, and the search.

@@ -128,6 +128,15 @@ pub const TEXT: &[(&str, [&str; COLUMNS])] = &[
     ),
     ("Team (any)", ["Equipo (cualquiera)", "Team (any)", "Équipe (toutes)", "Team (beliebig)"]),
     (
+        "Click to see this guild's route",
+        [
+            "Clic para ver la ruta de este clan",
+            "Click to see this guild's route",
+            "Cliquez pour voir la route de cette guilde",
+            "Klicken, um die Route dieser Gilde zu sehen",
+        ],
+    ),
+    (
         "Following guilds lives in the Guilds tab, next to the match you are looking at.",
         [
             "Seguir clanes está en la pestaña Clanes, al lado de la partida que estás mirando.",

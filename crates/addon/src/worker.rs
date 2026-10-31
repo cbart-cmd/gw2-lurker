@@ -91,6 +91,27 @@ impl Dashboard {
         matchup::guild_timeline(&self.history, guild)
     }
 
+    /// Map where the guild claimed something most recently, for the route of T-16.
+    ///
+    /// Objective ids are `"<map id>-<n>"`, so the newest row carries the map. The newest is taken
+    /// by `claimed_at` and not by insertion order: one poll can report several claims at once and
+    /// the order inside it is whatever the API sent.
+    pub fn last_map_of(&self, guild: &str) -> Option<MapRole> {
+        self.history
+            .iter()
+            .filter(|row| row.guild == guild)
+            .max_by_key(|row| row.claimed_at)
+            .and_then(|row| row.objective_id.split_once('-'))
+            .and_then(|(map, _)| map.parse::<u32>().ok())
+            .map(|map_id| {
+                self.map_roles
+                    .get(&map_id)
+                    .copied()
+                    .unwrap_or_else(|| MapRole::from_map_id(map_id))
+            })
+            .filter(|role| *role != MapRole::Unknown)
+    }
+
     /// Guilds that claimed something this session, with their number of claims and the last one.
     ///
     /// It is what the *Add guild* panel offers first: those are the guilds the player has just
@@ -345,7 +366,7 @@ fn poll_once(
     let followed = crate::config().followed.clone();
     let guild_names = resolve_guild_names(api, &guilds, &followed);
     let maps = maps_for(api);
-    log_watched_matchup(&selection, match_id.as_deref(), &live, &events);
+    crate::diagnostics::log_watched_matchup(&selection, match_id.as_deref(), &live, &events);
     crate::catalog::ensure_tiles(&maps);
     let map_roles = match_id
         .as_deref()
@@ -379,67 +400,6 @@ fn poll_once(
     }
     board.updated_at = Some(now);
     Ok(())
-}
-
-/// Says which matchup is being watched, and what came out of the poll.
-///
-/// This is the line that answers "why did nothing alert me": if the id starts with `1-` the
-/// addon is watching North America and the player is probably in Europe (reported 2026-10-31,
-/// the team picked was `11011`, which the API plays in `1-1`). Only logged when it changes, plus
-/// every detected event, because both are rare.
-fn log_watched_matchup(
-    selection: &Selection,
-    match_id: Option<&str>,
-    live: &[Match],
-    events: &[Event],
-) {
-    static LAST: Mutex<Option<String>> = Mutex::new(None);
-    let region = match_id
-        .and_then(|id| id.split_once('-'))
-        .map(|(region, _)| region);
-    let region = match region {
-        Some("1") => "NA",
-        Some("2") => "EU",
-        _ => "?",
-    };
-    let line = format!(
-        "{} ({region}) · {:?} · {} emparejamientos",
-        match_id.unwrap_or("-"),
-        selection,
-        live.len()
-    );
-    let mut last = LAST.lock().unwrap_or_else(|error| error.into_inner());
-    if last.as_deref() != Some(line.as_str()) {
-        log::info!("worker: vigilando {line}");
-        *last = Some(line);
-    }
-    drop(last);
-
-    for event in events {
-        match event {
-            Event::Claim {
-                objective,
-                guild,
-                late,
-                ..
-            } => log::info!("evento: Claim {objective} de {guild} (late: {late})"),
-            Event::Flip {
-                objective,
-                to: from,
-                ..
-            } => log::info!("evento: Flip {objective} -> {from:?}"),
-            Event::Unclaim {
-                objective, guild, ..
-            } => {
-                log::info!("evento: Unclaim {objective} de {guild}")
-            }
-            Event::Baseline { reason } => log::info!("evento: Baseline ({reason:?})"),
-            Event::Gap { .. } => log::info!("evento: Gap (nos hemos perdido un tramo)"),
-            Event::MatchChanged { old, new } => {
-                log::info!("evento: MatchChanged {old} -> {new}")
-            }
-        }
-    }
 }
 
 /// Whether the next poll has to fetch every matchup instead of only the player's one.
@@ -649,6 +609,43 @@ mod tests {
         assert!(
             board.recent_alerts(&filter, &follow, None, 50).is_empty(),
             "el registro empieza vacío en cada sesión"
+        );
+    }
+
+    #[test]
+    fn t51_clicking_a_guild_knows_its_last_map() {
+        // Al clicar un clan se lleva el mapa al último donde reclamó algo (petición de
+        // 2026-10-31). El id del objetivo ya lleva el mapa delante.
+        let at = Utc::now();
+        let row = |objective: &str, at| ClaimRow {
+            map_id: 96,
+            map_role: MapRole::BlueHome,
+            objective_id: objective.to_owned(),
+            name: Some("Algo".to_owned()),
+            kind: gw2lurker_core::ObjectiveType::Tower,
+            owner: Some(gw2lurker_core::TeamColor::Red),
+            guild: "1DB147F0".to_owned(),
+            claimed_at: Some(at),
+            points_tick: 4,
+        };
+        let board = Dashboard {
+            history: vec![
+                row("38-20", at - chrono::Duration::minutes(30)),
+                row("96-40", at - chrono::Duration::minutes(5)),
+                row("1099-10", at - chrono::Duration::minutes(20)),
+            ],
+            ..Dashboard::default()
+        };
+
+        assert_eq!(
+            board.last_map_of("1DB147F0"),
+            Some(MapRole::BlueHome),
+            "el más reciente, no el primero"
+        );
+        assert_eq!(
+            board.last_map_of("OTRO"),
+            None,
+            "un clan sin historial no lleva a ningún mapa"
         );
     }
 

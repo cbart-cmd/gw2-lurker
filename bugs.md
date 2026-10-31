@@ -110,18 +110,62 @@ Estado: `[ ]` pendiente · `[x]` hecho.
   y le quita el click-through (`ui::reveal`, con test). El registro deja una línea en el log
   (`atajo registrado: …`) y cada pulsación otra, para no volver a quedarse sin evidencia.
 
+## [x] widget · el horario no coincide con el de España (2026-10-31)
 - Las horas se pintaban en **UTC** (la API y el historial van en UTC, que es lo correcto para
   comparar), así que una captura de las 21:40 salía como 19:40.
 - **Hecho (0.18.0):** `addon::clock` convierte a la hora local del sistema en el último momento, y
   todas las horas del addon (avisos, registro, clanes, emparejamiento y mapa) pasan por ahí.
   Tests `rf19_the_clock_uses_the_players_timezone_and_not_utc`.
 
-- o en ivnenadoero de lugardis nadie ha reclamado nada en 20 minutos, o falla. solo me pone una reclamacion de fuerte en alpino azulm, por [IRS]
-- el mapa no es real
-- pasar raton por encima de un objetivo noi dice el nombre del clan sino un id
-- el widget deberia pode rtener clicl derencho aunque tengas click-trough para asi poder deshabiltiar clickthough sin tener que abrir settings
-- al clicar sobre un clan en un aviso o en un clan qwue sigo, deberia sacar la ruta virutal del ultimo mapa en el que ha reclamado algo
-- la combinacion de teclas no abre el widget. lo hje probado coni diferentes combinaciones y ninguan fucnioanç
+## [x] widget · clic derecho con click-through (2026-10-31)
+- «El widget debería poder tener clic derecho aunque tengas click-through, para así poder deshabilitar
+  click-through sin tener que abrir ajustes.»
+- **Hecho (0.17.3 y 0.17.4):** el callback de render mira el ratón por su cuenta y un clic derecho
+  dentro de la caja del widget apaga el click-through y lo guarda. La caja se guarda también en
+  click-through, que era lo que faltaba para poder acertar.
 
-## [ ] nomres de los equiios erroneos
-- los nombres actuales traducidos no son correctos. busca los nombres en ingles de la web que te pise, en aleman de la web que te puse, para español e ingles busca si esta en equiposx.xlsx y si no está pon el nombre inges para español y frances y ya lo traduciré yo
+## [x] al clicar un clan debería salir su ruta virtual (2026-10-31)
+- «Al clicar sobre un clan en un aviso o en un clan que sigo, debería sacar la ruta virtual del
+  último mapa en el que ha reclamado algo.»
+- **Hecho (0.19.0):** las líneas de aviso y los clanes seguidos son clicables: seleccionan el clan y
+  llevan el mapa al **último donde reclamó** (`Dashboard::last_map_of`, que elige por `claimed_at`),
+  así que la pestaña Mapa ya dibuja su ruta. Test `t51_clicking_a_guild_knows_its_last_map`.
+
+## [ ] el mapa no es real (2026-10-31)
+- «El mapa no es real»: sigue saliendo el tablero esquemático aunque **Mapa real** está activado.
+- Estado (0.19.0): las teselas ya se piden al continente correcto y la descarga no se da por hecha sin
+  cajas de mapa (0.16.1 / 0.17.2). Si sigue sin verse, hay que mirar el `Nexus.log` de la sesión: las
+  líneas `tiles:` dicen cuántas se piden, cuántas se guardan y si alguna falla. Pendiente de esa
+  evidencia (no se puede reproducir sin el juego).
+
+## [ ] el hover del mapa enseña el id del clan, no su nombre (2026-10-31)
+- «Pasar el ratón por encima de un objetivo no dice el nombre del clan sino un id.»
+- **Hecho (0.19.0):** `map::detail_line` recibe el mapa de nombres y enseña `[TAG] Nombre`; el id solo
+  aparece si la API no lo ha resuelto.
+
+## [ ] nombres de los equipos erróneos (2026-10-31)
+- «Los nombres actuales traducidos no son correctos. Busca los nombres en inglés de la web que te
+  puse, en alemán de la web que te puse; para español e inglés busca si está en `equipos.xlsx` y si no
+  está pon el nombre inglés para español y francés, y ya lo traduciré yo.»
+- Estado (0.19.0): los **ingleses** vienen de gw2mists (`data/wvw-teams.json`, 33 equipos con su id y
+  su nación) y las traducciones de `data/team-names.json` son **exactamente** las 21 filas de
+  `equipos.xlsx` (EN/ES/FR/DE, comprobado celda a celda). Los equipos de la temporada en curso que no
+  están en el Excel se quedan en inglés, que es lo pedido. Falta el **alemán de gw2mists** para los 21
+  equipos que no están en el Excel: la web es una SPA y su API da 403, así que hace falta que el
+  jugador pegue esa lista (T-45).
+
+## [ ] avisos y registro · no recoge bien la información (2026-10-31)
+- «No sale siempre quién ha reclamado»; «desde las 20:22 no recoge nuevos resultados aunque ha habido
+  reclamaciones»; «el registro va lentísimo: que se cargue solo cuando se necesite, máximo 50 filas
+  más el historial de los clanes que sigues desde que abriste el juego»; y el formato de la línea.
+- Formato pedido para el aviso: **icono del tipo de objetivo**; el mapa con su color («Eternos» en
+  gris, «Azul» en azul, «Verde» en verde, «Rojo» en rojo, cada uno con su equivalencia); y en gris el
+  nombre del sitio, un guion y **el clan que lo tiene reclamado ahora**, sin perder el clan original
+  en el historial de la sesión si era uno seguido.
+- **Hecho (0.19.0):** el formato de la línea, con colores por trozo (ver `0.19.0` en `CHANGELOG.md`) y
+  el clan actual resuelto a `[TAG] Nombre`.
+- Pendiente: «desde las 20:22 no recoge nada» y el rendimiento del registro. Para lo primero, el
+  worker ya escribe `worker: vigilando …` y una línea `evento: …` por evento: con ese log de una
+  sesión se ve si el sondeo se paró, si el emparejamiento cambió o si el filtro se lo comió. Para lo
+  segundo, la lista que se pinta en el registro se puede limitar a las últimas 50 sin tocar el
+  historial de la sesión (que es lo que alimenta la ruta).

@@ -341,6 +341,8 @@ fn draw_tabs(
     use nexus::imgui::{TabBar, TabBarFlags, TabItem};
 
     let mut change = None;
+    // Clan clicado en un aviso o en la lista de seguidos: se selecciona para la ruta.
+    let mut clicked: Option<String> = None;
 
     // RF-51: a broken settings file says so, in red, above everything else.
     if let Some(report) = crate::safe_mode() {
@@ -364,7 +366,11 @@ fn draw_tabs(
     {
         for (index, key) in TABS.iter().enumerate() {
             TabItem::new(i18n::widget(key)).build(ui, || match index {
-                0 => alerts::body(ui, data.alerts, data.now),
+                // Todas las ramas devuelven el clan que se ha clicado, si lo hay: con él se
+                // selecciona la ruta (petición de 2026-10-31).
+                0 => {
+                    clicked = alerts::body(ui, data.alerts, data.now);
+                }
                 1 => {
                     let history = guilds::selected_guild()
                         .map(|guild| crate::worker::dashboard().guild_history(&guild))
@@ -410,7 +416,7 @@ fn draw_tabs(
                     // los ajustes (petición de 2026-10-31).
                     let team = crate::team::selected_in(config);
                     let session = crate::worker::dashboard().session_guilds();
-                    follow::followed_section(ui, &mut config.followed, data.names);
+                    clicked = follow::followed_section(ui, &mut config.followed, data.names);
                     follow::add_section(
                         ui,
                         &mut config.followed,
@@ -432,9 +438,22 @@ fn draw_tabs(
                         config.followed.toggle(&guild);
                     }
                 }
-                3 => alerts::log_body(ui, data.alerts),
-                _ => change = settings::body(ui, config, data.candidates),
+                3 => {
+                    clicked = alerts::log_body(ui, data.alerts);
+                }
+                _ => {
+                    change = settings::body(ui, config, data.candidates);
+                }
             });
+        }
+    }
+
+    // Un clan clicado selecciona su ruta y lleva el mapa al último donde reclamó algo, que es lo
+    // que se está pidiendo al clicar (petición de 2026-10-31).
+    if let Some(guild) = clicked {
+        guilds::select(&guild);
+        if let Some(role) = crate::worker::dashboard().last_map_of(&guild) {
+            *map_choice() = role;
         }
     }
     change

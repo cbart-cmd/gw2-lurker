@@ -45,7 +45,10 @@ const GLYPH_WIDTH: f32 = 11.0;
 const GLYPH_HALF: f32 = 4.5;
 
 /// Body of the *Alerts* tab: what just happened, so it is readable during a fight.
-pub fn body(ui: &Ui, alerts: &[AlertLine], now: DateTime<Utc>) {
+///
+/// Returns the guild of the line the player clicked, if any: clicking an alert asks for the route
+/// of that guild (request of 2026-10-31).
+pub fn body(ui: &Ui, alerts: &[AlertLine], now: DateTime<Utc>) -> Option<String> {
     ui.text_disabled(i18n::format(
         "Last {0} minutes; the log window has the rest.",
         &[&WIDGET_MINUTES.to_string()],
@@ -53,19 +56,19 @@ pub fn body(ui: &Ui, alerts: &[AlertLine], now: DateTime<Utc>) {
     let recent = within(alerts, now, WIDGET_MINUTES);
     if recent.is_empty() {
         ui.text_disabled(i18n::text("No alerts yet"));
-        return;
+        return None;
     }
-    draw_lines(ui, &recent.iter().take(MAX_LINES).collect::<Vec<_>>());
+    draw_lines(ui, &recent.iter().take(MAX_LINES).collect::<Vec<_>>())
 }
 
 /// Body of the *Alert log* tab: the whole session, scrolling if needed.
-pub fn log_body(ui: &Ui, alerts: &[AlertLine]) {
+pub fn log_body(ui: &Ui, alerts: &[AlertLine]) -> Option<String> {
     if alerts.is_empty() {
         ui.text_disabled(i18n::text("No alerts yet"));
-        return;
+        return None;
     }
     let all: Vec<&AlertLine> = alerts.iter().collect();
-    draw_lines(ui, &all);
+    draw_lines(ui, &all)
 }
 
 /// One line per alert, each preceded by the drawing of what was taken (T-47).
@@ -73,9 +76,10 @@ pub fn log_body(ui: &Ui, alerts: &[AlertLine]) {
 /// The drawing needs the draw list, and `get_window_draw_list` panics if two instances are alive
 /// at once (`AGENTS.md` §11.12), so the list is taken **once** after the text pass, using the
 /// positions remembered while the lines were laid out.
-fn draw_lines(ui: &Ui, lines: &[&AlertLine]) {
+fn draw_lines(ui: &Ui, lines: &[&AlertLine]) -> Option<String> {
     let language = i18n::effective();
     let mut marks: Vec<([f32; 2], AlertLine)> = Vec::with_capacity(lines.len());
+    let mut chosen = None;
     for line in lines {
         let start = ui.cursor_screen_pos();
         if super::icons::has_glyph(line.objective_kind) {
@@ -84,10 +88,12 @@ fn draw_lines(ui: &Ui, lines: &[&AlertLine]) {
             ui.dummy([GLYPH_WIDTH, ui.text_line_height()]);
             ui.same_line_with_pos(x + GLYPH_WIDTH);
         }
-        draw_line(ui, line, language);
+        if draw_line(ui, line, language) {
+            chosen = line.guild.clone();
+        }
     }
     if marks.is_empty() {
-        return;
+        return chosen;
     }
     let list = ui.get_window_draw_list();
     let middle = ui.text_line_height() / 2.0;
@@ -97,9 +103,10 @@ fn draw_lines(ui: &Ui, lines: &[&AlertLine]) {
             line.objective_kind,
             [start[0] + GLYPH_HALF, start[1] + middle],
             GLYPH_HALF,
-            colour_of(&line),
+            GREY,
         );
     }
+    chosen
 }
 
 /// The lines still worth a place in the widget: those that arrived in the last `minutes`.
@@ -158,86 +165,126 @@ pub fn draw_popup(
         .bg_alpha((opacity * fade).clamp(0.0, 1.0))
         .build(ui, || {
             let lines: Vec<&AlertLine> = lines.iter().collect();
-            draw_lines(ui, &lines);
+            let _ = draw_lines(ui, &lines);
         });
 
     *position = Some(ui.window_pos());
 }
 
-fn draw_line(ui: &Ui, line: &AlertLine, language: gw2lurker_core::i18n::Language) {
-    let time = crate::clock::clock_seconds(line.at);
-    let _tint = ui.push_style_color(StyleColor::Text, colour_of(line));
-    let text = describe(line, language);
-    ui.text(format!("{time}  {text}"));
-    if line.late && ui.is_item_hovered() {
+/// One line, in coloured pieces. Returns `true` when the player clicked it and it names a guild.
+fn draw_line(ui: &Ui, line: &AlertLine, language: gw2lurker_core::i18n::Language) -> bool {
+    // The group makes the whole row one item, so it can be coloured piece by piece and still be
+    // clickable as a single line.
+    ui.group(|| {
+        for (index, (text, colour)) in spans(line, language).iter().enumerate() {
+            if index > 0 {
+                ui.same_line_with_spacing(0.0, 0.0);
+            }
+            let _tint = ui.push_style_color(StyleColor::Text, *colour);
+            ui.text(text);
+        }
+    });
+    let hovered = ui.is_item_hovered();
+    let clicked = hovered && ui.is_mouse_clicked(nexus::imgui::MouseButton::Left);
+    if hovered && line.late {
         ui.tooltip_text(i18n::text("Already claimed when the addon started"));
+    } else if hovered && line.guild.is_some() {
+        ui.tooltip_text(i18n::text("Click to see this guild's route"));
     }
+    clicked && line.guild.is_some()
 }
 
-/// One line of text, translated (RF-44). The English original is the key.
+/// The line as coloured pieces: what the player asked for on 2026-10-31.
+///
+/// «Marca del tipo de objetivo; el mapa, con su color (Eternos en gris, Azul en azul, Verde en
+/// verde, Rojo en rojo); y ya en gris: el nombre del sitio, un guion y el clan que lo tiene
+/// reclamado ahora.» Colouring the whole line by the new owner — what it did before — made the
+/// guild and the objective unreadable and hid which map it was.
 ///
 /// The language is a parameter: reading the active one goes through Nexus' RealTime API, which
 /// panics outside the game and would make this untestable.
-fn describe(line: &AlertLine, language: gw2lurker_core::i18n::Language) -> String {
-    use gw2lurker_core::i18n::{f, t};
-    // The map goes first: of the four, that is what tells you whether it matters to you
-    // (report of 2026-10-31). Unknown roles are left out instead of printing a placeholder.
-    let what = match line.kind {
-        AlertKind::Flip => {
-            let to = match line.to {
-                Some(colour) => colour_label(colour, language).to_owned(),
-                None => t(language, "Unclaimed").to_owned(),
-            };
-            let from = match line.from {
-                Some(colour) => colour_label(colour, language).to_owned(),
-                None => t(language, "Unclaimed").to_owned(),
-            };
-            f(language, "{0}: {1} → {2}", &[&line.objective, &from, &to])
-        }
-        AlertKind::Claim => match (&line.guild, &line.guild_name) {
-            (Some(_), Some(name)) => f(language, "{0} claimed by {1}", &[&line.objective, name]),
-            (Some(guild), None) => f(language, "{0} claimed by {1}", &[&line.objective, guild]),
-            (None, _) => line.objective.clone(),
-        },
-        AlertKind::Unclaim => match (&line.guild, &line.guild_name) {
-            (Some(_), Some(name)) => f(language, "{0} released by {1}", &[&line.objective, name]),
-            (Some(guild), None) => f(language, "{0} released by {1}", &[&line.objective, guild]),
-            (None, _) => line.objective.clone(),
-        },
-    };
-    match map_name(line.map_role, language) {
-        Some(map) => f(language, "{0} · {1}", &[map, &what]),
-        None => what,
+fn spans(line: &AlertLine, language: gw2lurker_core::i18n::Language) -> Vec<(String, [f32; 4])> {
+    use gw2lurker_core::i18n::t;
+    let mut out: Vec<(String, [f32; 4])> = Vec::new();
+    out.push((crate::clock::clock_seconds(line.at), GREY));
+    if let Some((name, colour)) = map_piece(line.map_role, language) {
+        out.push(("  ".to_owned(), GREY));
+        out.push((name, colour));
     }
+    out.push(("  ·  ".to_owned(), GREY));
+    out.push((line.objective.clone(), GREY));
+
+    match line.kind {
+        AlertKind::Flip => {
+            out.push(("  -  ".to_owned(), GREY));
+            match line.from {
+                Some(colour) => out.push((
+                    colour_label(colour, language).to_owned(),
+                    team_colour(colour),
+                )),
+                None => out.push((t(language, "Unclaimed").to_owned(), GREY)),
+            }
+            out.push((" → ".to_owned(), GREY));
+            match line.to {
+                Some(colour) => out.push((
+                    colour_label(colour, language).to_owned(),
+                    team_colour(colour),
+                )),
+                None => out.push((t(language, "Unclaimed").to_owned(), GREY)),
+            }
+        }
+        AlertKind::Claim | AlertKind::Unclaim => {
+            if let Some(guild) = line.guild_name.as_deref().or(line.guild.as_deref()) {
+                out.push(("  -  ".to_owned(), GREY));
+                out.push((guild.to_owned(), GREY));
+            }
+            if line.kind == AlertKind::Unclaim {
+                out.push((" · ".to_owned(), GREY));
+                out.push((t(language, "Unclaimed").to_owned(), GREY));
+            }
+        }
+    }
+    out
 }
 
-/// Name of the map of an alert, `None` when the id was not one of the four.
-fn map_name(
+/// Neutral grey: everything that is not the map or an owner colour.
+const GREY: [f32; 4] = [0.72, 0.72, 0.72, 1.0];
+
+/// The map of an alert, **short and in its own colour**: «Eternos» in grey, «Azul», «Verde» and
+/// «Rojo» in the colour of their borderland, which is how the player says it (request of
+/// 2026-10-31). `None` when the id was not one of the four.
+fn map_piece(
     role: gw2lurker_core::MapRole,
     language: gw2lurker_core::i18n::Language,
-) -> Option<&'static str> {
-    use gw2lurker_core::i18n::t;
+) -> Option<(String, [f32; 4])> {
     use gw2lurker_core::MapRole;
     match role {
-        MapRole::Center => Some(t(language, "Eternals")),
-        MapRole::BlueHome => Some(t(language, "Blue alpine")),
-        MapRole::GreenHome => Some(t(language, "Green alpine")),
-        MapRole::RedHome => Some(t(language, "Red desert")),
+        MapRole::Center => Some((
+            gw2lurker_core::i18n::t(language, "Eternals").to_owned(),
+            [0.85, 0.85, 0.85, 1.0],
+        )),
+        MapRole::BlueHome => Some((
+            colour_label(TeamColor::Blue, language).to_owned(),
+            team_colour(TeamColor::Blue),
+        )),
+        MapRole::GreenHome => Some((
+            colour_label(TeamColor::Green, language).to_owned(),
+            team_colour(TeamColor::Green),
+        )),
+        MapRole::RedHome => Some((
+            colour_label(TeamColor::Red, language).to_owned(),
+            team_colour(TeamColor::Red),
+        )),
         MapRole::Unknown => None,
     }
 }
 
-/// Colour of the text: the new owner when it flipped, and a neutral tone for claims.
-fn colour_of(line: &AlertLine) -> [f32; 4] {
-    match line.kind {
-        AlertKind::Flip => match line.to {
-            Some(TeamColor::Red) => [1.0, 0.45, 0.45, 1.0],
-            Some(TeamColor::Green) => [0.6, 0.95, 0.6, 1.0],
-            Some(TeamColor::Blue) => [0.52, 0.75, 1.0, 1.0],
-            None => [0.75, 0.75, 0.75, 1.0],
-        },
-        AlertKind::Claim => [0.95, 0.85, 0.55, 1.0],
-        AlertKind::Unclaim => [0.75, 0.75, 0.75, 1.0],
+/// Colour of a team, readable on a dark background.
+fn team_colour(colour: TeamColor) -> [f32; 4] {
+    match colour {
+        TeamColor::Red => [1.0, 0.5, 0.45, 1.0],
+        TeamColor::Green => [0.6, 0.95, 0.6, 1.0],
+        TeamColor::Blue => [0.52, 0.75, 1.0, 1.0],
     }
 }
 
@@ -324,12 +371,17 @@ mod tests {
         );
     }
 
+    /// Texto plano de una línea, para poder afirmar sobre él.
+    fn text_of(line: &AlertLine) -> String {
+        spans(line, Language::Es)
+            .into_iter()
+            .map(|(text, _)| text)
+            .collect()
+    }
+
     #[test]
     fn rf19_a_flip_names_both_colours() {
-        let text = describe(
-            &line(AlertKind::Flip, Some(TeamColor::Blue), None),
-            Language::Es,
-        );
+        let text = text_of(&line(AlertKind::Flip, Some(TeamColor::Blue), None));
         assert!(text.contains("Zanja de Mendon"), "{text}");
         assert!(text.contains('→'), "se ve de quién a quién: {text}");
         assert_eq!(text.matches("Azul").count(), 1, "azul es el nuevo dueño");
@@ -337,21 +389,55 @@ mod tests {
 
     #[test]
     fn rf21_claims_name_the_guild() {
-        let text = describe(&line(AlertKind::Claim, None, Some("YaK")), Language::Es);
+        let text = text_of(&line(AlertKind::Claim, None, Some("YaK")));
         assert!(text.contains("YaK"), "{text}");
-        assert!(text.contains("reclamado"), "traducido al español: {text}");
+        assert!(
+            text.contains("Zanja"),
+            "el sitio va antes que el clan: {text}"
+        );
     }
 
     #[test]
     fn rf19_unclaim_says_released() {
-        let text = describe(&line(AlertKind::Unclaim, None, Some("YaK")), Language::Es);
-        assert!(text.contains("liberado"), "{text}");
+        let text = text_of(&line(AlertKind::Unclaim, None, Some("YaK")));
+        assert!(
+            text.contains("Sin reclamar"),
+            "se dice que ya no lo tiene: {text}"
+        );
     }
 
     #[test]
-    fn rf19_colours_follow_the_new_owner() {
-        let red = colour_of(&line(AlertKind::Flip, Some(TeamColor::Red), None));
-        let blue = colour_of(&line(AlertKind::Flip, Some(TeamColor::Blue), None));
+    fn rf19_the_map_is_drawn_in_its_own_colour_and_the_rest_in_grey() {
+        // El formato que pidió el jugador el 2026-10-31: el mapa con su color y el sitio y el clan
+        // en gris, en vez de toda la línea del color del que ha capturado.
+        let mut blue = line(AlertKind::Claim, None, Some("YaK"));
+        blue.map_role = gw2lurker_core::MapRole::BlueHome;
+        let pieces = spans(&blue, Language::Es);
+        let map = pieces
+            .iter()
+            .find(|(text, _)| text == "Azul")
+            .expect("el mapa se nombra");
+        assert_eq!(map.1, team_colour(TeamColor::Blue), "azul en azul");
+        let objective = pieces
+            .iter()
+            .find(|(text, _)| text == "Zanja de Mendon")
+            .expect("el sitio se nombra");
+        assert_eq!(objective.1, GREY, "el sitio en gris");
+        let guild = pieces
+            .iter()
+            .find(|(text, _)| text.contains("YaK"))
+            .expect("el clan se nombra");
+        assert_eq!(guild.1, GREY, "el clan en gris");
+        assert!(
+            pieces.iter().any(|(text, _)| text.contains('-')),
+            "sitio y clan van separados por un guion: {pieces:?}"
+        );
+    }
+
+    #[test]
+    fn rf19_the_owner_colours_are_told_apart() {
+        let red = team_colour(TeamColor::Red);
+        let blue = team_colour(TeamColor::Blue);
         assert_ne!(red, blue, "cada color se distingue");
         assert!(red[0] > red[2], "el rojo tira a rojo");
         assert!(blue[2] > blue[0], "el azul tira a azul");

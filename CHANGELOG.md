@@ -1,6 +1,20 @@
 # Changelog
 Formato [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/), versionado [SemVer](https://semver.org/lang/es/).
 
+## [0.19.0] - 2026-10-31
+### Añadido
+- **Clicar un clan enseña su ruta**: una línea de aviso o un clan de *Clanes seguidos* se puede
+  clicar; se selecciona ese clan y el mapa salta al **último donde reclamó algo**, así que en la
+  pestaña Mapa aparece su ruta sin buscarla. Un aviso lo dice al pasar el ratón.
+- **Los avisos se leen de un vistazo**, como pediste: icono del objetivo, el **mapa en su color**
+  («Eternos» en gris, «Azul» en azul, «Verde» en verde, «Rojo» en rojo) y, ya en gris, el **sitio**,
+  un guion y el **clan que lo tiene reclamado ahora**. Antes toda la línea iba del color del que
+  había capturado, que escondía justo lo que interesa.
+- **El hover del mapa dice el clan**, no su id.
+
+### Cambiado
+- El diagnóstico del worker se muda a `diagnostics.rs` (el fichero estaba en el límite de líneas).
+
 ## [0.18.1] - 2026-10-31
 ### Corregido
 - **El atajo de teclado ya abre el widget**: se registraba por cadena (y una cadena que Nexus no

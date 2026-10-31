@@ -181,7 +181,7 @@ pub fn body(ui: &Ui, view: &View<'_>, role: &mut MapRole, here: Option<MapRole>)
 
     match hovered.and_then(|index| drawn.get(index)) {
         Some((_, objective, row)) => {
-            ui.text(detail_line(objective, *row, names, follow));
+            ui.text(detail_line(objective, *row, guild_names, follow));
         }
         None => ui.text_disabled(i18n::text("Point at an objective to see who holds it")),
     }
@@ -386,10 +386,9 @@ fn nearest(spots: &[[f32; 2]], mouse: [f32; 2], max_distance: f32) -> Option<usi
 fn detail_line(
     objective: &ObjectiveInfo,
     row: Option<&ClaimRow>,
-    names: &[ObjectiveInfo],
+    guild_names: &BTreeMap<String, String>,
     follow: &FollowList,
 ) -> String {
-    let _ = names;
     let mut parts = vec![objective.name.clone()];
     if let Some(row) = row {
         if let Some(owner) = row.owner {
@@ -405,10 +404,16 @@ fn detail_line(
         if row.is_high_value() {
             parts.push(i18n::text("High value").to_owned());
         }
+        // `[TAG] Nombre`, no el id: el hover decía el id y no había forma de reconocer el clan
+        // (informe de 2026-10-31).
+        let name = guild_names
+            .get(&row.guild)
+            .cloned()
+            .unwrap_or_else(|| row.guild.clone());
         parts.push(if follow.contains(&row.guild) {
-            format!("★ {}", row.guild)
+            format!("★ {name}")
         } else {
-            row.guild.clone()
+            name
         });
         if let Some(at) = row.claimed_at {
             parts.push(crate::clock::clock(at));

@@ -13,6 +13,35 @@ Reglas:
 
 ---
 
+## HECHO – 2026-10-31 · Avisos legibles, ruta al clicar un clan y hover con nombre (0.19.0)
+
+- **Formato del aviso** (lo pidió el jugador): la línea se compone de trozos con color propio
+  (`alerts::spans`): hora en gris, **mapa en su color** («Eternos» gris, «Azul»/«Verde»/«Rojo» con el
+  color de su frontera), y en gris el **sitio**, un guion y el **clan actual**. Antes la línea entera
+  iba del color del capturador, que escondía el mapa y el clan. Tests
+  `rf19_the_map_is_drawn_in_its_own_colour_and_the_rest_in_grey`, `rf19_a_flip_names_both_colours`.
+  La fila se dibuja dentro de un `ui.group` para poder colorearla por trozos y seguir siendo clicable.
+- **T-51 · clicar un clan lleva a su ruta**: líneas de aviso y clanes seguidos son clicables; se
+  selecciona el clan (`guilds::select`) y el mapa salta al último donde reclamó
+  (`Dashboard::last_map_of`, que elige por `claimed_at`). Test `t51_clicking_a_guild_knows_its_last_map`.
+- **Hover del mapa con nombre**: `map::detail_line` recibe el mapa de nombres y enseña `[TAG] Nombre`
+  en vez del id (era el mismo problema que los clanes seguidos).
+- `diagnostics.rs`: las líneas de diagnóstico del worker se mudan allí porque `worker.rs` había
+  llegado a 808 líneas.
+- Verificación: 199 tests en verde (84 addon · 15 api · 94 core · 6 store), `clippy -D warnings`
+  limpio, ningún fichero por encima de 800 líneas.
+
+## HECHO – 2026-10-31 · Clicar un clan lleva a su ruta (0.19.0)
+
+- **T-51**: una línea de aviso (widget y registro) y cada clan de *Clanes seguidos* son ahora
+  `Selectable`: al clicar se selecciona ese clan (`guilds::select`) y el mapa salta al **último donde
+  reclamó algo** (`Dashboard::last_map_of`), así que la pestaña Mapa dibuja su ruta sin buscarla.
+- `last_map_of` elige por **`claimed_at`** y no por orden de inserción: un mismo sondeo puede traer
+  varios claims y el orden dentro de él es el que mandó la API. Test `t51_clicking_a_guild_knows_its_last_map`.
+- El mapa y el registro se pueden clicar sin dejar de ser legibles: el `Selectable` respeta el color
+  de la línea y el tooltip dice qué hace.
+- Verificación: 198 tests en verde (83 addon · 15 api · 94 core · 6 store), `clippy -D warnings` limpio.
+
 ## HECHO – 2026-10-31 · El atajo trae la ventana y se registra por código de tecla (0.18.1)
 
 - El atajo «no hacía nada». Dos causas a la vez: (1) solo alternaba click-through, así que con la

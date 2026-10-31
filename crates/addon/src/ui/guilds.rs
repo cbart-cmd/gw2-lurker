@@ -41,6 +41,12 @@ pub fn selected_guild() -> Option<String> {
     selected()
 }
 
+/// Selects a guild from outside this tab: an alert line or the list of followed guilds was
+/// clicked, and the route of that guild is what the player wants to see (request of 2026-10-31).
+pub fn select(guild: &str) {
+    set_selected(Some(guild.to_owned()));
+}
+
 fn set_selected(guild: Option<String>) {
     *SELECTED.lock().unwrap_or_else(|error| error.into_inner()) = guild;
 }

@@ -13,6 +13,7 @@ mod catalog;
 mod clock;
 mod config;
 mod context;
+mod diagnostics;
 mod ffi;
 mod i18n;
 mod lang;
