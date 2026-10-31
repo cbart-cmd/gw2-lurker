@@ -34,6 +34,21 @@ Reglas:
   bueno un HTTP 200. Se reintenta con `-VerifyOnly` pasados unos minutos; no se cambia la URL
   ni la versión para taparlo.
 
+## HECHO – 2026-10-31 · Widget de avisos (T-13 parcial, 0.7.0)
+
+- `ui::alerts`: ventana con los últimos avisos, **el más reciente arriba**, con hora, nombre del
+  objetivo y color del nuevo dueño (`Rojo → Azul`), reclamaciones (`Zanja de Mendon reclamado
+  por YaK`) y liberaciones. Pasa por el contrato de ventana, así que se mueve, se pliega, se
+  bloquea y tiene opacidad como las demás.
+- `worker::Dashboard::recent_alerts(limit)` resuelve los ids a nombres **en el worker** y devuelve
+  líneas ya listas (`AlertLine`), para que el render no busque en la tabla de objetivos ni
+  mantenga el candado del dashboard mientras dibuja.
+- Verificado: 43 tests en el addon (4 nuevos), 73 en `core`, `clippy -D warnings` limpio.
+- Trampa (otra vez la regla 3): `describe` llamaba a `i18n::text`, que lee el idioma activo por
+  RTAPI y revienta en un test. Ahora el idioma entra como parámetro y se prueba con `Language::Es`.
+- Pendiente de T-13: fade de los avisos antiguos, modo bloqueado click-through con atajo
+  (`Alt+Shift+L`) y la ventana de log ampliada (T-13b).
+
 ## HECHO – 2026-10-31 · «Alias» pasa a «Traducción», prellenada (0.6.0)
 
 - El campo se llama **Traducción** y viene **prellenado** con el nombre en el idioma del juego

@@ -16,7 +16,7 @@ use chrono::{DateTime, Utc};
 use gw2lurker_api::Api;
 use gw2lurker_core::diff::{Differ, Event};
 use gw2lurker_core::matchup::{self, ClaimRow, GuildSummary};
-use gw2lurker_core::model::{Match, ObjectiveInfo};
+use gw2lurker_core::model::{Match, ObjectiveInfo, TeamColor};
 use gw2lurker_core::select::{self, Selection};
 use gw2lurker_store::{Record, SessionStore};
 
@@ -79,14 +79,99 @@ impl Dashboard {
         }
     }
 
+    /// Recent events as ready-to-draw lines, **newest first** (RF-19).
+    ///
+    /// The objective ids are resolved here so the render callback never searches the table,
+    /// and the result is owned so the dashboard lock is not held while drawing.
+    pub fn recent_alerts(&self, limit: usize) -> Vec<AlertLine> {
+        self.alerts
+            .iter()
+            .rev()
+            .filter_map(|event| self.alert_line(event))
+            .take(limit)
+            .collect()
+    }
+
+    fn alert_line(&self, event: &Event) -> Option<AlertLine> {
+        let name = |id: &str| {
+            self.objective_name(id)
+                .map(str::to_owned)
+                .unwrap_or_else(|| id.to_owned())
+        };
+        match event {
+            Event::Flip {
+                objective,
+                from,
+                to,
+                at,
+            } => Some(AlertLine {
+                at: *at,
+                kind: AlertKind::Flip,
+                objective: name(objective),
+                guild: None,
+                from: *from,
+                to: *to,
+                late: false,
+            }),
+            Event::Claim {
+                objective,
+                guild,
+                at,
+                late,
+            } => Some(AlertLine {
+                at: *at,
+                kind: AlertKind::Claim,
+                objective: name(objective),
+                guild: Some(guild.clone()),
+                from: None,
+                to: None,
+                late: *late,
+            }),
+            Event::Unclaim {
+                objective,
+                guild,
+                at,
+            } => Some(AlertLine {
+                at: *at,
+                kind: AlertKind::Unclaim,
+                objective: name(objective),
+                guild: Some(guild.clone()),
+                from: None,
+                to: None,
+                late: false,
+            }),
+            Event::Baseline { .. } | Event::Gap { .. } | Event::MatchChanged { .. } => None,
+        }
+    }
+
     /// Human name of an objective, for the alert lines (T-13).
-    #[allow(dead_code)]
     pub fn objective_name(&self, id: &str) -> Option<&str> {
         self.names
             .iter()
             .find(|objective| objective.id == id)
             .map(|objective| objective.name.as_str())
     }
+}
+
+/// What happened, for the alert widget.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum AlertKind {
+    Flip,
+    Claim,
+    Unclaim,
+}
+
+/// One line of the alert widget.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct AlertLine {
+    pub at: DateTime<Utc>,
+    pub kind: AlertKind,
+    pub objective: String,
+    pub guild: Option<String>,
+    pub from: Option<TeamColor>,
+    pub to: Option<TeamColor>,
+    /// Discovered at a baseline instead of seen live (RF-25).
+    pub late: bool,
 }
 
 static DASHBOARD: OnceLock<Mutex<Dashboard>> = OnceLock::new();

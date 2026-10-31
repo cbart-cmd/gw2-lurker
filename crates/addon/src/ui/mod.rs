@@ -3,6 +3,7 @@
 //! Every literal comes from the translation table through [`crate::i18n`] (RF-44); the
 //! English text is the key, so nothing here needs touching when a language changes.
 
+mod alerts;
 mod settings;
 mod window;
 
@@ -25,6 +26,7 @@ pub fn register() {
 
             if gate.show_ui || crate::config().debug_show_everywhere {
                 draw_status(ui);
+                draw_alerts(ui);
             }
             if gate.settings_available() || crate::config().debug_show_everywhere {
                 // Candidates come from the worker and are copied out before touching the
@@ -127,4 +129,13 @@ fn draw_status(ui: &nexus::imgui::Ui) {
     if open_settings {
         config.window(settings::KEY).visible = true;
     }
+}
+
+/// Recent captures and claims (T-13). The worker resolves the lines, so the render callback
+/// only formats what it already has.
+fn draw_alerts(ui: &nexus::imgui::Ui) {
+    let alerts = crate::worker::dashboard().recent_alerts(30);
+    let mut config = crate::runtime();
+    let state = config.window(alerts::KEY);
+    alerts::draw(ui, state, &alerts);
 }

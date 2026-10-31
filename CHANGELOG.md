@@ -1,6 +1,12 @@
 # Changelog
 Formato [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/), versionado [SemVer](https://semver.org/lang/es/).
 
+## [0.7.0] - 2026-10-31
+### Añadido
+- **Widget de avisos**: lista de las últimas capturas, reclamaciones y liberaciones, con la hora,
+  el nombre del objetivo y el color del nuevo dueño. Se mueve, se pliega y se le ajusta la
+  opacidad como al resto de ventanas.
+
 ## [0.6.0] - 2026-10-31
 ### Cambiado
 - El campo «Alias» pasa a llamarse **«Traducción»** y viene relleno con el nombre del equipo en
