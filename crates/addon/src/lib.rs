@@ -11,6 +11,8 @@ mod config;
 mod context;
 mod ffi;
 mod i18n;
+#[allow(dead_code)] // used by the polling worker (T-11c)
+mod net;
 mod ui;
 mod writer;
 

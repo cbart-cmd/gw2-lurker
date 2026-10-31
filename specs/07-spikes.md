@@ -144,6 +144,15 @@ Regla: si un resultado contradice la spec, no se "arregla" el código; se abre u
   - Nexus descarga a `<NexusDLL>.update` y conserva `<NexusDLL>.old` (`Nexus/Index/Index.cpp`, rutas `EPath::NexusDLL_Update` / `NexusDLL_Old`) ⇒ indicio de intercambio de fichero con respaldo. Falta ver si hace lo mismo con addons de terceros.
 - Método de detección viable: `pendiente`. Candidatos a probar en el spike: comparar fecha/tamaño de `<juego>/addons/<nombre>/*.dll` al arrancar, y confirmar si el `.old` aparece para el addon.
 
+### Notas de verificación: cliente HTTP sobre WinHTTP (2026-10-31)
+
+Medido `[medido]` ejecutando la prueba del propio crate del addon (`cargo test -p gw2lurker-addon live_get -- --ignored`) contra `https://api.guildwars2.com/v2/wvw/matches/2-2`:
+
+- `WinHttpOpen` + `WinHttpConnect` + `WinHttpOpenRequest` con `WINHTTP_FLAG_SECURE` + `WinHttpSendRequest`/`ReceiveResponse`/`ReadData` devuelve **HTTP 200** y el JSON del match en **270 ms**, sin añadir ninguna dependencia y sin código TLS dentro de la DLL. La DLL de release sigue en ~1,26 MB.
+- Consecuencia para T-02b: el cliente HTTP **ya no es una incógnita de tamaño**. Un cliente con TLS embebido (reqwest/rustls, ureq) habría añadido del orden de 1,5–2 MB y roto el objetivo de 1,5 MB de `check_size.sh`.
+- `WinHTTP` está en el sistema desde Windows 2000; a diferencia de `GetAsyncKeyState`, aquí sí importa el proxy del usuario, y `WINHTTP_ACCESS_TYPE_DEFAULT_PROXY` lo respeta.
+- Lo que **no** está verificado: que funcione con el juego en primer plano y con la DLL cargada por Nexus (debería, es una API de sistema), ni el comportamiento a través de VPN/proxy corporativo.
+
 ### Notas de verificación: idioma y Ctrl derecho (2026-10-31)
 
 Comprobado `[src]` en el checkout de `nexus-rs` etiqueta 0.12.0 y en `arcdps-imgui` 0.8.0. No cambia ningún requisito; fija detalles de implementación de RF-44/RF-45.

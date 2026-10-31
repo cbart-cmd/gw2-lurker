@@ -34,6 +34,20 @@ Reglas:
   bueno un HTTP 200. Se reintenta con `-VerifyOnly` pasados unos minutos; no se cambia la URL
   ni la versión para taparlo.
 
+## HECHO – 2026-10-31 · Cliente HTTP real sobre WinHTTP (T-11b cerrada)
+
+- `addon::ffi::http`: GET con WinHTTP del sistema (`WinHttpOpen/Connect/OpenRequest/Send/Receive/
+  ReadData`), handles con `Drop`, timeouts de 10 s, tope de 8 MB y `SAFETY` en cada bloque.
+- `addon::net::WinHttpTransport` implementa `gw2lurker_api::Transport` y traduce estados:
+  2xx → cuerpo, 404 → `NotFound`, 429/5xx → `Status`.
+- Se descartó un cliente con TLS embebido: habría sumado 1,5–2 MB a una DLL de 1,26 MB.
+- Verificado de verdad: `cargo test -p gw2lurker-addon live_get -- --ignored` → **HTTP 200** con
+  el JSON de `2-2` en 270 ms. Los tests de `split_url` cubren https/http, puerto explícito y
+  URLs inválidas.
+- Trampa: en una `cdylib`, `dead_code` marca como muerto todo lo que aún no se usa, y el
+  transport sólo lo usará el worker (T-11c); de ahí el `#[allow(dead_code)]` temporal con
+  motivo escrito al lado.
+
 ## HECHO – 2026-10-31 · Ajustes como los vecinos y escritura fuera del render
 
 - Fichero `settings.json` en `<addons>/gw2_lurker/` (antes `config.json`), con

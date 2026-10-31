@@ -1,5 +1,9 @@
 //! Reads what Nexus and Mumble expose. The only place with `unsafe`.
 
+// The transport is only reachable from the polling worker, which is T-11c; until it exists
+// the whole subtree is "dead code" for the compiler.
+#[allow(dead_code)]
+pub mod http;
 pub mod keys;
 
 use nexus::data_link::mumble::get_mumble_link;
