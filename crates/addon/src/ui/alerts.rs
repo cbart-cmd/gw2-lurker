@@ -11,7 +11,7 @@
 
 use chrono::{DateTime, Utc};
 use gw2lurker_core::model::TeamColor;
-use nexus::imgui::{Condition, StyleColor, Ui, Window};
+use nexus::imgui::{Condition, ListClipper, StyleColor, Ui, Window};
 
 use crate::i18n;
 use crate::worker::{AlertKind, AlertLine};
@@ -34,6 +34,12 @@ const MAX_LINES: usize = 25;
 /// this the list only grew (bug of 2026-10-31). Public so the render callback and the tests use
 /// the same number.
 pub const WIDGET_MINUTES: i64 = 10;
+
+/// How many lines the *Alert log* draws at most: the newest ones. El registro era lento porque\n/// pintaba todo lo de la sesión (informe de 2026-10-31).\npub const MAX_LOGGED: usize = 50;\n\n/// How many lines the *Alert log* draws at most, the newest first.
+///
+/// El registro era lento porque pintaba todo lo de la sesión, y ahora cada línea son varios trozos
+/// de texto (informe de 2026-10-31). Lo que no se dibuja sigue en el historial y en la ruta.
+pub const MAX_LOGGED: usize = 50;
 
 /// How many lines the pop-up shows at once.
 const MAX_POPUP_LINES: usize = 5;
@@ -62,13 +68,29 @@ pub fn body(ui: &Ui, alerts: &[AlertLine], now: DateTime<Utc>) -> Option<String>
 }
 
 /// Body of the *Alert log* tab: the whole session, scrolling if needed.
+///
+/// Only the rows on screen are laid out ([`ListClipper`]): the log used to draw every line, and
+/// with the coloured pieces of each one that is a lot of work per frame for text nobody is reading
+/// (report of 2026-10-31). The cap is [`MAX_LOGGED`] lines, the newest first.
 pub fn log_body(ui: &Ui, alerts: &[AlertLine]) -> Option<String> {
     if alerts.is_empty() {
         ui.text_disabled(i18n::text("No alerts yet"));
         return None;
     }
-    let all: Vec<&AlertLine> = alerts.iter().collect();
-    draw_lines(ui, &all)
+    let all: Vec<&AlertLine> = alerts.iter().take(MAX_LOGGED).collect();
+    let mut chosen = None;
+    let mut clipper = ListClipper::new(all.len() as i32).begin(ui);
+    while clipper.step() {
+        for index in clipper.display_start()..clipper.display_end() {
+            if let Some(line) = all.get(index as usize) {
+                if draw_line(ui, line, i18n::effective()) {
+                    chosen = line.guild.clone();
+                }
+            }
+        }
+    }
+    clipper.end();
+    chosen
 }
 
 /// One line per alert, each preceded by the drawing of what was taken (T-47).

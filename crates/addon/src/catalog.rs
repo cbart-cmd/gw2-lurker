@@ -18,7 +18,12 @@ use crate::net::WinHttpTransport;
 /// `/v2/guild` answers one guild per call, so asking for all of them at once would be a burst.
 /// With this budget a matchup with twenty guilds is fully named in about a minute, and the
 /// answers stay for the session.
-const GUILD_LOOKUPS_PER_POLL: usize = 10;
+/// How many guild names are resolved per poll.
+///
+/// One request each, and a matchup has around forty guilds, so with this budget every name is known
+/// within a few polls. It was ten, which left alerts without a guild name for longer than the player
+/// was willing to wait (report of 2026-10-31). The API allows 600 requests a minute.
+const GUILD_LOOKUPS_PER_POLL: usize = 20;
 
 #[derive(Default)]
 struct GuildNameCache {
@@ -78,8 +83,24 @@ pub fn resolve_guild_names(
     }
     cache.known.clone()
 }
-/// The four WvW maps, fetched once per session (they never change).
+/// Names of the old servers, fetched once per session.
 ///
+/// They are shown next to each team in the picker: the team names are new, the world names are
+/// what the player has known for years (report of 2026-10-31).
+pub fn world_names(api: &Api<WinHttpTransport>) -> std::collections::BTreeMap<u32, String> {
+    static WORLDS: OnceLock<Mutex<std::collections::BTreeMap<u32, String>>> = OnceLock::new();
+    let cache = WORLDS.get_or_init(|| Mutex::new(std::collections::BTreeMap::new()));
+    let mut guard = cache.lock().unwrap_or_else(|error| error.into_inner());
+    if guard.is_empty() {
+        match api.worlds() {
+            Ok(worlds) => *guard = worlds,
+            Err(error) => log::warn!("worker: sin nombres de mundo ({error})"),
+        }
+    }
+    guard.clone()
+}
+
+/// The four WvW maps, fetched once per session (they never change).
 /// `None` means the API has not answered yet: the map tab says so instead of drawing an empty
 /// box, and the next poll tries again.
 pub fn maps_for(api: &Api<WinHttpTransport>) -> Vec<gw2lurker_core::WvwMap> {

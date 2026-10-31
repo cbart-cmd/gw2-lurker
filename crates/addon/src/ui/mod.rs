@@ -189,8 +189,11 @@ pub fn register() {
 /// everything that the mouse cannot reach (RF-02).
 fn draw_options(ui: &nexus::imgui::Ui) {
     draw_openers(ui);
-    let candidates = crate::worker::dashboard().candidates.clone();
-    let change = settings::draw_inline(ui, &candidates);
+    let (candidates, worlds) = {
+        let board = crate::worker::dashboard();
+        (board.candidates.clone(), board.world_names.clone())
+    };
+    let change = settings::draw_inline(ui, &candidates, &worlds);
     match change {
         Some(settings::TeamChange::Pick(team_id)) => crate::team::remember(team_id),
         Some(settings::TeamChange::Clear) => crate::team::forget(),
@@ -235,7 +238,7 @@ fn draw_widget(ui: &nexus::imgui::Ui) {
 
     let filters = FILTERS.get_or_init(|| std::sync::Mutex::new(matchup::Filters::all_kinds()));
     let current = crate::context::current_map_role();
-    let (candidates, guilds, names, claims, alerts, objectives, maps) = {
+    let (candidates, guilds, names, claims, alerts, objectives, maps, worlds) = {
         let board = crate::worker::dashboard();
         (
             board.candidates.clone(),
@@ -250,6 +253,7 @@ fn draw_widget(ui: &nexus::imgui::Ui) {
             ),
             board.names.clone(),
             board.maps.clone(),
+            board.world_names.clone(),
         )
     };
     let follow = crate::config().followed.clone();
@@ -278,6 +282,7 @@ fn draw_widget(ui: &nexus::imgui::Ui) {
                 now,
                 objectives: &objectives,
                 maps: &maps,
+                worlds: &worlds,
             },
         );
     });
@@ -329,6 +334,8 @@ struct Tabbed<'a> {
     objectives: &'a [gw2lurker_core::ObjectiveInfo],
     /// Boxes of the four WvW maps (RF-30).
     maps: &'a [gw2lurker_core::WvwMap],
+    /// Legacy world id → name, para que el selector de equipo se pueda reconocer (RF-03a).
+    worlds: &'a std::collections::BTreeMap<u32, String>,
 }
 
 /// Draws the tab bar and the body of the tab the player picked. The last tab is the settings.
@@ -442,7 +449,7 @@ fn draw_tabs(
                     clicked = alerts::log_body(ui, data.alerts);
                 }
                 _ => {
-                    change = settings::body(ui, config, data.candidates);
+                    change = settings::body(ui, config, data.candidates, data.worlds);
                 }
             });
         }

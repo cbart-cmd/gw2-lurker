@@ -33,6 +33,12 @@ pub struct Candidate {
     pub match_id: String,
     /// Colour it holds in that match.
     pub color: TeamColor,
+    /// Legacy worlds fighting for this team, so the player recognises their own.
+    ///
+    /// The new teams are named after places nobody has played in, so the picker was a list of
+    /// strangers; the old world name is what the player actually knows (report of 2026-10-31:
+    /// picked an NA team called *Lutgardis Conservatory* while playing on the EU world Lutgardis).
+    pub worlds: Vec<u32>,
 }
 
 impl Candidate {
@@ -138,12 +144,16 @@ pub fn candidates(live: &[Match]) -> Vec<Candidate> {
     let mut out = Vec::new();
     for entry in matches {
         for color in TeamColor::ALL {
-            for team_id in entry.all_worlds.get(color) {
+            let ids = entry.all_worlds.get(color);
+            // Los mundos antiguos de ese color: son los que el jugador reconoce.
+            let worlds: Vec<u32> = ids.iter().copied().filter(|id| !is_team(*id)).collect();
+            for team_id in ids {
                 if is_team(*team_id) {
                     out.push(Candidate {
                         team_id: *team_id,
                         match_id: entry.id.clone(),
                         color,
+                        worlds: worlds.clone(),
                     });
                 }
             }

@@ -140,10 +140,28 @@ Estado: `[ ]` pendiente · `[x]` hecho.
   buena (59 ficheros `2-1-*`, «las del mapa ya estaban en caché»).
 
 
-## [ ] el hover del mapa enseña el id del clan, no su nombre (2026-10-31)
+## [x] el hover del mapa enseña el id del clan, no su nombre (2026-10-31)
 - «Pasar el ratón por encima de un objetivo no dice el nombre del clan sino un id.»
 - **Hecho (0.19.0):** `map::detail_line` recibe el mapa de nombres y enseña `[TAG] Nombre`; el id solo
   aparece si la API no lo ha resuelto.
+
+## [x] la ventana no se puede mover (2026-10-31)
+- «No tiene ni click-through ni bloqueada, pero no se mueve»; «el botón × no cierra la ventana, hace
+  una especie de plegado»; «no detecta que he cogido campa y reclamado»; «indica mapa 95 y
+  emparejamiento 1-1».
+- **Mover y cerrar (hecho, 0.21.0):** en 0.18.0 la barra de título se había convertido en un
+  `invisible_button` a toda la anchura para que el doble clic fuera fácil de acertar, y se quedaba con
+  el clic: la ventana no se arrastraba y el `×` acababa contando como clic en la barra (parecía un
+  plegado). Vuelta al texto del título: el `×` cierra, el doble clic contrae y, con la ventana
+  contrada, un clic la abre; el arrastre funciona porque el texto no captura el ratón.
+- **«No detecta lo que he reclamado» (diagnóstico):** el widget enseñaba `EMPAREJAMIENTO 1-1 · NA`, y
+  `1-1` es una partida **de Norteamérica**. gw2mists lista *Lutgardis Conservatory* en la tabla NA, así
+  que el equipo guardado (`11011`) es de NA: si juegas en Europa, tus capturas no aparecen en esa
+  partida. Para que no vuelva a pasar, el selector de equipo enseña ahora **los mundos antiguos de cada
+  equipo** (`Recolector de almas (11011) · Mundos…`), que es el nombre que uno reconoce (0.21.0).
+- `MAPA 95 (TIPO 11)` y `1-1` son coherentes: el 95 es Alpino verde y el addon estaba vigilando la
+  partida NA. Con el equipo correcto, el mapa y los avisos pasan a ser los tuyos.
+
 
 ## [x] nombres de los equipos erróneos (2026-10-31)
 - «Los nombres actuales traducidos no son correctos. Busca los nombres en inglés de la web que te
@@ -158,19 +176,17 @@ Estado: `[ ]` pendiente · `[x]` hecho.
 
 ## [ ] avisos y registro · no recoge bien la información (2026-10-31)
 - «No sale siempre quién ha reclamado»; «desde las 20:22 no recoge nuevos resultados aunque ha habido
-  reclamaciones»; «el registro va lentísimo: que se cargue solo cuando se necesite, máximo 50 filas
-  más el historial de los clanes que sigues desde que abriste el juego»; y el formato de la línea.
-- Formato pedido para el aviso: **icono del tipo de objetivo**; el mapa con su color («Eternos» en
-  gris, «Azul» en azul, «Verde» en verde, «Rojo» en rojo, cada uno con su equivalencia); y en gris el
-  nombre del sitio, un guion y **el clan que lo tiene reclamado ahora**, sin perder el clan original
-  en el historial de la sesión si era uno seguido.
-- **Hecho (0.19.0):** el formato de la línea, con colores por trozo (ver `0.19.0` en `CHANGELOG.md`) y
-  el clan actual resuelto a `[TAG] Nombre`.
-- Pendiente: «desde las 20:22 no recoge nada» y el rendimiento del registro. Para lo primero, el
-  worker ya escribe `worker: vigilando …` y una línea `evento: …` por evento: con ese log de una
-  sesión se ve si el sondeo se paró, si el emparejamiento cambió o si el filtro se lo comió. Para lo
-  segundo, la lista que se pinta en el registro se puede limitar a las últimas 50 sin tocar el
-  historial de la sesión (que es lo que alimenta la ruta).
+  reclamaciones»; «el registro va lentísimo»; y el formato de la línea.
+- **Hecho (0.19.0):** el formato de la línea, con colores por trozo (icono, mapa en su color, sitio y
+  clan en gris).
+- **Hecho (0.21.0):** el registro se dibuja con **`ListClipper`** (solo las filas visibles) y como mucho
+  **50 líneas**, las más nuevas; antes se pintaba todo lo de la sesión y cada línea son varios trozos de
+  texto. Y los nombres de clan se resuelven a **20 por sondeo** en lugar de 10, que es lo que hacía que
+  un aviso saliera sin el nombre del clan.
+- Pendiente: «desde las 20:22 no recoge nada». Con 0.20.1 el worker escribe cada diez sondeos
+  `sondeo N: partida …, N reclamados de M objetivos, K eventos nuevos`, así que en la próxima sesión se
+  verá si el sondeo avanza y si el diferencial ve cambios.
+
 
 ## [ ] la ventana no se puiede mover
 - n otiene ni clocktough ni bloqueada, pero no se mueve

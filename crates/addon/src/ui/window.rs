@@ -74,13 +74,9 @@ pub fn draw(
     window.build(ui, || {
         let start = ui.cursor_pos();
         let width = ui.content_region_avail()[0];
-        // The whole bar answers the mouse, not only the letters of the title: a collapsed window
-        // shrinks to a couple of centimetres, and hitting just the text was the reason it seemed
-        // impossible to open again (report of 2026-10-31).
-        let bar_id = format!("###gw2lurker_bar_{key}");
-        ui.invisible_button(bar_id, [width, ui.text_line_height()]);
-        let over_bar = ui.is_item_hovered();
-        ui.set_cursor_pos(start);
+        // El botón de cerrar va **primero** y solo después el título: con una barra invisible a
+        // toda la anchura se quedaba con el clic y la ventana no se podía arrastrar ni cerrar
+        // (informe de 2026-10-31).
         if width > CLOSE_WIDTH * 2.0 {
             ui.set_cursor_pos([start[0] + width - CLOSE_WIDTH, start[1]]);
             if ui.small_button(close_id) {
@@ -92,12 +88,14 @@ pub fn draw(
         }
 
         ui.text(title_text);
-        if over_bar && ui.is_mouse_double_clicked(MouseButton::Left) {
-            state.collapsed = !state.collapsed;
-        } else if over_bar && state.collapsed && ui.is_mouse_clicked(MouseButton::Left) {
-            // A single click opens it again: after a collapse the title is all there is, and
-            // asking for a second double-click on such a small target was optimistic.
-            state.collapsed = false;
+        // El texto del título no captura el arrastre, así que la ventana se mueve como siempre;
+        // sobre él, doble clic contrae/despliega y un clic la abre si estaba contrada.
+        if ui.is_item_hovered() {
+            if ui.is_mouse_double_clicked(MouseButton::Left) {
+                state.collapsed = !state.collapsed;
+            } else if state.collapsed && ui.is_mouse_clicked(MouseButton::Left) {
+                state.collapsed = false;
+            }
         }
 
         if ui.is_window_hovered() && ui.is_mouse_clicked(MouseButton::Right) {

@@ -318,6 +318,7 @@ mod tests {
             team_id,
             match_id: match_id.to_owned(),
             color: TeamColor::Blue,
+            worlds: Vec::new(),
         }
     }
 

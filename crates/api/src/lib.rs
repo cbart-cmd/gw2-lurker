@@ -155,6 +155,28 @@ impl<T: Transport> Api<T> {
             .get(&format!("{BASE}/maps?ids=38,95,96,1099"))?;
         parse(&body)
     }
+
+    /// Legacy world id → name, to say which old worlds fight for each team (RF-03a).
+    ///
+    /// The new teams have names nobody has played under, so the picker shows the old world names
+    /// next to them: that is what the player recognises (report of 2026-10-31). `ids=all` is ~51
+    /// entries, a few kilobytes, and it never changes.
+    pub fn worlds(&self) -> Result<std::collections::BTreeMap<u32, String>, ApiError> {
+        let body = self.transport.get(&format!("{BASE}/worlds?ids=all"))?;
+        let worlds: Vec<World> = parse(&body)?;
+        Ok(worlds
+            .into_iter()
+            .map(|world| (world.id, world.name))
+            .collect())
+    }
+}
+
+/// One entry of `/v2/worlds`: the old servers, still in `all_worlds` for compatibility.
+#[derive(Debug, Clone, serde::Deserialize)]
+struct World {
+    id: u32,
+    #[serde(default)]
+    name: String,
 }
 
 /// Percent-encodes a query value: guild names have spaces, accents and apostrophes.

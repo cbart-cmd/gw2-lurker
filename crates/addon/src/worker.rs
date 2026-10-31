@@ -67,6 +67,8 @@ pub struct Dashboard {
     pub names: Vec<ObjectiveInfo>,
     /// Guild id → `[TAG] Nombre`, from `/v2/guild` (RF-20). Missing ones are shown as the id.
     pub guild_names: std::collections::BTreeMap<String, String>,
+    /// Legacy world id → name, for the team picker (RF-03a).
+    pub world_names: std::collections::BTreeMap<u32, String>,
     /// The four WvW maps with their boxes, for the projection (RF-30).
     pub maps: Vec<gw2lurker_core::WvwMap>,
     /// Every team playing right now, with its matchup and colour (RF-03a).
@@ -365,6 +367,7 @@ fn poll_once(
     let candidates = select::candidates(&live);
     let followed = crate::config().followed.clone();
     let guild_names = resolve_guild_names(api, &guilds, &followed);
+    let world_names = crate::catalog::world_names(api);
     let maps = maps_for(api);
     crate::diagnostics::log_watched_matchup(&selection, match_id.as_deref(), &live, &events);
     crate::catalog::ensure_tiles(&maps);
@@ -386,6 +389,7 @@ fn poll_once(
     board.names = names;
     board.candidates = candidates;
     board.guild_names = guild_names;
+    board.world_names = world_names;
     board.maps = maps;
     board.map_roles = map_roles;
     let objective_count = board.names.len();

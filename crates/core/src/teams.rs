@@ -241,8 +241,11 @@ mod tests {
             "traduccion literal del Excel; el nombre oficial en el juego es otro"
         );
 
-        // Lutgardis Conservatory is not in the spreadsheet: English, never empty.
-        assert_eq!(table.name_in("es", 11011), Some("Lutgardis Conservatory"));
+        // Un equipo que no está en el Excel nunca se queda vacío: o el inglés o lo que el jugador
+        // haya escrito en la tabla. El nombre exacto no se fija aquí a propósito, porque el
+        // jugador puede traducirlo cuando quiera (2026-10-31).
+        let lutgardis = table.name_in("es", 11011).expect("siempre hay nombre");
+        assert!(!lutgardis.trim().is_empty());
     }
 
     #[test]

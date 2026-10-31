@@ -13,6 +13,25 @@ Reglas:
 
 ---
 
+## HECHO – 2026-10-31 · La ventana vuelve a moverse, el registro va ligero y el equipo se reconoce (0.21.0)
+
+- **La ventana no se movía y el `×` plegaba**: regresión de 0.18.0. La barra de título se había
+  convertido en un `invisible_button` a toda la anchura (para que el doble clic fuera fácil de acertar)
+  y se quedaba con el clic, así que el arrastre no llegaba a la ventana y el `×` contaba como clic en la
+  barra. Vuelta al `ui.text` del título: `×` cierra, doble clic contrae/despliega, un clic abre si está
+  contrada, y el arrastre funciona porque el texto no captura el ratón.
+- **Registro ligero**: `log_body` usa **`ListClipper`** y un tope de **50** líneas
+  (`alerts::MAX_LOGGED`); antes pintaba todo lo de la sesión y cada línea son varios trozos de texto.
+- **Nombres de clan en los avisos**: 20 búsquedas por sondeo en vez de 10 (`GUILD_LOOKUPS_PER_POLL`).
+- **T-52 · los mundos antiguos en el selector de equipo**: `api::worlds()` (51 entradas, una vez por
+  sesión, `catalog::world_names`), `Candidate::worlds` y `settings::worlds_label`, así que el desplegable
+  enseña `Equipo (id) · Partida · Mundos antiguos`. Es la forma de reconocer un equipo nuevo: el jugador
+  eligió un equipo **NA** llamado *Lutgardis Conservatory* teniendo el mundo Lutgardis en EU, y por eso
+  sus capturas no aparecían (el widget lo decía: `EMPAREJAMIENTO 1-1 · NA`).
+- Se **respetan** las traducciones que se añadieron a mano en `data/team-names.json`
+  (`Invernadero de Lutgardis`, `Bosquemusgoso`); el test ya no fija un nombre concreto para eso.
+- Verificación: 200 tests en verde, `clippy -D warnings` limpio, ningún fichero por encima de 800 líneas.
+
 ## HECHO – 2026-10-31 · El mapa real se dibuja entero y el sondeo se puede ver (0.20.1)
 
 - **«El mapa no es real», encontrado en el código**: `tile_texture` gastaba un presupuesto de 4

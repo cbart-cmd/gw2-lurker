@@ -82,6 +82,7 @@ pub fn body(
     ui: &Ui,
     config: &mut crate::config::Config,
     candidates: &[Candidate],
+    worlds: &std::collections::BTreeMap<u32, String>,
 ) -> Option<TeamChange> {
     let table = gw2lurker_core::bundled();
     let language = i18n::effective().code();
@@ -105,7 +106,7 @@ pub fn body(
     };
     let before = edits.team_id;
 
-    let save_now = draw_body(ui, table, &mut edits, candidates);
+    let save_now = draw_body(ui, table, &mut edits, candidates, worlds);
 
     remember_translation(config, edits.translation.as_str(), language);
     config.language = edits.language;
@@ -139,9 +140,13 @@ pub fn body(
 ///
 /// Used by Nexus' own options pane (`RenderType::OptionsRender`), which is reachable even
 /// outside WvW: that is how RF-02 keeps the configuration available everywhere.
-pub fn draw_inline(ui: &Ui, candidates: &[Candidate]) -> Option<TeamChange> {
+pub fn draw_inline(
+    ui: &Ui,
+    candidates: &[Candidate],
+    worlds: &std::collections::BTreeMap<u32, String>,
+) -> Option<TeamChange> {
     let mut config = crate::runtime();
-    body(ui, &mut config, candidates)
+    body(ui, &mut config, candidates, worlds)
 }
 
 fn team_change(before: Option<u32>, now: Option<u32>) -> Option<TeamChange> {
@@ -216,7 +221,13 @@ fn label_column(ui: &Ui) -> f32 {
         + 20.0
 }
 
-fn draw_body(ui: &Ui, table: &TeamTable, edits: &mut Edits, candidates: &[Candidate]) -> bool {
+fn draw_body(
+    ui: &Ui,
+    table: &TeamTable,
+    edits: &mut Edits,
+    candidates: &[Candidate],
+    worlds: &std::collections::BTreeMap<u32, String>,
+) -> bool {
     // imgui puts the label to the right of the widget: cap the widget so the translated labels
     // of a narrow window are not cut off, whatever the language.
     let label_width = label_column(ui);
@@ -234,7 +245,7 @@ fn draw_body(ui: &Ui, table: &TeamTable, edits: &mut Edits, candidates: &[Candid
 
     draw_region(ui, edits, candidates);
     draw_colour(ui, edits);
-    draw_team(ui, table, edits, candidates);
+    draw_team(ui, table, edits, candidates, worlds);
 
     let translation_id = i18n::widget("Translation");
     ui.input_text(translation_id, &mut edits.translation)
@@ -383,7 +394,13 @@ fn draw_colour(ui: &Ui, edits: &mut Edits) {
         });
 }
 
-fn draw_team(ui: &Ui, table: &TeamTable, edits: &mut Edits, candidates: &[Candidate]) {
+fn draw_team(
+    ui: &Ui,
+    table: &TeamTable,
+    edits: &mut Edits,
+    candidates: &[Candidate],
+    worlds: &std::collections::BTreeMap<u32, String>,
+) {
     let language = i18n::effective().code();
     let options = match (edits.narrowing.region, edits.narrowing.colour) {
         (Some(region), Some(colour)) => select::of_region_and_color(candidates, region, colour),
@@ -411,10 +428,14 @@ fn draw_team(ui: &Ui, table: &TeamTable, edits: &mut Edits, candidates: &[Candid
                 return;
             }
             for candidate in options {
+                // Los mundos antiguos de ese equipo, que es como el jugador lo reconoce: los
+                // nombres de equipo son nuevos y no dicen nada (informe de 2026-10-31).
+                let worlds = worlds_label(&candidate.worlds, worlds);
                 let label = format!(
-                    "{}  ·  {}###team{}",
+                    "{}  ·  {}{}###team{}",
                     table.label_in(language, candidate.team_id),
                     candidate.match_id,
+                    worlds,
                     candidate.team_id
                 );
                 let _tint = ui.push_style_color(StyleColor::Text, colour_rgba(candidate.color));
@@ -426,6 +447,21 @@ fn draw_team(ui: &Ui, table: &TeamTable, edits: &mut Edits, candidates: &[Candid
                 }
             }
         });
+}
+
+/// `  ·  Lutgardis, Vabbi` con los mundos antiguos del equipo, o vacío si no se saben.
+///
+/// Es la única forma de reconocer un equipo nuevo: los nombres rotan cada temporada y el jugador
+/// sigue pensando en su mundo de siempre.
+fn worlds_label(ids: &[u32], worlds: &std::collections::BTreeMap<u32, String>) -> String {
+    let names: Vec<&str> = ids
+        .iter()
+        .filter_map(|id| worlds.get(id).map(String::as_str))
+        .collect();
+    if names.is_empty() {
+        return String::new();
+    }
+    format!("  ·  {}", names.join(", "))
 }
 
 /// The translation the field starts with: what the player saved, or the automatic name.
@@ -555,6 +591,7 @@ mod tests {
             team_id,
             match_id: match_id.to_owned(),
             color,
+            worlds: Vec::new(),
         }
     }
 

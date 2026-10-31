@@ -1,6 +1,20 @@
 # Changelog
 Formato [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/), versionado [SemVer](https://semver.org/lang/es/).
 
+## [0.21.0] - 2026-10-31
+### Corregido
+- **La ventana se mueve y el `×` cierra**: en 0.18.0 la barra de título se había vuelto un botón
+  invisible a toda la anchura que se quedaba con el clic, así que no se podía arrastrar y el `×`
+  parecía plegar la ventana. Vuelta al título de siempre: `×` cierra, doble clic contrae y con la
+  ventana contrada un clic la abre.
+- **El registro de avisos va ligero**: solo se dibujan las filas visibles (`ListClipper`) y como mucho
+  50, las más nuevas. Antes se pintaba todo lo de la sesión y cada línea son varios trozos de texto.
+- **Los avisos llevan el nombre del clan**: se resuelven 20 nombres por sondeo en vez de 10.
+### Añadido
+- **El selector de equipo enseña los mundos antiguos de cada equipo**, que es el nombre que uno
+  reconoce: los equipos nuevos se llaman como sitios donde nadie ha jugado y era fácil elegir el de
+  otra región (pasó: un equipo NA llamado *Lutgardis Conservatory* teniendo el mundo Lutgardis en EU).
+
 ## [0.20.1] - 2026-10-31
 ### Corregido
 - **El mapa real ya puede dibujarse entero**: el presupuesto de teselas era «4 en toda la sesión» en
