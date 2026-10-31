@@ -67,10 +67,13 @@ pub enum Event {
         at: DateTime<Utc>,
     },
     /// A guild now claims the objective (RF-21). `at` is `claimed_at` when present.
+    ///
+    /// `late` marks claims discovered at a baseline instead of observed live (RF-25).
     Claim {
         objective: String,
         guild: String,
         at: DateTime<Utc>,
+        late: bool,
     },
     /// A guild no longer claims the objective; `at` is when it was observed (RF-22).
     Unclaim {
@@ -157,6 +160,9 @@ impl Differ {
 
         if let Some(reason) = baseline {
             events.push(Event::Baseline { reason });
+            // RF-25: a baseline is when we discover the claims that already exist. All of
+            // them are recorded with their real `claimed_at`, flagged as late.
+            late_claims(&snapshot, &mut events);
         } else if let Some(prev) = &self.prev {
             // A baseline never produces flips: there is nothing to compare against (RF-04).
             flips_and_claims(prev, &snapshot, &mut events);
@@ -164,6 +170,20 @@ impl Differ {
 
         self.prev = Some(snapshot);
         events
+    }
+}
+
+/// Every claim visible in a baseline snapshot, ordered by objective id (RF-25).
+fn late_claims(snapshot: &Snapshot, out: &mut Vec<Event>) {
+    for (id, objective) in &snapshot.objectives {
+        if let Some(guild) = &objective.claimed_by {
+            out.push(Event::Claim {
+                objective: id.clone(),
+                guild: guild.clone(),
+                at: objective.claimed_at.unwrap_or(snapshot.taken_at),
+                late: true,
+            });
+        }
     }
 }
 
@@ -199,6 +219,7 @@ fn flips_and_claims(prev: &Snapshot, cur: &Snapshot, out: &mut Vec<Event>) {
                     objective: id.clone(),
                     guild: new.to_string(),
                     at: now.claimed_at.unwrap_or(cur.taken_at),
+                    late: false,
                 });
             }
             (Some(old), None) => out.push(Event::Unclaim {
@@ -210,6 +231,7 @@ fn flips_and_claims(prev: &Snapshot, cur: &Snapshot, out: &mut Vec<Event>) {
                 objective: id.clone(),
                 guild: new.to_string(),
                 at: now.claimed_at.unwrap_or(cur.taken_at),
+                late: false,
             }),
             _ => {}
         }

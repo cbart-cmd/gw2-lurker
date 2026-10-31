@@ -195,6 +195,7 @@ mod tests {
                 objective: "38-20".to_string(),
                 guild: guild.to_string(),
                 at: at(secs),
+                late: false,
             },
         )
     }

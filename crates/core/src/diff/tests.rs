@@ -23,15 +23,66 @@ fn differ() -> Differ {
     Differ::new(DiffConfig::default())
 }
 
+/// Lifecycle events only: the late claims a baseline carries are checked separately (RF-25).
+fn lifecycle(events: &[Event]) -> Vec<Event> {
+    events
+        .iter()
+        .filter(|e| !matches!(e, Event::Claim { .. }))
+        .cloned()
+        .collect()
+}
+
+fn late_claims(events: &[Event]) -> usize {
+    events
+        .iter()
+        .filter(|e| matches!(e, Event::Claim { late: true, .. }))
+        .count()
+}
+
+/// The fixture carries 41 claims, so every baseline must discover exactly that many.
+const FIXTURE_CLAIMS: usize = 41;
+
+#[test]
+fn rf25_late_claims_carry_the_real_claimed_at() {
+    let mut d = differ();
+    let snap0 = snap("2-2", 0);
+    let expected_guild = snap0.objectives["38-20"].claimed_by.clone().unwrap();
+    let expected_at = snap0.objectives["38-20"].claimed_at;
+
+    let events = d.push(snap0);
+    let late = events
+        .iter()
+        .find_map(|e| match e {
+            Event::Claim {
+                objective,
+                guild,
+                at,
+                late: true,
+            } if objective == "38-20" => Some((guild.clone(), *at)),
+            _ => None,
+        })
+        .expect("38-20 llega como claim tardío");
+
+    assert_eq!(late.0, expected_guild);
+    assert_eq!(
+        Some(late.1),
+        expected_at,
+        "la hora es la del claim, no la del poll"
+    );
+}
+
 #[test]
 fn rf04_first_snapshot_is_a_session_baseline() {
     let mut d = differ();
+    let events = d.push(snap("2-2", 0));
+
     assert_eq!(
-        d.push(snap("2-2", 0)),
+        lifecycle(&events),
         vec![Event::Baseline {
             reason: BaselineReason::SessionStart
         }]
     );
+    assert_eq!(late_claims(&events), FIXTURE_CLAIMS);
     assert!(d.prev().is_some());
 }
 
@@ -48,7 +99,7 @@ fn rf03d_match_change_resets_the_baseline() {
     d.push(snap("2-2", 0));
 
     assert_eq!(
-        d.push(snap("2-3", 30)),
+        lifecycle(&d.push(snap("2-3", 30))),
         vec![
             Event::MatchChanged {
                 old: "2-2".to_string(),
@@ -67,7 +118,7 @@ fn rf26_gap_above_three_intervals_is_reported() {
     d.push(snap("2-2", 0));
 
     assert_eq!(
-        d.push(snap("2-2", 91)),
+        lifecycle(&d.push(snap("2-2", 91))),
         vec![
             Event::Gap {
                 from: at(0),
@@ -106,7 +157,7 @@ fn rf04_reset_makes_the_next_snapshot_a_baseline_again() {
     d.push(snap("2-2", 0));
     d.reset();
     assert_eq!(
-        d.push(snap("2-2", 30)),
+        lifecycle(&d.push(snap("2-2", 30))),
         vec![Event::Baseline {
             reason: BaselineReason::SessionStart
         }]
@@ -172,6 +223,7 @@ fn rf21_new_claim_uses_claimed_at() {
             objective: "38-4".to_string(),
             guild: "AAAA-BBBB".to_string(),
             at: at(25),
+            late: false,
         }]
     );
 }
@@ -205,6 +257,7 @@ fn rf22_replaced_claim_emits_unclaim_then_claim() {
                 objective: "38-20".to_string(),
                 guild: "NEW-GUILD".to_string(),
                 at: at(28),
+                late: false,
             },
         ]
     );
@@ -242,8 +295,9 @@ fn rf04_baseline_after_a_gap_reports_no_flips() {
     let mut far = snap("2-2", 200);
     objective(&mut far, "38-20").owner = Some(TeamColor::Blue);
 
+    let events = d.push(far);
     assert_eq!(
-        d.push(far),
+        lifecycle(&events),
         vec![
             Event::Gap {
                 from: at(0),
@@ -254,6 +308,11 @@ fn rf04_baseline_after_a_gap_reports_no_flips() {
             },
         ]
     );
+    assert!(
+        !events.iter().any(|e| matches!(e, Event::Flip { .. })),
+        "un baseline no puede producir flips (RF-04)"
+    );
+    assert_eq!(late_claims(&events), FIXTURE_CLAIMS);
 }
 
 #[test]

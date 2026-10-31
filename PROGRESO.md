@@ -22,6 +22,17 @@ Reglas:
 - **Requiere GW2**: T-12 (leer `NexusLink`/`Context`), T-35, T-01, T-02b, T-25.
 - Decidido: **sí** a la feature `rtapi` (RF-44); su coste en DLL se mide en T-02b.
 
+## HECHO – 2026-10-31 · Claims tardíos con bandera `late` (T-09)
+
+- `Event::Claim` gana `late: bool`. Un baseline emite `Baseline` y después **un claim por
+  cada objetivo reclamado**, con su `claimed_at` real y `late = true` (RF-25). Los claims
+  observados en vivo llevan `late = false`.
+- Consecuencia para quien consuma: el baseline de una sesión son ~41 eventos, no uno. El
+  repositorio de eventos ya los guarda tal cual (T-10).
+- Tests: los de baseline ahora separan eventos de ciclo de vida de los claims tardíos, y hay
+  uno específico que comprueba guild y hora reales de un claim tardío.
+- 50 tests de core + 6 de store.
+
 ## HECHO – 2026-10-31 · Almacenamiento por sesión (T-10 parcial)
 
 - `crates/store`: `SessionStore` con `Record { v, at, match_id, event }` (los eventos son
