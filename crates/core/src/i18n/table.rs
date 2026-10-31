@@ -82,6 +82,9 @@ pub const TEXT: &[(&str, [&str; COLUMNS])] = &[
     ("Team", ["Equipo", "Team", "Équipe", "Team"]),
     ("Translation", ["Traducción", "Translation", "Traduction", "Übersetzung"]),
     ("Save", ["Grabar", "Save", "Enregistrer", "Speichern"]),
+    ("from their keep", ["desde su fortaleza", "from their keep", "depuis leur forteresse", "aus ihrer Festung"]),
+    ("from their side keep", ["desde su fortaleza lateral", "from their side keep", "depuis leur forteresse latérale", "aus ihrer Seitenfestung"]),
+    ("from the spawn point", ["desde el punto de reaparición", "from the spawn point", "depuis le point de réapparition", "vom Wiederbelebungspunkt"]),
     (
         "The changes are applied as you edit; this writes them now.",
         [

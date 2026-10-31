@@ -34,6 +34,23 @@ Reglas:
   bueno un HTTP 200. Se reintenta con `-VerifyOnly` pasados unos minutos; no se cambia la URL
   ni la versión para taparlo.
 
+## HECHO – 2026-10-31 · Traducción por equipo, botón Grabar y ruta inferida (T-40; 0.10.1–0.11.0)
+
+- **Bug de `bugs.md`**: la traducción se guardaba por idioma, no por equipo, así que se arrastraba
+  a otros servidores y no volvía al original. `Config::team_translations` indexa por **id de
+  equipo → idioma**; el campo propone la traducción de la tabla cuando no hay una propia, y las
+  formas antiguas (`team_names`, `team_alias`) se leen y se migran al guardar. Añadido botón
+  **Grabar** que fuerza la escritura de `settings.json`.
+- **T-40 parcial**: `core::route` arma la ruta de un clan en un mapa (claims en orden) con origen
+  inferido por precedencia **fortaleza → fortaleza lateral → reaparición**, y su motivo se
+  escribe siempre en la UI (ADR-005: «Ruta inferida a partir de las reclamaciones; no es el
+  recorrido real»). Seis tests puros. La ventana de clanes ya la muestra en texto.
+- **Decisión pendiente de spec**: la API marca colinas y bahía como `Keep`, igual que la
+  guarnición, así que «desde su fortaleza» es honesto pero no distingue cuál. Afinarlo requiere
+  identificar el keep de cada mapa por id, y eso no está verificado: queda anotado en T-40.
+- Verificado: 53 tests en el addon, **86** en `core` (6 nuevos), `clippy -D warnings` limpio,
+  trazabilidad en verde. DLL de 1 590 272 bytes (objetivo 2,2 MB).
+
 ## HECHO – 2026-10-31 · Presupuesto a 2,2 MB, lista de clanes e historial (T-37, T-38; 0.10.0)
 
 - **ADR-013**: el objetivo de `check_size.sh` pasa a **2 306 867 bytes (2,2 MB)**; el límite

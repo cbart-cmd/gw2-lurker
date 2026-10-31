@@ -1,6 +1,12 @@
 # Changelog
 Formato [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/), versionado [SemVer](https://semver.org/lang/es/).
 
+## [0.11.0] - 2026-10-31
+### Añadido
+- **Ruta inferida** de un clan: al elegirlo en la ventana de clanes se ve de dónde se supone que
+  vino (su fortaleza, una fortaleza lateral o el punto de reaparición) y los objetivos que fue
+  reclamando en orden. Va siempre etiquetada como inferida, nunca como recorrido real.
+
 ## [0.10.1] - 2026-10-31
 ### Corregido
 - La traducción del equipo se guardaba por idioma y no por equipo, así que al elegir otro servidor

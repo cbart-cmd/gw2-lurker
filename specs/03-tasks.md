@@ -136,7 +136,13 @@ tarea indica de qué depende.
    seguir/dejar de seguir y se guarda en `settings.json` (`followed`), además de en los ajustes.
    `FollowList` ya impedía duplicados y `favourites_first` mantiene el orden por recencia.
    (T-37) — RF-73
-9. **T-40 (C)** Ruta virtual con origen inferido (garrison → colinas/bahía → respawn).
+9. **T-40 ✔ (2026-10-31, parcial)** `core::route`: ruta de un clan en un mapa a partir de sus
+   claims, en orden cronológico, con **origen inferido**: fortaleza (guarnición) → fortaleza
+   lateral (torres/castillo) → punto de reaparición. El origen no se repite como paso: la UI lo
+   dibuja como inicio. La ventana de clanes ya enseña la ruta en texto, con el aviso
+   «Ruta inferida a partir de las reclamaciones» (ADR-005). **Falta**: pintarla sobre el mapa
+   simplificado, que llega con T-14 (proyección `world_to_screen` y `continent_rect`), y afinar
+   qué objetivo es la guarnición de cada mapa (los `Keep` de la API incluyen colinas y bahía).
    (T-38) — RF-32a
 10. **T-41 (S)** Cerrar i18n: terminología de tipos con hablantes nativos de fr/de. (T-31)
     — RF-44, RNF-08

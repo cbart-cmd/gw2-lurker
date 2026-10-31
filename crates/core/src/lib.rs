@@ -13,6 +13,7 @@ pub mod i18n;
 pub mod matchup;
 pub mod model;
 pub mod resolver;
+pub mod route;
 pub mod select;
 pub mod teams;
 
@@ -27,6 +28,7 @@ pub use model::{
     TeamScores, WvwMap, HIGH_VALUE_TICK,
 };
 pub use resolver::Resolution;
+pub use route::{build as build_route, Origin as RouteOrigin, Route, Step as RouteStep};
 pub use select::{
     candidates, evaluate as evaluate_team, evaluate_for, is_team, matchups_of, of_region_and_color,
     rivals, teams_of, Candidate, Roster, Selection,

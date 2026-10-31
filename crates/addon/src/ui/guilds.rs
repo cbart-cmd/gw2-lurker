@@ -110,6 +110,22 @@ pub fn draw(
             Some(role) => gw2lurker_core::matchup::split_by_map(&rows, role),
             None => (Vec::new(), rows.clone()),
         };
+        if let Some(route) = gw2lurker_core::build_route(&rows, &chosen) {
+            // ADR-005: the path is inferred from claims, and the window says so.
+            ui.text_disabled(i18n::text(
+                "Route inferred from claims; it is not the real path.",
+            ));
+            ui.text(format!(
+                "{} → {}",
+                i18n::text(route_reason(route.origin)),
+                route
+                    .steps
+                    .iter()
+                    .map(|step| step.name.as_str())
+                    .collect::<Vec<_>>()
+                    .join(" → ")
+            ));
+        }
         draw_group(ui, "Current map", &here);
         draw_group(ui, "Other maps", &elsewhere);
     });
@@ -129,6 +145,14 @@ fn draw_group(ui: &Ui, heading: &'static str, rows: &[gw2lurker_core::matchup::C
             .map(|at| at.format("%H:%M").to_string())
             .unwrap_or_default();
         ui.text(format!("{when}  {name}  ·  {}", map_label(row.map_role)));
+    }
+}
+
+fn route_reason(origin: gw2lurker_core::RouteOrigin) -> &'static str {
+    match origin {
+        gw2lurker_core::RouteOrigin::Garrison => "from their keep",
+        gw2lurker_core::RouteOrigin::SideKeep => "from their side keep",
+        gw2lurker_core::RouteOrigin::Spawn => "from the spawn point",
     }
 }
 
