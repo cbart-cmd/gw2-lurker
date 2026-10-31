@@ -31,6 +31,9 @@ Estado: `[ ]` pendiente · `[x]` arreglado en esta tanda (se borra al cerrarla).
 - **Pendiente:** confirmar con el log que ya no sale. Si vuelve, la línea `clanes: …` dice de dónde
   viene.
 
-## [  ] varios
-- la ruta inferida de un clan deberia pintarla sobre  el mapa
+## [ ] varios
+- la ruta inferida de un clan deberia pintarla sobre el mapa
+- **Pendiente:** comprobar con 0.22.3. `map::draw_route` ya pinta la ruta cuando hay **dos o más**
+  claims del mismo mapa con coordinada conocida; si no sale, hace falta saber el clan elegido y qué
+  líneas hay en `history` (el log las enseña).
 
