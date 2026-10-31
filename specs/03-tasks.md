@@ -9,7 +9,7 @@ Cada tarea es pequeña y verificable. Orden recomendado; las dependencias se ind
 
 ## Fase 0b – Fundamentos de ingeniería
 
-- **T-03** Workspace Rust con `rustfmt.toml`, `[workspace.lints]` y `rust-version` (copiar de `tooling/`). *Hecho:* `cargo fmt --check`, `clippy -D warnings` y `cargo test` verdes en un workspace vacío.
+- **T-03 ✔ (2026-10-31)** Workspace Rust con `rustfmt.toml`, `[workspace.lints]` y `rust-version`. *Hecho:* `cargo fmt --check`, `clippy -D warnings` y `cargo test` verdes en un workspace vacío. Nota: no existe `tooling/` en el repo; la configuración se creó a mano (`rustfmt.toml`, `rust-toolchain.toml`, `deny.toml` ya estaban). `license` sigue sin decidir: **bloquea `cargo deny` en T-03a**.
 - **T-03a** CI con los 8 pasos de `04-engineering-standards.md` §9 incl. `check_loc.sh`, `deny.toml`. *Hecho:* un fichero de 801 líneas hace fallar la CI.
 - **T-03b** Check de trazabilidad RF → tests y `manual-tests.md`. (T-03a)
 - **T-02b** Spike de tamaño: medir DLL mínima con 2–3 opciones de cliente HTTP/TLS y fijar presupuesto real (ADR-008). (T-01)
@@ -17,7 +17,7 @@ Cada tarea es pequeña y verificable. Orden recomendado; las dependencias se ind
 
 ## Fase 1 – Núcleo (sin juego)
 
-- **T-03** Workspace + CI local (`fmt`, `clippy`, `test`). *Hecho:* `cargo test` verde.
+- **T-03** Workspace + CI local (`fmt`, `clippy`, `test`). *Hecho:* `cargo test` verde. **(Duplicado de la T-03 de la Fase 0b, que está hecha: el resto de esta tarea es T-03a.)**
 - **T-04** `core::model` y deserialización serde de fixtures reales del match y de objetivos. (T-03)
 - **T-05** `match_resolver`: equipo → color propio/enemigos buscando el `team_id` en `all_worlds`; nombres desde `data/wvw-teams.json`. *Hecho:* tests con equipo enlazado y con id sin nombre. (T-04) — RF-03b, RF-03i
 - **T-06** Baseline y cambio de match en `diff`. (T-04) — RF-03d, RF-04

@@ -1,0 +1,16 @@
+[package]
+name = "gw2lurker-addon"
+publish = false
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+repository.workspace = true
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+
+[lints]
+workspace = true
