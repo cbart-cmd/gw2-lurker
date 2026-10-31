@@ -19,6 +19,14 @@ pub fn gate() -> Gate {
     gate::evaluate(snapshot())
 }
 
+/// Map role the player is standing on, for the "only my map" alert option (RF-19a).
+pub fn current_map_role() -> Option<gw2lurker_core::MapRole> {
+    match gw2lurker_core::MapRole::from_map_id(snapshot().map_id) {
+        gw2lurker_core::MapRole::Unknown => None,
+        role => Some(role),
+    }
+}
+
 /// Logs the gate decision, but only when it changes.
 ///
 /// Without this, "the addon loaded and shows nothing" is indistinguishable from "the render

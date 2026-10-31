@@ -29,13 +29,16 @@ pub fn register() {
                 draw_alerts(ui);
             }
             if gate.settings_available() || crate::config().debug_show_everywhere {
-                // Candidates come from the worker and are copied out before touching the
-                // configuration: two mutexes are involved and lock order must stay the same
-                // everywhere (dashboard is only ever held without the configuration).
-                let candidates = crate::worker::dashboard().candidates.clone();
+                // Candidates and guilds come from the worker and are copied out before
+                // touching the configuration: two mutexes are involved and the dashboard lock
+                // must never be held while the configuration one is taken.
+                let (candidates, guilds) = {
+                    let board = crate::worker::dashboard();
+                    (board.candidates.clone(), board.guilds.clone())
+                };
                 let change = {
                     let mut config = crate::runtime();
-                    settings::draw(ui, &mut config, &candidates)
+                    settings::draw(ui, &mut config, &candidates, &guilds)
                 };
                 match change {
                     Some(settings::TeamChange::Pick(team_id)) => crate::team::remember(team_id),
@@ -51,8 +54,11 @@ pub fn register() {
     register_render(
         RenderType::OptionsRender,
         render!(|ui| {
-            let candidates = crate::worker::dashboard().candidates.clone();
-            let change = settings::draw_inline(ui, &candidates);
+            let (candidates, guilds) = {
+                let board = crate::worker::dashboard();
+                (board.candidates.clone(), board.guilds.clone())
+            };
+            let change = settings::draw_inline(ui, &candidates, &guilds);
             match change {
                 Some(settings::TeamChange::Pick(team_id)) => crate::team::remember(team_id),
                 Some(settings::TeamChange::Clear) => crate::team::forget(),
@@ -131,11 +137,26 @@ fn draw_status(ui: &nexus::imgui::Ui) {
     }
 }
 
-/// Recent captures and claims (T-13). The worker resolves the lines, so the render callback
-/// only formats what it already has.
+/// Recent captures and claims (T-13). The worker resolves and filters the lines, so the render
+/// callback only formats what it already has.
 fn draw_alerts(ui: &nexus::imgui::Ui) {
-    let alerts = crate::worker::dashboard().recent_alerts(30);
+    let (filter, follow, popup_secs, opacity) = {
+        let mut config = crate::runtime();
+        (
+            config.alerts,
+            config.followed.clone(),
+            config.popup_secs,
+            config.window(alerts::KEY).opacity,
+        )
+    };
+    let current = crate::context::current_map_role();
+    let lines = crate::worker::dashboard().recent_alerts(&filter, &follow, current, 30);
+
     let mut config = crate::runtime();
     let state = config.window(alerts::KEY);
-    alerts::draw(ui, state, &alerts);
+    alerts::draw(ui, state, &lines);
+    drop(config);
+
+    let showing = alerts::popup_lines(&lines, chrono::Utc::now(), popup_secs);
+    alerts::draw_popup(ui, &showing, opacity);
 }

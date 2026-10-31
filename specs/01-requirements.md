@@ -101,7 +101,10 @@ Comprobado el **2026-10-31** contra la API real, el código fuente de `nexus-rs`
 
 **RF-19 (M)** Cada línea deberá mostrar: icono/forma de tipo de objetivo, texto, mapa y antigüedad ("hace 2 min"), con color según el equipo implicado y distinción por tipo de alerta (pérdida, claim de guild seguida, informativa). No se usará solo el color para distinguirlas.
 
-**RF-19a (M)** Las líneas deberán desvanecerse y desaparecer tras un tiempo configurable (por defecto 60 s), con opción de mantenerlas hasta descartarlas. Las alertas de guilds seguidas podrán configurarse como persistentes.
+**RF-19a (M)** El usuario elegirá **de qué se le avisa**, con casillas independientes y **todas marcadas por defecto**: Eternos, Alpino azul, Alpino verde, Desierto rojo, «el mapa en el que estoy» y «los clanes que sigo».
+- Un **clan seguido** avisa en **cualquier** mapa del emparejamiento, esté el jugador donde esté.
+- Además hay un **aviso emergente** que desaparece tras `popup_secs` segundos (por defecto **2**, rango 0–5; `0` lo desactiva), mientras el aviso **sigue en la lista** del widget, que conserva hasta 25 líneas sin desvanecerse dentro de la sesión. Los claims descubiertos en el baseline (`late`) no hacen pop-up.
+- El mapa actual sale del `map_id` de Mumble: 38 Eternos, 95 alpino verde, 96 alpino azul, 1099 desierto. Cualquier otro (Cañón, salón, PvE) no cuenta como «mapa actual».
 
 **RF-19b (S)** Clic en una línea (widget desbloqueado) abrirá el mapa simplificado centrado en ese objetivo.
 

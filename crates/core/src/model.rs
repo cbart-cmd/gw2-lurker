@@ -94,8 +94,26 @@ pub enum MapRole {
     BlueHome,
     GreenHome,
     RedHome,
+    /// Matches anything the API adds later without breaking the deserialiser.
     #[serde(other)]
     Unknown,
+}
+
+impl MapRole {
+    /// Role of a WvW map by its Mumble `map_id`.
+    ///
+    /// Verified ids: Eternal Battlegrounds 38, green borderlands 95, blue borderlands 96,
+    /// red desert 1099. Anything else (Edge of the Mists, the lounge, PvE) has no role, which
+    /// is what the alert filter wants: it is not part of the matchup.
+    pub fn from_map_id(map_id: u32) -> Self {
+        match map_id {
+            38 => Self::Center,
+            95 => Self::GreenHome,
+            96 => Self::BlueHome,
+            1099 => Self::RedHome,
+            _ => Self::Unknown,
+        }
+    }
 }
 
 /// One objective as it appears inside a match snapshot.
@@ -226,6 +244,20 @@ pub struct WvwMap {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn rf01_map_roles_come_from_the_verified_map_ids() {
+        assert_eq!(MapRole::from_map_id(38), MapRole::Center);
+        assert_eq!(MapRole::from_map_id(95), MapRole::GreenHome);
+        assert_eq!(MapRole::from_map_id(96), MapRole::BlueHome);
+        assert_eq!(MapRole::from_map_id(1099), MapRole::RedHome);
+        assert_eq!(
+            MapRole::from_map_id(968),
+            MapRole::Unknown,
+            "Edge of the Mists no es del emparejamiento"
+        );
+        assert_eq!(MapRole::from_map_id(50), MapRole::Unknown, "León no");
+    }
 
     const MATCH: &str = include_str!(concat!(
         env!("CARGO_MANIFEST_DIR"),

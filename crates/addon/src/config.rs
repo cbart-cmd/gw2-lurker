@@ -109,6 +109,10 @@ pub struct Config {
     pub poll_secs: u32,
     /// Where alerts apply.
     pub alert_scope: AlertScope,
+    /// Which maps and guilds deserve an alert (RF-19a).
+    pub alerts: gw2lurker_core::AlertFilter,
+    /// How long the pop-up stays visible, in seconds; `0` disables it (RF-19a).
+    pub popup_secs: f32,
     /// Language preference.
     pub language: LanguagePreference,
     /// Guilds marked as favourites (RF-73).
@@ -133,6 +137,8 @@ impl Default for Config {
             team_names: BTreeMap::new(),
             poll_secs: 30,
             alert_scope: AlertScope::default(),
+            alerts: gw2lurker_core::AlertFilter::default(),
+            popup_secs: 2.0,
             language: LanguagePreference::default(),
             followed: FollowList::default(),
             widget_opacity: 0.85,
@@ -184,9 +190,14 @@ impl Config {
         m.color_of(id)
     }
 
-    /// Clamps values that could make the UI unusable if edited by hand.
+    /// Extra widgets: the pop-up time is a duration, not a unitless number.
     fn sanitize(&mut self) {
         self.poll_secs = self.poll_secs.clamp(15, 600);
+        self.popup_secs = if self.popup_secs.is_finite() {
+            self.popup_secs.clamp(0.0, 5.0)
+        } else {
+            Config::default().popup_secs
+        };
         self.widget_opacity = if self.widget_opacity.is_finite() {
             self.widget_opacity.clamp(0.0, 1.0)
         } else {
@@ -370,6 +381,36 @@ mod tests {
             Some(crate::ADDON_DIR),
             "la carpeta lleva el nombre del addon, como timers_wvw o gw2_builds_wvw"
         );
+    }
+
+    #[test]
+    fn rf19a_popup_time_defaults_to_two_seconds_and_clamps() {
+        assert_eq!(Config::default().popup_secs, 2.0);
+        let mut c = Config {
+            popup_secs: 30.0,
+            ..Config::default()
+        };
+        c.sanitize();
+        assert_eq!(c.popup_secs, 5.0, "como mucho 5 s");
+        let mut c = Config {
+            popup_secs: -1.0,
+            ..Config::default()
+        };
+        c.sanitize();
+        assert_eq!(c.popup_secs, 0.0, "0 s es válido: sin pop-up");
+        let mut c = Config {
+            popup_secs: f32::NAN,
+            ..Config::default()
+        };
+        c.sanitize();
+        assert_eq!(c.popup_secs, 2.0);
+    }
+
+    #[test]
+    fn rf19a_every_alert_source_is_enabled_by_default() {
+        let filter = Config::default().alerts;
+        assert!(filter.ebg && filter.blue && filter.green && filter.red);
+        assert!(filter.current_map && filter.followed);
     }
 
     #[test]

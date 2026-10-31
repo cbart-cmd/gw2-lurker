@@ -290,6 +290,24 @@ pub const TEXT: &[(&str, [&str; COLUMNS])] = &[
         ["{0} clanes", "{0} guilds", "{0} guildes", "{0} Gilden"],
     ),
     ("No alerts yet", ["Sin avisos todavía", "No alerts yet", "Pas encore d'alertes", "Noch keine Hinweise"]),
+    ("Alert on", ["Avisar de", "Alert on", "Alerter sur", "Hinweis bei"]),
+    ("Eternals", ["Eternos", "Eternals", "Éternel", "Ewige Schlachtfelder"]),
+    ("Blue alpine", ["Alpino azul", "Blue alpine", "Alpin bleu", "Blaues Alpin"]),
+    ("Green alpine", ["Alpino verde", "Green alpine", "Alpin vert", "Grünes Alpin"]),
+    ("Red desert", ["Desierto rojo", "Red desert", "Désert rouge", "Rote Wüste"]),
+    ("The map I am on", ["El mapa en el que estoy", "The map I am on", "La carte où je suis", "Die Karte, auf der ich bin"]),
+    ("Guilds I follow", ["Los clanes que sigo", "Guilds I follow", "Les guildes que je suis", "Gilden, denen ich folge"]),
+    ("Pop-up seconds", ["Segundos del aviso emergente", "Pop-up seconds", "Secondes de la notification", "Sekunden des Hinweises"]),
+    (
+        "The pop-up disappears after this. The alert stays in the list.",
+        [
+            "El aviso emergente desaparece pasado este tiempo. El aviso sigue en la lista.",
+            "The pop-up disappears after this. The alert stays in the list.",
+            "La notification disparaît après ce délai. L'alerte reste dans la liste.",
+            "Der Hinweis verschwindet danach. Der Eintrag bleibt in der Liste.",
+        ],
+    ),
+    ("Followed guilds", ["Clanes seguidos", "Followed guilds", "Guildes suivies", "Gefolgte Gilden"]),
     (
         "Already claimed when the addon started",
         [

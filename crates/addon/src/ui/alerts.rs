@@ -1,11 +1,17 @@
 //! Alert widget (T-13, RF-19): the recent captures and claims, newest first.
 //!
+//! Two surfaces from the same data: the **window**, which keeps everything the filter accepts so
+//! it can be read later, and the **pop-up**, which shows only what arrived in the last few
+//! seconds (0–5, configurable) and then disappears without removing anything from the window
+//! (RF-19a).
+//!
 //! It only draws; the worker owns the events and the store keeps the history. Lines are
-//! resolved by the worker (`Dashboard::recent_alerts`) so this module never searches the
-//! objective table, and it gets owned data so no lock is held while drawing.
+//! resolved and filtered by the worker (`Dashboard::recent_alerts`), so this module never
+//! searches the objective table and no lock is held while drawing.
 
+use chrono::{DateTime, Utc};
 use gw2lurker_core::model::TeamColor;
-use nexus::imgui::{StyleColor, Ui};
+use nexus::imgui::{Condition, StyleColor, Ui, Window};
 
 use crate::i18n;
 use crate::worker::{AlertKind, AlertLine};
@@ -13,10 +19,16 @@ use crate::worker::{AlertKind, AlertLine};
 /// Translation key (and stable id) of this window.
 pub const KEY: &str = "Alerts";
 
-/// How many lines fit without scrolling forever.
+/// Translation key of the pop-up: separate window, separate id, state never saved.
+const POPUP_KEY: &str = "Alerts (pop-up)";
+
+/// How many lines fit in the window without scrolling forever.
 const MAX_LINES: usize = 25;
 
-/// Draws the widget. `window_state` comes from `config.json` like every other window.
+/// How many lines the pop-up shows at once.
+const MAX_POPUP_LINES: usize = 5;
+
+/// Draws the window. `window_state` comes from `config.json` like every other window.
 pub fn draw(ui: &Ui, window_state: &mut crate::config::WindowState, alerts: &[AlertLine]) -> bool {
     crate::ui::window::draw(ui, KEY, 2, [360.0, 240.0], window_state, |ui| {
         if alerts.is_empty() {
@@ -28,6 +40,46 @@ pub fn draw(ui: &Ui, window_state: &mut crate::config::WindowState, alerts: &[Al
             draw_line(ui, line, language);
         }
     })
+}
+
+/// Lines that still deserve a pop-up: the ones received less than `secs` ago.
+///
+/// Pure on purpose (`now` is a parameter): the render callback needs it every frame and the
+/// rule has to be testable without a game. `0` seconds means no pop-up at all.
+pub fn popup_lines(lines: &[AlertLine], now: DateTime<Utc>, secs: f32) -> Vec<AlertLine> {
+    // `!(secs > 0.0)` would also be true for NaN; make the NaN case explicit instead.
+    if secs.is_nan() || secs <= 0.0 {
+        return Vec::new();
+    }
+    let window = chrono::Duration::milliseconds((f64::from(secs) * 1000.0) as i64);
+    lines
+        .iter()
+        .filter(|line| !line.late && now.signed_duration_since(line.received) < window)
+        .take(MAX_POPUP_LINES)
+        .cloned()
+        .collect()
+}
+
+/// Draws the transient pop-up, top centre of the screen.
+pub fn draw_popup(ui: &Ui, lines: &[AlertLine], opacity: f32) {
+    if lines.is_empty() {
+        return;
+    }
+    let [width, _] = ui.io().display_size;
+    let language = i18n::effective();
+
+    Window::new(i18n::widget(POPUP_KEY))
+        .title_bar(false)
+        .resizable(false)
+        .movable(false)
+        .always_auto_resize(true)
+        .position([(width - 420.0) / 2.0, 90.0], Condition::Always)
+        .bg_alpha(opacity)
+        .build(ui, || {
+            for line in lines {
+                draw_line(ui, line, language);
+            }
+        });
 }
 
 fn draw_line(ui: &Ui, line: &AlertLine, language: gw2lurker_core::i18n::Language) {
@@ -99,8 +151,11 @@ mod tests {
     use gw2lurker_core::i18n::Language;
 
     fn line(kind: AlertKind, to: Option<TeamColor>, guild: Option<&str>) -> AlertLine {
+        let at = Utc.with_ymd_and_hms(2026, 10, 31, 12, 0, 0).unwrap();
         AlertLine {
-            at: Utc.with_ymd_and_hms(2026, 10, 31, 12, 0, 0).unwrap(),
+            at,
+            received: at,
+            map_role: gw2lurker_core::model::MapRole::Center,
             kind,
             objective: "Zanja de Mendon".to_owned(),
             guild: guild.map(str::to_owned),
@@ -108,6 +163,42 @@ mod tests {
             to,
             late: false,
         }
+    }
+
+    #[test]
+    fn rf19a_the_popup_only_shows_what_just_arrived() {
+        let base = Utc.with_ymd_and_hms(2026, 10, 31, 12, 0, 0).unwrap();
+        let mut old = line(AlertKind::Flip, Some(TeamColor::Blue), None);
+        old.received = base;
+        let mut fresh = line(AlertKind::Claim, None, Some("YaK"));
+        fresh.received = base + chrono::Duration::seconds(10);
+
+        let now = base + chrono::Duration::seconds(11);
+        let shown = popup_lines(&[fresh.clone(), old.clone()], now, 2.0);
+        assert_eq!(shown.len(), 1, "el de hace 11 s ya no sale");
+        assert_eq!(shown[0].guild.as_deref(), Some("YaK"));
+
+        assert!(
+            popup_lines(&[fresh.clone()], now, 0.0).is_empty(),
+            "0 s significa sin pop-up"
+        );
+        assert_eq!(
+            popup_lines(&[fresh.clone()], now, 5.0).len(),
+            1,
+            "5 s es el máximo y sigue mostrándolo"
+        );
+    }
+
+    #[test]
+    fn rf25_late_claims_are_not_popped_up() {
+        let base = Utc.with_ymd_and_hms(2026, 10, 31, 12, 0, 0).unwrap();
+        let mut late = line(AlertKind::Claim, None, Some("YaK"));
+        late.late = true;
+        late.received = base;
+        assert!(
+            popup_lines(&[late], base, 2.0).is_empty(),
+            "lo que ya estaba reclamado al arrancar no interrumpe"
+        );
     }
 
     #[test]

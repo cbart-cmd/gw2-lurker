@@ -16,7 +16,7 @@ use chrono::{DateTime, Utc};
 use gw2lurker_api::Api;
 use gw2lurker_core::diff::{Differ, Event};
 use gw2lurker_core::matchup::{self, ClaimRow, GuildSummary};
-use gw2lurker_core::model::{Match, ObjectiveInfo, TeamColor};
+use gw2lurker_core::model::{MapRole, Match, ObjectiveInfo, TeamColor};
 use gw2lurker_core::select::{self, Selection};
 use gw2lurker_store::{Record, SessionStore};
 
@@ -62,6 +62,8 @@ pub struct Dashboard {
     pub names: Vec<ObjectiveInfo>,
     /// Every team playing right now, with its matchup and colour (RF-03a).
     pub candidates: Vec<gw2lurker_core::Candidate>,
+    /// Map id → matchup role, so an alert knows which map it happened on.
+    pub map_roles: std::collections::BTreeMap<u32, MapRole>,
     /// Most recent events, newest last (RF-19).
     pub alerts: Vec<Event>,
     /// When the dashboard was last rebuilt.
@@ -79,15 +81,23 @@ impl Dashboard {
         }
     }
 
-    /// Recent events as ready-to-draw lines, **newest first** (RF-19).
+    /// Recent events as ready-to-draw lines, **newest first** (RF-19), already filtered.
     ///
     /// The objective ids are resolved here so the render callback never searches the table,
-    /// and the result is owned so the dashboard lock is not held while drawing.
-    pub fn recent_alerts(&self, limit: usize) -> Vec<AlertLine> {
+    /// and the result is owned so the dashboard lock is not held while drawing. `filter`,
+    /// `follow` and `current` decide which ones the player asked for (RF-19a).
+    pub fn recent_alerts(
+        &self,
+        filter: &gw2lurker_core::AlertFilter,
+        follow: &gw2lurker_core::FollowList,
+        current: Option<MapRole>,
+        limit: usize,
+    ) -> Vec<AlertLine> {
         self.alerts
             .iter()
             .rev()
             .filter_map(|event| self.alert_line(event))
+            .filter(|line| filter.notify(line.map_role, line.guild.as_deref(), follow, current))
             .take(limit)
             .collect()
     }
@@ -98,6 +108,20 @@ impl Dashboard {
                 .map(str::to_owned)
                 .unwrap_or_else(|| id.to_owned())
         };
+        // Objective ids are `"<map id>-<n>"`, and `map_roles` maps that id to the matchup role
+        // the alert filter talks about.
+        let role = |id: &str| {
+            id.split_once('-')
+                .and_then(|(map, _)| map.parse::<u32>().ok())
+                .map(|map_id| {
+                    self.map_roles
+                        .get(&map_id)
+                        .copied()
+                        .unwrap_or_else(|| MapRole::from_map_id(map_id))
+                })
+                .unwrap_or(MapRole::Unknown)
+        };
+        let received = Utc::now();
         match event {
             Event::Flip {
                 objective,
@@ -106,6 +130,8 @@ impl Dashboard {
                 at,
             } => Some(AlertLine {
                 at: *at,
+                received,
+                map_role: role(objective),
                 kind: AlertKind::Flip,
                 objective: name(objective),
                 guild: None,
@@ -120,6 +146,8 @@ impl Dashboard {
                 late,
             } => Some(AlertLine {
                 at: *at,
+                received,
+                map_role: role(objective),
                 kind: AlertKind::Claim,
                 objective: name(objective),
                 guild: Some(guild.clone()),
@@ -133,6 +161,8 @@ impl Dashboard {
                 at,
             } => Some(AlertLine {
                 at: *at,
+                received,
+                map_role: role(objective),
                 kind: AlertKind::Unclaim,
                 objective: name(objective),
                 guild: Some(guild.clone()),
@@ -164,7 +194,12 @@ pub enum AlertKind {
 /// One line of the alert widget.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct AlertLine {
+    /// When the game says it happened.
     pub at: DateTime<Utc>,
+    /// When this addon learnt about it; the pop-up timer runs from here (RF-19a).
+    pub received: DateTime<Utc>,
+    /// Map of the matchup the objective belongs to, for the alert filter.
+    pub map_role: MapRole,
     pub kind: AlertKind,
     pub objective: String,
     pub guild: Option<String>,
@@ -328,12 +363,24 @@ fn poll_once(
 
     let now = Utc::now();
     let candidates = select::candidates(&live);
+    let map_roles = match_id
+        .as_deref()
+        .and_then(|id| live.iter().find(|entry| entry.id == id))
+        .map(|entry| {
+            entry
+                .maps
+                .iter()
+                .map(|map| (map.id, map.role))
+                .collect::<std::collections::BTreeMap<_, _>>()
+        })
+        .unwrap_or_default();
     let mut board = dashboard();
     board.health = Health::Ok { at: now };
     board.selection = selection;
     board.match_id = match_id;
     board.names = names;
     board.candidates = candidates;
+    board.map_roles = map_roles;
     board.claims = claims;
     board.guilds = guilds;
     for event in events {

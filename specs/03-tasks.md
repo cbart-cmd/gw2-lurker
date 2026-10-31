@@ -60,13 +60,15 @@ Cada tarea es pequeña y verificable. Orden recomendado; las dependencias se ind
   equipos, también. Alias editable con aviso de que es local, y campo de idioma, intervalo y
   alcance. Falta comprobar los dos rivales contra el matchup y el resto de la ventana. (T-05)
   — RF-03a, RF-03f, RF-03g
-- **T-13 ✔ (2026-10-31, parcial)** Widget de avisos: ventana `ui::alerts` con los últimos 25
-  avisos, el más reciente arriba, con hora, nombre del objetivo y color del nuevo dueño
-  (`Rojo → Azul`), reclamaciones y liberaciones, sobre el contrato de ventana compartido
-  (mover, plegar, bloquear, opacidad). Los datos vienen de `worker::Dashboard::recent_alerts`,
-  que resuelve los ids a nombres fuera del hilo de render. Falta el fade de los antiguos, el
-  modo bloqueado click-through con atajo (`Alt+Shift+L`) y la ventana de log ampliada. (T-08,
-  T-12) — RF-10, RF-16, RF-17, RF-19, RF-19a
+- **T-13 ✔ (2026-10-31, parcial)** Widget de avisos con **filtro de origen** (RF-19a):
+  casillas para Eternos, Alpino azul, Alpino verde, Desierto rojo, «el mapa en el que estoy» y
+  «los clanes que sigo», todas marcadas por defecto. Un clan seguido avisa en **cualquier** mapa
+  del emparejamiento; el mapa actual se recalcula con el `map_id` de Mumble (38/95/96/1099). El
+  **pop-up** dura 0–5 s (2 s por defecto, `popup_secs`), se dibuja arriba en el centro y
+  desaparece sin quitar nada de la lista; los claims tardíos del baseline no hacen pop-up. La
+  lista de clanes a seguir sale de los que tienen algo reclamado en el matchup. Falta el modo
+  bloqueado click-through con atajo (`Alt+Shift+L`) y la ventana de log ampliada. (T-08, T-12)
+  — RF-10, RF-16, RF-17, RF-19, RF-19a, RF-73
 - **T-13b** Modo bloqueado click-through, atajo de bloqueo/desbloqueo y ventana de log ampliada. (T-13) — RF-14, RF-18
 - **T-17 ✔ (2026-10-31, parcial)** Contrato de ventana compartido en `addon::ui::window`:
   barra de título propia con `×`, plegado con doble clic, mover/redimensionar solo si no está

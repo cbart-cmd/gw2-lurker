@@ -11,9 +11,10 @@
 
 use std::sync::Mutex;
 
+use gw2lurker_core::matchup::GuildSummary;
 use gw2lurker_core::model::{Region, TeamColor};
-use gw2lurker_core::{select, Candidate, TeamTable};
-use nexus::imgui::{ComboBox, StyleColor, Ui};
+use gw2lurker_core::{select, AlertFilter, Candidate, FollowList, TeamTable};
+use nexus::imgui::{ComboBox, Slider, StyleColor, Ui};
 
 use crate::config::{AlertScope, LanguagePreference};
 use crate::i18n;
@@ -62,6 +63,9 @@ struct Edits {
     poll_secs: i32,
     scope: AlertScope,
     narrowing: Narrowing,
+    alerts: AlertFilter,
+    popup_secs: f32,
+    follow: FollowList,
 }
 
 /// Draws the window; the per-window UI state comes from `config` like every other window.
@@ -72,6 +76,7 @@ pub fn draw(
     ui: &Ui,
     config: &mut crate::config::Config,
     candidates: &[Candidate],
+    guilds: &[GuildSummary],
 ) -> Option<TeamChange> {
     let table = gw2lurker_core::bundled();
     let language = i18n::effective().code();
@@ -83,13 +88,16 @@ pub fn draw(
         poll_secs: config.poll_secs as i32,
         scope: config.alert_scope,
         narrowing: initial_narrowing(candidates, selected),
+        alerts: config.alerts,
+        popup_secs: config.popup_secs,
+        follow: config.followed.clone(),
     };
     let before = edits.team_id;
 
     {
         let state = config.window(KEY);
         crate::ui::window::draw(ui, KEY, 1, [470.0, 320.0], state, |ui| {
-            draw_body(ui, table, &mut edits, candidates)
+            draw_body(ui, table, &mut edits, candidates, guilds)
         });
     }
 
@@ -97,6 +105,9 @@ pub fn draw(
     config.language = edits.language;
     config.alert_scope = edits.scope;
     config.poll_secs = edits.poll_secs.clamp(15, 600) as u32;
+    config.alerts = edits.alerts;
+    config.popup_secs = edits.popup_secs.clamp(0.0, 5.0);
+    config.followed = edits.follow;
     set_narrowing(edits.narrowing);
 
     team_change(before, edits.team_id)
@@ -106,7 +117,11 @@ pub fn draw(
 ///
 /// Used by Nexus' own options pane (`RenderType::OptionsRender`), which is reachable even
 /// outside WvW: that is how RF-02 keeps the configuration available everywhere.
-pub fn draw_inline(ui: &Ui, candidates: &[Candidate]) -> Option<TeamChange> {
+pub fn draw_inline(
+    ui: &Ui,
+    candidates: &[Candidate],
+    guilds: &[GuildSummary],
+) -> Option<TeamChange> {
     let table = gw2lurker_core::bundled();
     let language = i18n::effective().code();
     let mut config = crate::runtime();
@@ -118,10 +133,13 @@ pub fn draw_inline(ui: &Ui, candidates: &[Candidate]) -> Option<TeamChange> {
         poll_secs: config.poll_secs as i32,
         scope: config.alert_scope,
         narrowing: initial_narrowing(candidates, selected),
+        alerts: config.alerts,
+        popup_secs: config.popup_secs,
+        follow: config.followed.clone(),
     };
     let before = edits.team_id;
 
-    draw_body(ui, table, &mut edits, candidates);
+    draw_body(ui, table, &mut edits, candidates, guilds);
 
     remember_translation(&mut config, edits.translation.as_str(), language);
     config.language = edits.language;
@@ -167,7 +185,13 @@ fn initial_narrowing(candidates: &[Candidate], selected: Option<u32>) -> Narrowi
     }
 }
 
-fn draw_body(ui: &Ui, table: &TeamTable, edits: &mut Edits, candidates: &[Candidate]) {
+fn draw_body(
+    ui: &Ui,
+    table: &TeamTable,
+    edits: &mut Edits,
+    candidates: &[Candidate],
+    guilds: &[GuildSummary],
+) {
     // imgui puts the label to the right of the widget: cap the widget so the translated labels
     // of a narrow window are not cut off, whatever the language.
     let longest = i18n::text("No live teams for that region and colour");
@@ -198,6 +222,61 @@ fn draw_body(ui: &Ui, table: &TeamTable, edits: &mut Edits, candidates: &[Candid
     ui.input_int(i18n::widget("Poll interval"), &mut edits.poll_secs)
         .build();
     draw_scope(ui, edits);
+    let mut follow = edits.follow.clone();
+    draw_alert_filters(ui, edits, guilds, &mut follow);
+    edits.follow = follow;
+}
+
+/// Which maps and guilds deserve an alert (RF-19a), plus how long the pop-up lasts.
+fn draw_alert_filters(
+    ui: &Ui,
+    edits: &mut Edits,
+    guilds: &[GuildSummary],
+    follow: &mut FollowList,
+) {
+    ui.separator();
+    ui.text(i18n::text("Alert on"));
+    ui.checkbox(i18n::widget("Eternals"), &mut edits.alerts.ebg);
+    ui.checkbox(i18n::widget("Blue alpine"), &mut edits.alerts.blue);
+    ui.checkbox(i18n::widget("Green alpine"), &mut edits.alerts.green);
+    ui.checkbox(i18n::widget("Red desert"), &mut edits.alerts.red);
+    ui.checkbox(
+        i18n::widget("The map I am on"),
+        &mut edits.alerts.current_map,
+    );
+    ui.checkbox(i18n::widget("Guilds I follow"), &mut edits.alerts.followed);
+
+    ui.separator();
+    let mut seconds = edits.popup_secs;
+    if Slider::new(i18n::widget("Pop-up seconds"), 0.0, 5.0)
+        .display_format("%.1f s")
+        .build(ui, &mut seconds)
+    {
+        edits.popup_secs = seconds;
+    }
+    if ui.is_item_hovered() {
+        ui.tooltip_text(i18n::text(
+            "The pop-up disappears after this. The alert stays in the list.",
+        ));
+    }
+
+    ui.separator();
+    ui.text(i18n::text("Followed guilds"));
+    if guilds.is_empty() {
+        ui.text_disabled(i18n::text("No claims yet"));
+        return;
+    }
+    for summary in guilds {
+        let mut followed = follow.contains(&summary.guild);
+        let label = format!("{}###follow{}", summary.guild, summary.guild);
+        if ui.checkbox(label, &mut followed) {
+            if followed {
+                follow.add(&summary.guild);
+            } else {
+                follow.remove(&summary.guild);
+            }
+        }
+    }
 }
 
 fn draw_region(ui: &Ui, edits: &mut Edits, candidates: &[Candidate]) {

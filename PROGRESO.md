@@ -34,6 +34,24 @@ Reglas:
   bueno un HTTP 200. Se reintenta con `-VerifyOnly` pasados unos minutos; no se cambia la URL
   ni la versión para taparlo.
 
+## HECHO – 2026-10-31 · Filtro de avisos por mapa y clanes, con pop-up temporizado (0.8.0)
+
+- `core::alerts::Filter` (puro, 6 tests): casillas Eternos / Alpino azul / Alpino verde /
+  Desierto rojo / «el mapa en el que estoy» / «los clanes que sigo», **todas activas por
+  defecto**. Un clan seguido avisa en cualquier mapa del matchup; si no, manda el mapa.
+  `MapRole::from_map_id` (38/95/96/1099, comprobados) decide qué es «mi mapa».
+- El **filtro se aplica en el worker** (`Dashboard::recent_alerts(&filter, &follow, current,
+  limit)`), no en el render: así el hilo de dibujo sigue sin recorrer datos.
+- **Pop-up** aparte de la lista: `alerts::draw_popup` dibuja arriba en el centro lo recibido
+  hace menos de `popup_secs` (por defecto **2 s**, rango 0–5, `0` = desactivado) y desaparece
+  sin quitar nada de la lista. `popup_lines` es pura y se prueba con horas fijas; los claims
+  `late` del baseline no hacen pop-up.
+- `AlertLine` lleva ahora `received` (cuándo lo supo el addon, no cuándo pasó) y `map_role`.
+- En ajustes: las seis casillas, el deslizador de segundos y la **lista de clanes a seguir** con
+  los que tienen algo reclamado en el matchup, persistida en `followed`.
+- Verificado: 47 tests en el addon (5 nuevos), 80 en `core` (6 nuevos), `clippy -D warnings`
+  limpio. DLL de 1 532 928 bytes.
+
 ## HECHO – 2026-10-31 · Widget de avisos (T-13 parcial, 0.7.0)
 
 - `ui::alerts`: ventana con los últimos avisos, **el más reciente arriba**, con hora, nombre del

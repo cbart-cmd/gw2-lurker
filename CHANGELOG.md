@@ -1,6 +1,15 @@
 # Changelog
 Formato [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/), versionado [SemVer](https://semver.org/lang/es/).
 
+## [0.8.0] - 2026-10-31
+### Añadido
+- **Selector de avisos**: qué mapas te avisan (Eternos, Alpino azul, Alpino verde, Desierto rojo),
+  «el mapa en el que estoy» y «los clanes que sigo». Todo marcado por defecto. Un clan seguido
+  avisa en cualquier mapa del emparejamiento.
+- **Aviso emergente** con duración configurable entre 0 y 5 segundos (2 por defecto): desaparece
+  solo, pero el aviso sigue en la lista.
+- Lista de **clanes a seguir** en los ajustes, sacada de los que tienen algo reclamado.
+
 ## [0.7.0] - 2026-10-31
 ### Añadido
 - **Widget de avisos**: lista de las últimas capturas, reclamaciones y liberaciones, con la hora,

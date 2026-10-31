@@ -5,6 +5,7 @@
 #![forbid(unsafe_code)]
 #![cfg_attr(test, allow(clippy::unwrap_used, clippy::expect_used))]
 
+pub mod alerts;
 pub mod diff;
 pub mod follow;
 pub mod gate;
@@ -15,6 +16,7 @@ pub mod resolver;
 pub mod select;
 pub mod teams;
 
+pub use alerts::Filter as AlertFilter;
 pub use diff::{BaselineReason, DiffConfig, Differ, Event, Snapshot};
 pub use follow::{favourites_first, FollowList};
 pub use gate::{evaluate, GameState, Gate, Hidden};
