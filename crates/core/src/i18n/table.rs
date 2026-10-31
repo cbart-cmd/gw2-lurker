@@ -82,6 +82,16 @@ pub const TEXT: &[(&str, [&str; COLUMNS])] = &[
     ("Team", ["Equipo", "Team", "Équipe", "Team"]),
     ("Translation", ["Traducción", "Translation", "Traduction", "Übersetzung"]),
     ("Save", ["Grabar", "Save", "Enregistrer", "Speichern"]),
+    ("Windows", ["Ventanas", "Windows", "Fenêtres", "Fenster"]),
+    (
+        "Closed windows come back from here; the overlay only shows in the four WvW maps.",
+        [
+            "Las ventanas cerradas vuelven desde aquí; el overlay solo sale en los cuatro mapas de MvM.",
+            "Closed windows come back from here; the overlay only shows in the four WvW maps.",
+            "Les fenêtres fermées reviennent d'ici ; l'overlay ne s'affiche que sur les quatre cartes McM.",
+            "Geschlossene Fenster kommen hier zurück; das Overlay erscheint nur in den vier WvW-Karten.",
+        ],
+    ),
     ("from their keep", ["desde su fortaleza", "from their keep", "depuis leur forteresse", "aus ihrer Festung"]),
     ("from their side keep", ["desde su fortaleza lateral", "from their side keep", "depuis leur forteresse latérale", "aus ihrer Seitenfestung"]),
     ("from the spawn point", ["desde el punto de reaparición", "from the spawn point", "depuis le point de réapparition", "vom Wiederbelebungspunkt"]),

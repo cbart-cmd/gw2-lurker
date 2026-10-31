@@ -68,6 +68,9 @@ struct Edits {
     alerts: AlertFilter,
     popup_secs: f32,
     follow: FollowList,
+    show_alerts: bool,
+    show_claims: bool,
+    show_guilds: bool,
 }
 
 /// Draws the window; the per-window UI state comes from `config` like every other window.
@@ -93,6 +96,9 @@ pub fn draw(
         alerts: config.alerts,
         popup_secs: config.popup_secs,
         follow: config.followed.clone(),
+        show_alerts: config.window(crate::ui::alerts::KEY).visible,
+        show_claims: config.window(crate::ui::matchup::KEY).visible,
+        show_guilds: config.window(crate::ui::guilds::KEY).visible,
     };
     let before = edits.team_id;
     let mut save_now = false;
@@ -111,6 +117,9 @@ pub fn draw(
     config.alerts = edits.alerts;
     config.popup_secs = edits.popup_secs.clamp(0.0, 5.0);
     config.followed = edits.follow;
+    config.window(crate::ui::alerts::KEY).visible = edits.show_alerts;
+    config.window(crate::ui::matchup::KEY).visible = edits.show_claims;
+    config.window(crate::ui::guilds::KEY).visible = edits.show_guilds;
     set_narrowing(edits.narrowing);
 
     if save_now {
@@ -142,6 +151,9 @@ pub fn draw_inline(
         alerts: config.alerts,
         popup_secs: config.popup_secs,
         follow: config.followed.clone(),
+        show_alerts: config.window(crate::ui::alerts::KEY).visible,
+        show_claims: config.window(crate::ui::matchup::KEY).visible,
+        show_guilds: config.window(crate::ui::guilds::KEY).visible,
     };
     let before = edits.team_id;
 
@@ -240,6 +252,15 @@ fn draw_body(
     let mut follow = edits.follow.clone();
     draw_alert_filters(ui, edits, guilds, &mut follow);
     edits.follow = follow;
+
+    ui.separator();
+    ui.text(i18n::text("Windows"));
+    ui.checkbox(i18n::widget("Alerts"), &mut edits.show_alerts);
+    ui.checkbox(i18n::widget("Matchup claims"), &mut edits.show_claims);
+    ui.checkbox(i18n::widget("Guilds"), &mut edits.show_guilds);
+    ui.text_disabled(i18n::text(
+        "Closed windows come back from here; the overlay only shows in the four WvW maps.",
+    ));
 
     ui.separator();
     let saved = ui.button(i18n::widget("Save"));

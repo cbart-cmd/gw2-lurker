@@ -44,9 +44,21 @@ Estado: `[ ]` pendiente · `[x]` hecho.
   lista de equipos lo explica.
 
 
-## [ ] El traductor no guarda la traducción
+## [x] Una ventana cerrada con la × no se podía volver a abrir (2026-10-31)
+- En Bastión de la Armisticia no aparecía el widget de avisos y no había forma de sacarlo.
+- Dos cosas distintas: (1) el gate oculta el overlay fuera de los mapas de Mundo contra Mundo
+  a propósito — el Bastión es un salón (`map_type` 18) y ahí no se dibuja; (2) un fallo real:
+  cerrar una ventana con la × la dejaba invisible para siempre, porque no existía ningún
+  control para volver a abrirla.
+- **Hecho (0.11.1):** los ajustes tienen una sección **Ventanas** con una casilla por ventana
+  (Avisos, Claims del matchup, Clanes) y una línea que recuerda que el overlay solo se pinta en
+  los mapas de Mundo contra Mundo.
+
+## [x] El traductor no guarda la traducción
 - Al desplegar un servidor, permite usar la traducción
 - debería porponer la traducción por defecto que pusimos pero no lo hace
 - Falta boton grabar
 - Cuando voy a otro servidor, sigue poniendo la misma traducción que habia puesto a otro servidor
 - Cuando vuelvo a uns erviudor que ya había traducido, no lo ha guardado
+- **Hecho (0.10.1):** mismo fallo que la entrada de arriba, reportado dos veces. La traducción
+  se guarda por equipo y el campo propone la de la tabla; hay botón **Grabar**.

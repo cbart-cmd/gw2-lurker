@@ -13,7 +13,20 @@ Reglas:
 
 ---
 
-## EN CURSO – 2026-10-31 · Siguiente: T-31 (i18n) y las vistas del MVP
+## HECHO – 2026-10-31 · Ventanas cerradas que no se podían reabrir (0.11.1)
+
+- **Lo reportó el usuario en Bastión de la Armisticia** («no veo el widget de avisos»). El gate
+  hace bien en ocultar el overlay ahí: el Bastión es `map_type 18` (salón), y solo se pinta en
+  9/10/11/12/15. El problema real era otro: su `settings.json` tenía `visible = false` y
+  **no había ninguna forma de volver a abrir una ventana cerrada** con la ×.
+- `ui/settings.rs` gana una sección **Ventanas** con una casilla por ventana (Avisos, Claims
+  del matchup, Clanes) y una línea que explica que el overlay solo se dibuja en los mapas de
+  Mundo contra Mundo. Las claves nuevas están en los cuatro idiomas.
+- Verificado: 53 tests en el addon, 86 en `core`, 14 en `api`, 6 en `store`; `fmt` y
+  `clippy -D warnings` limpios; trazabilidad y LOC en verde (avisos en 569/679/584 líneas);
+  DLL de 1 600 512 bytes. Ninguna de estas comprobaciones necesita el juego.
+
+## ARCHIVADO – 2026-10-31 · Snapshot de la fase T-31 (se deja como histórico)
 
 - Hecho sin necesitar al usuario: publicación automatizada (T-34), caché en disco (T-11b),
   gate de visibilidad, modelos de las tres vistas y el check de trazabilidad (ver abajo).
@@ -22,6 +35,8 @@ Reglas:
   está verificado.
 - **Requiere GW2**: T-12 (leer `NexusLink`/`Context`), T-35, T-01, T-02b, T-25.
 - Decidido: **sí** a la feature `rtapi` (RF-44); su coste en DLL se mide en T-02b.
+  *(Revisado después: se eliminó en 0.9.1 — no aportaba tamaño. Esta línea se conserva como
+  histórico del plan de aquel momento; ver «Fuera RTAPI» más abajo.)*
 - CI: el job `deny` seguía en curso al cerrar esta entrada; `license-files = []` es la
   primera prueba para las licencias de `nexus`. Si vuelve a fallar, hay que calcular el hash
   real de los ficheros de licencia, no seguir probando variantes.

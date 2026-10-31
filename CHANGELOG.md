@@ -1,6 +1,11 @@
 # Changelog
 Formato [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/), versionado [SemVer](https://semver.org/lang/es/).
 
+## [0.11.1] - 2026-10-31
+### Corregido
+- Una ventana cerrada con la × no se podía volver a abrir. Ahora los ajustes tienen una sección
+  **Ventanas** con casillas para Avisos, Claims del matchup y Clanes.
+
 ## [0.11.0] - 2026-10-31
 ### Añadido
 - **Ruta inferida** de un clan: al elegirlo en la ventana de clanes se ve de dónde se supone que
