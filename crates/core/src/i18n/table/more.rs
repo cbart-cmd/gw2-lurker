@@ -442,4 +442,31 @@ pub const TEXT: &[(&str, [&str; COLUMNS])] = &[
             "Die API hat nichts weiter unter diesem Namen; die bereits gefolgte Gilde steht oben.",
         ],
     ),
+    (
+        "Holding something now",
+        [
+            "Con algo reclamado ahora",
+            "Holding something now",
+            "Tient quelque chose maintenant",
+            "Hält gerade etwas",
+        ],
+    ),
+    (
+        "Only the guilds I follow",
+        [
+            "Solo los clanes que sigo",
+            "Only the guilds I follow",
+            "Seulement les guildes que je suis",
+            "Nur die Gilden, denen ich folge",
+        ],
+    ),
+    (
+        "One switch for «only mine»: the map boxes above stop counting.",
+        [
+            "Un solo interruptor para «solo lo mío»: las casillas de mapa de arriba dejan de contar.",
+            "One switch for «only mine»: the map boxes above stop counting.",
+            "Un seul interrupteur pour « seulement les miennes » : les cases de carte ci-dessus ne comptent plus.",
+            "Ein Schalter für «nur meine»: die Kartenfelder oben zählen nicht mehr.",
+        ],
+    ),
 ];

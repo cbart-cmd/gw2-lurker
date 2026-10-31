@@ -26,6 +26,12 @@ pub struct Filter {
     pub current_map: bool,
     /// Every map, but only for the guilds being followed.
     pub followed: bool,
+    /// Only the guilds being followed, **everywhere**: the map boxes are ignored.
+    ///
+    /// It is the single switch the player asked for (2026-10-31, «solo ver avisos de clanes que
+    /// sigo»). Ticking the four maps plus `followed` is a union, so asking for «only mine» meant
+    /// unticking five boxes one by one.
+    pub only_followed: bool,
 }
 
 impl Default for Filter {
@@ -37,6 +43,7 @@ impl Default for Filter {
             red: true,
             current_map: true,
             followed: true,
+            only_followed: false,
         }
     }
 }
@@ -65,6 +72,11 @@ impl Filter {
         follow: &FollowList,
         current: Option<MapRole>,
     ) -> bool {
+        // «Solo los clanes que sigo» manda sobre los mapas: es lo que el jugador pidió con una
+        // casilla, sin tener que destildar las otras cinco (2026-10-31).
+        if self.only_followed {
+            return guild.is_some_and(|guild| follow.contains(guild));
+        }
         if self.followed {
             if let Some(guild) = guild {
                 if follow.contains(guild) {
@@ -127,6 +139,7 @@ mod tests {
             red: false,
             current_map: true,
             followed: false,
+            only_followed: false,
         };
         let follow = FollowList::default();
 
@@ -145,6 +158,45 @@ mod tests {
     }
 
     #[test]
+    fn rf19a_only_the_followed_guilds_is_one_switch() {
+        // Petición del jugador (2026-10-31): «solo ver avisos de clanes que sigo», sin tener que
+        // destildar los cuatro mapas y el mapa actual una a una.
+        let filter = Filter {
+            ebg: true,
+            blue: true,
+            green: true,
+            red: true,
+            current_map: true,
+            followed: true,
+            only_followed: true,
+        };
+        let follow = follow();
+
+        assert!(
+            filter.notify(
+                MapRole::Center,
+                Some("1DB147F0"),
+                &follow,
+                Some(MapRole::Center)
+            ),
+            "el clan seguido sigue avisando"
+        );
+        assert!(
+            !filter.notify(
+                MapRole::Center,
+                Some("OTRA"),
+                &follow,
+                Some(MapRole::Center)
+            ),
+            "un clan que no sigo no avisa, aunque su mapa esté marcado"
+        );
+        assert!(
+            !filter.notify(MapRole::RedHome, None, &follow, Some(MapRole::RedHome)),
+            "los cambios de dueño sin clan tampoco"
+        );
+    }
+
+    #[test]
     fn rf73_a_followed_guild_is_interesting_on_every_map() {
         let filter = Filter {
             ebg: false,
@@ -153,6 +205,7 @@ mod tests {
             red: false,
             current_map: false,
             followed: true,
+            only_followed: false,
         };
         let follow = follow();
 
