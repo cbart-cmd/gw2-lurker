@@ -1,6 +1,11 @@
 # Changelog
 Formato [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/), versionado [SemVer](https://semver.org/lang/es/).
 
+## [0.14.6] - 2026-10-31
+### Cambiado
+- La línea de carga del registro dice la **versión** (`WvW Lurker v0.14.6 cargado…`). Sin eso no habia
+  forma de saber que build estaba corriendo al mirar `Nexus.log`.
+
 ## [0.14.5] - 2026-10-31
 ### Corregido
 - **Cierre al abrir la pestaña Mapa, por fin con causa**: `get_window_draw_list()` solo se puede

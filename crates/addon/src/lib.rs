@@ -126,7 +126,8 @@ fn load() {
     }
     let (map_id, map_type) = ffi::mumble_map().unwrap_or((0, 0));
     log::info!(
-        "WvW Lurker cargado: mumble map {map_id} tipo {map_type}, gameplay {:?}, idioma {} (extras {:?}, nexus {:?})",
+        "WvW Lurker v{} cargado: mumble map {map_id} tipo {map_type}, gameplay {:?}, idioma {} (extras {:?}, nexus {:?})",
+        env!("CARGO_PKG_VERSION"),
         ffi::is_gameplay(),
         i18n::effective().code(),
         lang::from_extras().map(gw2lurker_core::i18n::Language::code),
