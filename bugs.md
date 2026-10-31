@@ -31,9 +31,6 @@ Estado: `[ ]` pendiente · `[x]` arreglado en esta tanda (se borra al cerrarla).
 - **Pendiente:** confirmar con el log que ya no sale. Si vuelve, la línea `clanes: …` dice de dónde
   viene.
 
-## [ ] mapa · cambiar de mapa sigue enseñando el anterior (2026-10-31)
-- «Salto a Eternos y sigue enseñando el mapa verde.»
-- **Pendiente:** comprobarlo en el juego con 0.22.0. El mapa se elige en el desplegable de la pestaña y
-  en el «salto a <mapa>» de la ruta; si al cambiar de mapa se queda el fondo anterior, el fallo está en
-  qué `Frame` usan las teselas y no en la selección.
+## [  ] varios
 - la ruta inferida de un clan deberia pintarla sobre  el mapa
+
