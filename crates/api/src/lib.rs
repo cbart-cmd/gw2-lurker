@@ -10,11 +10,15 @@
 use gw2lurker_core::model::{Match, ObjectiveInfo};
 use serde::Deserialize;
 
+pub mod cache;
+
+pub use cache::Cache;
+
 /// Base URL of the public API.
 pub const BASE: &str = "https://api.guildwars2.com/v2";
 
 /// Public guild data.
-#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize, serde::Serialize)]
 pub struct GuildInfo {
     pub id: String,
     pub name: String,

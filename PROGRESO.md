@@ -13,14 +13,29 @@ Reglas:
 
 ---
 
-## EN CURSO – 2026-10-31 · Siguiente: T-39 (favoritos) y esperar el juego para T-12
+## EN CURSO – 2026-10-31 · Siguiente: T-11c (worker) y T-39 (favoritos)
 
-- Hecho sin necesitar al usuario: gate de visibilidad, modelos de las tres vistas y el check
-  de trazabilidad (ver abajo).
-- Siguiente sin el juego: favoritos (RF-73) y el origen inferido de la ruta (RF-32a, cuidado:
-  identificar garrison/colinas/bahía requiere criterio que aún no está verificado).
+- Hecho sin necesitar al usuario: caché en disco (T-11b), gate de visibilidad, modelos de las
+  tres vistas y el check de trazabilidad (ver abajo).
+- Siguiente sin el juego: T-11c (hilo worker con parada limpia y estado de salud) y favoritos
+  (RF-73). Cuidado con RF-32a: identificar garrison/colinas/bahía requiere criterio que aún no
+  está verificado.
 - **Requiere GW2**: T-12 (leer `NexusLink`/`Context`), T-35, T-01, T-02b, T-25.
 - Decidido: **sí** a la feature `rtapi` (RF-44); su coste en DLL se mide en T-02b.
+- CI: el job `deny` seguía en curso al cerrar esta entrada; `license-files = []` es la
+  primera prueba para las licencias de `nexus`. Si vuelve a fallar, hay que calcular el hash
+  real de los ficheros de licencia, no seguir probando variantes.
+
+## HECHO – 2026-10-31 · Caché en disco de objetivos y guilds (T-11b)
+
+- `crates/api/src/cache.rs`: `Cache` sobre el directorio del addon. Objetivos **por idioma**
+  (`objectives-<lang>.json`) para que cambiar de idioma o mantener Ctrl derecho pulsado
+  (RF-45) no toque la red, y `guild-<id>.json` para no repetir `/v2/guild/:id` cada sesión.
+- Una entrada corrupta o ausente es un *cache miss*, nunca un error que aborte la llamada.
+- `GuildInfo` ahora también implementa `Serialize` (antes solo `Deserialize`).
+- Verificado: `cargo clippy --workspace --all-targets --exclude gw2lurker-addon -D warnings`
+  limpio; 13 tests en `api` (4 nuevos), 50 en `core`, 6 en `store`.
+- Ojo para quien siga: `write` necesita `T: Serialize + ?Sized` porque se le pasa `&[T]`.
 
 ## HECHO – 2026-10-31 · Capa de API con transporte intercambiable (T-11b parcial)
 
