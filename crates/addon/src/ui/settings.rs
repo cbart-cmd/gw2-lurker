@@ -59,7 +59,9 @@ pub fn draw(ui: &Ui, config: &mut crate::config::Config) {
 
     {
         let state = config.window(KEY);
-        crate::ui::window::draw(ui, KEY, 1, state, |ui| draw_body(ui, table, &mut edits));
+        crate::ui::window::draw(ui, KEY, 1, [430.0, 190.0], state, |ui| {
+            draw_body(ui, table, &mut edits)
+        });
     }
 
     config.team_id = edits.team_id;
@@ -70,6 +72,14 @@ pub fn draw(ui: &Ui, config: &mut crate::config::Config) {
 }
 
 fn draw_body(ui: &Ui, table: &TeamTable, edits: &mut Edits) {
+    // imgui puts the label to the right of the widget: with the default item width the long
+    // translated labels of a 320 px window get cut off. Capping the widget leaves room for
+    // them, whatever the language.
+    let longest = i18n::text("All maps of the matchup");
+    let label_width = ui.calc_text_size(longest)[0] + 16.0;
+    let available = ui.content_region_avail()[0];
+    let _item_width = ui.push_item_width((available - label_width).max(120.0));
+
     let current = match edits.team_id {
         Some(id) => table.label(id),
         None => i18n::text("No team configured yet").to_owned(),

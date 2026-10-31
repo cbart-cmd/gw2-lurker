@@ -49,7 +49,7 @@ fn draw_status(ui: &nexus::imgui::Ui) {
     let mut open_settings = false;
     let window_state = config.window(STATUS);
 
-    window::draw(ui, STATUS, 0, window_state, |ui| {
+    window::draw(ui, STATUS, 0, [300.0, 150.0], window_state, |ui| {
         let map_id = state.map_id.to_string();
         let map_type = state.map_type.to_string();
         ui.text(i18n::format("Map {0} (type {1})", &[&map_id, &map_type]));

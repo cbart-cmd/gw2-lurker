@@ -15,8 +15,6 @@ use crate::i18n;
 
 /// Smallest window the user can shrink.
 const MIN_SIZE: [f32; 2] = [180.0, 90.0];
-/// Size used the first time a window appears.
-const DEFAULT_SIZE: [f32; 2] = [320.0, 200.0];
 /// Width reserved for the close button.
 const CLOSE_WIDTH: f32 = 24.0;
 
@@ -30,6 +28,7 @@ pub fn draw(
     ui: &Ui,
     key: &'static str,
     slot: usize,
+    default_size: [f32; 2],
     state: &mut WindowState,
     body: impl FnOnce(&Ui),
 ) -> bool {
@@ -45,7 +44,7 @@ pub fn draw(
     let reset_id = i18n::widget("Reset position and size");
     let close_id = format!("×###gw2lurker_close_{key}");
 
-    let size = clamp_size(state.size.unwrap_or(DEFAULT_SIZE));
+    let size = clamp_size(state.size.unwrap_or(default_size));
     let position = state.position.unwrap_or_else(|| default_position(slot));
 
     let mut window = Window::new(title_id)
