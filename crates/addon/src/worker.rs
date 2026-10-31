@@ -102,6 +102,13 @@ pub struct Dashboard {
     pub played_team: Option<u32>,
     /// Whether the watched matchup comes from the game and not from the saved team.
     pub auto_detected: bool,
+    /// Huella de la última copia de la partida que se ha visto, y desde cuándo no cambia.
+    ///
+    /// Si la API devuelve la misma copia durante minutos, el sondeo funciona y lo que está parado
+    /// es ArenaNet: el widget lo dice con esto (informe del jugador, 2026-11-01).
+    pub payload_digest: Option<u64>,
+    /// Desde cuándo la huella no cambia.
+    pub payload_since: Option<DateTime<Utc>>,
     /// When the game last saw a claim in this matchup, as the API tells it.
     ///
     /// `updated_at` is *our* poll; this is the game's own timestamp. Without it, «no recoge nada»
@@ -429,6 +436,16 @@ fn poll_once(api: &Api<WinHttpTransport>, differ: &mut Differ) -> Result<(), Str
         .unwrap_or_default();
     let mut board = dashboard();
     board.health = Health::Ok { at: now };
+    // Huella de la partida: si la API repite la misma copia, se guarda desde cuándo.
+    if let Some(entry) = current_match(&live, match_id.as_deref()) {
+        let digest = matchup::digest(entry);
+        if board.payload_digest != Some(digest) {
+            board.payload_digest = Some(digest);
+            board.payload_since = Some(now);
+        } else if board.payload_since.is_none() {
+            board.payload_since = Some(now);
+        }
+    }
     board.selection = selection;
     board.match_id = match_id.clone();
     board.names = names;

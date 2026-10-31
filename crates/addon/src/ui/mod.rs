@@ -497,6 +497,7 @@ fn draw_health(ui: &nexus::imgui::Ui, config: &mut crate::config::Config, data: 
         candidates,
         played_team,
         auto_detected,
+        payload_since,
     ) = {
         let board = crate::worker::dashboard();
         (
@@ -508,6 +509,7 @@ fn draw_health(ui: &nexus::imgui::Ui, config: &mut crate::config::Config, data: 
             board.candidates.clone(),
             board.played_team,
             board.auto_detected,
+            board.payload_since,
         )
     };
     let team_id = crate::team::selected_in(config);
@@ -608,6 +610,27 @@ fn draw_health(ui: &nexus::imgui::Ui, config: &mut crate::config::Config, data: 
             "Newest claim {0} min ago",
             &[&minutes.to_string()],
         ));
+    }
+    // La partida puede quedarse congelada en la API de ArenaNet mientras el sondeo sigue vivo:
+    // el 2026-11-01 la copia de `1-1` no cambió en 20 minutos (puntos incluidos) y el jugador lo
+    // leyó como «ha dejado de funcionar». Se dice, en naranja, con los minutos y el intervalo.
+    let polling = crate::context::gate();
+    if polling.show_ui && polling.poll {
+        if let Some(since) = payload_since {
+            let minutes = chrono::Utc::now()
+                .signed_duration_since(since)
+                .num_minutes()
+                .max(0);
+            if minutes >= 5 {
+                let secs = crate::runtime().poll_secs.to_string();
+                let _tint =
+                    ui.push_style_color(nexus::imgui::StyleColor::Text, [1.0, 0.75, 0.3, 1.0]);
+                ui.text_wrapped(i18n::format(
+                    "ArenaNet's API has not published any change to this match for {0} min; the addon keeps polling every {1} s.",
+                    &[&minutes.to_string(), &secs],
+                ));
+            }
+        }
     }
 
     // Click-through has no visual trace of its own: without this line the only symptom is that

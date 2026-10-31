@@ -60,6 +60,31 @@ fn claim_holds(objective: &crate::model::MatchObjective) -> bool {
     }
 }
 
+/// Huella de lo que se enseña de una partida: puntos, y por objetivo el dueño, el clan y la hora
+/// del último cambio.
+///
+/// Sirve para distinguir «la API no ha cambiado nada» de «el addon se ha parado». El 2026-11-01 la
+/// partida `1-1` devolvió durante 20 minutos exactamente la misma copia —puntos incluidos—
+/// mientras las otras ocho se movían, y desde el widget eso se lee como «ha dejado de funcionar».
+pub fn digest(m: &Match) -> u64 {
+    use std::hash::{Hash, Hasher};
+    let mut hasher = std::collections::hash_map::DefaultHasher::new();
+    m.id.hash(&mut hasher);
+    m.scores.green.hash(&mut hasher);
+    m.scores.blue.hash(&mut hasher);
+    m.scores.red.hash(&mut hasher);
+    for map in &m.maps {
+        map.id.hash(&mut hasher);
+        for objective in &map.objectives {
+            objective.id.hash(&mut hasher);
+            objective.owner.hash(&mut hasher);
+            objective.claimed_by.hash(&mut hasher);
+            objective.last_flipped.hash(&mut hasher);
+        }
+    }
+    hasher.finish()
+}
+
 /// Flattens every claimed objective of the match (RF-70).
 ///
 /// Ordering is `(map id, objective id)` so the same snapshot always produces the same
@@ -319,6 +344,32 @@ mod tests {
         });
         assert_eq!(order, sorted);
         assert!(groups.iter().all(|(_, g)| !g.is_empty()));
+    }
+
+    #[test]
+    fn rf19_a_frozen_payload_is_told_apart_from_a_quiet_matchup() {
+        // La huella cambia cuando cambia la partida y se queda igual cuando la API repite la misma
+        // copia: es lo que permite decir «ArenaNet no publica cambios» sin culpar al addon.
+        let (m, _) = fixture();
+        assert_eq!(digest(&m), digest(&m), "la misma copia da la misma huella");
+
+        let mut scored = m.clone();
+        scored.scores.green += 1;
+        assert_ne!(digest(&m), digest(&scored), "los puntos cuentan");
+
+        let mut flipped = m.clone();
+        if let Some(objective) = flipped
+            .maps
+            .iter_mut()
+            .flat_map(|map| map.objectives.iter_mut())
+            .next()
+        {
+            objective.owner = match objective.owner {
+                Some(TeamColor::Red) => Some(TeamColor::Blue),
+                _ => Some(TeamColor::Red),
+            };
+        }
+        assert_ne!(digest(&m), digest(&flipped), "el dueño cuenta");
     }
 
     #[test]

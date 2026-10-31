@@ -1,8 +1,20 @@
 # Changelog
 Formato [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/), versionado [SemVer](https://semver.org/lang/es/).
 
-## [0.24.0] - 2026-11-01
+## [0.24.1] - 2026-11-01
 ### Añadido
+- **Aviso de partida congelada**: cuando la API de ArenaNet repite la misma copia de la partida
+  durante 5 minutos o más, el widget lo dice en naranja con los minutos y el intervalo de sondeo.
+  El 2026-11-01 la partida `1-1` devolvió durante **20 minutos** exactamente los mismos puntos y
+  los mismos reclamos mientras las otras ocho se movían; el jugador lo leyó como «ha dejado de
+  funcionar a los 11 minutos». Se compara una huella de la partida (puntos + dueño de cada
+  objetivo), así que el aviso distingue «no pasa nada» de «el addon se ha parado».
+### Corregido
+- `bugs.md`: se restauran las entradas que se perdieron al añadir las de la 0.24.0 (se habían
+  quedado fuera el parte anterior y el reporte nuevo de los 11 minutos). El fichero vuelve a
+  tenerlas todas.
+
+## [0.24.0] - 2026-11-01### Añadido
 - **Buscador de clanes que busca de verdad.** El API (`/v2/guild/search`) devuelve **un solo**
   clan y solo cuando el texto empieza su nombre, así que «DIE» encontraba *Die* y ninguna más.
   Ahora el addon busca por **subcadena** en su propia caché de nombres (`guild-names.json`), que

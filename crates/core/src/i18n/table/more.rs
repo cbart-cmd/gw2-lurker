@@ -536,4 +536,13 @@ pub const TEXT: &[(&str, [&str; COLUMNS])] = &[
             "Nichts im Cache ({0} Gilden). Die API liefert höchstens eine Gilde, und nur wenn der Text ihren Namen beginnt.",
         ],
     ),
+    (
+        "ArenaNet's API has not published any change to this match for {0} min; the addon keeps polling every {1} s.",
+        [
+            "La API de ArenaNet no publica ningún cambio de esta partida desde hace {0} min; el addon sigue sondeando cada {1} s.",
+            "ArenaNet's API has not published any change to this match for {0} min; the addon keeps polling every {1} s.",
+            "L'API d'ArenaNet ne publie aucun changement de cette partie depuis {0} min ; l'addon interroge toujours toutes les {1} s.",
+            "Die API von ArenaNet meldet seit {0} Min. keine Änderung dieses Matches; das Addon fragt weiter alle {1} s ab.",
+        ],
+    ),
 ];
