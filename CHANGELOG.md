@@ -1,6 +1,11 @@
 # Changelog
 Formato [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/), versionado [SemVer](https://semver.org/lang/es/).
 
+## [0.4.1] - 2026-10-31
+### Cambiado
+- La opacidad se ajusta en **porcentaje (0–100 %)** en el menú de cada ventana, no en
+  fracciones de 0 a 1. Se sigue guardando como 0.0–1.0, que es lo que espera imgui.
+
 ## [0.4.0] - 2026-10-31
 ### Añadido
 - **Sondeo real del matchup**: un hilo aparte consulta la API (400 KB con `ids=all` la primera

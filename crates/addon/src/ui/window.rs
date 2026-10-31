@@ -86,9 +86,13 @@ pub fn draw(
                 .selected(state.locked)
                 .build_with_ref(ui, &mut state.locked);
             ui.menu(opacity_id, || {
-                Slider::new("###opacity", 0.0, 1.0)
-                    .display_format("%.0f")
-                    .build(ui, &mut state.opacity);
+                let mut percent = opacity_percent(state.opacity);
+                if Slider::new("###opacity", 0.0, 100.0)
+                    .display_format("%.0f%%")
+                    .build(ui, &mut percent)
+                {
+                    state.opacity = opacity_from_percent(percent);
+                }
             });
             if MenuItem::new(reset_id).build(ui) {
                 state.position = None;
@@ -117,4 +121,56 @@ fn clamp_size(size: [f32; 2]) -> [f32; 2] {
         size[0].clamp(MIN_SIZE[0], 4096.0),
         size[1].clamp(MIN_SIZE[1], 4096.0),
     ]
+}
+
+/// Opacity as whole percent, which is how the user thinks about it (0–100).
+///
+/// The configuration keeps `0.0–1.0` because that is what imgui's `bg_alpha` takes; the
+/// slider shows percent so nobody has to reason in fractions. `bg_alpha` only affects the
+/// window background, so 0 % still leaves the text readable.
+pub fn opacity_percent(opacity: f32) -> f32 {
+    if opacity.is_finite() {
+        (opacity * 100.0).round().clamp(0.0, 100.0)
+    } else {
+        WindowState::default().opacity * 100.0
+    }
+}
+
+/// Back to the 0.0–1.0 stored in the configuration.
+pub fn opacity_from_percent(percent: f32) -> f32 {
+    if percent.is_finite() {
+        (percent / 100.0).clamp(0.0, 1.0)
+    } else {
+        WindowState::default().opacity
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn rf46_opacity_is_shown_as_percent() {
+        assert_eq!(opacity_percent(0.85), 85.0);
+        assert_eq!(opacity_percent(0.0), 0.0, "0 % es válido");
+        assert_eq!(opacity_percent(1.0), 100.0, "100 % es válido");
+        assert_eq!(opacity_percent(0.604), 60.0, "se redondea, no se trunca");
+        assert_eq!(
+            opacity_percent(f32::NAN),
+            90.0,
+            "un NaN no puede llegar al slider"
+        );
+    }
+
+    #[test]
+    fn rf46_percent_round_trip_keeps_the_stored_value() {
+        for percent in [0.0, 5.0, 60.0, 100.0] {
+            let stored = opacity_from_percent(percent);
+            assert!((0.0..=1.0).contains(&stored));
+            assert_eq!(opacity_percent(stored), percent, "ida y vuelta");
+        }
+        assert_eq!(opacity_from_percent(150.0), 1.0, "se recorta al rango");
+        assert_eq!(opacity_from_percent(-5.0), 0.0);
+        assert_eq!(opacity_from_percent(f32::INFINITY), 0.9);
+    }
 }
