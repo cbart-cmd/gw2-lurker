@@ -12,9 +12,10 @@
 use crate::model::{Match, TeamColor};
 
 /// What the picker must do right now.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub enum Selection {
     /// No team saved yet: the picker must open.
+    #[default]
     Missing,
     /// The saved team is playing a live match: nothing to ask.
     Confirmed { team_id: u32, match_id: String },

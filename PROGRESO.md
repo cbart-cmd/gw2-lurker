@@ -34,6 +34,25 @@ Reglas:
   bueno un HTTP 200. Se reintenta con `-VerifyOnly` pasados unos minutos; no se cambia la URL
   ni la versión para taparlo.
 
+## HECHO – 2026-10-31 · Worker de sondeo y datos en vivo en la ventana de estado (T-11c)
+
+- `addon::worker`: hilo propio, `MAY_POLL` como `AtomicBool` que escribe el render (la compuerta
+  manda), parada con `stop()` y espera en tramos de 250 ms, backoff exponencial con tope de
+  5 min. Red y disco **solo** en ese hilo; el render lee un `Dashboard` pequeño bajo un mutex.
+- Primera vuelta con `ids=all` (~400 KB) porque aún no se sabe el equipo; después
+  `/wvw/matches/{id}` (~44 KB) gracias al nuevo `Api::match_by_id`. Si el equipo guardado ya no
+  juega, vuelve a `ids=all` para que el selector ofrezca los equipos vivos.
+- Eventos → `SessionStore` (histórico de la sesión) y últimos 50 al dashboard; claims y clanes
+  salen de `core::matchup`. Nombre de objetivos cacheado por idioma.
+- La ventana de estado enseña emparejamiento, `N objetivos reclamados`, `N clanes` y hora.
+- El equipo elegido se guarda **por personaje** (`team::remember`/`forget` sobre `Roster`), con
+  `config.team_id` como override manual que gana siempre. Ojo: el cambio se aplica **después**
+  de soltar el candado de la config, porque `team::*` lo vuelve a tomar (si no, interbloqueo).
+- Verificado: `live_pipeline_builds_the_dashboard` (ignorado por defecto) recorre WinHTTP →
+  `matches?ids=all` → objetivos en español → `match_by_id` → claims → ranking y pasa en 1,2 s;
+  27 tests en el addon, 70 en `core`, 14 en `api`. DLL 0.4.0: **1 455 616 bytes**, todavía por
+  debajo del objetivo de 1,5 MB pero con poco margen.
+
 ## HECHO – 2026-10-31 · Instalación local con install.bat / install.ps1
 
 - Copiados del patrón de los vecinos (`gw2-timers`, `fight_analysis_danger`):

@@ -29,3 +29,14 @@ pub fn mumble_map() -> Option<(u32, u32)> {
     let link = get_mumble_link()?;
     Some((link.read_map_id(), link.read_map_type()))
 }
+
+/// Character name from MumbleLink, used to key the per-character team roster (RF-03a).
+///
+/// Mumble exposes the character, not the account: a second account is a different character,
+/// which is exactly the granularity we need. Empty or unavailable names return `None`.
+pub fn character_name() -> Option<String> {
+    let link = get_mumble_link()?;
+    let raw = link.read_identity_string();
+    let text = raw.to_string_lossy().trim().to_owned();
+    (!text.is_empty()).then_some(text)
+}

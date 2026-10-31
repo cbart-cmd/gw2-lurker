@@ -30,7 +30,14 @@ Cada tarea es pequeña y verificable. Orden recomendado; las dependencias se ind
 ## Fase 2 – API y worker
 
 - **T-11b ✔ (2026-10-31)** `api`: `trait Transport` + `Api<T>` tipado (`matches_all`, `match_for_team`, `objectives(lang)`, `guild`), `ApiError` y `Backoff` exponencial con tope. 9 tests con las fixtures reales, incluidos 503, JSON truncado y equipo inexistente. Añadida la caché en disco (`cache::Cache`: objetivos por idioma + guilds, tolerante a ficheros corruptos, 4 tests). Cliente HTTP real en el addon (`net::WinHttpTransport` sobre WinHTTP del sistema, medidas en `07-spikes.md`: HTTP 200 en 270 ms sin crecer la DLL). (T-04) — RF-20, RF-44, RNF-04
-- **T-11c** `worker`: hilo de polling con parada limpia y estado de salud. (T-11b, T-07)
+- **T-11c ✔ (2026-10-31, parcial)** `worker`: hilo propio con parada limpia (`stop()` + sondeo
+  de 250 ms), `MAY_POLL` desde la compuerta del render (nunca red ni disco en el hilo de render),
+  `ids=all` mientras no hay equipo y `/wvw/matches/{id}` (nuevo `Api::match_by_id`) cuando lo
+  hay, backoff hasta 5 min, `Health::{Idle,Ok,Degraded}`, histórico en `SessionStore` y
+  `Dashboard` (claims, clanes, nombres, últimos 50 eventos) que la ventana de estado ya lee.
+  Probado de verdad con `live_pipeline_builds_the_dashboard` (HTTP real, 1,2 s). Falta: dejar de
+  escribir `settings.json` en mitad de un poll largo y separar el sondeo de objetivos del de
+  estado. (T-11b, T-07) — RF-20, RF-26, RNF-04
 
 ## Fase 3 – Integración Nexus
 

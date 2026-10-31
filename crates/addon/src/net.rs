@@ -22,7 +22,8 @@ impl Default for WinHttpTransport {
 }
 
 impl WinHttpTransport {
-    /// Transport with a custom timeout.
+    /// Transport with a custom timeout, for the diagnostics build of T-26.
+    #[allow(dead_code)]
     pub fn with_timeout(timeout_ms: i32) -> Self {
         Self { timeout_ms }
     }

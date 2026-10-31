@@ -93,6 +93,15 @@ impl<T: Transport> Api<T> {
             .ok_or(ApiError::NotFound)
     }
 
+    /// A single match by id, from `/v2/wvw/matches/{id}`.
+    ///
+    /// The worker polls this once it knows the player's match: ~44 KB instead of the ~400 KB
+    /// of `ids=all`, which matters at one poll every 30 s (RNF-05).
+    pub fn match_by_id(&self, id: &str) -> Result<Match, ApiError> {
+        let body = self.transport.get(&format!("{BASE}/wvw/matches/{id}"))?;
+        parse(&body)
+    }
+
     /// Static objective metadata in the given language (RF-44).
     pub fn objectives(&self, lang: &str) -> Result<Vec<ObjectiveInfo>, ApiError> {
         let body = self
@@ -231,6 +240,15 @@ mod tests {
         let m: Match = parse(MATCH).unwrap();
         assert_eq!(m.id, "2-2");
         assert_eq!(m.objectives_total(), 91);
+    }
+
+    #[test]
+    fn t11b_single_match_is_fetched_by_id() {
+        let url = format!("{BASE}/wvw/matches/2-2");
+        let api = Api::new(Fake::with(&url, MATCH));
+        let m = api.match_by_id("2-2").unwrap();
+        assert_eq!(m.id, "2-2");
+        assert_eq!(api.transport().asked.borrow().len(), 1, "una sola petición");
     }
 
     #[test]

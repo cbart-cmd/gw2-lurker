@@ -26,36 +26,61 @@ struct Edits {
 /// Used by Nexus' own options pane (`RenderType::OptionsRender`), which is reachable even
 /// outside WvW: that is how RF-02 keeps the configuration available everywhere, and it also
 /// gives us a view that does not depend on the gate at all.
-pub fn draw_inline(ui: &Ui) {
-    let mut config = crate::runtime();
+///
+/// Returns the team change for the same reason as [`draw`].
+pub fn draw_inline(ui: &Ui) -> Option<TeamChange> {
     let table = gw2lurker_core::bundled();
+    let mut config = crate::runtime();
     let mut edits = Edits {
-        team_id: config.team_id,
+        team_id: crate::team::selected(),
         alias: config.team_alias.clone().unwrap_or_default(),
         language: config.language,
         poll_secs: config.poll_secs as i32,
         scope: config.alert_scope,
     };
+    let before = edits.team_id;
 
     draw_body(ui, table, &mut edits);
 
-    config.team_id = edits.team_id;
     config.team_alias = Some(edits.alias.trim().to_owned()).filter(|alias| !alias.is_empty());
     config.language = edits.language;
     config.alert_scope = edits.scope;
     config.poll_secs = edits.poll_secs.clamp(15, 600) as u32;
+    drop(config);
+
+    match (before, edits.team_id) {
+        (Some(_), None) => Some(TeamChange::Clear),
+        (old, Some(new)) if old != Some(new) => Some(TeamChange::Pick(new)),
+        _ => None,
+    }
+}
+
+/// A change to the team selection, decided here and applied by the caller.
+///
+/// It cannot be applied inside [`draw`] because the caller already holds the configuration
+/// lock while drawing, and [`crate::team`] takes it again: that would deadlock.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum TeamChange {
+    /// The player chose this team.
+    Pick(u32),
+    /// The player cleared the selection.
+    Clear,
 }
 
 /// Draws the window; the per-window UI state comes from `config` like every other window.
-pub fn draw(ui: &Ui, config: &mut crate::config::Config) {
+///
+/// Returns the team change when the player made one, so the caller can apply it after
+/// releasing the configuration lock.
+pub fn draw(ui: &Ui, config: &mut crate::config::Config) -> Option<TeamChange> {
     let table = gw2lurker_core::bundled();
     let mut edits = Edits {
-        team_id: config.team_id,
+        team_id: crate::team::selected(),
         alias: config.team_alias.clone().unwrap_or_default(),
         language: config.language,
         poll_secs: config.poll_secs as i32,
         scope: config.alert_scope,
     };
+    let before = edits.team_id;
 
     {
         let state = config.window(KEY);
@@ -64,11 +89,16 @@ pub fn draw(ui: &Ui, config: &mut crate::config::Config) {
         });
     }
 
-    config.team_id = edits.team_id;
     config.team_alias = Some(edits.alias.trim().to_owned()).filter(|alias| !alias.is_empty());
     config.language = edits.language;
     config.alert_scope = edits.scope;
     config.poll_secs = edits.poll_secs.clamp(15, 600) as u32;
+
+    match (before, edits.team_id) {
+        (Some(_), None) => Some(TeamChange::Clear),
+        (old, Some(new)) if old != Some(new) => Some(TeamChange::Pick(new)),
+        _ => None,
+    }
 }
 
 fn draw_body(ui: &Ui, table: &TeamTable, edits: &mut Edits) {

@@ -112,6 +112,8 @@ pub struct Config {
     pub widget_locked: bool,
     /// Per-window UI state, keyed by the window's English title (RF-46).
     pub windows: BTreeMap<String, WindowState>,
+    /// One team per character (RF-03a); the manual `team_id` wins over it.
+    pub roster: gw2lurker_core::Roster,
     /// Draws the overlay outside WvW too. Diagnostic only: `false` in normal use (RF-01).
     pub debug_show_everywhere: bool,
 }
@@ -128,6 +130,7 @@ impl Default for Config {
             widget_opacity: 0.85,
             widget_locked: true,
             windows: BTreeMap::new(),
+            roster: gw2lurker_core::Roster::default(),
             debug_show_everywhere: false,
         }
     }

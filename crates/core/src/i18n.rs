@@ -279,6 +279,50 @@ pub const TEXT: &[(&str, [&str; COLUMNS])] = &[
         ],
     ),
     (
+        "No data yet",
+        [
+            "Sin datos todavía",
+            "No data yet",
+            "Pas encore de données",
+            "Noch keine Daten",
+        ],
+    ),
+    (
+        "Matchup {0}",
+        [
+            "Emparejamiento {0}",
+            "Matchup {0}",
+            "Confrontation {0}",
+            "Matchup {0}",
+        ],
+    ),
+    (
+        "Last update {0}",
+        [
+            "Última actualización {0}",
+            "Last update {0}",
+            "Dernière mise à jour {0}",
+            "Letzte Aktualisierung {0}",
+        ],
+    ),
+    (
+        "Error: {0}",
+        ["Error: {0}", "Error: {0}", "Erreur : {0}", "Fehler: {0}"],
+    ),
+    (
+        "{0} claimed objectives",
+        [
+            "{0} objetivos reclamados",
+            "{0} claimed objectives",
+            "{0} objectifs revendiqués",
+            "{0} beanspruchte Ziele",
+        ],
+    ),
+    (
+        "{0} guilds",
+        ["{0} clanes", "{0} guilds", "{0} guildes", "{0} Gilden"],
+    ),
+    (
         "Route inferred from claims; it is not the real path.",
         [
             "Ruta inferida a partir de las reclamaciones; no es el recorrido real.",

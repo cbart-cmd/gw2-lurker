@@ -14,9 +14,10 @@ mod context;
 mod ffi;
 mod i18n;
 mod lang;
-#[allow(dead_code)] // used by the polling worker (T-11c)
 mod net;
+mod team;
 mod ui;
+mod worker;
 mod writer;
 
 use std::sync::{Mutex, MutexGuard, OnceLock};
@@ -122,9 +123,11 @@ fn load() {
     arc_team::subscribe();
     let _ = WRITER.set(Mutex::new(Some(writer::Writer::start())));
     ui::register();
+    worker::start();
 }
 
 fn unload() {
+    worker::stop();
     let runtime = runtime();
     let taken = WRITER.get().and_then(|slot| {
         slot.lock()

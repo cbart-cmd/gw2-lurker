@@ -1,6 +1,17 @@
 # Changelog
 Formato [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/), versionado [SemVer](https://semver.org/lang/es/).
 
+## [0.4.0] - 2026-10-31
+### Añadido
+- **Sondeo real del matchup**: un hilo aparte consulta la API (400 KB con `ids=all` la primera
+  vez, 44 KB por matchup cuando ya hay equipo) cada 30 s, aplica la detección de cambios, guarda
+  el histórico de la sesión y publica claims y clanes para la UI. Nunca toca la red ni el disco
+  desde el hilo de render.
+- La ventana de estado enseña emparejamiento, objetivos reclamados, clanes y hora de la última
+  actualización, o el error si la API falla.
+- El equipo elegido se recuerda **por personaje**, así que una cuenta alt no hereda el equipo
+  del main.
+
 ## [0.3.2] - 2026-10-31
 ### Cambiado
 - El idioma sale ahora del juego de verdad: se escucha el evento de idioma de Unofficial Extras
