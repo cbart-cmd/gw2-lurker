@@ -26,6 +26,14 @@ Reglas:
   primera prueba para las licencias de `nexus`. Si vuelve a fallar, hay que calcular el hash
   real de los ficheros de licencia, no seguir probando variantes.
 
+- Trampa para quien siga: **la URL `raw/main` tarda en apuntar al commit nuevo**. Tras
+  publicar 0.3.0, `raw.githubusercontent.com/.../main/gw2_lurker.dll` seguía sirviendo la DLL
+  de 0.2.0 (1 161 728 bytes) mientras el commit (`/419e857/...`) y el asset de la release ya
+  devolvían los 1 200 640 correctos, incluso añadiendo `?v=0.3.0`. No es LFS ni un fallo del
+  push: es caché del endpoint. Por eso `release.ps1` verifica y **falla** en vez de dar por
+  bueno un HTTP 200. Se reintenta con `-VerifyOnly` pasados unos minutos; no se cambia la URL
+  ni la versión para taparlo.
+
 ## HECHO – 2026-10-31 · Ventana de ajustes con selector de equipo (T-30, T-17 parcial)
 
 - `addon::ui::settings`: ComboBox de equipo con `nombre (id)` sobre la tabla incluida, opción
