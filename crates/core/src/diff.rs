@@ -7,7 +7,7 @@ use std::collections::BTreeMap;
 
 use chrono::{DateTime, Duration, Utc};
 
-use crate::model::{Match, MatchObjective};
+use crate::model::{Match, MatchObjective, TeamColor};
 
 /// One poll result, flattened so the diff does not care about map grouping.
 #[derive(Debug, Clone, PartialEq)]
@@ -57,6 +57,25 @@ pub enum Event {
     Gap {
         from: DateTime<Utc>,
         to: DateTime<Utc>,
+    },
+    /// An objective changed owner (RF-10). `at` is `last_flipped` when present.
+    Flip {
+        objective: String,
+        from: Option<TeamColor>,
+        to: Option<TeamColor>,
+        at: DateTime<Utc>,
+    },
+    /// A guild now claims the objective (RF-21). `at` is `claimed_at` when present.
+    Claim {
+        objective: String,
+        guild: String,
+        at: DateTime<Utc>,
+    },
+    /// A guild no longer claims the objective; `at` is when it was observed (RF-22).
+    Unclaim {
+        objective: String,
+        guild: String,
+        at: DateTime<Utc>,
     },
 }
 
@@ -137,10 +156,62 @@ impl Differ {
 
         if let Some(reason) = baseline {
             events.push(Event::Baseline { reason });
+        } else if let Some(prev) = &self.prev {
+            // A baseline never produces flips: there is nothing to compare against (RF-04).
+            flips_and_claims(prev, &snapshot, &mut events);
         }
 
         self.prev = Some(snapshot);
         events
+    }
+}
+
+/// Compares two comparable snapshots and appends the observed changes.
+///
+/// Iteration is ordered by objective id (the snapshots are `BTreeMap`s), and for a
+/// single objective the `Unclaim` always precedes the `Claim` (RF-22).
+fn flips_and_claims(prev: &Snapshot, cur: &Snapshot, out: &mut Vec<Event>) {
+    for (id, now) in &cur.objectives {
+        let Some(before) = prev.objectives.get(id) else {
+            // Not comparable: the objective was not there before. A late claim for it
+            // is the business of the baseline logic (T-09), not of this diff.
+            continue;
+        };
+
+        if before.owner != now.owner {
+            out.push(Event::Flip {
+                objective: id.clone(),
+                from: before.owner,
+                to: now.owner,
+                at: now.last_flipped.unwrap_or(cur.taken_at),
+            });
+        }
+
+        match (before.claimed_by.as_deref(), now.claimed_by.as_deref()) {
+            (Some(old), Some(new)) if old != new => {
+                out.push(Event::Unclaim {
+                    objective: id.clone(),
+                    guild: old.to_string(),
+                    at: cur.taken_at,
+                });
+                out.push(Event::Claim {
+                    objective: id.clone(),
+                    guild: new.to_string(),
+                    at: now.claimed_at.unwrap_or(cur.taken_at),
+                });
+            }
+            (Some(old), None) => out.push(Event::Unclaim {
+                objective: id.clone(),
+                guild: old.to_string(),
+                at: cur.taken_at,
+            }),
+            (None, Some(new)) => out.push(Event::Claim {
+                objective: id.clone(),
+                guild: new.to_string(),
+                at: now.claimed_at.unwrap_or(cur.taken_at),
+            }),
+            _ => {}
+        }
     }
 }
 
@@ -269,5 +340,162 @@ mod tests {
         assert_eq!(s.match_id, "2-2");
         assert_eq!(s.objectives.len(), 91);
         assert!(s.objectives.contains_key("38-20"));
+    }
+
+    fn objective<'a>(s: &'a mut Snapshot, id: &str) -> &'a mut MatchObjective {
+        s.objectives.get_mut(id).expect("objective in fixture")
+    }
+
+    #[test]
+    fn rf10_owner_change_emits_a_flip_with_the_real_time() {
+        let mut d = differ();
+        d.push(snap("2-2", 0));
+
+        let mut next = snap("2-2", 30);
+        {
+            let o = objective(&mut next, "38-20");
+            o.owner = Some(TeamColor::Blue);
+            o.last_flipped = Some(at(20));
+        }
+
+        assert_eq!(
+            d.push(next),
+            vec![Event::Flip {
+                objective: "38-20".to_string(),
+                from: Some(TeamColor::Red),
+                to: Some(TeamColor::Blue),
+                at: at(20),
+            }]
+        );
+    }
+
+    #[test]
+    fn rf21_new_claim_uses_claimed_at() {
+        let mut d = differ();
+        d.push(snap("2-2", 0));
+
+        let mut next = snap("2-2", 30);
+        {
+            let o = objective(&mut next, "38-4");
+            assert!(
+                o.claimed_by.is_none(),
+                "38-4 must be unclaimed in the fixture"
+            );
+            o.claimed_by = Some("AAAA-BBBB".to_string());
+            o.claimed_at = Some(at(25));
+        }
+
+        assert_eq!(
+            d.push(next),
+            vec![Event::Claim {
+                objective: "38-4".to_string(),
+                guild: "AAAA-BBBB".to_string(),
+                at: at(25),
+            }]
+        );
+    }
+
+    #[test]
+    fn rf22_replaced_claim_emits_unclaim_then_claim() {
+        let mut d = differ();
+        let first = snap("2-2", 0);
+        let old_guild = first.objectives["38-20"]
+            .claimed_by
+            .clone()
+            .expect("38-20 is claimed in the fixture");
+        d.push(first);
+
+        let mut next = snap("2-2", 30);
+        {
+            let o = objective(&mut next, "38-20");
+            o.claimed_by = Some("NEW-GUILD".to_string());
+            o.claimed_at = Some(at(28));
+        }
+
+        assert_eq!(
+            d.push(next),
+            vec![
+                Event::Unclaim {
+                    objective: "38-20".to_string(),
+                    guild: old_guild,
+                    at: at(30),
+                },
+                Event::Claim {
+                    objective: "38-20".to_string(),
+                    guild: "NEW-GUILD".to_string(),
+                    at: at(28),
+                },
+            ]
+        );
+    }
+
+    #[test]
+    fn rf22_released_claim_emits_only_unclaim() {
+        let mut d = differ();
+        let first = snap("2-2", 0);
+        let old_guild = first.objectives["38-20"].claimed_by.clone().unwrap();
+        d.push(first);
+
+        let mut next = snap("2-2", 30);
+        {
+            let o = objective(&mut next, "38-20");
+            o.claimed_by = None;
+            o.claimed_at = None;
+        }
+
+        assert_eq!(
+            d.push(next),
+            vec![Event::Unclaim {
+                objective: "38-20".to_string(),
+                guild: old_guild,
+                at: at(30),
+            }]
+        );
+    }
+
+    #[test]
+    fn rf04_baseline_after_a_gap_reports_no_flips() {
+        let mut d = differ();
+        d.push(snap("2-2", 0));
+
+        let mut far = snap("2-2", 200);
+        objective(&mut far, "38-20").owner = Some(TeamColor::Blue);
+
+        assert_eq!(
+            d.push(far),
+            vec![
+                Event::Gap {
+                    from: at(0),
+                    to: at(200)
+                },
+                Event::Baseline {
+                    reason: BaselineReason::Gap
+                },
+            ]
+        );
+    }
+
+    #[test]
+    fn t07_changes_are_ordered_by_objective_then_by_kind() {
+        let mut d = differ();
+        d.push(snap("2-2", 0));
+
+        let mut next = snap("2-2", 30);
+        objective(&mut next, "38-4").owner = Some(TeamColor::Red);
+        objective(&mut next, "38-20").owner = Some(TeamColor::Blue);
+        objective(&mut next, "38-20").claimed_by = Some("ZZZ".to_string());
+
+        let ids: Vec<String> = d
+            .push(next)
+            .into_iter()
+            .map(|e| match e {
+                Event::Flip { objective, .. }
+                | Event::Claim { objective, .. }
+                | Event::Unclaim { objective, .. } => objective,
+                other => panic!("unexpected lifecycle event: {other:?}"),
+            })
+            .collect();
+
+        assert_eq!(ids, ["38-20", "38-20", "38-20", "38-4"]);
     }
 }
