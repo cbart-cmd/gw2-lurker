@@ -48,7 +48,13 @@ Cada tarea es pequeña y verificable. Orden recomendado; las dependencias se ind
 - **T-30 (M)** `addon::ui::world_picker`: selector de **equipo** alimentado por `all_worlds` y `data/wvw-teams.json`, con `nombre (id)`, comprobación de los dos rivales y alias editable. *Hecho:* un id sin nombre se muestra como `(id)` y el usuario puede continuar. (T-05) — RF-03a, RF-03f, RF-03g
 - **T-13** Widget fijo de alertas: lista, fade, colores/formas por tipo, mover/redimensionar y persistir posición. (T-08, T-12) — RF-10, RF-16, RF-17, RF-19, RF-19a
 - **T-13b** Modo bloqueado click-through, atajo de bloqueo/desbloqueo y ventana de log ampliada. (T-13) — RF-14, RF-18
-- **T-17** Ventana de configuración completa e indicador de estado/obsoleto. (T-12) — RF-43
+- **T-17 ✔ (2026-10-31, parcial)** Contrato de ventana compartido en `addon::ui::window`:
+  barra de título propia con `×`, plegado con doble clic, mover/redimensionar solo si no está
+  bloqueada, opacidad sobre el fondo, menú contextual (bloquear, opacidad, restablecer) y
+  estado por ventana (`visible`, `collapsed`, `locked`, `opacity`, `position`, `size`) en
+  `config.json` bajo `windows.<clave>`, saneado y con mínimo de tamaño. La ventana de estado ya
+  lo usa. Falta el contenido de ajustes (selector de equipo T-30, idioma, sonido) y el
+  indicador de obsoleto. (T-12) — RF-43, RF-46
 
 ## Fase 4 – Mapas
 

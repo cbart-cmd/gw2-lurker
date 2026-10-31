@@ -13,7 +13,7 @@ mod ffi;
 mod i18n;
 mod ui;
 
-use std::sync::OnceLock;
+use std::sync::{Mutex, MutexGuard, OnceLock};
 
 nexus::export! {
     name: "WvW Lurker",
@@ -33,6 +33,20 @@ pub const ADDON_DIR: &str = "gw2_lurker";
 /// defaults; T-26 will surface that as the safe-mode notice (RF-51).
 static CONFIG: OnceLock<config::Config> = OnceLock::new();
 
+/// Editable copy the UI mutates (window positions, opacity, lock…). Written back on unload,
+/// so nothing touches the disk from the render callback (rule 6 of the constitution).
+static RUNTIME: OnceLock<Mutex<config::Config>> = OnceLock::new();
+
+/// Editable configuration used by the UI.
+///
+/// Copies the loaded config on first use, so the render callback never blocks on file I/O
+/// and never sees a half-loaded file. A poisoned lock is recovered: a panic elsewhere must
+/// not leave the windows permanently frozen.
+pub fn runtime() -> MutexGuard<'static, config::Config> {
+    let runtime = RUNTIME.get_or_init(|| Mutex::new(config().clone()));
+    runtime.lock().unwrap_or_else(|error| error.into_inner())
+}
+
 fn load() {
     let (config, report) = config::load();
     if let Some(error) = report {
@@ -45,11 +59,14 @@ fn load() {
 }
 
 fn unload() {
+    let runtime = runtime();
+    if let Err(error) = config::save(&runtime) {
+        log::warn!("no se pudo guardar la config: {error}");
+    }
     log::info!("WvW Lurker descargado");
 }
 
-/// Current configuration. Falls back to defaults if load never ran, which keeps the
-/// render callback total and free of panics.
+/// Configuration as it was loaded: what the worker reads, never changes.
 pub fn config() -> &'static config::Config {
     CONFIG.get_or_init(config::Config::default)
 }

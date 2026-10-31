@@ -1,13 +1,16 @@
-//! Minimal overlay for T-12: proves the wiring and gives the in-game test something to
-//! look at. The alert widget itself is T-13.
+//! Windows of the addon. Every one of them goes through [`window::draw`] (RF-46).
 //!
 //! Every literal comes from the translation table through [`crate::i18n`] (RF-44); the
 //! English text is the key, so nothing here needs touching when a language changes.
 
+mod window;
+
 use nexus::gui::{register_render, render, RenderType};
-use nexus::imgui::Window;
 
 use crate::i18n;
+
+/// Translation key (and stable id) of the status window.
+const STATUS: &str = "WvW Lurker";
 
 /// Registers the render callback. Must be called from `load`, never per frame.
 pub fn register() {
@@ -26,21 +29,23 @@ pub fn register() {
 
 fn draw_status(ui: &nexus::imgui::Ui) {
     let state = crate::context::snapshot();
-    let config = crate::config();
-    let title = i18n::widget("WvW Lurker");
+    let mut config = crate::runtime();
+    let team_id = config.team_id;
+    let poll_secs = config.poll_secs;
+    let window_state = config.window(STATUS);
 
-    Window::new(title).build(ui, || {
+    window::draw(ui, STATUS, 0, window_state, |ui| {
         let map_id = state.map_id.to_string();
         let map_type = state.map_type.to_string();
         ui.text(i18n::format("Map {0} (type {1})", &[&map_id, &map_type]));
 
-        match config.team_id {
+        match team_id {
             Some(id) => ui.text(i18n::format("Team {0}", &[&id.to_string()])),
             None => ui.text(i18n::text("No team configured yet")),
         }
         ui.text(i18n::format(
             "Polling every {0} s",
-            &[&config.poll_secs.to_string()],
+            &[&poll_secs.to_string()],
         ));
     });
 }

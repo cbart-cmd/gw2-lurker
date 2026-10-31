@@ -4,6 +4,7 @@
 //! `config.json.corrupt-<fecha>` and the addon continues with defaults (the visible
 //! notice is T-26 / RF-51).
 
+use std::collections::BTreeMap;
 use std::fs;
 use std::io;
 use std::path::PathBuf;
@@ -36,6 +37,59 @@ pub enum LanguagePreference {
     De,
 }
 
+/// Per-window UI state (RF-46).
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(default)]
+pub struct WindowState {
+    /// Whether the window is shown. Closing it hides it, it does not destroy it.
+    pub visible: bool,
+    /// Collapsed to its title bar.
+    pub collapsed: bool,
+    /// Locked: cannot be moved or resized.
+    pub locked: bool,
+    /// Background opacity, 0.0–1.0.
+    pub opacity: f32,
+    /// Last position, `None` until the window has been drawn once.
+    pub position: Option<[f32; 2]>,
+    /// Last size, `None` until the window has been drawn once.
+    pub size: Option<[f32; 2]>,
+}
+
+impl Default for WindowState {
+    fn default() -> Self {
+        Self {
+            visible: true,
+            collapsed: false,
+            locked: false,
+            opacity: 0.9,
+            position: None,
+            size: None,
+        }
+    }
+}
+
+impl WindowState {
+    fn sanitize(&mut self) {
+        self.opacity = if self.opacity.is_finite() {
+            self.opacity.clamp(0.0, 1.0)
+        } else {
+            WindowState::default().opacity
+        };
+        if let Some(position) = self.position {
+            if !position[0].is_finite() || !position[1].is_finite() {
+                self.position = None;
+            }
+        }
+        if let Some(size) = self.size {
+            if !size[0].is_finite() || !size[1].is_finite() {
+                self.size = None;
+            } else {
+                self.size = Some([size[0].max(120.0), size[1].max(60.0)]);
+            }
+        }
+    }
+}
+
 /// Everything the addon remembers between runs.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(default)]
@@ -56,6 +110,8 @@ pub struct Config {
     pub widget_opacity: f32,
     /// Whether the widget is locked (RF-18).
     pub widget_locked: bool,
+    /// Per-window UI state, keyed by the window's English title (RF-46).
+    pub windows: BTreeMap<String, WindowState>,
 }
 
 impl Default for Config {
@@ -69,11 +125,17 @@ impl Default for Config {
             followed: FollowList::default(),
             widget_opacity: 0.85,
             widget_locked: true,
+            windows: BTreeMap::new(),
         }
     }
 }
 
 impl Config {
+    /// State of one window, created with defaults the first time it is asked for.
+    pub fn window(&mut self, key: &str) -> &mut WindowState {
+        self.windows.entry(key.to_owned()).or_default()
+    }
+
     /// Colour of the configured team inside the given match, if it can be resolved.
     pub fn team_color(&self, m: &gw2lurker_core::Match) -> Option<TeamColor> {
         let id = self.team_id?;
@@ -88,6 +150,9 @@ impl Config {
         } else {
             Config::default().widget_opacity
         };
+        for state in self.windows.values_mut() {
+            state.sanitize();
+        }
     }
 }
 
@@ -230,5 +295,70 @@ mod tests {
         let back: Config = serde_json::from_str(&json).unwrap();
         assert_eq!(back, c);
         assert!(back.followed.contains("1DB147F0"));
+    }
+
+    #[test]
+    fn rf46_window_state_defaults_are_visible_and_movable() {
+        let mut c = Config::default();
+        let state = c.window("Settings");
+        assert!(state.visible, "una ventana nueva se ve");
+        assert!(!state.locked, "y se puede mover");
+        assert!(!state.collapsed);
+        assert_eq!(
+            state.position, None,
+            "la posición la decide el primer frame"
+        );
+        assert!(state.opacity > 0.5 && state.opacity <= 1.0);
+    }
+
+    #[test]
+    fn rf46_window_state_survives_a_restart() {
+        let mut c = Config::default();
+        {
+            let state = c.window("Settings");
+            state.position = Some([120.0, 340.0]);
+            state.size = Some([420.0, 260.0]);
+            state.opacity = 0.6;
+            state.locked = true;
+        }
+
+        let json = serde_json::to_string(&c).unwrap();
+        let mut back: Config = serde_json::from_str(&json).unwrap();
+        back.sanitize();
+        let state = back.window("Settings");
+        assert_eq!(state.position, Some([120.0, 340.0]));
+        assert_eq!(state.size, Some([420.0, 260.0]));
+        assert_eq!(state.opacity, 0.6);
+        assert!(state.locked, "bloqueada sigue bloqueada tras reiniciar");
+    }
+
+    #[test]
+    fn rf46_impossible_window_values_are_discarded() {
+        let mut state = WindowState {
+            opacity: f32::NAN,
+            position: Some([f32::INFINITY, 10.0]),
+            size: Some([4.0, 2.0]),
+            ..WindowState::default()
+        };
+        state.sanitize();
+
+        assert_eq!(
+            state.opacity,
+            WindowState::default().opacity,
+            "NaN no llega a imgui"
+        );
+        assert_eq!(state.position, None, "una posición infinita se descarta");
+        assert_eq!(
+            state.size,
+            Some([120.0, 60.0]),
+            "el tamaño mínimo se respeta"
+        );
+    }
+
+    #[test]
+    fn rf46_unknown_window_key_does_not_panic() {
+        let mut c: Config = serde_json::from_str(r#"{"windows":{}}"#).unwrap();
+        c.window("Settings").opacity = 0.3;
+        assert_eq!(c.windows.len(), 1);
     }
 }

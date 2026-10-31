@@ -26,6 +26,24 @@ Reglas:
   primera prueba para las licencias de `nexus`. Si vuelve a fallar, hay que calcular el hash
   real de los ficheros de licencia, no seguir probando variantes.
 
+## HECHO – 2026-10-31 · Contrato de ventana compartido (T-17 parcial)
+
+- `addon::ui::window::draw` es el único sitio que dibuja cromo: barra de título propia (texto
+  traducido + id estable), `×` a la derecha, plegado con doble clic, mover/redimensionar solo
+  si no está bloqueada, `bg_alpha` con la opacidad, menú contextual con *Bloquear posición*,
+  *Opacidad* y *Restablecer posición y tamaño*, y tamaño mínimo 180×90.
+- Estado por ventana en `config.json` (`windows.<clave>`): `visible`, `collapsed`, `locked`,
+  `opacity`, `position`, `size`, con saneo (NaN, infinitos, tamaños imposibles) y prueba de
+  ida y vuelta.
+- La UI escribe en una copia mutable (`lib::runtime()`); el fichero se guarda en `unload`
+  porque el hilo de render no puede hacer E/S. Se pierde lo movido si el juego revienta; el
+  guardado diferido llega con el worker (T-11c).
+- Decisión: el plegado **no** usa el `collapsed` de imgui. Con `title_bar(false)` una ventana
+  plegada de imgui no dibuja nada y no habría forma de desplegarla; se controla desde nuestro
+  estado y se autoajusta el tamaño.
+- Verificado: `clippy -D warnings` limpio; 12 tests en el addon (4 nuevos de RF-46), 59 en
+  `core`, 13 en `api`, 6 en `store`; `check_loc.sh` y `check_traceability.sh` en verde.
+
 ## HECHO – 2026-10-31 · i18n es/en/fr/de con override de Ctrl derecho (T-31)
 
 - `core::i18n`: 36 claves indexadas por el texto inglés, columnas `[es, en, fr, de]`, `t`/`w`
