@@ -13,6 +13,32 @@ Reglas:
 
 ---
 
+## HECHO – 2026-10-31 · Los cuatro bugs de la bandeja, con el juego abierto como testigo (0.22.10)
+
+- Se miró `bugs.md` (el jugador lo reescribió mientras trabajábamos: «a los 10 minutos deja de
+  funcionar» y «tengo el clan en na y en eu» llegaron a mitad). Esta vez había **evidencia en
+  vivo**: el juego estaba abierto, así que se leyeron `Nexus.log`, `settings.json` y el propio
+  MumbleLink (memoria compartida) en vez de suponer.
+- **MumbleLink medido:** `name` = «Guild Wars 2» (no el personaje), `identity` =
+  `{"name":"Jhoin",…,"world_id":2147483649,"team_color_id":9}`, `shard_id` = `2147483649`
+  (`0x80000001`), `instance` = 0. De ahí salen dos cosas: el `shard_id` **no** es la partida (la
+  detección de 0.22.9 no puede funcionar, y el log ya lo dice), y el roster se indexaba con el
+  nombre del juego.
+- **Arreglos (detalle en `bugs.md`):** reclamo caducado fuera (`last_flipped > claimed_at`), el
+  `×` de dejar de seguir dentro de la ventana, `click_through` copiado de vuelta al configurar y
+  leído del runtime para el clic derecho, el buscador enseña los clanes que ya se siguen, el
+  nombre del personaje sale de `identity`, y el sondeo pide la partida del equipo que va a vigilar.
+- Verificación: 222 tests en verde (96 addon · 16 api · 104 core · 6 store), `clippy -D warnings` y
+  `cargo fmt --check` limpios, ningún fichero por encima de 800 líneas (se partió
+  `worker.rs` → `worker/tests.rs` y los ayudantes de clic a `ui/window.rs`), DLL de 1.904.640 B
+  (objetivo 2,2 MB).
+- **No verificado en el juego**: nada de esto se ha podido pulsar dentro de GW2. En particular el
+  «a los 10 minutos deja de funcionar» sigue abierto: el log dirá si el addon sigue sondeando
+  (`sondeo N: … último reclamo hace X min` cada 10 sondeos).
+- **Trampa nueva apuntada:** `crate::config()` es la copia **del arranque** y nunca cambia; todo lo
+  que el jugador toca en la ventana (clanes seguidos, filtros, click-through) vive en
+  `crate::runtime()`. Leer `config()` desde el render fue el origen de tres de los cuatro bugs.
+
 ## HECHO – 2026-10-31 · La partida la dice el juego, no los ajustes (0.22.9)
 
 - El jugador corrigió el diagnóstico: **entró al juego con 0.22.6, reclamó campa y el addon no lo
@@ -1304,6 +1330,15 @@ Leídos de `bugs.md` y diagnosticados con el `Nexus.log` y el `settings.json` re
 - Torre totalmente mejorada llega a `points_tick` 8: "alto valor" no puede ser por tipo.
 - Ids de equipo 11001–11015 (NA) y 12001–12018 (EU). Prefijo del match: `1-x` NA, `2-x` EU.
 - Nexus expone `NexusLink::is_gameplay`: sirve para no dibujar en carga/selección.
+- `crate::config()` es la copia **del arranque** y no cambia nunca; lo que el jugador toca en la
+  ventana está en `crate::runtime()`. Leer `config()` desde el render hizo que el clic derecho no
+  viera el click-through, que las listas de clanes no se refrescaran y que el clic derecho no
+  deshiciera nada (0.22.10).
+- MumbleLink `name` = «Guild Wars 2», **no** el personaje: el personaje está en `identity`
+  (`{"name":"Jhoin",…}`). Y `shard_id` en WvW vale `0x80000001` (medido 2026-10-31): no es el mundo
+  ni la partida, así que no sirve para detectar el emparejamiento.
+- Un reclamo del API sigue ahí aunque el objetivo cambie de color: hay que comparar `last_flipped`
+  con `claimed_at` o el mapa pinta un anillo en un campa de otro color (0.22.10).
 - Publicar: `UpdateProvider::Direct` + `DisableHotloading`, MD5 de 32 hex sin BOM, excepción
   de LFS para la DLL, tag propio con `--latest=false`. Ver `docs/RELEASE.md`.
 

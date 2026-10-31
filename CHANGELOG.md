@@ -1,6 +1,37 @@
 # Changelog
 Formato [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/), versionado [SemVer](https://semver.org/lang/es/).
 
+## [0.22.10] - 2026-10-31
+### Corregido
+- **Un reclamo caducado ya no pinta el anillo de un clan en un campa de otro color.** La API no
+  borra `claimed_by` cuando el objetivo cambia de manos: solo un **nuevo reclamo** lo sustituye. Ahora
+  un reclamo cuenta solo mientras el objetivo no haya dado la vuelta después (`last_flipped` anterior
+  a `claimed_at`). Era lo que se veía como «YaK tiene reclamado un campa que en verdad era de otro
+  color».
+- **El click-through del menú del clic derecho ya hace algo.** `click_through` era el único campo que
+  el cromo de la ventana no escribía de vuelta, así que la marca del menú se tiraba al final del
+  fotograma.
+- **El clic derecho devuelve el ratón aunque el click-through se activara en Ajustes.** La
+  comprobación leía la configuración del arranque, que nunca ve los cambios hechos después.
+- **Dejar de seguir un clan, de verdad.** La `×` se dibujaba después de una fila que ocupa todo el
+  ancho, así que caía fuera de la ventana; ahora el hueco se reserva antes (como el `×` de la
+  cabecera). Además la pestaña *Clanes* y el filtro de avisos leen la configuración viva y no la del
+  arranque, así que la estrella y las listas cambian en el momento.
+- **El buscador enseña los clanes que ya sigues.** Buscar «dolyak» en EU devuelve **otro** clan
+  (`DYAK · Dolyak`), no el tuyo (`YaK · Dolyak Sanctuary`), así que la ventana decía «no existe» de un
+  clan que ya estaba en tu lista. Ahora se buscan también los seguidos, sin red.
+- **El equipo del personaje se guarda con su nombre.** Mumble publica `"Guild Wars 2"` en el campo
+  `name` (el del juego, no el del personaje), así que el equipo quedaba guardado bajo una clave que
+  no era el personaje. Ahora se lee del JSON de identidad.
+- **El sondeo pide la partida del equipo que se va a vigilar.** Con la detección cacheada 15 minutos,
+  se pedía la partida del equipo guardado y luego se evaluaba el equipo detectado: el addon miraba la
+  partida equivocada casi todo el rato.
+### Nota
+- El `shard_id` de Mumble **no** identifica la partida: en el juego vale `2147483649`
+  (`0x80000001`) y no aparece en ninguna de las nueve. La detección por Mumble no puede funcionar
+  hasta encontrar otro dato; el log ya lo deja escrito (`deteccion: el shard … no está en ninguna
+  partida`).
+
 ## [0.22.9] - 2026-10-31
 ### Corregido
 - **El addon mira la partida en la que estás, no la del equipo guardado.** Hasta ahora vigilaba el

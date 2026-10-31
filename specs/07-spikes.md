@@ -327,8 +327,46 @@ Medido con `curl` contra la API en vivo, porque el buscador de clanes depende de
   y `name=legends+of` → **[]**. Con dos palabras no encuentra nada, así que la UI pide una.
 - `%20` y `+` dan el mismo resultado: el problema no es la codificación, es que solo acepta un
   término.
+- **`name=dolyak` devuelve un solo id y no es el clan del jugador** (medido 2026-10-31):
+  devuelve `F0CE8616-8AD5-4D30-91E4-A1B54C3EC1CE` = `[DYAK] Dolyak`, mientras el suyo es
+  `6C45F3C8-F21C-EF11-81AB-8B4A188BDE13` = `[YaK] Dolyak Sanctuary`. Con «dolyak» no sale
+  *Dolyak Sanctuary*: la búsqueda no es por subcadena. Por eso el buscador del addon mira también
+  los clanes que el jugador ya sigue, sin red.
 - `/v2/wvw/guilds/:region` sigue siendo la forma de saber de qué equipo es cada clan: 282 644 bytes
-  para EU, así que se cachea por región.
+  para EU, así que se cachea por región. Un clan sin reclamar en el emparejamiento actual **no
+  aparece** en ese mapa (`F0CE8616` no está ni en `eu` ni en `na`).
+
+### Notas de verificación: `claimed_by` sobrevive al cambio de color (2026-10-31)
+
+Medido en `/v2/wvw/matches/1-1` y en la fixture `match_2-2.json`.
+
+- Una estructura reclamada trae `claimed_by`, `claimed_at` (cuándo la reclamó el clan) y
+  `last_flipped` (cuándo cambió de dueño). En la fixture, los 41 reclamos tienen
+  `claimed_at` **posterior** a `last_flipped` (el clan reclama después de capturar).
+- La API **no borra** `claimed_by` cuando la estructura cambia de bando: solo un **nuevo reclamo**
+  lo sustituye. Quien se fíe de `claimed_by` a secas pinta el anillo de un clan en un campa de otro
+  color, que es lo que vio el jugador el 2026-10-31. La regla que se aplica: un reclamo vale
+  mientras `last_flipped <= claimed_at`; si `last_flipped` es posterior, el clan ya no la tiene.
+
+### Notas de verificación: MumbleLink en WvW (`name`, `world_id`, `shard_id`, `team_color_id`, 2026-10-31)
+
+Leído en vivo de la memoria compartida `MumbleLink` con el juego abierto (`map_id` 96, blue
+borderlands), para decidir si se puede saber la partida sin preguntar al jugador.
+
+- **`name` = «Guild Wars 2»**, no el personaje. El personaje está en `identity`:
+  `{"name":"Jhoin","profession":6,"spec":48,"race":2,"map_id":96,"world_id":2147483649,
+  "team_color_id":9,"commander":false,"map":96,"fov":1.222,"uisz":1}`. Indexar el roster por
+  `name` guardaba el equipo del personaje bajo una clave que no era el personaje.
+- **`shard_id` = 2147483649 (`0x80000001`)**, `instance` = 0, igual que `world_id` (`0x80000001`).
+  Ese valor **no aparece en `all_worlds` de ninguna de las nueve partidas** (que mezclan mundos
+  viejos como 1015 y equipos nuevos como 11012), así que **no identifica la partida**: buscar el
+  shard en `/v2/wvw/matches` no puede funcionar. La detección de 0.22.9 no llegó a funcionar nunca.
+- **`team_color_id` = 9** en WvW (y `0` fuera): no es 1/2/3, así que tampoco sirve como color de
+  equipo con el mapeo que se suponía. Queda sin verificar qué significa.
+- Lo que sí identifica la partida es el **equipo guardado**: el clan del jugador (`6C45F3C8`,
+  YaK) tenía un reclamo en `1-1` (`96-38`, azul) y su equipo (`11011`) juega en `1-1` como azul.
+- `ui_state` = 24 en WvW (`GAME_HAS_FOCUS | IS_IN_COMPETITIVE_MODE`).
+
 ### Notas de verificación: orientación de las coordenadas y del mapa real (2026-10-31)
 
 Medido porque el jugador avisó de que «se ven 3 trozos: norte, centro, sur; el norte y el sur están
