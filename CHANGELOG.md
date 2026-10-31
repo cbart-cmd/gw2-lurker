@@ -1,6 +1,15 @@
 # Changelog
 Formato [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/), versionado [SemVer](https://semver.org/lang/es/).
 
+## [0.13.1] - 2026-10-31
+### Añadido
+- **Ruta numerada sobre el mapa** (T-16): al elegir un clan en la pestaña Clanes, el mapa dibuja
+  sus reclamaciones de la sesión en orden temporal, unidas por una línea, con el número de cada
+  paso y un anillo en la más reciente. El aviso de «ruta inferida» (ADR-005) se pinta debajo.
+### Corregido
+- `worker.rs` pasaba de 800 líneas: los catálogos de la API (objetivos, mapas y nombres de clan)
+  se mueven a `catalog.rs`.
+
 ## [0.13.0] - 2026-10-31
 ### Añadido
 - **Pestaña Mapa** (T-14): mapa simplificado de cada uno de los cuatro mapas de Mundo contra Mundo,

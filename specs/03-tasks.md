@@ -98,6 +98,10 @@ Cada tarea es pequeña y verificable. Orden recomendado; las dependencias se ind
   por equipo, contorno doble en alto valor, anillo en guilds seguidas) más selector de mapa.
   Verificado que `coord` está en coordenadas de continente y que `points_tick` no viene en
   `/v2/wvw/objectives`. (T-04, T-12) — RF-30
+- **T-16 (parcial)** La ruta del clan elegido se dibuja sobre el mapa: nodos numerados en orden
+  temporal, línea entre ellos, gris si el claim no trae hora, y anillo en el más reciente (RF-32).
+  Falta el selector de rango temporal, el trazo discontinuo para `late`/`gap` (RF-33) y el tooltip
+  por nodo (RF-34). (T-15) — RF-32, RF-33, RF-34
 - **T-15 (parcial)** Capa de claims sobre el mapa: los objetivos de las guilds seguidas llevan
   anillo dorado (RF-31). Falta la etiqueta con el tag y la vista de estado por guild. (T-14, T-11)
   — RF-31, RF-23

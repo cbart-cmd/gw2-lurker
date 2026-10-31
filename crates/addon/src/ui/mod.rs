@@ -253,15 +253,27 @@ fn draw_tabs(
             TabItem::new(i18n::widget(key)).build(ui, || match index {
                 0 => alerts::body(ui, data.alerts, data.now),
                 1 => {
+                    let history = guilds::selected_guild()
+                        .map(|guild| crate::worker::dashboard().guild_history(&guild))
+                        .unwrap_or_default();
                     map::body(
                         ui,
-                        data.claims,
-                        data.objectives,
-                        data.maps,
+                        &map::View {
+                            rows: data.claims,
+                            names: data.objectives,
+                            maps: data.maps,
+                            follow: data.follow,
+                            history: &history,
+                        },
                         &mut map_choice(),
                         data.current,
-                        data.follow,
                     );
+                    if !history.is_empty() {
+                        // ADR-005: la ruta es una deducción, y se dice siempre.
+                        ui.text_disabled(i18n::text(
+                            "Route inferred from claims; it is not the real path.",
+                        ));
+                    }
                     // The list is the same data as the map, one click away: during a fight the
                     // text is faster to read than the picture.
                     ui.separator();

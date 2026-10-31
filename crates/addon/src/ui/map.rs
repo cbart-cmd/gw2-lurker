@@ -26,16 +26,34 @@ const UNCLAIMED: [f32; 4] = [0.55, 0.57, 0.6, 1.0];
 /// Ring drawn around the objectives of a followed guild (RF-31).
 const FOLLOWED_RING: [f32; 4] = [1.0, 0.86, 0.4, 1.0];
 
+/// Everything the map tab draws, gathered by the caller (`ui::draw_tabs`).
+///
+/// A struct and not eight parameters: the signature was already at the limit clippy allows.
+pub struct View<'a> {
+    /// Claims of the whole matchup: owner and guild of each objective.
+    pub rows: &'a [ClaimRow],
+    /// Objectives of the player's language, with the `coord` the drawing needs.
+    pub names: &'a [ObjectiveInfo],
+    /// Boxes of the four maps (RF-30).
+    pub maps: &'a [WvwMap],
+    /// Guilds the player follows: their objectives get a ring (RF-31).
+    pub follow: &'a FollowList,
+    /// What the guild chosen in the *Guilds* tab claimed this session, for the route (T-16).
+    pub history: &'a [ClaimRow],
+}
+
 /// Body of the *Map* tab.
-pub fn body(
-    ui: &Ui,
-    rows: &[ClaimRow],
-    names: &[ObjectiveInfo],
-    maps: &[WvwMap],
-    role: &mut MapRole,
-    here: Option<MapRole>,
-    follow: &FollowList,
-) {
+///
+/// The route is always captioned as inferred (ADR-005); the caption lives next to the drawing.
+pub fn body(ui: &Ui, view: &View<'_>, role: &mut MapRole, here: Option<MapRole>) {
+    let View {
+        rows,
+        names,
+        maps,
+        follow,
+        history,
+    } = *view;
+
     draw_selector(ui, role, here, maps);
 
     let Some(map) = maps
@@ -86,6 +104,68 @@ pub fn body(
             row.is_none_or(|row| row.is_high_value()),
             row.is_some_and(|row| follow.contains(&row.guild)),
         );
+    }
+
+    draw_route(ui, &frame, origin, size, map.id, names, history);
+}
+
+/// Numbered, directed path of the chosen guild on this map (T-16, RF-32).
+///
+/// The route is **inferred** from the claims (ADR-005): the caption that says so is drawn by the
+/// guilds tab, next to the same data.
+fn draw_route(
+    ui: &Ui,
+    frame: &Frame,
+    origin: [f32; 2],
+    size: [f32; 2],
+    map_id: u32,
+    names: &[ObjectiveInfo],
+    history: &[ClaimRow],
+) {
+    let mut steps: Vec<([f32; 2], Option<chrono::DateTime<chrono::Utc>>)> = history
+        .iter()
+        .filter(|row| row.map_id == map_id)
+        .filter_map(|row| {
+            let objective = names.iter().find(|known| known.id == row.objective_id)?;
+            let coord = objective.coord?;
+            let point = project(frame, [coord[0], coord[1]], origin, size)?;
+            Some((point, row.claimed_at))
+        })
+        .collect();
+    if steps.len() < 2 {
+        return;
+    }
+    // `history` llega en orden de llegada; el dibujo va en orden temporal (RF-32).
+    steps.sort_by_key(|(_, at)| *at);
+
+    let list = ui.get_window_draw_list();
+    for pair in steps.windows(2) {
+        list.add_line(pair[0].0, pair[1].0, [1.0, 0.75, 0.3, 0.8])
+            .thickness(2.0)
+            .build();
+    }
+    for (index, (point, at)) in steps.iter().enumerate() {
+        let colour = if at.is_none() {
+            [0.7, 0.7, 0.7, 1.0]
+        } else {
+            [1.0, 0.75, 0.3, 1.0]
+        };
+        list.add_circle(*point, 8.0, [0.05, 0.05, 0.07, 0.9])
+            .filled(true)
+            .build();
+        list.add_circle(*point, 8.0, colour).thickness(1.5).build();
+        let number = (index + 1).to_string();
+        list.add_text(
+            [point[0] - 3.0, point[1] - 7.0],
+            [1.0, 1.0, 1.0, 1.0],
+            &number,
+        );
+    }
+    // The most recent claim is the one the player wants to see first (RF-32): a bright ring.
+    if let Some((last, _)) = steps.last() {
+        list.add_circle(*last, 12.0, [1.0, 0.4, 0.2, 1.0])
+            .thickness(2.0)
+            .build();
     }
 }
 

@@ -36,6 +36,11 @@ fn selected() -> Option<String> {
         .clone()
 }
 
+/// Guild whose history is on screen, if any. The map tab draws its route (T-16).
+pub fn selected_guild() -> Option<String> {
+    selected()
+}
+
 fn set_selected(guild: Option<String>) {
     *SELECTED.lock().unwrap_or_else(|error| error.into_inner()) = guild;
 }

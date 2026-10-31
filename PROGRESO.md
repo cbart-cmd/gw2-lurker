@@ -13,6 +13,19 @@ Reglas:
 
 ---
 
+## HECHO – 2026-10-31 · Ruta numerada sobre el mapa (T-16 parcial; 0.13.1)
+
+- `ui::map` gana `View` (filas, objetivos, mapas, clanes seguidos e historial) y `draw_route`:
+  proyecta las reclamaciones del clan elegido en el mapa que se está viendo, las ordena por
+  `claimed_at`, las une con una línea y numera cada nodo; el más reciente lleva un anillo naranja.
+  Sin hora, el nodo va en gris.
+- La captura de «Ruta inferida a partir de las reclamaciones; no es el recorrido real» (ADR-005)
+  se pinta bajo el mapa cuando hay historial, reutilizando la clave de i18n que ya existía.
+- Falta para cerrar T-16: selector de rango temporal, trazo discontinuo para `late`/`gap` y
+  tooltip por nodo.
+- De paso: `worker.rs` había pasado de 800 líneas con la llegada de los catálogos, así que
+  objetivos, mapas y nombres de clan se mueven a `catalog.rs` (AGENTS §2.8).
+
 ## HECHO – 2026-10-31 · Pestaña Mapa con proyección real (T-14; 0.13.0)
 
 - **`core::project`**: `Frame` (caja de `continent_rect`) y `project` (coordenada de continente →
