@@ -117,6 +117,26 @@ JSON-lines, un fichero por mes: `history/2026-10.jsonl`. Una línea por evento:
 - Fuente de datos: las alertas generadas por `rules` se empujan a `UiState` por el canal del worker; el widget y el log leen la misma lista.
 - Pendiente de confirmar en T-01: flags exactos de imgui disponibles en `nexus-rs` y cómo se persiste la posición.
 
+## 7c. Idioma y contrato de ventana (RF-44, RF-45, RF-46)
+
+Patrón adoptado tras revisar `../fight_analysis_danger` y `../gw2-rotation-builds`.
+
+**Idioma**
+- `crates/addon/src/i18n.rs`: tabla `TEXT: &[(&str, [&str; 4])]` indexada por el texto original en inglés, columnas `[es, en, fr, de]`. Funciones `t(&str) -> &str`, `w(&str) -> String` (añade `###<clave>` para que el id de imgui sea estable al cambiar de idioma) y `f(&str, args)` con `{0}`, `{1}`.
+- Detección, en este orden: preferencia del usuario (si no es *Auto*) → `nexus::rtapi::RealTimeApi::get().and_then(|a| a.read_game()).language` (0=en, 2=fr, 3=de, 4=es) → evento `EV_UNOFFICIAL_EXTRAS_LANGUAGE_CHANGED` → `nexus::localization::translate(...)` → inglés.
+- Se registran las claves propias con `nexus::localization::set_translation` para que Nexus traduzca lo suyo.
+- Nombres de la API: `?lang=<código>` y caché en disco **por idioma**, para que el override no necesite red.
+
+**Ctrl derecho (RF-45)**
+- `crates/addon/src/ffi/keys.rs`: `is_right_ctrl_down() -> bool` con `GetAsyncKeyState(VK_RCONTROL)` y `// SAFETY`. Es el único punto `unsafe`; el resto del addon solo ve un `bool`.
+- Se aplica si `UiState::GAME_HAS_FOCUS` (Mumble) o si el cursor está sobre una ventana del addon, para no reaccionar mientras se escribe en otra aplicación.
+- Se evalúa **cada frame** y afecta al render, no a lo persistido.
+
+**Contrato de ventana (RF-46)**
+- `crates/addon/src/ui/window.rs`: un `WindowConfig { visible, position, size, opacity, locked, collapsed }` por ventana (el widget ya usa ese estado en §7b) y una función única que dibuja el cromo: barra de título propia (`.title_bar(false)`), `×` para ocultar, doble clic para plegar, `resizable(true)`, `.bg_alpha(opacity)`, y menú contextual con clic derecho (Bloquear / Opacidad / Restablecer / Ajustes).
+- La posición se impone siempre desde config (la arrastra la barra propia) y solo se relee del ratón cuando la ventana **no** está bloqueada y no se está arrastrando; si no, el guardado pisa el movimiento del frame.
+- Si la posición guardada cae fuera de pantalla, se corrige al cargar.
+
 ## 8. Vista Histórico y ruta simulada (ADR-005)
 
 - Entrada: `history.query(guild, range)` → claims ordenados por `at`.

@@ -38,22 +38,36 @@ Estados: sin alertas y bloqueado → widget oculto (opcional: texto tenue "Sin n
 ```
 El nombre sale de `data/wvw-teams.json`; si el id no está en la tabla se muestra solo `(12014)`. La identidad es el id: los nombres y los colores cambian cada temporada.
 
-## W3 – Configuración (RF-40)
+## W3 – Configuración (RF-40, RF-44, RF-46)
 ```
-┌ WvW Watch ─ Configuración ────────────────────────┐
-│ [General] [Alertas] [Widget] [Guilds] [Datos]     │
-├───────────────────────────────────────────────────┤
+┌ WvW Watch ─ Configuración ──────────────── 🔒 ─ × ┐  ← arrastrar la cabecera mueve,
+│ [General] [Alertas] [Widget] [Guilds] [Datos]     │    el borde redimensiona,
+├───────────────────────────────────────────────────┤    🔒 bloquea, clic derecho = menú
+│ Idioma: ◉ Auto (juego: español) ○ EN ○ ES ○ FR ○ DE│
+│         manten Ctrl der. para ver todo en inglés   │
 │ Alertas:  ◉ Mi mapa  ○ Todos los mapas            │
 │ Sonido: [x]   Cooldown por objetivo: [ 60 ] s     │
 │ Widget: Líneas [5]  Vida [60] s  Opacidad [80]%   │
-│         Posición/tamaño: (arrastra el widget)     │
-│         [x] Bloqueado    Atajo: [ ... ]           │
-│ Polling: [30] s     Historial: [30] días          │
+│         [x] Bloqueado    Atajo: [ Alt+Shift+L ]   │
+│ Polling: [30] s                                    │
+│ Historial: sesión actual (desde 12:04)             │
 │ Estilo ventanas: ◉ Nexus  ○ Propio                │
 │ Fondo widget: ○ Transparente ◉ Semitransparente   │
 │ Versión 0.1.0  ·  Estado: ✔ actualizado           │
 └───────────────────────────────────────────────────┘
 ```
+Menú contextual (clic derecho sobre cualquier ventana, mismo orden siempre):
+```
+┌───────────────────────────┐
+│ [x] Bloquear posición     │
+│ ───────────────────────── │
+│ Opacidad   [=====|     ]  │
+│ ───────────────────────── │
+│ Restablecer posición…     │
+│ Ajustes…                  │
+└───────────────────────────┘
+```
+El cromo es **idéntico en todas las ventanas**: la `×` oculta (no destruye), la cabecera arrastra, el borde redimensiona. Lo único que cambia es el tamaño mínimo y si hay acciones propias.
 
 ## W4 – Guilds seguidas y sugeridas (RF-20, RF-20a, RF-23)
 ```

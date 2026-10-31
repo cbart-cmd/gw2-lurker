@@ -85,7 +85,7 @@ Comprobado el **2026-10-31** contra la API real, el código fuente de `nexus-rs`
 **RF-16 (M)** El addon deberá mostrar las alertas en un **widget fijo** en pantalla: una lista compacta de las últimas alertas, la más reciente arriba, visible solo en mapas de WvW. Si no hay alertas vigentes y el widget está bloqueado, se oculta por completo (opción para mostrar "Sin novedades").
 - GWT: *Given* el jugador en WvW con el widget visible, *When* se genera una alerta, *Then* aparece como nueva primera línea en ≤ 1 frame tras llegar al estado de UI.
 
-**RF-17 (M)** El widget deberá poder moverse y redimensionarse libremente, y su posición y tamaño deberán persistir entre sesiones.
+**RF-17 (M)** El widget deberá poder moverse y redimensionarse libremente, y su posición y tamaño deberán persistir entre sesiones (mismo contrato de ventana que RF-46).
 
 **RF-18 (M)** El widget deberá tener modo **bloqueado**: sin cabecera ni bordes interactivos y sin capturar el ratón (los clics pasan al juego). Se alterna desde la configuración o con el atajo por defecto `Alt+Shift+L` (keybind gestionado por Nexus, reasignable).
 - GWT: *Given* el widget bloqueado, *When* el usuario hace clic sobre él, *Then* el clic llega al juego.
@@ -178,6 +178,21 @@ Comprobado el **2026-10-31** contra la API real, el código fuente de `nexus-rs`
 
 **RF-43 (M)** Indicador de estado: último refresco correcto, "obsoleto" si supera N intervalos, error de red resumido.
 
+### E1. Idioma (i18n)
+
+**RF-44 (M)** Todo texto propio del addon saldrá de una **tabla de traducción** indexada por el texto original en inglés (nunca literales sueltos en la UI). Idiomas: **es, en, fr, de**; una clave sin traducir cae a inglés. El idioma efectivo se resuelve en este orden: (1) preferencia del usuario si no es *Auto*; (2) **idioma del juego** leído de Nexus RTAPI (`read_game().language`: 0=en, 2=fr, 3=de, 4=es); (3) idioma de Nexus / evento de Unofficial Extras `EV_UNOFFICIAL_EXTRAS_LANGUAGE_CHANGED`; (4) inglés. Por defecto: **Auto**.
+- GWT: *Given* el juego en español y preferencia *Auto*, *When* se abre la configuración, *Then* los textos salen en español sin tocar nada.
+- El addon registrará además sus claves en Nexus (`nexus::localization::set_translation`) para que Nexus muestre sus textos en el idioma del usuario.
+- Los nombres que vienen de la API (objetivos, mapas) se piden con `?lang=<código>` y se cachean **por idioma** (es y en como mínimo), para poder cambiar de idioma al instante sin red.
+
+**RF-45 (M)** Mientras se mantenga pulsado **Ctrl derecho** con el juego en primer plano, **todo** el texto del addon se renderizará en **inglés**; al soltar vuelve al idioma efectivo. No modifica la preferencia guardada.
+- La lectura del teclado estará en `ffi/` con `// SAFETY` (`GetAsyncKeyState(VK_RCONTROL)`), y solo se aplicará si `UiState::GAME_HAS_FOCUS` o el cursor está sobre una ventana del addon, para no dispararse al escribir en otra aplicación.
+- GWT: *Given* idioma efectivo español, *When* el usuario mantiene Ctrl derecho con GW2 en primer plano, *Then* widget y ventanas pasan a inglés y vuelven al soltar en ≤ 1 frame.
+
+**RF-46 (M)** Todas las ventanas (opciones, mapa, histórico, guilds, log) y el widget compartirán el mismo **contrato de ventana**: cerrar con `×` (oculta, no destruye), plegar/desplegar con doble clic en la cabecera, mover arrastrando la cabecera, redimensionar por el borde y el grip inferior derecho, **bloquear** (impide mover y redimensionar; el widget bloqueado además no captura clics, RF-18) y **opacidad 0–100 %** aplicada al fondo. El estado por ventana (`visible`, `position`, `size`, `opacity`, `locked`, `collapsed`) se guarda en la configuración y se restaura al arrancar.
+- Menú contextual con **clic derecho** sobre cualquier ventana: *Bloquear posición*, *Opacidad* (slider), *Restablecer posición y tamaño*, *Ajustes…*.
+- GWT: *Given* opacidad 60 % y ventana bloqueada, *When* se reinicia el juego, *Then* aparece en la misma posición, tamaño, opacidad y bloqueada.
+
 ## E2. Actualización, integridad y fallo seguro
 
 **RF-50 (M)** Cuando el fichero de la DLL en disco cambie respecto a la versión cargada (ADR-007), el addon deberá mostrar un aviso visible y persistente: "Actualizado a vX.Y.Z, reinicia el juego para aplicar", sin intentar recargarse en caliente.
@@ -214,7 +229,7 @@ Comprobado el **2026-10-31** contra la API real, el código fuente de `nexus-rs`
 | RNF-05 | El historial es "mejor esfuerzo": no se promete completitud | Documentado en UI y README |
 | RNF-06 | Sin `panic` a través de FFI; errores internos a log | Revisión + `catch_unwind` en puntos de entrada |
 | RNF-07 | Compatible con las versiones de Nexus/GW2 objetivo; el addon se desactiva sin romper si falla la carga | Prueba manual |
-| RNF-08 | Textos de UI preparados para i18n (ES/EN) | Revisión |
+| RNF-08 | Todo texto propio pasa por la tabla de traducción (es/en/fr/de, con caída a inglés); sin literales en la UI. Un test recorre las claves y detecta columnas vacías | Revisión + test |
 | RNF-09 | DLL release ≤ 1.5 MB objetivo, 2.5 MB límite (ADR-008) | `check_size.sh` en CI |
 | RNF-10 | Ningún fichero de código > 800 líneas | `check_loc.sh` en CI |
 | RNF-11 | Formato y lints: `rustfmt` y `clippy -D warnings` | CI |
@@ -236,5 +251,6 @@ Backend compartido entre usuarios, posición real de jugadores, alertas fuera de
 | RF-30..36 | `map::*` | T-14, T-15, T-16 |
 | RF-37..38 | `map::background`, `map::icons` | T-29 |
 | RF-40..43 | `config`, `nexus_ui::settings` | T-12, T-17 |
+| RF-44..46 | `addon::i18n`, `addon::ui::window`, `ffi::keys` | T-31, T-13, T-17 |
 | RF-60..63 | `addon::ui::theme` | T-28 |
 | RF-50..53 | `addon::update`, `addon::safe_mode` | T-25, T-26, T-27 |

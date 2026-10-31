@@ -34,6 +34,8 @@ Cada tarea es pequeña y verificable. Orden recomendado; las dependencias se ind
 
 ## Fase 3 – Integración Nexus
 
+- **T-31** `i18n`: tabla es/en/fr/de, detección del idioma del juego (RTAPI + fallbacks) y override con Ctrl derecho tras `ffi/`. *Hecho:* test que recorre las claves y falla si falta una columna; el idioma cambia con Ctrl der. en el juego. (T-03) — RF-44, RF-45, RNF-08
+
 - **T-12** `context` + `config`: activación solo en WvW, persistencia, selector de mundo. (T-01, T-05) — RF-01, RF-02, RF-03a/c, RF-40, RF-41
 - **T-13** Widget fijo de alertas: lista, fade, colores/formas por tipo, mover/redimensionar y persistir posición. (T-08, T-12) — RF-10, RF-16, RF-17, RF-19, RF-19a
 - **T-13b** Modo bloqueado click-through, atajo de bloqueo/desbloqueo y ventana de log ampliada. (T-13) — RF-14, RF-18
