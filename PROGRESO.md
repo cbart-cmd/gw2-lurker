@@ -31,8 +31,10 @@ Reglas:
      (medido: `die` → *Die*; `a new` → *A New*). La búsqueda real es por subcadena sobre
      `guild-names.json`; el API solo añade una coincidencia. `scripts/guild-search.ps1` permite
      buscar y construir el índice sin abrir el juego.
-- Verificación: 225 tests, clippy/fmt limpios, sin ficheros >800 líneas. Índice EU+NA construido
-  con el script (~10 000 nombres, ~30 KB de JSON por región).
+- Verificación: 225 tests, clippy/fmt limpios, sin ficheros >800 líneas. Publicada la **0.24.0**
+  (MD5 `446ea91f…`, 1 930 752 B) e instalada en local. El índice EU+NA se construye con
+  `scripts/guild-search.ps1 -BuildIndex` (~10 000 nombres; con `-DelayMs 30` tarda un rato largo,
+  y el fichero `guild-names.json` se puede copiar entre instalaciones).
 - **Trampa nueva:** el índice hay que construirlo con el script (o esperar a que el addon vaya
   viendo clanes); el API **no** permite listar «todos los que contienen X».
 
