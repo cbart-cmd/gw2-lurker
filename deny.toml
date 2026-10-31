@@ -16,10 +16,12 @@ confidence-threshold = 0.9
 [[licenses.clarify]]
 name = "nexus"
 expression = "MIT"
+license-files = []
 
 [[licenses.clarify]]
 name = "nexus_codegen"
 expression = "MIT"
+license-files = []
 
 [bans]
 multiple-versions = "warn"

@@ -87,9 +87,7 @@ La DLL se distribuye desde **`https://github.com/cbart-cmd/gw2addonsreleases`**,
 - Excepción de LFS para nuestra DLL en `.gitattributes` del repo de distribución **antes** de `git add`, o Nexus recibe un puntero de texto en vez de la DLL.
 - Verificar la descarga real (bytes, `MZ`, MD5) desde la URL exacta, no fiarse de un HTTP 200.
 
-## 9. Progreso y continuidad (`PROGRESO.md`)
-
-`PROGRESO.md`, en la raíz, es la bitácora del trabajo. Existe para que **otra IA pueda
+## 9. Progreso y continuidad (`PROGRESO.md`)`PROGRESO.md`, en la raíz, es la bitácora del trabajo. Existe para que **otra IA pueda
 seguir** si la actual se corta a medias.
 
 - Al empezar una tarea, escribe una entrada `EN CURSO` con el plan (3–5 líneas) y qué RF
@@ -100,3 +98,13 @@ seguir** si la actual se corta a medias.
 - Lo más reciente arriba. No se borran entradas; si algo se revierte, se documenta.
 - Mantén al día las secciones **Trampas ya conocidas** y **Bloqueos**: son lo primero que
   debe leer quien retome el trabajo.
+
+## 10. CI: lanzar y seguir
+
+- Después de `git push`, **no se espera al pipeline**. Se anuncia ("CI lanzada; puede
+  fallar algo") y se continúa con la siguiente tarea.
+- Prohibido `gh run watch` en primer plano salvo que el usuario lo pida. Un `gh run list`
+  suelto al final del turno basta para saber cómo fue.
+- Cuando llegue el resultado en rojo, se diagnostica con `gh run view --log-failed` y se
+  arregla como una tarea más, sin dramatizar y sin bloquear lo que esté en curso.
+- Si el pipeline tarda más de ~2 minutos es normal: compila Nexus e ImGui desde cero.
