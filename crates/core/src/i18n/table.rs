@@ -67,6 +67,24 @@ pub const TEXT: &[(&str, [&str; COLUMNS])] = &[
         ],
     ),
     ("Alert log", ["Registro de avisos", "Alert log", "Journal des alertes", "Hinweisprotokoll"]),
+    (
+        "Nothing matches the filters",
+        [
+            "Nada cumple los filtros",
+            "Nothing matches the filters",
+            "Rien ne correspond aux filtres",
+            "Nichts entspricht den Filtern",
+        ],
+    ),
+    (
+        "Last {0} minutes; the log window has the rest.",
+        [
+            "Últimos {0} minutos; el registro tiene el resto.",
+            "Last {0} minutes; the log window has the rest.",
+            "Les {0} dernières minutes ; le journal a le reste.",
+            "Die letzten {0} Minuten; das Protokoll hat den Rest.",
+        ],
+    ),
     ("History", ["Historial", "History", "Historique", "Verlauf"]),
     ("Close", ["Cerrar", "Close", "Fermer", "Schließen"]),
     (

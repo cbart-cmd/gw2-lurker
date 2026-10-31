@@ -1,6 +1,19 @@
 # Changelog
 Formato [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/), versionado [SemVer](https://semver.org/lang/es/).
 
+## [0.11.3] - 2026-10-31
+### Corregido
+- Los clanes se veían como un identificador (`9FDB4A86-1588-…`) en vez de su nombre. Ahora se
+  resuelven con la API y salen como `[TAG] Nombre` en las tres ventanas.
+- Elegir un clan en la lista parecía no hacer nada: la historia se dibujaba debajo de una lista
+  más alta que la ventana. La lista tiene su propia zona con scroll y la historia queda a la vista.
+- El widget de avisos se quedaba con todo lo de la sesión. Ahora enseña los últimos 10 minutos;
+  el resto está en el nuevo registro de avisos.
+- Dentro de Mundo contra Mundo el selector de equipo solo ofrecía el equipo actual: el addon
+  pedía únicamente el matchup del jugador. Ahora pide los nueve mientras el selector está abierto.
+### Añadido
+- Casilla **Clanes que sigo** en la ventana de objetivos del matchup.
+
 ## [0.11.2] - 2026-10-31
 ### Añadido
 - **Modo click-through**: una ventana bloqueada sigue dibujándose pero deja pasar todos los clics

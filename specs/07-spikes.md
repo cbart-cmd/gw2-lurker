@@ -224,3 +224,20 @@ Comprobado `[API]` contra el índice de endpoints (`https://api.guildwars2.com/v
 - **`/v2/account/wvw`** existe y requiere API key (`[a]` en el índice): permitiría leer el equipo de la cuenta automáticamente, pero ADR-010 descarta pedir clave. Se anota como alternativa disponible, no como decisión.
 - **`/v2/wvw/matches/overview`** devuelve solo la lista de ids de match en curso (83 bytes, los 9 actuales): endpoint barato para detectar el cambio de match sin descargar el JSON completo.
 - **Orden de región:** `1-x` = NA y `2-x` = EU (deducido de los mundos de cada `all_worlds`; no viene indicado en el JSON).
+
+### Notas de verificación: `claimed_by` es un id de gremio usable y `/v2/guild/:id` lo resuelve (2026-10-31)
+
+Comprobado `[API]` con datos en vivo (`/v2/wvw/matches?ids=all`, 403 622 bytes, y dos gremios reales).
+
+- **`claimed_by` llega como UUID con guiones y en mayúsculas**, p. ej.
+  `"9FDB4A86-1588-E611-80D3-AC162DC0847D"`. Es el id que hay que enseñar **resuelto**: en crudo
+  no lo reconoce nadie (era el bug de «sale un ID en vez del nombre del clan»).
+- **`GET /v2/guild/<ese uuid con guiones>` → 200** con `{"id","name","tag","emblem":{…}}`;
+  ejemplo medido: `[AMX] Le Coq Sportif`. Hay campos de más (`emblem`) que el parseo ignora.
+- **Sin guiones NO funciona**: los 32 caracteres seguidos devuelven **HTTP 500**
+  `{"text":"unknown error"}`. El id se usa tal cual viene en el matchup; no hay que normalizarlo.
+- Un id que ya no existe devuelve **404** `{"text":"guild not found"}`: es el caso normal de un
+  gremio disuelto, así que la UI debe caer al id y no reintentarlo en cada sondeo.
+- **Coste:** una llamada por gremio. Con un tope de 10 por sondeo, un matchup de veinte gremios
+  queda con nombre completo en ~1 minuto y luego vive en memoria toda la sesión.
+

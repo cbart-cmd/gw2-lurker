@@ -235,16 +235,17 @@ fn draw_status(ui: &nexus::imgui::Ui) {
 /// Guilds of the matchup, ordered by the most recent claim, with the history of the chosen one
 /// (T-37, T-38). The star follows a guild so it alerts on every map (RF-73).
 fn draw_guilds(ui: &nexus::imgui::Ui) {
-    let (guilds, follow) = {
+    let (guilds, names) = {
         let board = crate::worker::dashboard();
-        (board.guilds.clone(), crate::config().followed.clone())
+        (board.guilds.clone(), board.guild_names.clone())
     };
+    let follow = crate::config().followed.clone();
     let current = crate::context::current_map_role();
 
     let action = {
         let mut config = crate::runtime();
         let state = config.window(guilds::KEY);
-        guilds::draw(ui, state, &guilds, &follow, current, |guild| {
+        guilds::draw(ui, state, &guilds, &names, &follow, current, |guild| {
             crate::worker::dashboard().guild_history(guild)
         })
     };
@@ -262,12 +263,16 @@ fn draw_matchup(ui: &nexus::imgui::Ui) {
         std::sync::OnceLock::new();
     let filters = FILTERS.get_or_init(|| std::sync::Mutex::new(matchup::Filters::all_kinds()));
 
-    let rows = crate::worker::dashboard().claims.clone();
+    let (rows, names) = {
+        let board = crate::worker::dashboard();
+        (board.claims.clone(), board.guild_names.clone())
+    };
     let current = crate::context::current_map_role();
+    let follow = crate::config().followed.clone();
     let mut filters = filters.lock().unwrap_or_else(|error| error.into_inner());
     let mut config = crate::runtime();
     let state = config.window(matchup::KEY);
-    matchup::draw(ui, state, &mut filters, &rows, current);
+    matchup::draw(ui, state, &mut filters, &rows, current, &follow, &names);
 }
 
 /// Recent captures and claims (T-13). The worker resolves and filters the lines, so the render
@@ -283,11 +288,14 @@ fn draw_alerts(ui: &nexus::imgui::Ui) {
         )
     };
     let current = crate::context::current_map_role();
-    let lines = crate::worker::dashboard().recent_alerts(&filter, &follow, current, 30);
+    let lines = crate::worker::dashboard().recent_alerts(&filter, &follow, current, 50);
+    // The compact widget only keeps what just happened; the log window has the whole session
+    // (bug of 2026-10-31: "los avisos deberían desaparecer").
+    let widget = alerts::within(&lines, chrono::Utc::now(), alerts::WIDGET_MINUTES);
 
     let mut config = crate::runtime();
     let state = config.window(alerts::KEY);
-    alerts::draw(ui, state, &lines);
+    alerts::draw(ui, state, &widget);
     drop(config);
 
     let showing = alerts::popup_lines(&lines, chrono::Utc::now(), popup_secs);

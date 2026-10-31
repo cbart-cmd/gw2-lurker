@@ -4,7 +4,7 @@ Proyecto: addon de Nexus (Guild Wars 2) en Rust para Mundo contra Mundo. Avisa d
 
 ## 1. Lectura obligatoria, en este orden
 
-0. `bugs.md` (**siempre**, al empezar y al terminar: ver §9).
+0. `bugs.md` (**siempre**: antes de empezar, **después de cada paso** y al terminar; ver §9).
 1. `specs/00-constitution.md` – reglas no negociables.
 2. `specs/04-engineering-standards.md` – estilo, límites y CI.
 3. `specs/03-tasks.md` – localiza **la única tarea** que te han pedido.
@@ -27,6 +27,8 @@ Proyecto: addon de Nexus (Guild Wars 2) en Rust para Mundo contra Mundo. Avisa d
 
 ## 3. Flujo de trabajo por tarea
 
+0. **Lee `bugs.md`.** Y vuelve a leerlo después de cada paso de esta lista (§9): el usuario
+   apunta fallos mientras trabajas y una entrada nueva no puede esperar a la siguiente sesión.
 1. Resume en 3–5 líneas qué vas a hacer y qué RF/escenarios cubres. Si algo es ambiguo, **pregunta antes de programar**.
 2. Escribe los tests (deben fallar por la razón correcta).
 3. Implementa lo mínimo para que pasen.
@@ -107,7 +109,9 @@ La DLL se distribuye desde **`https://github.com/cbart-cmd/gw2addonsreleases`**,
 
 `bugs.md`, en la raíz, es donde el usuario apunta fallos en una línea, sin formato.
 
-- **Al empezar y al terminar cada tanda de trabajo, léelo.** Es obligatorio, no opcional.
+- **Léelo antes de empezar, después de cada paso y al terminar la tanda.** "Cada paso" es cada
+  test en verde, cada arreglo aplicado, cada versión compilada: se vuelve a abrir el fichero por
+  si el usuario ha apuntado algo nuevo mientras trabajabas. Es obligatorio, no opcional.
 - **No borres el fichero nunca.** Ni vaciarlo ni recrearlo: es el histórico.
 - Arregla cada entrada pendiente, ponla en el formato de la cabecera (qué pasa, causa, arreglo)
   y cámbiala a `## [x]` con la **versión** en la que sale el arreglo, dentro de

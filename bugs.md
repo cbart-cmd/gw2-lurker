@@ -63,7 +63,7 @@ Estado: `[ ]` pendiente · `[x]` hecho.
 - **Hecho (0.10.1):** mismo fallo que la entrada de arriba, reportado dos veces. La traducción
   se guarda por equipo y el campo propone la de la tabla; hay botón **Grabar**.
 
- ## [ ] widget: errores
+## [x] widget: errores (2026-10-31)
 - No sale nombre del clan sino un ID. adjunto imagen
 - al intenraer seleccioanr un clan, no me deja. adjuto imagen de lista de clanes
 - los avisos deberian desaparecer pero están siempre (a menos que no haya entendido bien la ventana esa)
@@ -74,3 +74,26 @@ Estado: `[ ]` pendiente · `[x]` hecho.
  ![alt text](image-2.png)
  ![alt text](image-3.png)
  ![alt text](image-4.png)
+- **Hecho (0.11.3):**
+  - **El ID era `claimed_by` sin resolver.** Viene como UUID con guiones
+    (`9FDB4A86-1588-E611-80D3-AC162DC0847D`) y `/v2/guild/<id>` lo resuelve a
+    `[AMX] Le Coq Sportif` (medido en vivo; sin guiones da 500, así que se usa tal cual). Se
+    resuelven de 10 en 10 por sondeo y se guardan para la sesión; los gremios disueltos (404) no
+    se reintentan. Ahora sale `[TAG] Nombre` en las tres vistas.
+  - **Seleccionar un clan**: la historia se dibujaba debajo de una lista más alta que la ventana,
+    así que elegir parecía no hacer nada. La lista va en su propia zona con scroll y la historia
+    queda siempre visible. **Pendiente:** confirmarlo en el juego.
+  - **Los avisos no desaparecían**: el widget compacto enseña los últimos 10 minutos y el
+    registro completo está en la ventana nueva «Registro de avisos».
+  - **Filtro «Clanes que sigo»** añadido a la ventana de objetivos del matchup.
+  - **Selector de equipo dentro de MvM**: el worker solo pedía el matchup del jugador, así que
+    salía un equipo por color. Con el selector abierto pide los nueve.
+
+
+ ## [ ] Historial de claims no se borra
+ - El historia de claims se debe borrar cada vez que se reiniicar el juego
+ - Lo que se debe guardar es el historial de clanes que se sigue
+
+ ## [ ] widget no se parece a bocetos
+ - En bocetos una sola ventana tiene pestañas para agrupar todo
+ - Falta el boceto de la ventana de avisos pop-up que dura 'x' segundos según se haya seleccionado

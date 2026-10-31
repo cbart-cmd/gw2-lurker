@@ -45,53 +45,72 @@ pub fn draw(
     ui: &Ui,
     state: &mut crate::config::WindowState,
     guilds: &[GuildSummary],
+    names: &std::collections::BTreeMap<String, String>,
     follow: &FollowList,
     current: Option<MapRole>,
     history: impl Fn(&str) -> Vec<gw2lurker_core::matchup::ClaimRow>,
 ) -> Option<Action> {
     let mut action = None;
+    let label = |guild: &str| {
+        names
+            .get(guild)
+            .cloned()
+            .unwrap_or_else(|| guild.to_owned())
+    };
 
-    crate::ui::window::draw(ui, KEY, 4, [420.0, 340.0], state, |ui| {
+    crate::ui::window::draw(ui, KEY, 4, [430.0, 420.0], state, |ui| {
         if guilds.is_empty() {
             ui.text_disabled(i18n::text("No claims yet"));
             return;
         }
 
-        let chosen = selected();
         ui.text(i18n::text("Ordered by most recent claim"));
-        for summary in guilds {
-            let followed = follow.contains(&summary.guild);
-            let star = if followed { "★" } else { "☆" };
-            if ui.small_button(format!("{star}###follow{}", summary.guild)) {
-                action = Some(Action::ToggleFollow(summary.guild.clone()));
-            }
-            ui.same_line();
+        // The list scrolls on its own: it is longer than the window, and with the history
+        // pushed off-screen choosing a guild looked like it did nothing (bug of 2026-10-31).
+        nexus::imgui::ChildWindow::new("###guild_list")
+            .size([0.0, 150.0])
+            .border(true)
+            .build(ui, || {
+                let chosen = selected();
+                for summary in guilds {
+                    let followed = follow.contains(&summary.guild);
+                    let star = if followed { "★" } else { "☆" };
+                    if ui.small_button(format!("{star}###follow{}", summary.guild)) {
+                        action = Some(Action::ToggleFollow(summary.guild.clone()));
+                    }
+                    ui.same_line();
 
-            let when = summary
-                .last_at
-                .map(|at| at.format("%H:%M").to_string())
-                .unwrap_or_default();
-            let here = match summary.last_map {
-                Some((_, role)) if Some(role) == current => format!(" ← {}", map_label(role)),
-                Some((_, role)) => format!(" · {}", map_label(role)),
-                None => String::new(),
-            };
-            let label = format!(
-                "{}  ·  {} · {}{here}###guild{}",
-                summary.guild, summary.claims, when, summary.guild
-            );
-            if nexus::imgui::Selectable::new(label)
-                .selected(chosen.as_deref() == Some(summary.guild.as_str()))
-                .build(ui)
-            {
-                let next = if chosen.as_deref() == Some(summary.guild.as_str()) {
-                    None
-                } else {
-                    Some(summary.guild.clone())
-                };
-                set_selected(next);
-            }
-        }
+                    let when = summary
+                        .last_at
+                        .map(|at| at.format("%H:%M").to_string())
+                        .unwrap_or_default();
+                    let here = match summary.last_map {
+                        Some((_, role)) if Some(role) == current => {
+                            format!(" ← {}", map_label(role))
+                        }
+                        Some((_, role)) => format!(" · {}", map_label(role)),
+                        None => String::new(),
+                    };
+                    let text = format!(
+                        "{}  ·  {} · {}{here}###guild{}",
+                        label(&summary.guild),
+                        summary.claims,
+                        when,
+                        summary.guild
+                    );
+                    if nexus::imgui::Selectable::new(text)
+                        .selected(chosen.as_deref() == Some(summary.guild.as_str()))
+                        .build(ui)
+                    {
+                        let next = if chosen.as_deref() == Some(summary.guild.as_str()) {
+                            None
+                        } else {
+                            Some(summary.guild.clone())
+                        };
+                        set_selected(next);
+                    }
+                }
+            });
 
         let Some(chosen) = selected() else {
             ui.separator();
@@ -100,7 +119,7 @@ pub fn draw(
         };
 
         ui.separator();
-        ui.text(format!("{}###history{}", chosen, chosen));
+        ui.text(label(&chosen));
         let rows = history(&chosen);
         if rows.is_empty() {
             ui.text_disabled(i18n::text("No claims yet"));

@@ -13,6 +13,33 @@ Reglas:
 
 ---
 
+## HECHO – 2026-10-31 · Los cinco fallos del widget (0.11.3)
+
+- **Regla nueva y permanente en `AGENTS.md`**: `bugs.md` se lee **antes de empezar, después de
+  cada paso y al terminar** (§1.0, §3.0, §9). "Cada paso" = cada test en verde, cada arreglo,
+  cada versión.
+- **Los clanes salían como UUID.** `claimed_by` viene con guiones y mayúsculas
+  (`9FDB4A86-1588-E611-80D3-AC162DC0847D`) y `/v2/guild/<id>` lo resuelve a `[AMX] Le Coq
+  Sportif`: medido en vivo, y la forma sin guiones da **500**, así que el id se usa tal cual (ver
+  `specs/07-spikes.md`). `worker::resolve_guild_names` los pide de 10 en 10 por sondeo, guarda
+  los aciertos para la sesión y **no reintenta** los 404 (gremio disuelto). `Dashboard::guild_names`
+  los publica y lo usan las tres vistas; `AlertLine::guild` sigue siendo el id porque es contra
+  lo que compara «clanes que sigo», y el nombre va en `guild_name`.
+- **La lista de clanes no dejaba elegir**: la historia se dibujaba *debajo* de una lista más
+  larga que la ventana, así que elegir parecía no hacer nada. La lista vive ahora en una
+  `ChildWindow` con scroll de 150 px y la historia queda siempre a la vista.
+- **Los avisos no desaparecían**: el widget compacto enseña los últimos 10 minutos
+  (`alerts::WIDGET_MINUTES`, función pura `within`) y el registro completo se queda en la ventana
+  nueva. El pop-up no cambia.
+- **El selector de equipos dentro de MvM enseñaba un equipo por color**: en WvW el worker pedía
+  solo el matchup del jugador (~44 KB). `wants_full_list(team_id, selector_en_pantalla)` pide los
+  nueve cuando el selector está abierto.
+- **Filtro nuevo en objetivos del matchup**: casilla «Clanes que sigo», que es lo que faltaba
+  para ver solo lo tuyo sin perder los demás mapas.
+- Verificado: 60 tests en el addon (4 nuevos), 86 en `core`, 14 en `api`, 6 en `store`; `fmt` y
+  `clippy -D warnings` limpios. Sin probar en el juego: los clics reales en la lista (la causa
+  era de maquetación y el cambio se ve, pero conviene confirmarlo).
+
 ## HECHO – 2026-10-31 · Click-through con atajo y registro de avisos (T-13b; 0.11.2)
 
 - **Bloqueo = click-through**: `ui::window::draw` añade `Window::no_inputs()` cuando la ventana

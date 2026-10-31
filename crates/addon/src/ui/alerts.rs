@@ -28,12 +28,23 @@ const POPUP_KEY: &str = "Alerts (pop-up)";
 /// How many lines fit in the window without scrolling forever.
 const MAX_LINES: usize = 25;
 
+/// How long an alert stays in the compact widget, in minutes.
+///
+/// The widget answers "what just happened"; the log window keeps the whole session. Without
+/// this the list only grew (bug of 2026-10-31). Public so the render callback and the tests use
+/// the same number.
+pub const WIDGET_MINUTES: i64 = 10;
+
 /// How many lines the pop-up shows at once.
 const MAX_POPUP_LINES: usize = 5;
 
 /// Draws the window. `window_state` comes from `config.json` like every other window.
 pub fn draw(ui: &Ui, window_state: &mut crate::config::WindowState, alerts: &[AlertLine]) -> bool {
     crate::ui::window::draw(ui, KEY, 2, [360.0, 240.0], window_state, |ui| {
+        ui.text_disabled(i18n::format(
+            "Last {0} minutes; the log window has the rest.",
+            &[&WIDGET_MINUTES.to_string()],
+        ));
         if alerts.is_empty() {
             ui.text_disabled(i18n::text("No alerts yet"));
             return;
@@ -43,6 +54,18 @@ pub fn draw(ui: &Ui, window_state: &mut crate::config::WindowState, alerts: &[Al
             draw_line(ui, line, language);
         }
     })
+}
+
+/// The lines still worth a place in the widget: those that arrived in the last `minutes`.
+///
+/// Pure (`now` is a parameter) so the rule is testable without a game.
+pub fn within(lines: &[AlertLine], now: DateTime<Utc>, minutes: i64) -> Vec<AlertLine> {
+    let limit = chrono::Duration::minutes(minutes.max(0));
+    lines
+        .iter()
+        .filter(|line| now.signed_duration_since(line.received) < limit)
+        .cloned()
+        .collect()
 }
 
 /// Draws the expanded log: every alert the worker still remembers, scrolling if needed.
@@ -134,13 +157,15 @@ fn describe(line: &AlertLine, language: gw2lurker_core::i18n::Language) -> Strin
             };
             f(language, "{0}: {1} → {2}", &[&line.objective, &from, &to])
         }
-        AlertKind::Claim => match &line.guild {
-            Some(guild) => f(language, "{0} claimed by {1}", &[&line.objective, guild]),
-            None => line.objective.clone(),
+        AlertKind::Claim => match (&line.guild, &line.guild_name) {
+            (Some(_), Some(name)) => f(language, "{0} claimed by {1}", &[&line.objective, name]),
+            (Some(guild), None) => f(language, "{0} claimed by {1}", &[&line.objective, guild]),
+            (None, _) => line.objective.clone(),
         },
-        AlertKind::Unclaim => match &line.guild {
-            Some(guild) => f(language, "{0} released by {1}", &[&line.objective, guild]),
-            None => line.objective.clone(),
+        AlertKind::Unclaim => match (&line.guild, &line.guild_name) {
+            (Some(_), Some(name)) => f(language, "{0} released by {1}", &[&line.objective, name]),
+            (Some(guild), None) => f(language, "{0} released by {1}", &[&line.objective, guild]),
+            (None, _) => line.objective.clone(),
         },
     }
 }
@@ -183,6 +208,7 @@ mod tests {
             kind,
             objective: "Zanja de Mendon".to_owned(),
             guild: guild.map(str::to_owned),
+            guild_name: guild.map(|tag| format!("[{tag}] Algo")),
             from: Some(TeamColor::Red),
             to,
             late: false,
@@ -211,6 +237,21 @@ mod tests {
             1,
             "5 s es el máximo y sigue mostrándolo"
         );
+    }
+
+    #[test]
+    fn rf19_the_widget_forgets_what_is_old() {
+        let base = Utc.with_ymd_and_hms(2026, 10, 31, 12, 0, 0).unwrap();
+        let mut old = line(AlertKind::Flip, Some(TeamColor::Blue), None);
+        old.received = base;
+        let mut fresh = line(AlertKind::Claim, None, Some("YaK"));
+        fresh.received = base + chrono::Duration::minutes(9);
+        fresh.at = fresh.received;
+
+        let now = base + chrono::Duration::minutes(12);
+        let shown = within(&[fresh.clone(), old], now, WIDGET_MINUTES);
+        assert_eq!(shown.len(), 1, "lo de hace 12 min ya no sale en el widget");
+        assert_eq!(shown[0].guild_name.as_deref(), Some("[YaK] Algo"));
     }
 
     #[test]

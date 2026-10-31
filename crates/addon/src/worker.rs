@@ -65,6 +65,8 @@ pub struct Dashboard {
     pub guilds: Vec<GuildSummary>,
     /// Objectives of the current language, for naming alerts.
     pub names: Vec<ObjectiveInfo>,
+    /// Guild id → `[TAG] Nombre`, from `/v2/guild` (RF-20). Missing ones are shown as the id.
+    pub guild_names: std::collections::BTreeMap<String, String>,
     /// Every team playing right now, with its matchup and colour (RF-03a).
     pub candidates: Vec<gw2lurker_core::Candidate>,
     /// Map id → matchup role, so an alert knows which map it happened on.
@@ -142,6 +144,7 @@ impl Dashboard {
                 kind: AlertKind::Flip,
                 objective: name(objective),
                 guild: None,
+                guild_name: None,
                 from: *from,
                 to: *to,
                 late: false,
@@ -158,6 +161,7 @@ impl Dashboard {
                 kind: AlertKind::Claim,
                 objective: name(objective),
                 guild: Some(guild.clone()),
+                guild_name: self.guild_names.get(guild).cloned(),
                 from: None,
                 to: None,
                 late: *late,
@@ -173,6 +177,7 @@ impl Dashboard {
                 kind: AlertKind::Unclaim,
                 objective: name(objective),
                 guild: Some(guild.clone()),
+                guild_name: self.guild_names.get(guild).cloned(),
                 from: None,
                 to: None,
                 late: false,
@@ -215,6 +220,9 @@ pub struct AlertLine {
     pub kind: AlertKind,
     pub objective: String,
     pub guild: Option<String>,
+    /// `[TAG] Nombre` of [`Self::guild`] when it is known (RF-20). `guild` stays the raw id
+    /// because that is what following a guild compares against.
+    pub guild_name: Option<String>,
     pub from: Option<TeamColor>,
     pub to: Option<TeamColor>,
     /// Discovered at a baseline instead of seen live (RF-25).
@@ -370,15 +378,19 @@ fn poll_once(
     store: Option<&mut SessionStore>,
 ) -> Result<(), String> {
     let team_id = crate::team::selected();
+    // The picker lists every team of the region and colour, so it needs all nine matchups.
+    // Inside WvW the worker would otherwise ask for the player's match alone and the list
+    // showed one team per colour (bug of 2026-10-31).
+    let full = wants_full_list(team_id, NEEDS_TEAMS.load(Ordering::Relaxed));
     let live = match team_id {
         // Known team: ask only for its match (~44 KB instead of ~400 KB).
-        Some(team) => match api.match_for_team(team) {
+        Some(team) if !full => match api.match_for_team(team) {
             Ok(found) => vec![found],
             // The team no longer plays: the ladder reshuffled, so refresh the whole list to
             // let the picker offer the live teams again.
             Err(_) => api.matches_all().map_err(|error| error.to_string())?,
         },
-        None => api.matches_all().map_err(|error| error.to_string())?,
+        _ => api.matches_all().map_err(|error| error.to_string())?,
     };
 
     let selection = select::evaluate(team_id, &live);
@@ -423,6 +435,7 @@ fn poll_once(
 
     let now = Utc::now();
     let candidates = select::candidates(&live);
+    let guild_names = resolve_guild_names(api, &guilds);
     let map_roles = match_id
         .as_deref()
         .and_then(|id| live.iter().find(|entry| entry.id == id))
@@ -440,6 +453,7 @@ fn poll_once(
     board.match_id = match_id;
     board.names = names;
     board.candidates = candidates;
+    board.guild_names = guild_names;
     board.map_roles = map_roles;
     board.claims = claims;
     board.guilds = guilds;
@@ -453,6 +467,74 @@ fn poll_once(
     }
     board.updated_at = Some(now);
     Ok(())
+}
+
+/// Whether the next poll has to fetch every matchup instead of only the player's one.
+///
+/// The team picker offers the teams of the region and colour that are playing *now*, and those
+/// live in all nine matchups, not just the player's: inside WvW the list showed one team per
+/// colour (bug of 2026-10-31, RF-03a).
+fn wants_full_list(team_id: Option<u32>, picker_on_screen: bool) -> bool {
+    team_id.is_none() || picker_on_screen
+}
+
+/// How many guild names are looked up per poll.
+///
+/// `/v2/guild` answers one guild per call, so asking for all of them at once would be a burst.
+/// With this budget a matchup with twenty guilds is fully named in about a minute, and the
+/// answers stay for the session.
+const GUILD_LOOKUPS_PER_POLL: usize = 10;
+
+#[derive(Default)]
+struct GuildNameCache {
+    known: std::collections::BTreeMap<String, String>,
+    /// Guilds the API refused once. A disbanded guild answers 404 forever, so retrying it on
+    /// every poll would burn the request budget for nothing.
+    failed: std::collections::HashSet<String>,
+}
+
+/// `[TAG] Nombre`, the way the game shows a guild.
+fn guild_label(info: &gw2lurker_api::GuildInfo) -> String {
+    match (info.tag.trim(), info.name.trim()) {
+        ("", name) => name.to_owned(),
+        (tag, "") => format!("[{tag}]"),
+        (tag, name) => format!("[{tag}] {name}"),
+    }
+}
+
+/// Names of the guilds in the matchup: from the session cache, then from the API.
+///
+/// Returns the whole map so the caller publishes it with the dashboard and the UI never has to
+/// take a second lock to label a row.
+fn resolve_guild_names(
+    api: &Api<WinHttpTransport>,
+    guilds: &[GuildSummary],
+) -> std::collections::BTreeMap<String, String> {
+    static CACHE: OnceLock<Mutex<GuildNameCache>> = OnceLock::new();
+    let cache = CACHE.get_or_init(|| Mutex::new(GuildNameCache::default()));
+    let mut cache = cache.lock().unwrap_or_else(|error| error.into_inner());
+
+    let mut budget = GUILD_LOOKUPS_PER_POLL;
+    for summary in guilds {
+        if budget == 0 {
+            break;
+        }
+        let id = &summary.guild;
+        if cache.known.contains_key(id) || cache.failed.contains(id) {
+            continue;
+        }
+        budget -= 1;
+        match api.guild(id) {
+            Ok(info) => {
+                cache.known.insert(id.clone(), guild_label(&info));
+            }
+            Err(error) => {
+                log::debug!("worker: sin nombre de clan {id} ({error})");
+                cache.failed.insert(id.clone());
+            }
+        }
+    }
+    cache.known.clone()
 }
 
 /// Turns a claim event into a history row, resolving name, kind and owner from the snapshot.
@@ -562,6 +644,44 @@ mod tests {
                 .all(|pair| pair[0].last_at >= pair[1].last_at),
             "el ranking va de mas reciente a menos"
         );
+    }
+
+    #[test]
+    fn rf03a_the_picker_asks_for_every_matchup() {
+        assert!(
+            wants_full_list(Some(12014), true),
+            "con el selector en pantalla hacen falta los nueve matchups, no solo el mío"
+        );
+        assert!(
+            !wants_full_list(Some(12014), false),
+            "sin el selector basta el matchup del jugador (~44 KB en vez de ~400 KB)"
+        );
+        assert!(
+            wants_full_list(None, false),
+            "sin equipo configurado hay que pedirlo todo"
+        );
+    }
+
+    #[test]
+    fn rf20_a_guild_is_named_with_its_tag() {
+        let info = gw2lurker_api::GuildInfo {
+            id: "1DB147F0".to_owned(),
+            name: "Legends Of Ravenous Destruction".to_owned(),
+            tag: "Lord".to_owned(),
+        };
+        assert_eq!(guild_label(&info), "[Lord] Legends Of Ravenous Destruction");
+
+        let untagged = gw2lurker_api::GuildInfo {
+            tag: String::new(),
+            ..info.clone()
+        };
+        assert_eq!(guild_label(&untagged), "Legends Of Ravenous Destruction");
+
+        let anon = gw2lurker_api::GuildInfo {
+            name: String::new(),
+            ..info
+        };
+        assert_eq!(guild_label(&anon), "[Lord]", "sin nombre queda la etiqueta");
     }
 
     #[test]

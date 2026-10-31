@@ -24,6 +24,8 @@ pub struct Filters {
     pub camps: bool,
     pub towers: bool,
     pub keeps: bool,
+    /// Only the guilds the player follows, whatever the map (RF-73).
+    pub followed_only: bool,
 }
 
 impl Filters {
@@ -34,11 +36,15 @@ impl Filters {
             camps: true,
             towers: true,
             keeps: true,
+            followed_only: false,
         }
     }
 
-    /// Whether a row survives the filters.
-    pub fn accepts(&self, row: &ClaimRow) -> bool {
+    /// Whether a row survives the filters. `follow` is only consulted when the box is ticked.
+    pub fn accepts(&self, row: &ClaimRow, follow: &gw2lurker_core::FollowList) -> bool {
+        if self.followed_only && !follow.contains(&row.guild) {
+            return false;
+        }
         if self.high_value_only && !row.is_high_value() {
             return false;
         }
@@ -52,9 +58,14 @@ impl Filters {
 }
 
 /// Rows of one map, in the order the API gave them.
-pub fn rows_of<'a>(rows: &'a [ClaimRow], role: MapRole, filters: &Filters) -> Vec<&'a ClaimRow> {
+pub fn rows_of<'a>(
+    rows: &'a [ClaimRow],
+    role: MapRole,
+    filters: &Filters,
+    follow: &gw2lurker_core::FollowList,
+) -> Vec<&'a ClaimRow> {
     rows.iter()
-        .filter(|row| row.map_role == role && filters.accepts(row))
+        .filter(|row| row.map_role == role && filters.accepts(row, follow))
         .collect()
 }
 
@@ -65,6 +76,8 @@ pub fn draw(
     filters: &mut Filters,
     rows: &[ClaimRow],
     current: Option<MapRole>,
+    follow: &gw2lurker_core::FollowList,
+    names: &std::collections::BTreeMap<String, String>,
 ) {
     crate::ui::window::draw(ui, KEY, 3, [430.0, 380.0], state, |ui| {
         draw_filters(ui, filters);
@@ -81,7 +94,7 @@ pub fn draw(
             MapRole::GreenHome,
             MapRole::RedHome,
         ] {
-            let of_map = rows_of(rows, role, filters);
+            let of_map = rows_of(rows, role, filters, follow);
             if of_map.is_empty() {
                 continue;
             }
@@ -101,9 +114,13 @@ pub fn draw(
                 .build(ui)
             {
                 for row in of_map {
-                    draw_row(ui, row);
+                    draw_row(ui, row, names);
                 }
             }
+        }
+        let shown = rows.iter().any(|row| filters.accepts(row, follow));
+        if !shown {
+            ui.text_disabled(i18n::text("Nothing matches the filters"));
         }
     });
 }
@@ -119,11 +136,16 @@ fn draw_filters(ui: &Ui, filters: &mut Filters) {
     ui.checkbox(i18n::widget("Towers"), &mut filters.towers);
     ui.same_line();
     ui.checkbox(i18n::widget("Keeps"), &mut filters.keeps);
+    ui.same_line();
+    ui.checkbox(i18n::widget("Followed guilds"), &mut filters.followed_only);
 }
 
-fn draw_row(ui: &Ui, row: &ClaimRow) {
+fn draw_row(ui: &Ui, row: &ClaimRow, names: &std::collections::BTreeMap<String, String>) {
     let name = row.name.clone().unwrap_or_else(|| row.objective_id.clone());
-    let guild = row.guild.clone();
+    let guild = names
+        .get(&row.guild)
+        .cloned()
+        .unwrap_or_else(|| row.guild.clone());
     let when = row
         .claimed_at
         .map(|at| at.format("%H:%M").to_string())
@@ -174,6 +196,41 @@ mod tests {
         }
     }
 
+    /// Nobody followed: the box that filters by followed guilds is off in these tests.
+    fn followed() -> gw2lurker_core::FollowList {
+        gw2lurker_core::FollowList::new()
+    }
+
+    /// Somebody followed: the only guild in these fixtures.
+    fn following() -> gw2lurker_core::FollowList {
+        let mut list = gw2lurker_core::FollowList::new();
+        list.add("1DB147F0");
+        list
+    }
+
+    #[test]
+    fn rf73_the_claims_view_can_show_only_followed_guilds() {
+        let rows = vec![
+            row(ObjectiveType::Camp, MapRole::Center),
+            ClaimRow {
+                guild: "SOMEONE-ELSE".to_owned(),
+                ..row(ObjectiveType::Tower, MapRole::Center)
+            },
+        ];
+        let filters = Filters {
+            followed_only: true,
+            ..Filters::all_kinds()
+        };
+
+        let shown = rows_of(&rows, MapRole::Center, &filters, &following());
+        assert_eq!(shown.len(), 1, "solo el clan seguido");
+        assert_eq!(shown[0].guild, "1DB147F0");
+        assert!(
+            rows_of(&rows, MapRole::Center, &filters, &followed()).is_empty(),
+            "sin clanes seguidos no hay nada que enseñar"
+        );
+    }
+
     #[test]
     fn rf70_all_kinds_are_visible_by_default() {
         let filters = Filters::all_kinds();
@@ -183,7 +240,10 @@ mod tests {
             ObjectiveType::Keep,
             ObjectiveType::Castle,
         ] {
-            assert!(filters.accepts(&row(kind, MapRole::Center)), "{kind:?}");
+            assert!(
+                filters.accepts(&row(kind, MapRole::Center), &followed()),
+                "{kind:?}"
+            );
         }
     }
 
@@ -193,18 +253,18 @@ mod tests {
             camps: false,
             ..Filters::all_kinds()
         };
-        assert!(!filters.accepts(&row(ObjectiveType::Camp, MapRole::Center)));
-        assert!(filters.accepts(&row(ObjectiveType::Tower, MapRole::Center)));
+        assert!(!filters.accepts(&row(ObjectiveType::Camp, MapRole::Center), &followed()));
+        assert!(filters.accepts(&row(ObjectiveType::Tower, MapRole::Center), &followed()));
 
         let filters = Filters {
             towers: false,
             keeps: false,
             ..Filters::all_kinds()
         };
-        assert!(!filters.accepts(&row(ObjectiveType::Tower, MapRole::Center)));
-        assert!(!filters.accepts(&row(ObjectiveType::Castle, MapRole::Center)));
+        assert!(!filters.accepts(&row(ObjectiveType::Tower, MapRole::Center), &followed()));
+        assert!(!filters.accepts(&row(ObjectiveType::Castle, MapRole::Center), &followed()));
         assert!(
-            filters.accepts(&row(ObjectiveType::Ruins, MapRole::Center)),
+            filters.accepts(&row(ObjectiveType::Ruins, MapRole::Center), &followed()),
             "ruinas no se filtran: no tienen casilla"
         );
     }
@@ -215,9 +275,9 @@ mod tests {
             high_value_only: true,
             ..Filters::all_kinds()
         };
-        assert!(!filters.accepts(&row(ObjectiveType::Camp, MapRole::Center)));
-        assert!(filters.accepts(&row(ObjectiveType::Keep, MapRole::Center)));
-        assert!(filters.accepts(&row(ObjectiveType::Castle, MapRole::Center)));
+        assert!(!filters.accepts(&row(ObjectiveType::Camp, MapRole::Center), &followed()));
+        assert!(filters.accepts(&row(ObjectiveType::Keep, MapRole::Center), &followed()));
+        assert!(filters.accepts(&row(ObjectiveType::Castle, MapRole::Center), &followed()));
     }
 
     #[test]
@@ -228,8 +288,14 @@ mod tests {
             row(ObjectiveType::Keep, MapRole::Center),
         ];
         let filters = Filters::all_kinds();
-        assert_eq!(rows_of(&rows, MapRole::Center, &filters).len(), 2);
-        assert_eq!(rows_of(&rows, MapRole::GreenHome, &filters).len(), 1);
-        assert!(rows_of(&rows, MapRole::RedHome, &filters).is_empty());
+        assert_eq!(
+            rows_of(&rows, MapRole::Center, &filters, &followed()).len(),
+            2
+        );
+        assert_eq!(
+            rows_of(&rows, MapRole::GreenHome, &filters, &followed()).len(),
+            1
+        );
+        assert!(rows_of(&rows, MapRole::RedHome, &filters, &followed()).is_empty());
     }
 }
