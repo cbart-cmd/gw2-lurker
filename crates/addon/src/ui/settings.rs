@@ -125,7 +125,7 @@ pub fn body(
     config.alert_scope = edits.scope;
     config.poll_secs = edits.poll_secs.clamp(15, 600) as u32;
     config.alerts = edits.alerts;
-    config.popup_secs = edits.popup_secs.clamp(0.0, 5.0);
+    config.popup_secs = edits.popup_secs.clamp(0.0, POPUP_MAX_SECS);
     config.popup_enabled = edits.popup_enabled;
     config.map_tiles = edits.map_tiles;
     config.theme = edits.theme;
@@ -210,6 +210,13 @@ fn initial_narrowing(
 /// 470 px window and a label column taken from the wrong string, «Intervalo de sondeo» was cut
 /// to «INTERVALO DE SON…» (report of 2026-10-31). The column is measured over the labels that
 /// are really drawn, in the current language.
+/// Lo más largo que puede durar cada aviso del pop-up (segundos). Se pidió poder llegar a 20
+/// porque, de uno en uno, cinco se quedaban cortos (informe de 2026-10-31).
+const POPUP_MAX_SECS: f32 = 20.0;
+
+/// Lo que dura cada aviso del pop-up cuando se activa (segundos).
+const POPUP_DEFAULT_SECS: f32 = 5.0;
+
 const LABELS: &[&str] = &[
     "Region",
     "Colour",
@@ -298,7 +305,7 @@ fn draw_body(
         crate::ui::start_test_popup();
     }
     if popups && edits.popup_enabled && edits.popup_secs <= 0.0 {
-        edits.popup_secs = 2.0;
+        edits.popup_secs = POPUP_DEFAULT_SECS;
     }
     ui.checkbox(i18n::widget("Real map"), &mut edits.map_tiles);
     draw_theme(ui, edits);
@@ -406,7 +413,7 @@ fn draw_alert_filters(ui: &Ui, edits: &mut Edits) {
 
     ui.separator();
     let mut seconds = edits.popup_secs;
-    if Slider::new(i18n::widget("Pop-up seconds"), 0.0, 5.0)
+    if Slider::new(i18n::widget("Pop-up seconds"), 0.0, POPUP_MAX_SECS)
         .display_format("%.1f s")
         .build(ui, &mut seconds)
     {
@@ -414,7 +421,7 @@ fn draw_alert_filters(ui: &Ui, edits: &mut Edits) {
     }
     if ui.is_item_hovered() {
         ui.tooltip_text(i18n::text(
-            "The pop-up disappears after this. The alert stays in the list.",
+            "How long each pop-up stays. They come one at a time; the list keeps them all.",
         ));
     }
 }

@@ -706,12 +706,12 @@ pub const TEXT: &[(&str, [&str; COLUMNS])] = &[
     ("Guilds I follow", ["Los clanes que sigo", "Guilds I follow", "Les guildes que je suis", "Gilden, denen ich folge"]),
     ("Pop-up seconds", ["Segundos del aviso emergente", "Pop-up seconds", "Secondes de la notification", "Sekunden des Hinweises"]),
     (
-        "The pop-up disappears after this. The alert stays in the list.",
+        "How long each pop-up stays. They come one at a time; the list keeps them all.",
         [
-            "El aviso emergente desaparece pasado este tiempo. El aviso sigue en la lista.",
-            "The pop-up disappears after this. The alert stays in the list.",
-            "La notification disparaît après ce délai. L'alerte reste dans la liste.",
-            "Der Hinweis verschwindet danach. Der Eintrag bleibt in der Liste.",
+            "Cuánto dura cada aviso emergente. Salen de uno en uno; la lista los guarda todos.",
+            "How long each pop-up stays. They come one at a time; the list keeps them all.",
+            "Combien de temps reste chaque notification. Elles arrivent une par une ; la liste les garde toutes.",
+            "Wie lange jeder Hinweis bleibt. Sie kommen einzeln; die Liste behält alle.",
         ],
     ),
     ("Followed guilds", ["Clanes seguidos", "Followed guilds", "Guildes suivies", "Gefolgte Gilden"]),

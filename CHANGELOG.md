@@ -1,6 +1,17 @@
 # Changelog
 Formato [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/), versionado [SemVer](https://semver.org/lang/es/).
 
+## [0.22.3] - 2026-10-31
+### Corregido
+- **El pop-up enseña los avisos de uno en uno**: antes salían todos los de la ventana a la vez, así
+  que dos reclamaciones seguidas se leían como una sola y el pop-up se iba de golpe. Ahora hay una
+  cola: cada aviso dura lo que diga el ajuste y luego entra el siguiente.
+- **El selector de segundos llega a 20** (antes 5), y el texto de ayuda explica que el pop-up va uno
+  a uno y que la lista los guarda todos.
+- **El mapa mantiene su proporción real**: se dibujaba `ancho × 280` y salía chafado. La frontera
+  alpina es 2560×3584 y Eternos 3072×3072 (medido en `/v2/maps`), así que ahora el alto sale de
+  `continent_rect` y el mapa se centra si tiene que estrecharse para caber.
+
 ## [0.22.2] - 2026-10-31
 ### Corregido
 - **El mapa se salía de la ventana**: se pintaba encima de las pestañas y por debajo del widget. Al

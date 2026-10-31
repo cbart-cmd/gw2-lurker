@@ -165,21 +165,66 @@ pub fn within(lines: &[AlertLine], now: DateTime<Utc>, minutes: i64) -> Vec<Aler
         .collect()
 }
 
-/// Draws the expanded log: every alert the worker still remembers, scrolling if needed.
-/// Pure on purpose (`now` is a parameter): the render callback needs it every frame and the
-/// rule has to be testable without a game. `0` seconds means no pop-up at all.
-pub fn popup_lines(lines: &[AlertLine], now: DateTime<Utc>, secs: f32) -> Vec<AlertLine> {
-    // `!(secs > 0.0)` would also be true for NaN; make the NaN case explicit instead.
-    if secs.is_nan() || secs <= 0.0 {
-        return Vec::new();
+/// Cola del pop-up: los avisos se enseñan **de uno en uno**, cada uno `secs` segundos.
+///
+/// Enseñar a la vez todo lo que había llegado en la ventana hacía que dos reclamaciones seguidas
+/// se leyeran como una sola y que el pop-up se fuera de golpe (informe de 2026-10-31).
+#[derive(Default)]
+pub struct PopupQueue {
+    pending: std::collections::VecDeque<AlertLine>,
+    current: Option<AlertLine>,
+    shown_at: Option<DateTime<Utc>>,
+    /// Sello del aviso más nuevo ya encolado, para no repetirlos en cada frame.
+    seen: Option<DateTime<Utc>>,
+}
+
+impl PopupQueue {
+    /// Encola lo nuevo y devuelve el aviso que toca enseñar ahora, con su opacidad.
+    ///
+    /// `now` entra por parámetro (no se lee el reloj) para poder probarlo sin juego. `0` segundos
+    /// apaga el pop-up y vacía la cola.
+    pub fn tick(
+        &mut self,
+        lines: &[AlertLine],
+        now: DateTime<Utc>,
+        secs: f32,
+    ) -> Option<(AlertLine, f32)> {
+        if secs.is_nan() || secs <= 0.0 {
+            *self = Self::default();
+            return None;
+        }
+        for line in lines.iter().filter(|line| !line.late) {
+            let is_new = self.seen.is_none_or(|seen| line.received > seen);
+            if !is_new {
+                continue;
+            }
+            self.seen = Some(line.received);
+            self.pending.push_back(line.clone());
+            while self.pending.len() > MAX_POPUP_LINES {
+                self.pending.pop_front();
+            }
+        }
+
+        let secs = f64::from(secs);
+        let expired = match (self.current.as_ref(), self.shown_at) {
+            (Some(_), Some(at)) => {
+                now.signed_duration_since(at).num_milliseconds() as f64 / 1000.0 >= secs
+            }
+            _ => true,
+        };
+        if expired {
+            self.current = self.pending.pop_front();
+            self.shown_at = self.current.as_ref().map(|_| now);
+        }
+
+        let line = self.current.clone()?;
+        let at = self.shown_at?;
+        let shown = now.signed_duration_since(at).num_milliseconds() as f64 / 1000.0;
+        let left = (secs - shown).max(0.0);
+        // Medio segundo de desvanecido: desaparecer de golpe se lee como un fallo.
+        let fade = (left / 0.5).clamp(0.0, 1.0) as f32;
+        Some((line, fade))
     }
-    let window = chrono::Duration::milliseconds((f64::from(secs) * 1000.0) as i64);
-    lines
-        .iter()
-        .filter(|line| !line.late && now.signed_duration_since(line.received) < window)
-        .take(MAX_POPUP_LINES)
-        .cloned()
-        .collect()
 }
 
 /// Draws the transient pop-up: no frame, no title, and it can be dragged where you want it.
@@ -385,26 +430,60 @@ mod tests {
     }
 
     #[test]
-    fn rf19a_the_popup_only_shows_what_just_arrived() {
+    fn rf19a_the_popup_shows_one_alert_at_a_time() {
         let base = Utc.with_ymd_and_hms(2026, 10, 31, 12, 0, 0).unwrap();
-        let mut old = line(AlertKind::Flip, Some(TeamColor::Blue), None);
-        old.received = base;
-        let mut fresh = line(AlertKind::Claim, None, Some("YaK"));
-        fresh.received = base + chrono::Duration::seconds(10);
+        let mut first = line(AlertKind::Claim, None, Some("YaK"));
+        first.received = base;
+        let mut second = line(AlertKind::Claim, None, Some("Otra"));
+        second.received = base + chrono::Duration::milliseconds(200);
+        let lines = vec![first.clone(), second.clone()];
 
-        let now = base + chrono::Duration::seconds(11);
-        let shown = popup_lines(&[fresh.clone(), old.clone()], now, 2.0);
-        assert_eq!(shown.len(), 1, "el de hace 11 s ya no sale");
-        assert_eq!(shown[0].guild.as_deref(), Some("YaK"));
+        let mut queue = PopupQueue::default();
+        let (shown, _) = queue.tick(&lines, base, 5.0).expect("hay algo que enseñar");
+        assert_eq!(
+            shown.guild.as_deref(),
+            Some("YaK"),
+            "primero el que llegó antes"
+        );
+
+        let (shown, _) = queue
+            .tick(&lines, base + chrono::Duration::seconds(2), 5.0)
+            .expect("sigue el primero");
+        assert_eq!(
+            shown.guild.as_deref(),
+            Some("YaK"),
+            "no se pisa antes de su tiempo"
+        );
+
+        let (shown, _) = queue
+            .tick(&lines, base + chrono::Duration::seconds(6), 5.0)
+            .expect("ahora el segundo");
+        assert_eq!(shown.guild.as_deref(), Some("Otra"), "después el siguiente");
 
         assert!(
-            popup_lines(&[fresh.clone()], now, 0.0).is_empty(),
+            queue
+                .tick(&lines, base + chrono::Duration::seconds(60), 0.0)
+                .is_none(),
             "0 s significa sin pop-up"
         );
-        assert_eq!(
-            popup_lines(&[fresh.clone()], now, 5.0).len(),
-            1,
-            "5 s es el máximo y sigue mostrándolo"
+    }
+
+    #[test]
+    fn rf19a_the_popup_fades_in_its_last_half_second() {
+        let base = Utc.with_ymd_and_hms(2026, 10, 31, 12, 0, 0).unwrap();
+        let mut one = line(AlertKind::Flip, Some(TeamColor::Blue), None);
+        one.received = base;
+        let mut queue = PopupQueue::default();
+
+        let (_, fade) = queue.tick(&[one.clone()], base, 5.0).expect("sale");
+        assert_eq!(fade, 1.0, "recién salido, opaco del todo");
+
+        let (_, fade) = queue
+            .tick(&[one], base + chrono::Duration::milliseconds(4750), 5.0)
+            .expect("sigue saliendo");
+        assert!(
+            fade > 0.0 && fade < 1.0,
+            "medio segundo antes, se desvanece"
         );
     }
 
@@ -429,8 +508,9 @@ mod tests {
         let mut late = line(AlertKind::Claim, None, Some("YaK"));
         late.late = true;
         late.received = base;
+        let mut queue = PopupQueue::default();
         assert!(
-            popup_lines(&[late], base, 2.0).is_empty(),
+            queue.tick(&[late], base, 2.0).is_none(),
             "lo que ya estaba reclamado al arrancar no interrumpe"
         );
     }

@@ -20,8 +20,11 @@ use crate::i18n;
 /// Translation key (and stable id) of this tab.
 pub const KEY: &str = "Map";
 
-/// Height of the drawing area.
+/// Height of the drawing area when the map has no usable proportions.
 const MAP_HEIGHT: f32 = 280.0;
+/// Smallest and biggest height the map may take when it keeps its real proportions.
+const MIN_MAP_HEIGHT: f32 = 160.0;
+const MAX_MAP_HEIGHT: f32 = 620.0;
 
 /// Grey of an objective nobody holds.
 const UNCLAIMED: [f32; 4] = [0.55, 0.57, 0.6, 1.0];
@@ -97,18 +100,20 @@ pub fn body(ui: &Ui, view: &View<'_>, role: &mut MapRole, here: Option<MapRole>)
     }
 
     let width = ui.content_region_avail()[0].max(140.0);
+    let size = map_size(&frame, [width, ui.content_region_avail()[1]]);
+    // Centrado: si la proporción real obliga a estrechar el mapa, que no quede pegado a la izquierda.
+    let indent = ((width - size[0]) / 2.0).max(0.0);
+    ui.set_cursor_pos([ui.cursor_pos()[0] + indent, ui.cursor_pos()[1]]);
     let origin = ui.cursor_screen_pos();
     // The area is reserved with a dummy so the window sizes itself; the drawing itself goes
     // straight to the draw list, which is what imgui wants for shapes.
-    ui.dummy([width, MAP_HEIGHT]);
+    ui.dummy(size);
 
     // **Once per frame**: `get_window_draw_list` panics if an instance of the window draw list is
     // already alive ("You can only load one instance of it!", `arcdps-imgui` draw_list.rs:103).
     // Asking for it inside the loop took the game down the first time the tab was opened
     // (reported and confirmed in `Nexus.log`, 2026-10-31).
-    let size = [width, MAP_HEIGHT];
     let list = ui.get_window_draw_list();
-
     // One pass to know where every objective lands: the drawing and the hover check need the
     // same points, and asking `get_window_draw_list` twice per frame is a panic (see above).
     let mut drawn: Vec<([f32; 2], &ObjectiveInfo, Option<&ClaimRow>)> = Vec::new();
@@ -200,6 +205,28 @@ pub fn body(ui: &Ui, view: &View<'_>, role: &mut MapRole, here: Option<MapRole>)
             ui.text(detail_line(objective, *row, guild_names, follow));
         }
         None => ui.text_disabled(i18n::text("Point at an objective to see who holds it")),
+    }
+}
+
+/// Tamaño en pantalla del mapa, con la **proporción real** de `continent_rect`.
+///
+/// Se dibujaba `ancho × 280` y los mapas salían chafados: la frontera alpina es 2560×3584
+/// (1,4 veces más alta que ancha) y Eternos es cuadrada (medido en `/v2/maps`). Con la proporción
+/// de verdad el mapa se parece al de gw2mists (informe de 2026-10-31).
+fn map_size(frame: &Frame, avail: [f32; 2]) -> [f32; 2] {
+    let width = avail[0].max(140.0);
+    let (wide, tall) = (frame.x[1] - frame.x[0], frame.y[1] - frame.y[0]);
+    let aspect = (tall / wide) as f32;
+    if !aspect.is_finite() || !(0.25..=4.0).contains(&aspect) {
+        return [width, MAP_HEIGHT];
+    }
+    // Que quepa: si la proporción pide más alto de lo que hay, se encoge el ancho y se mantiene.
+    let cap = avail[1].clamp(MIN_MAP_HEIGHT, MAX_MAP_HEIGHT);
+    let height = width * aspect;
+    if height > cap {
+        [((cap / aspect).max(140.0)), height.min(cap)]
+    } else {
+        [width, height]
     }
 }
 
@@ -669,6 +696,32 @@ pub(super) fn map_label(role: MapRole) -> &'static str {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn rf30_the_map_keeps_the_real_proportions() {
+        // Frontera alpina: 2560×3584 en `/v2/maps`, así que es 1,4 veces más alta que ancha.
+        let alps = Frame {
+            x: [0.0, 2560.0],
+            y: [0.0, 3584.0],
+        };
+        let [w, h] = map_size(&alps, [400.0, 2000.0]);
+        assert!((h / w - 1.4).abs() < 0.01, "sale {w}×{h}");
+
+        // Eternos es cuadrada.
+        let eternals = Frame {
+            x: [8958.0, 12030.0],
+            y: [12798.0, 15870.0],
+        };
+        let [w, h] = map_size(&eternals, [400.0, 2000.0]);
+        assert!((h / w - 1.0).abs() < 0.01, "sale {w}×{h}");
+
+        // Si no hay proporción que valga, el tamaño de siempre.
+        let flat = Frame {
+            x: [0.0, 100.0],
+            y: [0.0, 100.0],
+        };
+        assert_eq!(map_size(&flat, [300.0, 1000.0]), [300.0, 300.0]);
+    }
 
     #[test]
     fn rf30_the_closest_objective_wins_the_hover() {

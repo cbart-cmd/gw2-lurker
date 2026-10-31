@@ -13,6 +13,30 @@ Reglas:
 
 ---
 
+## HECHO – 2026-10-31 · El pop-up va de uno en uno y el mapa con su proporción (0.22.3)
+
+Tres bugs nuevos del jugador, apuntados de golpe en `bugs.md`:
+
+- **Pop-up de uno en uno** (`alerts::PopupQueue`): antes se enseñaba todo lo llegado en la ventana de
+  `popup_secs`, así que dos reclamaciones seguidas se leían como una y desaparecían juntas. Ahora hay
+  cola (`pending` + `current` + `shown_at` + `seen`), cada aviso dura su tiempo y entra el siguiente;
+  `0 s` la vacía. El reloj entra por parámetro para poder probarlo: dos tests nuevos
+  (`rf19a_the_popup_shows_one_alert_at_a_time`, `rf19a_the_popup_fades_in_its_last_half_second`) y el
+  de `late` reescrito. El desvanecido de medio segundo se calcula desde `shown_at`, no desde cuándo
+  llegó la línea.
+- **Selector de segundos de 0 a 20** (antes 0 a 5) con `POPUP_MAX_SECS`, y el valor al activar el
+  pop-up pasa a 5 s (`POPUP_DEFAULT_SECS`). El texto de ayuda dice lo nuevo.
+- **El mapa con su proporción real** (`map::map_size`, con test): se dibujaba `ancho × 280`.
+  Medido en `/v2/maps`: Eternos 3072×3072 (cuadrada), frontera alpina 2560×3584 (1,4 más alta que
+  ancha). Ahora el alto sale de `continent_rect`, se recorta entre 160 y 620 px y, si hay que
+  estrechar el ancho para que quepa, se mantiene la proporción y se centra.
+- Refactor: `ui::popup` sale de `ui/mod.rs`, que había llegado a 808 líneas.
+- Verificación: 209 tests en verde (90 addon · 15 api · 98 core · 6 store), `clippy -D warnings`
+  limpio, `cargo fmt --check` limpio, ningún fichero por encima de 800 líneas.
+- **Pendiente de comprobar en el juego**: el pop-up de uno en uno, la proporción del mapa y —del
+  informe anterior— que la ruta inferida se pinte sobre el mapa (no se ha tocado: `draw_route` ya la
+  dibuja cuando hay dos claims del mismo mapa y `history` los tiene).
+
 ## HECHO – 2026-10-31 · El mapa se sale de la ventana (0.22.2)
 
 - Bug nuevo del jugador, con captura: «el mapa lo pinta fuera de sitio, pinta encima de las pestañas

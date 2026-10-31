@@ -9,6 +9,7 @@ mod guilds;
 mod icons;
 mod map;
 mod matchup;
+mod popup;
 mod settings;
 mod theme;
 mod window;
@@ -19,6 +20,8 @@ use std::sync::atomic::{AtomicBool, AtomicI64, Ordering};
 
 use crate::i18n;
 use gw2lurker_core::model::MapRole;
+
+pub use popup::start_test_popup;
 
 /// Translation key (and stable id) of the only window of the addon (T-42).
 ///
@@ -354,7 +357,7 @@ fn draw_widget(ui: &nexus::imgui::Ui) {
 
     // The pop-up is drawn outside the window on purpose: it has to appear even when the widget
     // itself is closed, which is what the pop-up switch is for.
-    draw_popup(ui, &alerts, now);
+    popup::draw(ui, &alerts, now);
 }
 
 /// Everything the tabs draw, gathered once per frame.
@@ -621,86 +624,6 @@ fn region_of_matchup(match_id: &str) -> &'static str {
         Some("2") => "EU",
         _ => "?",
     }
-}
-
-/// When the *Test pop-up* button of the settings wants a fake alert on screen (milliseconds).
-static TEST_POPUP_UNTIL: AtomicI64 = AtomicI64::new(0);
-
-/// Shows a fake pop-up for a few seconds, so it can be placed without waiting for a capture.
-pub fn start_test_popup() {
-    let until = chrono::Utc::now().timestamp_millis() + 5000;
-    TEST_POPUP_UNTIL.store(until, Ordering::Relaxed);
-}
-
-/// Pop-up with what just happened, on top of the screen (RF-19a).
-fn draw_popup(
-    ui: &nexus::imgui::Ui,
-    alerts: &[crate::worker::AlertLine],
-    now: chrono::DateTime<chrono::Utc>,
-) {
-    let (enabled, secs, opacity, mut position) = {
-        let config = crate::config();
-        let opacity = config
-            .windows
-            .get(WIDGET)
-            .map(|state| state.opacity)
-            .unwrap_or_default();
-        (
-            config.popup_enabled,
-            config.popup_secs,
-            opacity,
-            config.popup_pos,
-        )
-    };
-    if !enabled {
-        return;
-    }
-
-    let mut showing = alerts::popup_lines(alerts, now, secs);
-    // RF-19c: el pop-up enseña los mismos tipos que el widget.
-    showing.retain(|line| crate::config().alert_kinds.shows(line.kind));
-    if let Some(test) = test_popup_line(now) {
-        showing.insert(0, test);
-    }
-    if showing.is_empty() {
-        return;
-    }
-
-    // Fade during the last half second: a pop-up that blinks out reads as a glitch.
-    let fade = showing
-        .iter()
-        .map(|line| {
-            let left = f64::from(secs)
-                - now.signed_duration_since(line.received).num_milliseconds() as f64 / 1000.0;
-            (left / 0.5).clamp(0.0, 1.0) as f32
-        })
-        .fold(1.0f32, f32::min);
-
-    alerts::draw_popup(ui, &showing, opacity, &mut position, fade);
-
-    if position != crate::config().popup_pos {
-        crate::runtime().popup_pos = position;
-    }
-}
-
-/// A fake line while the settings ask for one, so the pop-up can be placed at will.
-fn test_popup_line(now: chrono::DateTime<chrono::Utc>) -> Option<crate::worker::AlertLine> {
-    if now.timestamp_millis() >= TEST_POPUP_UNTIL.load(Ordering::Relaxed) {
-        return None;
-    }
-    Some(crate::worker::AlertLine {
-        at: now,
-        received: now,
-        map_role: MapRole::Center,
-        objective_kind: gw2lurker_core::ObjectiveType::Camp,
-        kind: crate::worker::AlertKind::Claim,
-        objective: i18n::text("Sample objective").to_owned(),
-        guild: None,
-        guild_name: Some(i18n::text("Test guild").to_owned()),
-        from: None,
-        to: None,
-        late: false,
-    })
 }
 
 /// The two switches Nexus' options pane offers first (T-42).
