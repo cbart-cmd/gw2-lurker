@@ -1,6 +1,14 @@
 # Changelog
 Formato [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/), versionado [SemVer](https://semver.org/lang/es/).
 
+## [0.9.0] - 2026-10-31
+### Añadido
+- **Claims del matchup**: ventana con los cuatro mapas de tu emparejamiento, cada objetivo
+  reclamado con su clan y la hora, y el mapa en el que estás marcado. Filtros por campamentos,
+  torres, fortalezas y «solo alto valor».
+### Cambiado
+- El log de arranque dice ahora qué equipo ve arcdps, útil para diagnosticar.
+
 ## [0.8.1] - 2026-10-31
 ### Corregido
 - El desplegable **Región** del selector de equipo salía vacío hasta que llegaba el primer

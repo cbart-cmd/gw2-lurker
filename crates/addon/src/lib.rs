@@ -7,7 +7,6 @@
 
 #![cfg_attr(test, allow(clippy::unwrap_used, clippy::expect_used))]
 
-#[allow(dead_code)] // used by the team picker (T-30)
 mod arc_team;
 mod config;
 mod context;
@@ -119,6 +118,7 @@ fn load() {
         lang::from_nexus_settings().map(gw2lurker_core::i18n::Language::code)
     );
 
+    log::info!("WvW Lurker: {}", arc_team::describe());
     lang::subscribe();
     arc_team::subscribe();
     let _ = WRITER.set(Mutex::new(Some(writer::Writer::start())));

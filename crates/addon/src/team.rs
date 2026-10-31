@@ -67,12 +67,6 @@ pub fn forget() {
     forget_in(&mut crate::runtime());
 }
 
-/// Roster as stored, for the picker (T-30) and tests.
-#[allow(dead_code)]
-pub fn roster() -> Roster {
-    crate::runtime().roster.clone()
-}
-
 /// Name the team has in the bundled tables for a language (no override).
 pub fn automatic_name(language: &str, team_id: u32) -> String {
     gw2lurker_core::bundled()

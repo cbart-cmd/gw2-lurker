@@ -34,6 +34,26 @@ Reglas:
   bueno un HTTP 200. Se reintenta con `-VerifyOnly` pasados unos minutos; no se cambia la URL
   ni la versión para taparlo.
 
+## HECHO – 2026-10-31 · Limpieza y vista de claims del matchup (T-36, 0.9.0)
+
+**Limpieza**
+- Borrado `bugs.md` (el fallo de la región quedó arreglado y registrado en esta bitácora).
+- `arc_team` tenía 90 líneas que nadie usaba (una `Calibration` para un futuro detector de
+  cambio de equipo): fuera. Queda lo que sí sirve, y ahora `load` registra en el log el
+  `team` que reporta arcdps (`arcdps team N` o `no arcdps team`), que es lo que hace
+  comprobable un informe de «estaba en el verde».
+- Quitados dos `#[allow(dead_code)]` que ya no hacían falta (`net::with_timeout`,
+  `team::roster`) y el de `ffi::http`, que ya usa el worker.
+
+**T-36**
+- `ui::matchup`: ventana con los cuatro mapas plegables, cada fila `hora · objetivo · clan`
+  pintada con el color del dueño, y el mapa actual marcado con «estás aquí».
+- Filtros (estado de sesión, todos activos al empezar): campamentos, torres,
+  fortalezas/castillos y «solo alto valor». `Filters::accepts` y `rows_of` son puros y se
+  prueban sin Nexus.
+- Verificado: 50 tests en el addon (4 nuevos), 80 en `core`, `clippy -D warnings` limpio.
+  DLL de 1 547 776 bytes: **25 KB por debajo del objetivo de 1,5 MB**.
+
 ## HECHO – 2026-10-31 · Filtro de avisos por mapa y clanes, con pop-up temporizado (0.8.0)
 
 - `core::alerts::Filter` (puro, 6 tests): casillas Eternos / Alpino azul / Alpino verde /

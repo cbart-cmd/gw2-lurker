@@ -336,6 +336,12 @@ pub const TEXT: &[(&str, [&str; COLUMNS])] = &[
             "{0} freigegeben von {1}",
         ],
     ),
+    ("Unknown map", ["Mapa desconocido", "Unknown map", "Carte inconnue", "Unbekannte Karte"]),
+    ("you are here", ["estás aquí", "you are here", "vous êtes ici", "du bist hier"]),
+    ("High value only", ["Solo alto valor", "High value only", "Haute valeur seulement", "Nur hoher Wert"]),
+    ("Camps", ["Campamentos", "Camps", "Camps", "Lager"]),
+    ("Towers", ["Torres", "Towers", "Tours", "Türme"]),
+    ("Keeps", ["Fortalezas", "Keeps", "Forteresses", "Festungen"]),
     (
         "Route inferred from claims; it is not the real path.",
         [

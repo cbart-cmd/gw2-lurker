@@ -4,6 +4,7 @@
 //! English text is the key, so nothing here needs touching when a language changes.
 
 mod alerts;
+mod matchup;
 mod settings;
 mod window;
 
@@ -26,6 +27,7 @@ pub fn register() {
 
             if gate.show_ui || crate::config().debug_show_everywhere {
                 draw_status(ui);
+                draw_matchup(ui);
                 draw_alerts(ui);
             }
             if gate.settings_available() || crate::config().debug_show_everywhere {
@@ -135,6 +137,21 @@ fn draw_status(ui: &nexus::imgui::Ui) {
     if open_settings {
         config.window(settings::KEY).visible = true;
     }
+}
+
+/// Captures and claims of the whole matchup (T-36). The worker owns the data; this only draws
+/// and keeps the filter boxes of the session.
+fn draw_matchup(ui: &nexus::imgui::Ui) {
+    static FILTERS: std::sync::OnceLock<std::sync::Mutex<matchup::Filters>> =
+        std::sync::OnceLock::new();
+    let filters = FILTERS.get_or_init(|| std::sync::Mutex::new(matchup::Filters::all_kinds()));
+
+    let rows = crate::worker::dashboard().claims.clone();
+    let current = crate::context::current_map_role();
+    let mut filters = filters.lock().unwrap_or_else(|error| error.into_inner());
+    let mut config = crate::runtime();
+    let state = config.window(matchup::KEY);
+    matchup::draw(ui, state, &mut filters, &rows, current);
 }
 
 /// Recent captures and claims (T-13). The worker resolves and filters the lines, so the render

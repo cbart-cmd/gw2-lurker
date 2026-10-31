@@ -1,1 +1,1 @@
-equipo: al desplewgasr deberia salir eu o na, pero no sale nada.
+equipo: al seleccioanr sale EU (0) o NA (0), y aunque elija eso y color no paarecen equipos en el desplgabl.e ese "(0)" debe ser un bug

@@ -122,10 +122,10 @@ tarea indica de qué depende.
    pasa a llamarse `gw2_lurker.dll` por el `[lib] name` del addon. (T-27) — RF-53
 4. **T-35 (M)** Arrancar el addon dentro del juego con este repo: `export!` real, versión
    visible y traza en `addons/Nexus/Nexus.log`. Es la T-01 ejecutada de verdad. (T-33, T-34)
-5. **T-36 (M)** Vista **"Claims del matchup"**: los cuatro mapas agrupados, con filtros.
-   (T-11, T-15) — RF-70
-   - **Parcial (2026-10-31):** `core::matchup` (`claims`, `by_map`, `with_kinds`) hecho y
-     probado con los 41 claims reales. Falta la ventana imgui.
+5. **T-36 ✔ (2026-10-31)** Vista **"Claims del matchup"**: los cuatro mapas agrupados y
+   plegables, cada fila `hora · objetivo · clan` con el color del dueño y el mapa actual marcado
+   con «estás aquí». Filtros de sesión, todos activos al empezar: campamentos, torres,
+   fortalezas/castillos y «solo alto valor». (T-11, T-15) — RF-70
 6. **T-37 (M)** Lista de guilds con claim ordenada por el más reciente. (T-36) — RF-71
    - **Parcial (2026-10-31):** `core::matchup::rank_guilds` hecho, con desempate estable
      (más claims y luego id) para que la lista no baile entre polls.
