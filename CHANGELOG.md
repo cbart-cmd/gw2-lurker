@@ -1,6 +1,11 @@
 # Changelog
 Formato [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/), versionado [SemVer](https://semver.org/lang/es/).
 
+## [0.14.3] - 2026-10-31
+### Corregido
+- Tras un pánico dibujando el widget, el addon deja de dibujarlo en esa sesión en vez de repetir el
+  fallo cada frame. El motivo queda en `nexus.log`.
+
 ## [0.14.2] - 2026-10-31
 ### Corregido
 - **«Bloquear» y «click-through» vuelven a ser dos cosas distintas**: bloquear impide mover o

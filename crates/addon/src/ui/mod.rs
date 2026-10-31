@@ -146,13 +146,22 @@ fn draw_options(ui: &nexus::imgui::Ui) {
 /// Runs one render callback, turning a panic into a log line instead of a dead game.
 ///
 /// A panic that crosses the `cdylib` boundary aborts the process, so one wrong tab would take
-/// Guild Wars 2 with it. This keeps the overlay alive; the message in `nexus.log` is what makes
-/// it fixable.
+/// Guild Wars 2 with it. This keeps the overlay alive and, after the first panic, stops drawing
+/// that surface for the rest of the session: repeating the same panic every frame is noise.
 fn guard(name: &'static str, draw: impl FnOnce()) {
-    static LOGGED: AtomicBool = AtomicBool::new(false);
-    let outcome = std::panic::catch_unwind(std::panic::AssertUnwindSafe(draw));
-    if outcome.is_err() && !LOGGED.swap(true, Ordering::Relaxed) {
-        log::error!("ui: pánico dibujando «{name}»; el overlay queda desactivado esta sesión");
+    static BROKEN_WIDGET: AtomicBool = AtomicBool::new(false);
+    static BROKEN_OPTIONS: AtomicBool = AtomicBool::new(false);
+    let broken = if name == "widget" {
+        &BROKEN_WIDGET
+    } else {
+        &BROKEN_OPTIONS
+    };
+    if broken.load(Ordering::Relaxed) {
+        return;
+    }
+    if std::panic::catch_unwind(std::panic::AssertUnwindSafe(draw)).is_err() {
+        broken.store(true, Ordering::Relaxed);
+        log::error!("ui: pánico dibujando «{name}»; se deja de dibujar esa parte esta sesión");
     }
 }
 
