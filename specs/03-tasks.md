@@ -181,6 +181,14 @@ Cada tarea es pequeña y verificable. Orden recomendado; las dependencias se ind
   guarda. El aviso naranja del widget lo dice y usa el atajo real (`LOCK_SHORTCUT`), que estaba escrito a
   mano con el `Alt+Shift+L` viejo. — RF-02, RF-18
 
+- **T-50 ✔ (2026-10-31)** **Clanes en su pestaña, horas locales y registro limpio**: `follow::body` se
+  parte en `followed_section` y `add_section` y las dibuja la pestaña *Clanes* (los ajustes solo dicen
+  dónde están); la lista de «han reclamado» se corta en **10**; el buscador empieza por la **región** y
+  los equipos se enseñan con nombre; un id sin forma de id de clan se descarta antes de pedirlo; la
+  barra de título entera responde al ratón (doble clic contrae/despliega, un clic abre si está contrada);
+  y `addon::clock` pinta todas las horas en la hora local. Un `late` solo avisa si es de un clan seguido
+  y de los últimos 10 minutos. (T-13, T-44) — RF-19, RF-21, RF-25, RF-44, RF-46
+
 ## Fase 4b – Actualización y fallo seguro
 
 - **T-25** Spike y aviso de actualización: comprobar cómo deja Nexus la DLL nueva y construir el banner W7 (ADR-007). (T-01, T-12) — RF-50, RF-53
