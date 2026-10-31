@@ -38,7 +38,7 @@ jobs:
 
       # RNF-10: ningún fichero .rs por encima de 800 líneas.
       - name: check_loc.sh
-        run: ./scripts/check_loc.sh
+        run: bash ./scripts/check_loc.sh
 
   supply-chain:
     name: deny · audit
