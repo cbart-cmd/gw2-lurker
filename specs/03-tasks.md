@@ -66,10 +66,15 @@ Cada tarea es pequeña y verificable. Orden recomendado; las dependencias se ind
   del emparejamiento; el mapa actual se recalcula con el `map_id` de Mumble (38/95/96/1099). El
   **pop-up** dura 0–5 s (2 s por defecto, `popup_secs`), se dibuja arriba en el centro y
   desaparece sin quitar nada de la lista; los claims tardíos del baseline no hacen pop-up. La
-  lista de clanes a seguir sale de los que tienen algo reclamado en el matchup. Falta el modo
-  bloqueado click-through con atajo (`Alt+Shift+L`) y la ventana de log ampliada. (T-08, T-12)
+  lista de clanes a seguir sale de los que tienen algo reclamado en el matchup. (T-08, T-12)
   — RF-10, RF-16, RF-17, RF-19, RF-19a, RF-73
-- **T-13b** Modo bloqueado click-through, atajo de bloqueo/desbloqueo y ventana de log ampliada. (T-13) — RF-14, RF-18
+- **T-13b ✔ (2026-10-31)** Modo bloqueado click-through: una ventana bloqueada usa
+  `WindowFlags::NO_INPUTS`, así que sigue dibujándose pero todos los clics llegan al juego.
+  `Alt+Shift+L` (keybind de Nexus, reasignable allí) bloquea o desbloquea **todas** las ventanas;
+  el handler solo levanta un `AtomicBool` y el render lo aplica, para no coger el candado de la
+  configuración desde el hilo de entrada. Los ajustes tienen una casilla de click-through por
+  ventana y una **ventana de registro de avisos** con la lista completa y scroll. (T-13)
+  — RF-14, RF-18
 - **T-17 ✔ (2026-10-31, parcial)** Contrato de ventana compartido en `addon::ui::window`:
   barra de título propia con `×`, plegado con doble clic, mover/redimensionar solo si no está
   bloqueada, opacidad sobre el fondo, menú contextual (bloquear, opacidad, restablecer) y

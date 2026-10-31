@@ -11,13 +11,81 @@ mod window;
 
 use nexus::gui::{register_render, render, RenderType};
 
+use std::sync::atomic::{AtomicBool, Ordering};
+
 use crate::i18n;
 
 /// Translation key (and stable id) of the status window.
 const STATUS: &str = "WvW Lurker";
 
+/// Identifier of the lock keybind. Nexus lists it with this name, so the user can rebind it.
+const LOCK_KEYBIND: &str = "GW2LURKER_CLICK_THROUGH";
+
+/// Shortcut registered by default for the lock toggle.
+const LOCK_SHORTCUT: &str = "ALT+SHIFT+L";
+
+/// Set by the keybind handler and consumed by the render callback.
+///
+/// The handler runs on Nexus' input thread: taking the configuration lock there would mean
+/// blocking a thread we do not own, so it only raises a flag (RF-18).
+static LOCK_TOGGLE: AtomicBool = AtomicBool::new(false);
+
+fn on_lock_keybind(_identifier: &str, is_release: bool) {
+    if !is_release {
+        LOCK_TOGGLE.store(true, Ordering::Relaxed);
+    }
+}
+
+fn take_lock_toggle() -> bool {
+    LOCK_TOGGLE.swap(false, Ordering::Relaxed)
+}
+
+/// Every window of the addon, by translation key: the settings show one switch per entry.
+pub fn window_keys() -> [&'static str; 6] {
+    [
+        STATUS,
+        settings::KEY,
+        alerts::KEY,
+        alerts::LOG_KEY,
+        matchup::KEY,
+        guilds::KEY,
+    ]
+}
+
+/// Locks every window (click-through) or unlocks them all, and returns what it did.
+///
+/// One shortcut for all of them on purpose: during a fight nobody wants to lock four windows
+/// one by one. Only windows that already exist are touched: asking for a missing one would
+/// create it with `visible = true`, and a window the user closed would reappear on every
+/// keystroke. Pure, so the rule is testable without a game.
+pub fn toggle_locked(config: &mut crate::config::Config) -> bool {
+    let keys = window_keys();
+    let mut any = false;
+    let mut all_locked = true;
+    for (key, state) in &config.windows {
+        if keys.contains(&key.as_str()) {
+            any = true;
+            all_locked &= state.locked;
+        }
+    }
+    let lock = any && !all_locked;
+    for (key, state) in &mut config.windows {
+        if keys.contains(&key.as_str()) {
+            state.locked = lock;
+        }
+    }
+    lock
+}
+
 /// Registers the render callbacks. Must be called from `load`, never per frame.
 pub fn register() {
+    nexus::keybind::register_keybind_with_string(
+        LOCK_KEYBIND,
+        nexus::keybind::keybind_handler!(on_lock_keybind),
+        LOCK_SHORTCUT,
+    )
+    .revert_on_unload();
+
     register_render(
         RenderType::Render,
         render!(|ui| {
@@ -26,11 +94,19 @@ pub fn register() {
             crate::context::log_gate(gate);
             crate::worker::set_may_poll(gate.poll);
 
+            if take_lock_toggle() {
+                let mut config = crate::runtime();
+                let locked = toggle_locked(&mut config);
+                crate::request_save(&config);
+                log::info!("click-through: {locked}");
+            }
+
             if gate.show_ui || crate::config().debug_show_everywhere {
                 draw_status(ui);
                 draw_matchup(ui);
                 draw_guilds(ui);
                 draw_alerts(ui);
+                draw_alerts_log(ui);
             }
             // The team picker needs the list of live teams even outside WvW, where polling is
             // off: without this the drop-down was empty (bug of 2026-10-31).
@@ -216,4 +292,80 @@ fn draw_alerts(ui: &nexus::imgui::Ui) {
 
     let showing = alerts::popup_lines(&lines, chrono::Utc::now(), popup_secs);
     alerts::draw_popup(ui, &showing, opacity);
+}
+
+/// The same alerts as the widget, complete and in a bigger window (T-13b).
+fn draw_alerts_log(ui: &nexus::imgui::Ui) {
+    let (filter, follow) = {
+        let config = crate::runtime();
+        (config.alerts, config.followed.clone())
+    };
+    let current = crate::context::current_map_role();
+    let lines = crate::worker::dashboard().recent_alerts(&filter, &follow, current, 50);
+
+    let mut config = crate::runtime();
+    let state = config.window(alerts::LOG_KEY);
+    alerts::draw_log(ui, state, &lines);
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// A configuration with every window already on disk, which is the normal state.
+    fn config_with_windows() -> crate::config::Config {
+        let mut config = crate::config::Config::default();
+        for key in window_keys() {
+            config.window(key);
+        }
+        config
+    }
+
+    #[test]
+    fn rf18_the_shortcut_locks_and_unlocks_every_window() {
+        let mut config = config_with_windows();
+
+        assert!(toggle_locked(&mut config), "la primera pulsación bloquea");
+        for key in window_keys() {
+            assert!(
+                config.window(key).locked,
+                "{key} tiene que quedar en click-through, si no un clic se pierde"
+            );
+        }
+
+        assert!(!toggle_locked(&mut config), "la segunda desbloquea");
+        for key in window_keys() {
+            assert!(
+                !config.window(key).locked,
+                "{key} vuelve a aceptar el ratón"
+            );
+        }
+    }
+
+    #[test]
+    fn rf18_a_single_locked_window_is_enough_to_lock_them_all() {
+        let mut config = config_with_windows();
+        config.window(guilds::KEY).locked = true;
+
+        assert!(
+            toggle_locked(&mut config),
+            "con una bloqueada se bloquean todas, no se desbloquea la suelta"
+        );
+        for key in window_keys() {
+            assert!(config.window(key).locked, "{key}");
+        }
+    }
+
+    #[test]
+    fn rf46_locking_does_not_reopen_a_closed_window() {
+        let mut config = config_with_windows();
+        config.window(guilds::KEY).visible = false;
+
+        toggle_locked(&mut config);
+
+        assert!(
+            !config.window(guilds::KEY).visible,
+            "bloquear no puede resucitar una ventana que el usuario cerró"
+        );
+    }
 }

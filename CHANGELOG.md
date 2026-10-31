@@ -1,10 +1,22 @@
 # Changelog
 Formato [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/), versionado [SemVer](https://semver.org/lang/es/).
 
+## [0.11.2] - 2026-10-31
+### Añadido
+- **Modo click-through**: una ventana bloqueada sigue dibujándose pero deja pasar todos los clics
+  al juego, que es lo que se necesita en mitad de una pelea. Se bloquea y desbloquea todo el
+  overlay con **Alt+Mayús+L** (atajo de Nexus, reasignable allí) o con la casilla de cada ventana
+  en Ajustes → Ventanas.
+- **Ventana de registro de avisos**, con la lista completa y scroll, para leer después lo que el
+  widget compacto solo deja entrever. Se abre desde Ajustes → Ventanas.
+### Corregido
+- Los interruptores de la ventana de Ajustes de Nexus (su panel de opciones) no guardaban los
+  avisos, el pop-up ni los clanes seguidos.
+
 ## [0.11.1] - 2026-10-31
 ### Corregido
 - Una ventana cerrada con la × no se podía volver a abrir. Ahora los ajustes tienen una sección
-  **Ventanas** con casillas para Avisos, Claims del matchup y Clanes.
+  **Ventanas** con casillas para Avisos, Objetivos del matchup y Clanes.
 
 ## [0.11.0] - 2026-10-31
 ### Añadido

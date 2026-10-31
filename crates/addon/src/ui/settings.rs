@@ -68,9 +68,44 @@ struct Edits {
     alerts: AlertFilter,
     popup_secs: f32,
     follow: FollowList,
-    show_alerts: bool,
-    show_claims: bool,
-    show_guilds: bool,
+    windows: Vec<WindowEdit>,
+}
+
+/// One row of the *Windows* section: the two switches of one window.
+struct WindowEdit {
+    key: &'static str,
+    visible: bool,
+    locked: bool,
+    /// `true` once the user touched a switch, so the copy is written back.
+    ///
+    /// Copying back unconditionally would undo whatever the window chrome did this very frame,
+    /// starting with the `×` of the settings window itself (bug found while adding this).
+    changed: bool,
+}
+
+/// Visibility and lock of every window, as the switches show them.
+fn window_edits(config: &mut crate::config::Config) -> Vec<WindowEdit> {
+    crate::ui::window_keys()
+        .iter()
+        .map(|key| {
+            let state = config.window(key);
+            WindowEdit {
+                key,
+                visible: state.visible,
+                locked: state.locked,
+                changed: false,
+            }
+        })
+        .collect()
+}
+
+/// Writes back the switches the user actually moved.
+fn apply_windows(config: &mut crate::config::Config, windows: &[WindowEdit]) {
+    for edit in windows.iter().filter(|edit| edit.changed) {
+        let state = config.window(edit.key);
+        state.visible = edit.visible;
+        state.locked = edit.locked;
+    }
 }
 
 /// Draws the window; the per-window UI state comes from `config` like every other window.
@@ -96,9 +131,7 @@ pub fn draw(
         alerts: config.alerts,
         popup_secs: config.popup_secs,
         follow: config.followed.clone(),
-        show_alerts: config.window(crate::ui::alerts::KEY).visible,
-        show_claims: config.window(crate::ui::matchup::KEY).visible,
-        show_guilds: config.window(crate::ui::guilds::KEY).visible,
+        windows: window_edits(config),
     };
     let before = edits.team_id;
     let mut save_now = false;
@@ -109,7 +142,6 @@ pub fn draw(
             save_now = draw_body(ui, table, &mut edits, candidates, guilds);
         });
     }
-
     remember_translation(config, edits.translation.as_str(), language);
     config.language = edits.language;
     config.alert_scope = edits.scope;
@@ -117,9 +149,7 @@ pub fn draw(
     config.alerts = edits.alerts;
     config.popup_secs = edits.popup_secs.clamp(0.0, 5.0);
     config.followed = edits.follow;
-    config.window(crate::ui::alerts::KEY).visible = edits.show_alerts;
-    config.window(crate::ui::matchup::KEY).visible = edits.show_claims;
-    config.window(crate::ui::guilds::KEY).visible = edits.show_guilds;
+    apply_windows(config, &edits.windows);
     set_narrowing(edits.narrowing);
 
     if save_now {
@@ -151,9 +181,7 @@ pub fn draw_inline(
         alerts: config.alerts,
         popup_secs: config.popup_secs,
         follow: config.followed.clone(),
-        show_alerts: config.window(crate::ui::alerts::KEY).visible,
-        show_claims: config.window(crate::ui::matchup::KEY).visible,
-        show_guilds: config.window(crate::ui::guilds::KEY).visible,
+        windows: window_edits(&mut config),
     };
     let before = edits.team_id;
 
@@ -163,6 +191,10 @@ pub fn draw_inline(
     config.language = edits.language;
     config.alert_scope = edits.scope;
     config.poll_secs = edits.poll_secs.clamp(15, 600) as u32;
+    config.alerts = edits.alerts;
+    config.popup_secs = edits.popup_secs.clamp(0.0, 5.0);
+    config.followed = edits.follow;
+    apply_windows(&mut config, &edits.windows);
     drop(config);
     set_narrowing(edits.narrowing);
 
@@ -255,11 +287,17 @@ fn draw_body(
 
     ui.separator();
     ui.text(i18n::text("Windows"));
-    ui.checkbox(i18n::widget("Alerts"), &mut edits.show_alerts);
-    ui.checkbox(i18n::widget("Matchup claims"), &mut edits.show_claims);
-    ui.checkbox(i18n::widget("Guilds"), &mut edits.show_guilds);
+    for edit in edits.windows.iter_mut() {
+        let visible = ui.checkbox(i18n::widget(edit.key), &mut edit.visible);
+        ui.same_line();
+        let locked = ui.checkbox(
+            format!("{}###lock_{}", i18n::text("Click-through"), edit.key),
+            &mut edit.locked,
+        );
+        edit.changed |= visible || locked;
+    }
     ui.text_disabled(i18n::text(
-        "Closed windows come back from here; the overlay only shows in the four WvW maps.",
+        "Alt+Shift+L locks or unlocks the overlay so clicks reach the game.",
     ));
 
     ui.separator();

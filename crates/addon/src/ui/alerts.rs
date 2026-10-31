@@ -19,6 +19,9 @@ use crate::worker::{AlertKind, AlertLine};
 /// Translation key (and stable id) of this window.
 pub const KEY: &str = "Alerts";
 
+/// Translation key (and stable id) of the expanded log window.
+pub const LOG_KEY: &str = "Alert log";
+
 /// Translation key of the pop-up: separate window, separate id, state never saved.
 const POPUP_KEY: &str = "Alerts (pop-up)";
 
@@ -37,6 +40,27 @@ pub fn draw(ui: &Ui, window_state: &mut crate::config::WindowState, alerts: &[Al
         }
         let language = i18n::effective();
         for line in alerts.iter().take(MAX_LINES) {
+            draw_line(ui, line, language);
+        }
+    })
+}
+
+/// Draws the expanded log: every alert the worker still remembers, scrolling if needed.
+///
+/// Same data and same lines as [`draw`], without the `MAX_LINES` cut, in a bigger window: during
+/// a fight the compact one is what you glance at, after it the log is what you read.
+pub fn draw_log(
+    ui: &Ui,
+    window_state: &mut crate::config::WindowState,
+    alerts: &[AlertLine],
+) -> bool {
+    crate::ui::window::draw(ui, LOG_KEY, 5, [440.0, 420.0], window_state, |ui| {
+        if alerts.is_empty() {
+            ui.text_disabled(i18n::text("No alerts yet"));
+            return;
+        }
+        let language = i18n::effective();
+        for line in alerts {
             draw_line(ui, line, language);
         }
     })

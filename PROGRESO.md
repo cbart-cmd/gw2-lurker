@@ -13,6 +13,32 @@ Reglas:
 
 ---
 
+## HECHO – 2026-10-31 · Click-through con atajo y registro de avisos (T-13b; 0.11.2)
+
+- **Bloqueo = click-through**: `ui::window::draw` añade `Window::no_inputs()` cuando la ventana
+  está bloqueada, así que imgui no le da ni un clic y durante una pelea todo llega al juego. El
+  menú contextual sigue teniendo la opción (renombrada *Click-through*), pero bloqueada no se
+  puede abrir: la vuelta es el atajo o los ajustes.
+- **Atajo `Alt+Shift+L`** con la API de keybinds de Nexus (verificada en
+  `nexus/src/api/keybind.rs`, tag 0.12.0): `register_keybind_with_string` +
+  `keybind_handler!`, revertido al descargar. El handler corre en el hilo de entrada de Nexus y
+  **solo levanta un `AtomicBool`**; el render lo consume y aplica el cambio con el candado de la
+  configuración ya cogido, sin invertir el orden de candados. `ui::toggle_locked` es pura y
+  tiene tres tests: bloquea todas, con una bloqueada bloquea todas, y **no resucita** una
+  ventana cerrada.
+- Trampa cara, ya en `AGENTS.md` §11.11: `config.window(key)` **crea** la entrada con
+  `visible = true`. La primera versión del atajo resucitaba las ventanas cerradas. Y volcar el
+  `Edits` entero cada frame deshacía la `×` de los propios ajustes; ahora cada fila lleva
+  `changed` y solo se escribe lo que el usuario tocó.
+- **Ventana «Registro de avisos»** (`alerts::LOG_KEY`): la lista completa que el worker guarda
+  (50), con scroll, en una ventana más grande. La lista de ventanas de los ajustes ya no es una
+  enum a mano: `ui::window_keys()` y una casilla de visible + otra de click-through por ventana.
+- Bug de paso: `settings::draw_inline` (el panel de opciones de Nexus) no escribía de vuelta
+  avisos, pop-up ni clanes seguidos; ahora copia todo.
+- Verificado: 56 tests en el addon (3 nuevos), 86 en `core`, 14 en `api`, 6 en `store`; `fmt` y
+  `clippy -D warnings` limpios; trazabilidad y LOC en verde. Sin probar dentro del juego: que
+  `Alt+Shift+L` no choque con un atajo del jugador — se puede reasignar en Nexus.
+
 ## HECHO – 2026-10-31 · Ventanas cerradas que no se podían reabrir (0.11.1)
 
 - **Lo reportó el usuario en Bastión de la Armisticia** («no veo el widget de avisos»). El gate

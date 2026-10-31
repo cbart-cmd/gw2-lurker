@@ -2,11 +2,15 @@
 //!
 //! Every window —status, settings, map, guilds, history, log— draws its chrome through
 //! [`draw`]: custom title bar with `×` and double-click collapse, movable and resizable
-//! unless locked, opacity applied to the background, and a right-click menu with *Lock
-//! position*, *Opacity*, *Reset position and size*.
+//! unless locked, opacity applied to the background, and a right-click menu with
+//! *Click-through*, *Opacity*, *Reset position and size*.
 //!
 //! The position comes from the configuration and is pushed every first use; it is read back
 //! from the mouse only when the window is not locked, so a lock cannot be undone by dragging.
+//!
+//! Locked means **click-through**: the window keeps drawing but imgui gives it no mouse input
+//! at all (`NO_INPUTS`), so during a fight every click goes to the game. The way back is the
+//! `Alt+Shift+L` shortcut or the *Windows* section of the settings (RF-18).
 
 use nexus::imgui::{Condition, MenuItem, MouseButton, Slider, Ui, Window};
 
@@ -39,7 +43,7 @@ pub fn draw(
     let title_text = i18n::text(key);
     let title_id = i18n::widget(key);
     let menu_id = format!("###gw2lurker_menu_{key}");
-    let lock_id = i18n::widget("Lock position");
+    let lock_id = i18n::widget("Click-through (no mouse)");
     let opacity_id = i18n::widget("Opacity");
     let reset_id = i18n::widget("Reset position and size");
     let close_id = format!("×###gw2lurker_close_{key}");
@@ -58,6 +62,9 @@ pub fn draw(
         .bg_alpha(state.opacity);
     if state.collapsed {
         window = window.always_auto_resize(true);
+    }
+    if state.locked {
+        window = window.no_inputs();
     }
 
     window.build(ui, || {

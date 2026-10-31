@@ -174,6 +174,12 @@ Cada punto de esta lista sale de un fallo real de este proyecto, no de una buena
     `cargo clippy --workspace --all-targets -- -D warnings`, `cargo test --workspace`,
     `./scripts/check_loc.sh` y `./scripts/check_traceability.sh`; y si el cambio toca red o el
     juego, además la prueba `--ignored` correspondiente.
+11. **Escribir de vuelta solo lo que el usuario tocó**, no la copia entera del formulario. Un
+    `Edits` que se vuelca completo cada frame deshace lo que hizo el propio widget en ese mismo
+    frame: con las casillas de *Ventanas*, la `×` de los ajustes se reabría sola. Marca
+    `changed` en el `Edits` y aplica solo eso. Y cuidado con `config.window(key)`: **crea** la
+    entrada si no existe, con `visible = true`, así que pedirla por una ventana cerrada la
+    resucita.
 
 ## 12. CI: lanzar y seguir
 

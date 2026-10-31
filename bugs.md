@@ -62,3 +62,15 @@ Estado: `[ ]` pendiente · `[x]` hecho.
 - Cuando vuelvo a uns erviudor que ya había traducido, no lo ha guardado
 - **Hecho (0.10.1):** mismo fallo que la entrada de arriba, reportado dos veces. La traducción
   se guarda por equipo y el campo propone la de la tabla; hay botón **Grabar**.
+
+ ## [ ] widget: errores
+- No sale nombre del clan sino un ID. adjunto imagen
+- al intenraer seleccioanr un clan, no me deja. adjuto imagen de lista de clanes
+- los avisos deberian desaparecer pero están siempre (a menos que no haya entendido bien la ventana esa)
+- el selector de matchup claims no permite elegir " clanes que sigo (cualquier mapa)". adjunto imagen
+- el selector d eequipo dentro de mcm: me deja seleccionar el equiopo acutal poero no salen otros, adjunto imagen
+ ![alt text](image.png)
+ ![alt text](image-1.png)
+ ![alt text](image-2.png)
+ ![alt text](image-3.png)
+ ![alt text](image-4.png)
