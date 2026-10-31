@@ -108,12 +108,6 @@ pub fn body(ui: &Ui, view: &View<'_>, role: &mut MapRole, here: Option<MapRole>)
     // (reported and confirmed in `Nexus.log`, 2026-10-31).
     let size = [width, MAP_HEIGHT];
     let list = ui.get_window_draw_list();
-    if real_map {
-        draw_tiles(&list, &frame, origin, size, opacity);
-        draw_frame(&list, origin, size, map_label(*role));
-    } else {
-        draw_background(&list, origin, size, &frame, map_label(*role));
-    }
 
     // One pass to know where every objective lands: the drawing and the hover check need the
     // same points, and asking `get_window_draw_list` twice per frame is a panic (see above).
@@ -141,29 +135,6 @@ pub fn body(ui: &Ui, view: &View<'_>, role: &mut MapRole, here: Option<MapRole>)
         None
     };
 
-    for (index, (point, objective, row)) in drawn.iter().enumerate() {
-        let followed = row.is_some_and(|row| follow.contains(&row.guild));
-        draw_objective(
-            &list,
-            *point,
-            objective.kind,
-            row.and_then(|row| row.owner),
-            row.is_none_or(|row| row.is_high_value()),
-            followed,
-        );
-        if let (true, Some(row)) = (followed, row) {
-            // El tag del clan, junto al anillo: el color no puede ser la única información (RF-31).
-            if let Some(tag) = guild_names.get(&row.guild).and_then(|label| tag_of(label)) {
-                list.add_text([point[0] + 10.0, point[1] - 6.0], FOLLOWED_RING, tag);
-            }
-        }
-        if hovered == Some(index) {
-            list.add_circle(*point, 13.0, [1.0, 1.0, 1.0, 0.9])
-                .thickness(1.5)
-                .build();
-        }
-    }
-
     let since =
         range_choice(ui).map(|minutes| chrono::Utc::now() - chrono::Duration::minutes(minutes));
     // Reproducción animada de la ruta (RF-36): play/pausa y una barra de progreso. Sin reproducir
@@ -172,19 +143,57 @@ pub fn body(ui: &Ui, view: &View<'_>, role: &mut MapRole, here: Option<MapRole>)
         ui,
         history.iter().filter(|row| row.map_id == map.id).count(),
     );
-    draw_route(
-        &list,
-        &RouteCanvas {
-            frame: &frame,
-            origin,
-            size,
-        },
-        map.id,
-        names,
-        history,
-        since,
-        played,
-    );
+
+    // Todo el dibujo va recortado al rectángulo del mapa. En imgui la lista de dibujo de una
+    // ventana hija es la del **padre**, así que sin recorte propio las teselas y los anillos se
+    // pintaban encima de las pestañas y fuera de la ventana (informe de 2026-10-31, con captura).
+    // Con `with_clip_rect_intersect` el recorte del mapa se cruza con el de la ventana: nunca se
+    // sale de la ventana aunque el mapa sea más grande que ella.
+    list.with_clip_rect_intersect(origin, [origin[0] + size[0], origin[1] + size[1]], || {
+        if real_map {
+            draw_tiles(&list, &frame, origin, size, opacity);
+            draw_frame(&list, origin, size, map_label(*role));
+        } else {
+            draw_background(&list, origin, size, &frame, map_label(*role));
+        }
+
+        for (index, (point, objective, row)) in drawn.iter().enumerate() {
+            let followed = row.is_some_and(|row| follow.contains(&row.guild));
+            draw_objective(
+                &list,
+                *point,
+                objective.kind,
+                row.and_then(|row| row.owner),
+                row.is_none_or(|row| row.is_high_value()),
+                followed,
+            );
+            if let (true, Some(row)) = (followed, row) {
+                // El tag del clan, junto al anillo: el color no puede ser la única información (RF-31).
+                if let Some(tag) = guild_names.get(&row.guild).and_then(|label| tag_of(label)) {
+                    list.add_text([point[0] + 10.0, point[1] - 6.0], FOLLOWED_RING, tag);
+                }
+            }
+            if hovered == Some(index) {
+                list.add_circle(*point, 13.0, [1.0, 1.0, 1.0, 0.9])
+                    .thickness(1.5)
+                    .build();
+            }
+        }
+
+        draw_route(
+            &list,
+            &RouteCanvas {
+                frame: &frame,
+                origin,
+                size,
+            },
+            map.id,
+            names,
+            history,
+            since,
+            played,
+        );
+    });
 
     match hovered.and_then(|index| drawn.get(index)) {
         Some((_, objective, row)) => {

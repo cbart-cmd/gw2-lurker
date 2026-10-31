@@ -134,15 +134,22 @@ fn draw_lines(ui: &Ui, lines: &[&AlertLine]) -> Option<String> {
     }
     let list = ui.get_window_draw_list();
     let middle = ui.text_line_height() / 2.0;
-    for (start, line) in marks {
-        super::icons::glyph(
-            &list,
-            line.objective_kind,
-            [start[0] + GLYPH_HALF, start[1] + middle],
-            GLYPH_HALF,
-            GREY,
-        );
-    }
+    // Recorte a la ventana: el cuerpo del widget vive en una ventana hija y, en imgui, la lista de
+    // dibujo es la del padre, así que sin recorte propio (2026-10-31, con captura) los iconos se
+    // salían de la ventana.
+    let pos = ui.window_pos();
+    let area = ui.window_size();
+    list.with_clip_rect_intersect(pos, [pos[0] + area[0], pos[1] + area[1]], || {
+        for (start, line) in marks {
+            super::icons::glyph(
+                &list,
+                line.objective_kind,
+                [start[0] + GLYPH_HALF, start[1] + middle],
+                GLYPH_HALF,
+                GREY,
+            );
+        }
+    });
     chosen
 }
 

@@ -1,6 +1,13 @@
 # Changelog
 Formato [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/), versionado [SemVer](https://semver.org/lang/es/).
 
+## [0.22.2] - 2026-10-31
+### Corregido
+- **El mapa se salía de la ventana**: se pintaba encima de las pestañas y por debajo del widget. Al
+  meter el cuerpo en una ventana hija (0.22.0) el mapa siguió usando la lista de dibujo del padre,
+  que en imgui es la misma para la hija, así que le faltaba su propio recorte. Ahora el mapa y los
+  iconos del registro se dibujan con `with_clip_rect_intersect` sobre su rectángulo.
+
 ## [0.22.1] - 2026-10-31
 ### Corregido
 - **Dejar de seguir un clan pide confirmación**: el `×` de «Clanes seguidos» pregunta en la misma

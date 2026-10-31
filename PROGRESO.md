@@ -13,6 +13,22 @@ Reglas:
 
 ---
 
+## HECHO – 2026-10-31 · El mapa se sale de la ventana (0.22.2)
+
+- Bug nuevo del jugador, con captura: «el mapa lo pinta fuera de sitio, pinta encima de las pestañas
+  de arriba y por debajo». Regresión de 0.22.0: al meter el cuerpo en una ventana hija, el mapa y los
+  iconos del registro siguen pidiendo `get_window_draw_list()`, y en imgui la lista de dibujo de una
+  hija **es la del padre**; el recorte que sí hace la ventana hija solo se aplica a los widgets, no a
+  los trazos a mano.
+- Arreglo: `DrawListMut::with_clip_rect_intersect` en los dos sitios que dibujan a mano
+  (`ui::map::draw` con el rectángulo del mapa, `ui::alerts::draw_lines` con el de la ventana). Al
+  intersecar con el recorte actual, el dibujo nunca se sale de la ventana aunque el mapa sea más
+  grande que ella.
+- De paso, la captura confirma que **la orientación ya es correcta**: Eternos sale al derecho y cada
+  anillo sobre su estructura.
+- Verificación: 207 tests en verde, `clippy -D warnings` limpio, `cargo fmt --check` limpio.
+- **No verificado en el juego** (la DLL estaba bloqueada por el juego al instalar; hay que cerrarlo).
+
 ## HECHO – 2026-10-31 · Dejar de seguir un clan pide confirmación (0.22.1)
 
 - El `×` de «Clanes seguidos» quitaba el clan sin vuelta atrás. Ahora el `×` **arma** la fila y la
