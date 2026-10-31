@@ -90,9 +90,13 @@ Estado: `[ ]` pendiente · `[x]` hecho.
     salía un equipo por color. Con el selector abierto pide los nueve.
 
 
- ## [ ] Historial de claims no se borra
+ ## [x] Historial de claims no se borra (2026-10-31)
  - El historia de claims se debe borrar cada vez que se reiniicar el juego
  - Lo que se debe guardar es el historial de clanes que se sigue
+ - **Hecho (0.12.1):** el baseline (lo que ya estaba reclamado al arrancar) se apuntaba con su hora real,
+   así que avisos e historial de clanes arrancaban con claims de ayer. Ahora los `late` no entran ni en
+   avisos ni en historial (`recent_alerts`, `history_row`) y en disco solo se escribe lo que reclamaron
+   las guilds que sigues (`keeps_in_the_store`).
 
  ## [x] widget no se parece a bocetos (2026-10-31)
  - En bocetos una sola ventana tiene pestañas para agrupar todo
@@ -102,3 +106,7 @@ Estado: `[ ]` pendiente · `[x]` hecho.
    **Avisos emergentes**, y siguen mostrando los ajustes aunque la ventana esté cerrada. El pop-up tiene
    interruptor propio (`popup_enabled`) además de la duración 0–5 s, y se dibuja aunque el widget esté
    cerrado. **Pendiente:** mirar en el juego el boceto del pop-up (fade, barra de color, tipografía).
+ - **Hecho (0.12.1):** el baseline (lo que ya estaba reclamado al arrancar) se seguía apuntando con su hora
+   real, así que la lista de avisos y el historial de clanes arrancaban con claims de ayer. Ahora los
+   `late` no entran ni en avisos ni en historial (`recent_alerts`, `history_row`) y en disco solo se
+   escribe lo que reclamaron las guilds que sigues (`keeps_in_the_store`).

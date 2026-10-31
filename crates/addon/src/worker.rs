@@ -106,6 +106,9 @@ impl Dashboard {
             .iter()
             .rev()
             .filter_map(|event| self.alert_line(event))
+            // What was already claimed when the addon started is not news: showing it made the
+            // widget look like it never forgot anything (bug of 2026-10-31).
+            .filter(|line| !line.late)
             .filter(|line| filter.notify(line.map_role, line.guild.as_deref(), follow, current))
             .take(limit)
             .collect()
@@ -425,6 +428,11 @@ fn poll_once(
             .collect();
         if let Some(store) = store {
             for event in &events {
+                // On disk only the followed guilds: the rest of the claims are the state of the
+                // matchup, which the API returns anyway (bug of 2026-10-31).
+                if !keeps_in_the_store(event, &crate::config().followed) {
+                    continue;
+                }
                 let record = Record::new(Utc::now(), entry.id.clone(), event.clone());
                 if let Err(error) = store.append(&record) {
                     log::warn!("worker: no se pudo guardar el evento ({error})");
@@ -537,6 +545,17 @@ fn resolve_guild_names(
     cache.known.clone()
 }
 
+/// Whether an event is worth writing to disk: only what a followed guild did.
+///
+/// The claims of the rest of the matchup are the current state, and the API returns them on
+/// every poll; keeping them on disk made the history look like it never restarted.
+fn keeps_in_the_store(event: &Event, follow: &gw2lurker_core::FollowList) -> bool {
+    match event {
+        Event::Claim { guild, late, .. } => !*late && follow.contains(guild),
+        _ => false,
+    }
+}
+
 /// Turns a claim event into a history row, resolving name, kind and owner from the snapshot.
 ///
 /// Free function on purpose: the caller has the match snapshot and the names at hand, and this
@@ -551,11 +570,16 @@ fn history_row(
         objective,
         guild,
         at,
-        ..
+        late,
     } = event
     else {
         return None;
     };
+    // A claim that was already there when the addon started is not part of this session: the
+    // history has to start empty after a restart (bug of 2026-10-31).
+    if *late {
+        return None;
+    }
     let map_id = objective
         .split_once('-')
         .and_then(|(map, _)| map.parse::<u32>().ok())?;
@@ -682,6 +706,61 @@ mod tests {
             ..info
         };
         assert_eq!(guild_label(&anon), "[Lord]", "sin nombre queda la etiqueta");
+    }
+
+    #[test]
+    fn rf25_a_restart_does_not_show_yesterday() {
+        let mut board = Dashboard::default();
+        board.push_alert(Event::Claim {
+            objective: "38-20".to_owned(),
+            guild: "1DB147F0".to_owned(),
+            at: Utc::now(),
+            late: true,
+        });
+        board.push_alert(Event::Claim {
+            objective: "38-21".to_owned(),
+            guild: "1DB147F0".to_owned(),
+            at: Utc::now(),
+            late: false,
+        });
+
+        let filter = gw2lurker_core::AlertFilter::default();
+        let follow = gw2lurker_core::FollowList::new();
+        let lines = board.recent_alerts(&filter, &follow, None, 50);
+
+        assert_eq!(lines.len(), 1, "solo el claim visto en vivo");
+        assert_eq!(lines[0].objective, "38-21");
+        assert!(!lines[0].late);
+    }
+
+    #[test]
+    fn rf73_only_the_followed_guilds_go_to_disk() {
+        let mut follow = gw2lurker_core::FollowList::new();
+        follow.add("1DB147F0");
+
+        let claim = |guild: &str, late: bool| Event::Claim {
+            objective: "38-20".to_owned(),
+            guild: guild.to_owned(),
+            at: Utc::now(),
+            late,
+        };
+
+        assert!(keeps_in_the_store(&claim("1DB147F0", false), &follow));
+        assert!(
+            !keeps_in_the_store(&claim("OTRO", false), &follow),
+            "los claims de clanes que no sigues no se guardan"
+        );
+        assert!(
+            !keeps_in_the_store(&claim("1DB147F0", true), &follow),
+            "lo que ya estaba al arrancar no es historial de esta sesión"
+        );
+        assert!(!keeps_in_the_store(
+            &Event::Gap {
+                from: Utc::now(),
+                to: Utc::now(),
+            },
+            &follow
+        ));
     }
 
     #[test]

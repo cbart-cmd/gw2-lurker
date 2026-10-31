@@ -132,6 +132,7 @@ Comprobado el **2026-10-31** contra la API real, el código fuente de `nexus-rs`
 **RF-24 (M)** El historial cubrirá **la sesión actual** (ADR-012): al arrancar el addon se descarta el de la sesión anterior y se empieza uno nuevo. Dentro de la sesión podrá consultarse por guild y rango de tiempo. La UI mostrará siempre la hora de inicio de sesión como límite inferior de lo que se puede ver.
 
 **RF-25 (M)** En baseline o tras un hueco, para **cada** objetivo con `claimed_by` —de cualquier guild, no solo las seguidas— el addon deberá registrar un claim marcado `late=true` usando `claimed_at` como hora real. Los claims de guilds no seguidas se guardan como observación: no generan aviso, pero alimentan el ranking de RF-20a.
+- Los `late` **no entran en la lista de avisos ni en el historial de la sesión** (ni en el registro): al reiniciar el juego el historial de claims está vacío, y solo se conserva en disco lo que hicieron las guilds seguidas (bug de 2026-10-31).
 
 **RF-26 (M)** Cuando el hueco entre snapshots válidos supere el umbral (por defecto 3 × intervalo), el addon deberá registrar un evento `gap` para que la UI advierta de que pueden faltar claims.
 

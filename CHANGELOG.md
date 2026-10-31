@@ -1,6 +1,14 @@
 # Changelog
 Formato [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/), versionado [SemVer](https://semver.org/lang/es/).
 
+## [0.12.1] - 2026-10-31
+### Corregido
+- Al reiniciar el juego, la lista de avisos y el historial de clanes seguían mostrando claims de
+  antes: lo que ya estaba reclamado al arrancar se apuntaba como si acabara de pasar. Ahora eso
+  no entra ni en los avisos ni en el historial de la sesión.
+- En disco solo se guardan los claims de las guilds que sigues; el resto es el estado del
+  matchup, que la API devuelve en cada sondeo.
+
 ## [0.12.0] - 2026-10-31
 ### Cambiado
 - **Una sola ventana con pestañas**, como el boceto: **Avisos · Mapa · Clanes · Registro** y, al

@@ -13,6 +13,18 @@ Reglas:
 
 ---
 
+## HECHO – 2026-10-31 · El historial empieza vacío al arrancar (0.12.1)
+
+- **Lo reportó el usuario**: «el historial de claims no se borra al reiniciar; lo que se guarda es
+  el de clanes que sigues». Causa: el baseline marca `late=true` los claims que **ya estaban** al
+  arrancar, y esos se apuntaban con su hora real, así que la lista de avisos y el historial de
+  clanes nacían con claims de ayer.
+- `recent_alerts` descarta los `late`: lo que ya estaba no es noticia. `history_row` también, así
+  que el historial de la sesión empieza vacío.
+- En disco solo se escriben los claims de las guilds seguidas (`keeps_in_the_store`, con test):
+  el resto es el estado del matchup y la API lo devuelve en cada sondeo. RF-25 queda actualizado.
+- 62 tests en el addon (2 nuevos), resto en verde, `clippy -D warnings` limpio.
+
 ## HECHO – 2026-10-31 · Una sola ventana con pestañas (T-42; 0.12.0)
 
 - **ADR-014**: el addon pasa de cinco ventanas sueltas a **una** con pestañas —Avisos · Mapa ·
