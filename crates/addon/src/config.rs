@@ -96,13 +96,17 @@ impl WindowState {
 pub struct Config {
     /// Configured team id (`11xxx`/`12xxx`), `None` until the user picks one (RF-03a).
     pub team_id: Option<u32>,
-    /// Name the user wrote for their team, per language code (RF-03f).
+    /// Name the user wrote for each team, per language (RF-03f).
     ///
-    /// Prefilled with the name in the game language, so a wrong or missing translation can be
-    /// fixed without waiting for a release. Stored per language on purpose: switching the game
-    /// language must not show the Spanish name over the French one.
+    /// Indexed by **team id** and then by language: a translation belongs to one team, so
+    /// switching team must not carry it over and coming back must bring it back (bug of
+    /// 2026-10-31).
+    pub team_translations: BTreeMap<String, BTreeMap<String, String>>,
+    /// Legacy 0.6–0.10: translation per language only, applied to whichever team was
+    /// configured. Read as a fallback and cleared on the first save.
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
     pub team_names: BTreeMap<String, String>,
-    /// Single alias of 0.5.x, migrated into `team_names` on first save.
+    /// Single alias of 0.5.x, also migrated on first save.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub team_alias: Option<String>,
     /// Polling interval in seconds; the measured default is 30 (RNF-02).
@@ -135,6 +139,7 @@ impl Default for Config {
             team_id: None,
             team_alias: None,
             team_names: BTreeMap::new(),
+            team_translations: BTreeMap::new(),
             poll_secs: 30,
             alert_scope: AlertScope::default(),
             alerts: gw2lurker_core::AlertFilter::default(),
@@ -156,31 +161,44 @@ impl Config {
         self.windows.entry(key.to_owned()).or_default()
     }
 
-    /// Name the user gave the team in this language, if any.
+    /// Name the user gave `team_id` in this language, if any.
     ///
-    /// Falls back to the single alias of 0.5.x so nobody loses what they had written.
-    pub fn custom_name(&self, language: &str) -> Option<&str> {
-        if let Some(name) = self.team_names.get(language) {
-            return (!name.trim().is_empty()).then_some(name.trim());
-        }
-        self.team_alias
-            .as_deref()
-            .map(str::trim)
-            .filter(|alias| !alias.is_empty())
+    /// Falls back to the legacy shapes so nobody loses what they wrote: `team_names` (one name
+    /// per language, from 0.6–0.10) and `team_alias` (a single name, from 0.5.x).
+    pub fn custom_name(&self, team_id: u32, language: &str) -> Option<&str> {
+        let name = self
+            .team_translations
+            .get(&team_id.to_string())
+            .and_then(|by_language| by_language.get(language))
+            .map(String::as_str)
+            .or_else(|| self.team_names.get(language).map(String::as_str))
+            .or(self.team_alias.as_deref())?;
+        let name = name.trim();
+        (!name.is_empty()).then_some(name)
     }
 
-    /// Stores (or clears, when equal to the automatic name) the translation of a language.
+    /// Stores (or clears, when equal to the automatic name) the translation of one team.
     ///
     /// Writing the automatic name back is not an override: it removes the entry, so the addon
-    /// keeps following the bundled translations.
-    pub fn set_custom_name(&mut self, language: &str, name: &str, automatic: &str) {
+    /// keeps following the bundled translations. The legacy fields are always cleared, because
+    /// from now on a translation belongs to a team.
+    pub fn set_custom_name(&mut self, team_id: u32, language: &str, name: &str, automatic: &str) {
         let name = name.trim();
+        let key = team_id.to_string();
         if name.is_empty() || name == automatic.trim() {
-            self.team_names.remove(language);
+            if let Some(by_language) = self.team_translations.get_mut(&key) {
+                by_language.remove(language);
+                if by_language.is_empty() {
+                    self.team_translations.remove(&key);
+                }
+            }
         } else {
-            self.team_names.insert(language.to_owned(), name.to_owned());
+            self.team_translations
+                .entry(key)
+                .or_default()
+                .insert(language.to_owned(), name.to_owned());
         }
-        // Anything stored per language supersedes the legacy single alias.
+        self.team_names.clear();
         self.team_alias = None;
     }
 

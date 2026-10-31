@@ -78,7 +78,7 @@ pub fn automatic_name(language: &str, team_id: u32) -> String {
 /// Name shown to the player: their own translation wins over the bundled one (RF-03f).
 pub fn display_name(config: &Config, language: &str, team_id: u32) -> String {
     config
-        .custom_name(language)
+        .custom_name(team_id, language)
         .map(str::to_owned)
         .unwrap_or_else(|| automatic_name(language, team_id))
 }
@@ -86,6 +86,35 @@ pub fn display_name(config: &Config, language: &str, team_id: u32) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn rf03f_a_translation_belongs_to_one_team() {
+        // The bug of 2026-10-31: the name written for one team showed up on the next one.
+        let mut config = Config::default();
+        config.set_custom_name(
+            11011,
+            "es",
+            "Invernadero de Lutgardis",
+            "Lutgardis Conservatory",
+        );
+        config.set_custom_name(12014, "es", "Bosquemugoso", "Pajar de la Gran Casa");
+
+        assert_eq!(
+            config.custom_name(11011, "es"),
+            Some("Invernadero de Lutgardis")
+        );
+        assert_eq!(config.custom_name(12014, "es"), Some("Bosquemugoso"));
+        assert_eq!(
+            config.custom_name(12015, "es"),
+            None,
+            "un equipo sin traducir no hereda la de otro"
+        );
+        assert_eq!(
+            config.custom_name(11011, "fr"),
+            None,
+            "ni otro idioma del mismo equipo"
+        );
+    }
 
     #[test]
     fn rf03a_override_wins_over_the_roster() {
@@ -118,7 +147,7 @@ mod tests {
             "sin traducción propia se usa la de la tabla"
         );
 
-        config.set_custom_name("es", "Bosquemugoso", "Pajar de la Gran Casa");
+        config.set_custom_name(12014, "es", "Bosquemugoso", "Pajar de la Gran Casa");
         assert_eq!(display_name(&config, "es", 12014), "Bosquemugoso");
         assert_eq!(
             display_name(&config, "en", 12014),
@@ -126,7 +155,7 @@ mod tests {
             "la traducción es por idioma: en inglés no se cuela el nombre español"
         );
 
-        config.set_custom_name("es", "  ", "Pajar de la Gran Casa");
+        config.set_custom_name(12014, "es", "  ", "Pajar de la Gran Casa");
         assert_eq!(
             display_name(&config, "es", 12014),
             "Pajar de la Gran Casa",
@@ -137,15 +166,24 @@ mod tests {
     #[test]
     fn rf03f_writing_the_automatic_name_is_not_an_override() {
         let mut config = Config::default();
-        config.set_custom_name("es", "Pajar de la Gran Casa", "Pajar de la Gran Casa");
+        config.set_custom_name(
+            12014,
+            "es",
+            "Pajar de la Gran Casa",
+            "Pajar de la Gran Casa",
+        );
         assert!(
-            config.team_names.is_empty(),
+            config.team_translations.is_empty(),
             "dejarlo como estaba no crea una entrada"
         );
 
-        config.set_custom_name("fr", "Bosquemugoso", "Volière de la Grande Maison");
+        config.set_custom_name(12014, "fr", "Bosquemugoso", "Volière de la Grande Maison");
         assert_eq!(
-            config.team_names.get("fr").map(String::as_str),
+            config
+                .team_translations
+                .get("12014")
+                .and_then(|by_language| by_language.get("fr"))
+                .map(String::as_str),
             Some("Bosquemugoso")
         );
     }
@@ -162,7 +200,12 @@ mod tests {
             "el alias de 0.5.x se sigue usando hasta que se guarde la traducción"
         );
 
-        config.set_custom_name("es", "Invernadero de Lutgardis", "Lutgardis Conservatory");
+        config.set_custom_name(
+            11011,
+            "es",
+            "Invernadero de Lutgardis",
+            "Lutgardis Conservatory",
+        );
         assert_eq!(config.team_alias, None, "al guardar se migra y se limpia");
         assert_eq!(
             display_name(&config, "es", 11011),

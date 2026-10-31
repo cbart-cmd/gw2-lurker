@@ -29,6 +29,8 @@ pub enum TeamChange {
     Pick(u32),
     /// The player cleared the selection.
     Clear,
+    /// The player pressed *Save* on the translation: apply it and write the file now.
+    SaveNow,
 }
 
 /// Which region and colour the player has already narrowed down to.
@@ -93,11 +95,12 @@ pub fn draw(
         follow: config.followed.clone(),
     };
     let before = edits.team_id;
+    let mut save_now = false;
 
     {
         let state = config.window(KEY);
-        crate::ui::window::draw(ui, KEY, 1, [470.0, 430.0], state, |ui| {
-            draw_body(ui, table, &mut edits, candidates, guilds)
+        crate::ui::window::draw(ui, KEY, 1, [470.0, 460.0], state, |ui| {
+            save_now = draw_body(ui, table, &mut edits, candidates, guilds);
         });
     }
 
@@ -110,6 +113,9 @@ pub fn draw(
     config.followed = edits.follow;
     set_narrowing(edits.narrowing);
 
+    if save_now {
+        return Some(TeamChange::SaveNow);
+    }
     team_change(before, edits.team_id)
 }
 
@@ -139,7 +145,7 @@ pub fn draw_inline(
     };
     let before = edits.team_id;
 
-    draw_body(ui, table, &mut edits, candidates, guilds);
+    let save_now = draw_body(ui, table, &mut edits, candidates, guilds);
 
     remember_translation(&mut config, edits.translation.as_str(), language);
     config.language = edits.language;
@@ -148,6 +154,9 @@ pub fn draw_inline(
     drop(config);
     set_narrowing(edits.narrowing);
 
+    if save_now {
+        return Some(TeamChange::SaveNow);
+    }
     team_change(before, edits.team_id)
 }
 
@@ -194,7 +203,7 @@ fn draw_body(
     edits: &mut Edits,
     candidates: &[Candidate],
     guilds: &[GuildSummary],
-) {
+) -> bool {
     // imgui puts the label to the right of the widget: cap the widget so the translated labels
     // of a narrow window are not cut off, whatever the language.
     let longest = i18n::text("No live teams for that region and colour");
@@ -231,6 +240,19 @@ fn draw_body(
     let mut follow = edits.follow.clone();
     draw_alert_filters(ui, edits, guilds, &mut follow);
     edits.follow = follow;
+
+    ui.separator();
+    let saved = ui.button(i18n::widget("Save"));
+    if saved {
+        // Feedback is deliberately minimal: the button exists so pressing something persists,
+        // and the tooltip says the changes are already applied while editing.
+    }
+    if ui.is_item_hovered() {
+        ui.tooltip_text(i18n::text(
+            "The changes are applied as you edit; this writes them now.",
+        ));
+    }
+    saved
 }
 
 /// Which maps and guilds deserve an alert (RF-19a), plus how long the pop-up lasts.
@@ -403,8 +425,10 @@ fn initial_translation(
     selected: Option<u32>,
     language: &str,
 ) -> String {
-    if let Some(custom) = config.custom_name(language) {
-        return custom.to_owned();
+    if let Some(team_id) = selected {
+        if let Some(custom) = config.custom_name(team_id, language) {
+            return custom.to_owned();
+        }
     }
     match selected {
         Some(id) => table
@@ -423,7 +447,7 @@ fn remember_translation(config: &mut crate::config::Config, written: &str, langu
         return;
     };
     let automatic = crate::team::automatic_name(language, team_id);
-    config.set_custom_name(language, written, &automatic);
+    config.set_custom_name(team_id, language, written, &automatic);
 }
 
 fn draw_language(ui: &Ui, edits: &mut Edits) {
@@ -591,7 +615,7 @@ mod tests {
         assert_eq!(initial_translation(&empty, table, None, "es"), "");
 
         let mut custom = crate::config::Config::default();
-        custom.set_custom_name("es", "Bosquemugoso", "Pajar de la Gran Casa");
+        custom.set_custom_name(12014, "es", "Bosquemugoso", "Pajar de la Gran Casa");
         assert_eq!(
             initial_translation(&custom, table, Some(12014), "es"),
             "Bosquemugoso",

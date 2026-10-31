@@ -1,6 +1,14 @@
 # Changelog
 Formato [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/), versionado [SemVer](https://semver.org/lang/es/).
 
+## [0.10.1] - 2026-10-31
+### Corregido
+- La traducción del equipo se guardaba por idioma y no por equipo, así que al elegir otro servidor
+  aparecía la del anterior y al volver al primero se había perdido. Ahora cada equipo conserva
+  la suya y el campo propone la traducción incluida cuando no hay una propia.
+### Añadido
+- Botón **Grabar** en los ajustes, que escribe settings.json en el momento.
+
 ## [0.10.0] - 2026-10-31
 ### Añadido
 - **Ventana de clanes**: los que tienen algo reclamado, ordenados por lo más reciente, con su

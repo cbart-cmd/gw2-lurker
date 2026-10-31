@@ -81,6 +81,16 @@ pub const TEXT: &[(&str, [&str; COLUMNS])] = &[
     ("Language", ["Idioma", "Language", "Langue", "Sprache"]),
     ("Team", ["Equipo", "Team", "Équipe", "Team"]),
     ("Translation", ["Traducción", "Translation", "Traduction", "Übersetzung"]),
+    ("Save", ["Grabar", "Save", "Enregistrer", "Speichern"]),
+    (
+        "The changes are applied as you edit; this writes them now.",
+        [
+            "Los cambios se aplican al editarlos; esto los escribe ahora.",
+            "The changes are applied as you edit; this writes them now.",
+            "Les changements s'appliquent pendant la saisie ; ceci les enregistre maintenant.",
+            "Änderungen gelten sofort; dies schreibt sie jetzt.",
+        ],
+    ),
     (
         "Translation (only for you)",
         [

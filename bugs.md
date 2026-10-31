@@ -15,7 +15,19 @@ Estado: `[ ]` pendiente · `[x]` hecho.
 
 ---
 
-## [ ] El selector de equipo muestra «EU (0)» / «NA (0)» y no aparece ningún equipo (2026-10-31)
+## [x] El traductor no guarda la traducción (2026-10-31)
+- Al desplegar un servidor, permite escribir la traducción, pero no propone la que pusimos; no hay
+  botón de grabar; al cambiar a otro servidor aparece la traducción del anterior; y al volver al
+  primero no se había guardado.
+- Causa: la traducción se guardaba **por idioma**, no por servidor, así que era la misma para
+  todos los equipos. Y no había ninguna acción explícita de guardar.
+- **Hecho (0.10.1):** `Config::team_translations` indexa por **id de equipo y luego idioma**;
+  cada equipo recupera la suya y ninguno hereda la de otro. El campo se rellena con la
+  traducción de la tabla para ese equipo cuando no hay una propia. Añadido botón **Grabar**, que
+  fuerza la escritura inmediata de `settings.json` (los cambios ya se aplican al editarlos). Las
+  traducciones antiguas (por idioma y el alias único) se siguen leyendo y se migran al guardar.
+
+## [x] El selector de equipo muestra «EU (0)» / «NA (0)» y no aparece ningún equipo (2026-10-31)
 - Al desplegar «Equipo» salen «EU (0)» y «NA (0)» y, escoja lo que escoja, la lista de equipos
   está vacía.
 - **Hecho (0.9.1):** dos causas. (1) El worker solo pedía los matchups dentro de WvW, así que
@@ -30,3 +42,11 @@ Estado: `[ ]` pendiente · `[x]` hecho.
   así que hasta el primer poll el desplegable estaba vacío.
 - **Hecho (0.8.1):** `ui::settings::draw_region` ofrece siempre EU y NA; si no hay equipos, la
   lista de equipos lo explica.
+
+
+## [ ] El traductor no guarda la traducción
+- Al desplegar un servidor, permite usar la traducción
+- debería porponer la traducción por defecto que pusimos pero no lo hace
+- Falta boton grabar
+- Cuando voy a otro servidor, sigue poniendo la misma traducción que habia puesto a otro servidor
+- Cuando vuelvo a uns erviudor que ya había traducido, no lo ha guardado

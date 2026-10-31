@@ -52,6 +52,11 @@ pub fn register() {
                 match change {
                     Some(settings::TeamChange::Pick(team_id)) => crate::team::remember(team_id),
                     Some(settings::TeamChange::Clear) => crate::team::forget(),
+                    Some(settings::TeamChange::SaveNow) => {
+                        let config = crate::runtime();
+                        crate::request_save(&config);
+                        log::info!("ajustes guardados a mano");
+                    }
                     None => {}
                 }
             }
@@ -71,6 +76,11 @@ pub fn register() {
             match change {
                 Some(settings::TeamChange::Pick(team_id)) => crate::team::remember(team_id),
                 Some(settings::TeamChange::Clear) => crate::team::forget(),
+                Some(settings::TeamChange::SaveNow) => {
+                    let config = crate::runtime();
+                    crate::request_save(&config);
+                    log::info!("ajustes guardados a mano");
+                }
                 None => {}
             }
         }),
