@@ -22,6 +22,17 @@ Reglas:
 - **Requiere GW2**: T-12 (leer `NexusLink`/`Context`), T-35, T-01, T-02b, T-25.
 - Decidido: **sí** a la feature `rtapi` (RF-44); su coste en DLL se mide en T-02b.
 
+## HECHO – 2026-10-31 · Almacenamiento por sesión (T-10 parcial)
+
+- `crates/store`: `SessionStore` con `Record { v, at, match_id, event }` (los eventos son
+  los de `core::diff`, serializados tal cual). `open()` **borra los `.jsonl` anteriores**
+  (ADR-012), `append()` rota a los 2 MB (RNF-03) y `read_all()` salta líneas corruptas o de
+  versión futura y las cuenta.
+- Dos bugs propios cazados por los tests: la rotación reutilizaba el nombre de fichero y
+  truncaba registros (ahora `sesion-000.jsonl`, `sesion-001.jsonl`…), y un test comparaba
+  una fecha literal con otra calculada. Ambos corregidos.
+- 6 tests de store + 49 de core. Falta la consulta por guild y rango (T-11).
+
 ## HECHO – 2026-10-31 · Favoritos y limpieza de módulos (T-39 parcial)
 
 - `core::follow`: `FollowList` con `add`/`remove`/`toggle` idempotentes, sin duplicados y

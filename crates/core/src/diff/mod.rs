@@ -6,6 +6,7 @@
 use std::collections::BTreeMap;
 
 use chrono::{DateTime, Duration, Utc};
+use serde::{Deserialize, Serialize};
 
 use crate::model::{Match, MatchObjective, TeamColor};
 
@@ -36,7 +37,7 @@ impl Snapshot {
 }
 
 /// Why a snapshot became a baseline.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum BaselineReason {
     /// First snapshot of the session (RF-04).
     SessionStart,
@@ -47,7 +48,7 @@ pub enum BaselineReason {
 }
 
 /// What the application needs to know after a poll.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum Event {
     /// No flip alerts may be emitted from this snapshot onwards.
     Baseline { reason: BaselineReason },

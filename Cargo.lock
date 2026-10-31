@@ -38,6 +38,12 @@ dependencies = [
 [[package]]
 name = "gw2lurker-store"
 version = "0.1.0"
+dependencies = [
+ "chrono",
+ "gw2lurker-core",
+ "serde",
+ "serde_json",
+]
 
 [[package]]
 name = "itoa"
