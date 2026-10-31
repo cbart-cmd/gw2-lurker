@@ -26,7 +26,10 @@ Regla: si un resultado contradice la spec, no se "arregla" el código; se abre u
 - Versión de Nexus, de `nexus-rs` y de Rust usadas.
 - Firma exacta para registrar el callback de render y el código que funciona.
 - `map_id` en cada mapa de WvW: Ojos de Aguas Eternas, Frontera Verde, Azul, Roja, y también el de Bastión del Armisticio y una ciudad (para excluirlos).
-- ¿Mumble da `world_id` en WvW? ¿Coincide con tu mundo?
+- ¿Mumble da `world_id` en WvW? ¿Coincide con tu mundo? Compáralo con el id de tu equipo en el match (worlds/all_worlds), no solo con el nombre.
+- Nombre que da /v2/worlds para tu id frente al nombre de equipo que ves en el juego (panel de WvW). Anota ambos.
+- ¿El cargador de texturas de Nexus admite imágenes desde disco? ¿Y desde URL?
+- ¿/v2/maps devuelve continent_rect para los mapas de WvW? Guarda la respuesta
 - Flags de imgui que logran el click-through y si hay que reaplicarlos cada frame.
 - ¿El keybind es reasignable desde Nexus?
 - Tamaño de la DLL release del addon mínimo (`ls -l`).
@@ -82,31 +85,98 @@ Regla: si un resultado contradice la spec, no se "arregla" el código; se abre u
 
 ## Resultados (se rellenan a mano)
 
+**Leyenda de procedencia.** Cada dato lleva su origen para que nadie confunda una deducción con una medición:
+
+- `[API]` – comprobado contra la API pública de GW2 el **2026-10-31** (respuesta real guardada en la sesión).
+- `[src]` – comprobado leyendo el código fuente citado; **no** es una prueba en el juego.
+- `pendiente` – exige ejecutarlo dentro de GW2. No se rellena por deducción.
+
 ### T-01
-- Fecha / versiones: _
-- Firma de render verificada: _
-- `map_id` WvW: EBG=_, Verde=_, Azul=_, Roja=_, Armisticio=_, ciudad=_
-- Mumble `world_id` fiable: _
-- Click-through: _
-- Keybind reasignable: _
-- Tamaño DLL mínima: _
-- Logs: _
+
+- Fecha / versiones: revisión `[src]`/`[API]` 2026-10-31. `nexus-rs` **0.12.0**, `edition = "2024"`, `rust-version = "1.87.0"` (`nexus/Cargo.toml`); ImGui vía `arcdps-imgui` **0.8.0**. Versión de Nexus instalada y de Rust local: `pendiente`.
+- Firma de render verificada `[src]`:
+  ```rust
+  register_render(RenderType::Render, render!(|ui| { /* &imgui::Ui */ })).revert_on_unload();
+  ```
+  `render!` genera un `extern "C-unwind" fn()` sin parámetros que obtiene el `Ui` del frame (`nexus/src/api/gui.rs`). `RenderType` = `PreRender` | `Render` | `PostRender` | `OptionsRender`. Ejemplo completo en `nexus_example_addon/src/lib.rs`.
+- `send_alert` `[src]`: `nexus::alert::send_alert(impl AsRef<str>)`, devuelve `()` y no es revertible (`nexus/src/api/alert.rs`).
+- Export `[src]`: `nexus::export! { name, signature: -0x…, load, unload, flags: AddonFlags::None, provider: UpdateProvider::GitHub, update_link, log_filter }`; `signature` debe ser un entero **negativo** aleatorio si el addon no está en Raidcore (`nexus/src/lib.rs`, `SupportedFields`).
+- `map_id` WvW `[API]` (`/v2/maps?ids=all`, 1086 mapas): EBG=**38** (`Center`), Verde=**95** (`Alpine Borderlands`, `GreenHome`), Azul=**96** (`Alpine Borderlands`, `BlueHome`), Roja=**1099** (`Desert Borderlands`, `RedHome`), Armisticio=**1315**, ciudad=**50** (`Lion's Arch`). Además EotM=**968** y Obsidian Sanctum=**899**.
+  - Coincide exactamente con las constantes de `gw2-mumble-rs` (`src/map_id/wvw.rs`: 38, 95, 96, 899, 968, 1099), lo que valida ambos orígenes.
+  - **Matiz importante:** 95/96/1099 son el mapa "home" de cada **color**, no de un servidor. Qué servidor está en Verde/Azul/Rojo depende del emparejamiento, así que no se pueden cablear como "mi frontera".
+  - Armisticio tiene **0 objetivos** en `/v2/wvw/objectives` y `map_type` = **18** (`WVW_LOUNGE`, `gw2-mumble-rs` `src/map_type.rs`), distinto de los 9–12/15 de los mapas jugables: sirve para excluirlo.
+- Mumble `world_id` fiable: **no** `[src]`. `Identity::world_id` está documentado como *"Shard id from [`Context`]. Formerly character homeworld per API:2/worlds. **Not usable since the switch to the megaserver system**"* (`gw2-mumble-rs` `src/identity.rs`). Motivo real de ADR-004 (selección manual de mundo). Confirmar igualmente en el juego.
+  - Sí hay datos fiables para el contexto: `Context::map_id`, `Context::map_type`, `Context::shard_id`, `Context::instance`, `UiState::IS_IN_COMPETITIVE_MODE`, `UiState::GAME_HAS_FOCUS` (`gw2-mumble-rs` `src/context.rs`). El `map_type` es la vía limpia para RF-01 ("¿estoy en WvW?").
+- Click-through: `pendiente`. `WindowFlags::NO_INPUTS` y `NO_MOUSE_INPUTS` **existen** en `arcdps-imgui` 0.8.0 (docs.rs), pero si el clic atraviesa hasta el juego o queda comido por la capa de Nexus solo se sabe probándolo.
+- Keybind reasignable: muy probable `[src]`, pendiente de confirmar en la UI. Nexus persiste los binds de usuario en `<juego>/addons/Nexus/InputBinds.json` (`RaidcoreGG/Nexus`, `Nexus/Index/Index.cpp`, ruta `EPath::InputBinds`), lo que implica que el usuario los sobrescribe desde la configuración de Nexus. El registro desde el addon es `register_keybind_with_string(id, keybind_handler!(|id, is_release| …), "ALT+SHIFT+L")` (`nexus/src/api/keybind.rs`).
+- Tamaño DLL mínima: `pendiente` (lo produce T-02b).
+- Logs `[src]`: `<juego>/addons/Nexus/Nexus.log`, más `Crash.log` y `CrashStack.log` en la misma carpeta (`RaidcoreGG/Nexus`, `Nexus/Index/Index.cpp`). El log propio del addon se escribe ahí y se filtra con `log_filter` (feature `log`).
+- Rutas de datos del addon `[src]`: `paths::get_addon_dir("gw2-lurker") -> io::Result<PathBuf>` (`nexus/src/api/paths.rs`), es decir `<juego>/addons/<nombre>/`.
 
 ### T-02
-- Fecha / hora local y mundo: _
-- Intervalo mínimo / mediana de cambio: _
-- Cache-Control / Age: _
-- % de errores y huecos máximos: _
-- Intervalo por defecto elegido: _
+
+- Fecha / hora local y mundo: **2026-10-31, sábado, 11:52–12:20 CET** (horario de actividad). Dos sondeos paralelos, muestreo cada 10 s, `Invoke-WebRequest` en bucle, 227 peticiones en total, **0 errores y 0 respuestas 429**:
+  - **A** – mundo **1008** (Jade Quarry) vía `/v2/wvw/matches?world=1008` ⇒ match **1-4** (región NA: los `1-x` son NA). 167 muestras / 27,7 min.
+  - **B** – match **2-4** (región EU: los `2-x` son EU), elegido por ser el único que cambió al comparar los 9 emparejamientos con `/v2/wvw/matches?ids=all`. 60 muestras / 9,8 min.
+  - Elección obligada: el mundo 1008 resultó ser un emparejamiento **muerto** (ver más abajo). Medir con un solo mundo habría dado un resultado falso.
+- Intervalo mínimo / mediana de cambio:
+  - **Cuerpo JSON completo:** match activo (B) min **9 s** / mediana **10 s** / máx **21 s** ⇒ cambia en *casi todas* las muestras de 10 s. Match inactivo (A) **1360 s (22 min 40 s) sin un solo cambio**, y después un burst de cambios cada ~10 s. El intervalo está limitado por el muestreo: a 10 s no se puede resolver nada más rápido.
+  - **Propiedad de objetivos** (lo que dispara las alertas, RF-10/RF-21): activo (B) min **9 s** / mediana **19 s** / máx **110 s** (24 cambios en 9,8 min). Inactivo (A) **22 min 40 s con cero cambios de propiedad**, y luego **7 cambios en 2,5 min** (min 10 s, mediana 20 s).
+  - Lectura: el JSON cambia constantemente por contadores (`deaths`, `kills`, `skirmishes`), no por objetivos. Un emparejamiento puede estar **>20 min sin actividad y luego estallar**. El hueco máximo observado (22 min 40 s) no es caché: se descartó con `Date` en vivo, con dos rutas distintas (`?world=1008` y `/matches/1-4`) devolviendo el mismo cuerpo, y con el match 2-4 cambiando en 96 s en la misma ventana.
+- Cache-Control / Age `[API]`: `Cache-Control: public, max-age=1`; **no se envía cabecera `Age`**; `Expires` = `Date` + 1 s. Otras cabeceras: `X-Rate-Limit-Limit: 600` (600 peticiones/hora), `Server: Quaggans`, `X-Result-Total`, `Content-Language` negociable por `lang`.
+  - Consecuencia: la API declara que el dato puede cambiar cada segundo; el límite práctico es 600 req/h ⇒ 10 s = 360/h (60 % del presupuesto, deja poco para `/v2/guild`, `/v2/worlds`, objetivos); 30 s = 120/h (20 %); 5 s = 720/h (**excede** el límite).
+- % de errores y huecos máximos: **0 %** de errores en 227 peticiones; latencia medida en el sondeo A: 45–327 ms. Hueco máximo sin cambios: **1360 s** (22 min 40 s) en un emparejamiento inactivo.
+- Intervalo por defecto elegido: **30 s se mantiene** (provisional → confirmado), por tres razones medidas: (a) captura la mayoría de cambios de propiedad (mediana 19–20 s); (b) consume 120 de las 600 req/h, dejando margen para el resto de endpoints; (c) bajar a 10 s aumenta ×3 el consumo para ganar como mucho ~10 s de latencia de aviso. Queda documentado en RNF-05 que un flip+recaptura dentro del mismo intervalo **se pierde**; los huecos de >20 min hacen además que "sin noticias" no signifique "sin actividad".
+  - `pendiente`: validar en juego si 30 s de retraso es aceptable para un aviso de captura (criterio humano, no medible desde la API).
 
 ### T-02b
 | Opción | Tamaño DLL | Funciona en juego |
 |---|---|---|
-| ureq + rustls | _ | _ |
-| ureq + TLS nativo | _ | _ |
-| otra | _ | _ |
-- Elección y motivo: _
+| ureq + rustls | `pendiente` | `pendiente` |
+| ureq + TLS nativo | `pendiente` | `pendiente` |
+| otra | `pendiente` | `pendiente` |
+- Elección y motivo: `pendiente`. Requiere compilar el addon mínimo y medir (nada de esto se puede deducir de la API).
 
 ### T-25
-- Comportamiento de Nexus ante la actualización: _
-- Método de detección viable: _
+- Comportamiento de Nexus ante la actualización: `pendiente` en juego; indicios `[src]`:
+  - `AddonFlags::DisableHotloading` está documentado como *"Prevents unloading at runtime. Will require a restart if updated, etc."* (`nexus/src/addon.rs`) ⇒ **sin** ese flag Nexus recarga el addon en caliente; **con** él exige reiniciar. Es la palanca que decide ADR-007.
+  - Nexus descarga a `<NexusDLL>.update` y conserva `<NexusDLL>.old` (`Nexus/Index/Index.cpp`, rutas `EPath::NexusDLL_Update` / `NexusDLL_Old`) ⇒ indicio de intercambio de fichero con respaldo. Falta ver si hace lo mismo con addons de terceros.
+- Método de detección viable: `pendiente`. Candidatos a probar en el spike: comparar fecha/tamaño de `<juego>/addons/<nombre>/*.dll` al arrancar, y confirmar si el `.old` aparece para el addon.
+
+### Notas de verificación (fuera de los spikes; afectan a `02-design.md` §5, ADR-002/ADR-011 y ADR-010)
+
+Comprobado `[API]` el 2026-10-31 sobre los 5 mapas jugables. **No se ha cambiado la spec**; ADR-011 ya recoge el cambio.
+
+- `coord` de `/v2/wvw/objectives` **está en coordenadas de continente**, no locales: los valores caen dentro del `continent_rect` de `/v2/maps` en los 5 mapas (EBG: x 9414–11766 dentro de 8958–12030).
+- Por eso el mínimo/máximo de `coord` **no** sirve como caja del mapa: se queda corto. Ejemplo EBG: caja de objetivos x 9414–11766 vs. rectángulo real 8958–12030 (un ~20 % más estrecho). `/v2/maps` da `continent_rect` ya calculado y `map_rect` (EBG: `[[-36864,-36864],[36864,36864]]`).
+- **81 de 178** objetivos de `/v2/wvw/objectives?ids=all` tienen `coord: null` (Spawn, Mercenary y parte de Ruins/Camp/Tower/Keep). Cualquier proyección debe tolerar `coord` ausente.
+- `claimed_by` / `claimed_at` **siempre están presentes** en `/v2/wvw/matches` y valen **`null`** cuando el objetivo no tiene claim (no se omiten). En el match `2-2`: **41 de 91** objetivos con claim y **50 con `null`**. `claimed_by` es **una sola guild** (cadena), no una lista: la API no puede representar varios claims simultáneos. Otros campos por objetivo: `id`, `type`, `owner`, `last_flipped`, `points_tick`, `points_capture`, `yaks_delivered`, `guild_upgrades`.
+- `Context::player_x/player_y/map_center_x/map_center_y` están documentados como *"Not updated in competitive modes"* (`gw2-mumble-rs` `src/context.rs`). Afecta a cualquier idea de dibujar la posición del jugador sobre el mapa: hay que confirmar en WvW antes de depender de ello.
+
+### Notas de verificación: equipos WvW y de dónde saca los datos gw2mists (2026-10-31)
+
+Comprobado `[API]` contra `api.guildwars2.com` y abriendo `https://gw2mists.com/en/livemap/eu` en un navegador real, capturando sus peticiones. **No se ha cambiado la spec.**
+
+- **Los "mundos" ya no son lo que la spec asume.** `/v2/wvw/matches?ids=all` devuelve por color dos listas distintas:
+  - `worlds` → un id de mundo clásico (1001–1024 NA, 2xxx EU).
+  - `all_worlds` → **incluye además los ids de equipo del sistema nuevo, 11001–11015 (NA) y 12001–12018 (EU)**.
+  Ejemplo real: match `2-2` → `blue: [12014, 2014]`. Un jugador hoy se identifica por **equipo** (p. ej. `12014` "Great House Aviary"), no por mundo.
+- **El prefijo del id de match indica región: `1-x` = NA, `2-x` = EU** (verificado con los mundos de cada `all_worlds`).
+- **`/v2/wvw/timers/teamAssignment`** y **`/v2/wvw/timers/lockout`** existen y dan las fechas de reasignación de equipos y de bloqueo (hoy: NA `2026-11-07T02:00:00Z`, EU `2026-11-06T18:00:00Z`). Evita cablear "el reset es el viernes a las 02:00 UTC".
+- **Cómo obtiene gw2mists lo que muestra** (peticiones observadas en la página, sin sesión iniciada):
+  - `GET https://api.guildwars2.com/v2/wvw/objectives?ids=all&lang=en` — metadatos estáticos de objetivos.
+  - `GET https://api.gw2mists.com/worlds/alliance` — 33 equipos con `players`, `guilds`, `alliances` y `commanders`; **es backend propio**, agregado a partir de las claves de API que sus usuarios ceden.
+  - `GET https://api.guildwars2.com/v2/wvw/timers/teamAssignment` y `.../lockout`.
+  - `GET https://tiles.gw2mists.com/mist_tiles/{z}/{x}/{y}.jpg` — **imágenes de mapa reales** (por teselas), el mismo tipo de fuente que ADR-011 deja como fondo opcional desactivado por defecto (RF-37).
+  - `POST https://api.gw2mists.com/monitoring`, `/community-news/`, `/blog/...` — telemetría y contenido, irrelevantes.
+- **No hay ninguna petición de posición del jugador.** Una página web no puede leer MumbleLink (memoria compartida del cliente), y no aparece ningún endpoint que suba/reciba coordenadas del jugador. Lo que la web "sabe de ti" es tu **equipo** (por la cuenta vinculada o por selección manual), y de ahí deduce tu color y qué objetivos son tuyos. `pendiente`: la vista con sesión iniciada no se ha podido inspeccionar (el `POST /auth/v2/session` devolvió 403 sin login).
+
+### Notas de verificación: qué expone la API oficial sobre equipos y qué no (2026-10-31)
+
+Comprobado `[API]` contra el índice de endpoints (`https://api.guildwars2.com/v2`). Esto **resuelve el punto que ADR-010 deja abierto como "no verificado"**.
+
+- **La API oficial NO expone nombres de equipo ni de alianza.** No existe `/v2/wvw/teams` ni `/v2/wvw/alliances` (**404** en ambos) y el índice de `/v2` no lista nada equivalente. Los nombres tipo "Great House Aviary" solo están en bases de datos de terceros (gw2mists). ⇒ Confirma el contexto de ADR-010: la UI debe apoyarse en `id` + alias (RF-03a, RF-03f).
+- **Sí existe la pertenencia gremio → equipo:** `GET /v2/wvw/guilds/eu` y `/na` devuelven `{ "<guild_id UUID>": "<team_id>" }` (282 KB para toda EU). Es la fuente oficial para saber a qué equipo pertenece un gremio, útil en RF-20/RF-23 (seguir guilds); `/v2/guild/:id` no lo informa.
+- **`/v2/account/wvw`** existe y requiere API key (`[a]` en el índice): permitiría leer el equipo de la cuenta automáticamente, pero ADR-010 descarta pedir clave. Se anota como alternativa disponible, no como decisión.
+- **`/v2/wvw/matches/overview`** devuelve solo la lista de ids de match en curso (83 bytes, los 9 actuales): endpoint barato para detectar el cambio de match sin descargar el JSON completo.
+- **Orden de región:** `1-x` = NA y `2-x` = EU (deducido de los mundos de cada `all_worlds`; no viene indicado en el JSON).

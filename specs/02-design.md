@@ -69,7 +69,9 @@ enum Event {
 }
 ```
 
-Datos estáticos (cacheados en disco, refresco al cambiar de match o manual): `/v2/wvw/objectives?ids=all` (nombre, tipo, `map_id`, `coord`), `/v2/worlds?ids=all`. Nombres de guild bajo demanda con `/v2/guild/:id`, cacheados.
+Datos estáticos (cacheados en disco, refresco al cambiar de match o manual): `/v2/wvw/objectives?ids=all` (nombre, tipo, `map_id`, `coord`), `/v2/wvw/guilds/:region` (guild → equipo, ADR-010) y la tabla empaquetada `data/wvw-teams.json` (id de equipo → nombre, ADR-010). El equipo propio se resuelve buscando su id en `all_worlds` del match. Nombres de guild bajo demanda con `/v2/guild/:id`, cacheados. El calendario de reasignación se lee de `/v2/wvw/timers/teamAssignment` y `/v2/wvw/timers/lockout`.
+
+> Nota: `/v2/worlds?ids=all` ya **no** es fuente de identidad. Los nombres de equipo no existen en la API oficial: solo ids.
 
 ## 5. Algoritmo de `diff`
 

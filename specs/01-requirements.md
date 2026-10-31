@@ -4,32 +4,63 @@ Formato EARS + criterios de aceptación Given/When/Then (GWT). Prioridad: **M** 
 
 ## Hechos verificados que condicionan los requisitos
 
-- `/v2/wvw/matches?world=<id>` devuelve el match con todos los objetivos. Por objetivo: `owner`, `last_flipped`, `claimed_by` (ID de guild), `claimed_at`, `points_tick`, `yaks_delivered`, `guild_upgrades`. `claimed_by`/`claimed_at` no existen en objetivos no reclamables.
-- El match incluye `worlds` (3 primarios) y `all_worlds` (con los mundos enlazados por color).
+Comprobado el **2026-10-31** contra la API real, el código fuente de `nexus-rs` y una medición propia (`07-spikes.md`, sección *Resultados*). `[API]` = respuesta real; `[src]` = código fuente citado; `[medido]` = experimento.
+
+**Datos de WvW**
+
+- `[API]` `/v2/wvw/matches?world=<id>` devuelve el match con todos los objetivos. Por objetivo: `id`, `type`, `owner`, `last_flipped`, `claimed_by` (ID de guild), `claimed_at`, `points_tick`, `points_capture`, `yaks_delivered`, `guild_upgrades`. **Las claves siempre están presentes**; sin claim valen `null`. **El claim es único**: `claimed_by` es una cadena, no una lista (verificado en el match `2-2`: 41 de 91 objetivos con claim, 50 con `null`). La API no expone la ventana de reclamación ni qué otras guilds lo intentaron.
+- `[API]` **Los equipos sustituyen a los mundos.** El match trae `worlds` (mundo heredado por color) y `all_worlds`, que **incluye los ids de equipo**: 11001–11015 (NA) y 12001–12018 (EU). Un jugador hoy se identifica por equipo (p. ej. `12014` "Great House Aviary"), no por mundo.
+- `[API]` **La API no expone nombres de equipo ni de alianza**: `/v2/wvw/teams` y `/v2/wvw/alliances` devuelven 404 y el índice de `/v2` no lista nada equivalente. Los nombres solo están en fuentes de terceros ⇒ tabla propia versionada (`data/wvw-teams.json`, ADR-010).
+- `[API]` El prefijo del id de match indica región: **`1-x` = NA, `2-x` = EU**.
+- `[API]` `/v2/wvw/timers/teamAssignment` y `/v2/wvw/timers/lockout` dan las fechas de reasignación de equipos y de bloqueo; no hay que cablear el calendario.
+- `[API]` `/v2/wvw/matches/overview` devuelve solo la lista de ids de match en curso (83 bytes): endpoint barato para detectar el cambio de match.
+- `[API]` `/v2/wvw/guilds/eu` y `/na` devuelven `{ guild_id: team_id }` (282 KB para toda EU): es la fuente oficial guild → equipo. `/v2/guild/:id` no lo informa.
+- `[API]` `/v2/wvw/objectives?ids=all`: `coord` está en **coordenadas de continente** y **81 de 178** entradas tienen `coord: null`. `/v2/maps` aporta `continent_rect` (caja real) y `map_rect` (ADR-011).
+- `[API]` `Cache-Control: public, max-age=1`, sin cabecera `Age`, `X-Rate-Limit-Limit: 600` (600 peticiones/hora).
+- `[medido]` Con polling a 10 s: los cambios de **propiedad de objetivos** tienen mediana 19–20 s (máx 110 s observado) y hay emparejamientos muertos con **22 min sin un solo cambio**. 227 peticiones, 0 errores. Conclusión: **30 s por defecto** (120 req/h).
 - La API **no** expone estado "bajo ataque" (ADR-001) ni historial: solo el último claim vigente.
 - La API a veces se queda atascada o devuelve 503/"unknown error" durante minutos u horas (reportado por la comunidad). Hay que tolerarlo (RNF-04).
-- Hay prior art con los mismos endpoints (Realm Report, C++/Nexus, polling 30 s por defecto). Sirve de referencia, no de dependencia.
+- `[API]` `/v2/account/wvw` existe y requiere API key: permitiría leer el equipo de la cuenta, pero ADR-010 descarta pedir clave.
+
+**Mumble / Nexus**
+
+- `[src]` `Identity::world_id` es un *shard id* y está documentado como **no usable** desde el megaservidor: **no** identifica el equipo (`gw2-mumble-rs`, `src/identity.rs`).
+- `[src]` Sí son fiables `Context::map_id`, `Context::map_type`, `Context::shard_id` y `UiState::IS_IN_COMPETITIVE_MODE`. `map_type` vale 9 (EBG), 10/11/12 (fronteras), 14 (Obsidian Sanctum), 15 (EotM), 13 (Fortune's Vale) y **18 (Armisticio)** (`gw2-mumble-rs`, `src/map_type.rs`).
+- `[src]` `Context::player_x/y` y `map_center_x/y` están documentados como *"not updated in competitive modes"*: no se puede contar con la posición del jugador sin verificar en WvW.
+- `[src]` `nexus-rs` **0.12.0** (`rust-version = 1.87.0`, ImGui vía `arcdps-imgui` 0.8.0). Logs en `<juego>/addons/Nexus/Nexus.log` y datos del addon en `<juego>/addons/<nombre>/`.
+- `[src]` `AddonFlags::DisableHotloading` implica que la actualización exige reiniciar (ADR-007).
+- Hay prior art con los mismos endpoints (Realm Report, C++/Nexus). Sirve de referencia, no de dependencia.
 
 ## A. Activación y contexto
 
-**RF-01 (M)** Cuando el MumbleLink indique que el jugador está en un mapa de WvW, el addon deberá activar polling y UI.
-- GWT: *Given* el jugador está en Ojos de Aguas Eternas, *When* el addon recibe el mapa por Mumble, *Then* arranca el polling en ≤ 1 intervalo.
+**RF-01 (M)** Cuando el MumbleLink indique que el jugador está en un mapa de WvW, el addon deberá activar polling y UI. La detección se hará por **`Context::map_type`** ∈ {9 EBG, 10 frontera azul, 11 verde, 12 roja, 15 EotM}, no por una lista de `map_id`, para no romperse si ArenaNet añade mapas.
+- GWT: *Given* el jugador está en Ojos de Aguas Eternas (`map_type` 9), *When* el addon recibe el contexto por Mumble, *Then* arranca el polling en ≤ 1 intervalo.
+- GWT: *Given* el jugador entra en el Bastión del Armisticio (`map_type` 18, `map_id` 1315), *When* el addon lee el contexto, *Then* **no** activa nada.
 
 **RF-02 (M)** Cuando el jugador salga de un mapa de WvW, el addon deberá detener el polling y ocultar toda su UI (excepto la ventana de configuración si está abierta).
 - GWT: *Given* el polling activo, *When* el jugador viaja a una ciudad, *Then* no se emiten peticiones de red y no se dibuja nada.
 
-**RF-03a (M)** Si no hay mundo configurado, el addon deberá pedir al usuario que elija su mundo de una lista obtenida de `/v2/worlds?ids=all`.
+**RF-03a (M)** Si no hay equipo configurado, el addon deberá pedir al usuario que elija su **equipo** (no su mundo) de la lista de equipos del match en curso, obtenida de `all_worlds` de `/v2/wvw/matches?ids=all` (ids 11xxx/12xxx). Se mostrará siempre `nombre (id)`, leyendo el nombre de la tabla versionada `data/wvw-teams.json`, porque la API oficial no expone nombres de equipo. Si un id no está en la tabla, se mostrará solo el id y se avisará de que falta el nombre (ADR-010).
 
-**RF-03b (M)** El addon deberá resolver el match con `/v2/wvw/matches?world=<id>`, buscando el mundo en `all_worlds` (no solo en `worlds`) para deducir el color propio y los de los enemigos.
+**RF-03b (M)** El addon deberá resolver el match buscando el **id de equipo** en `all_worlds` (no en `worlds`, que solo trae el mundo heredado) para deducir el color propio y los de los enemigos. Usará el prefijo del id de match para descartar la región contraria (`1-x` = NA, `2-x` = EU).
 
-**RF-03c (M)** El usuario podrá cambiar de mundo en cualquier momento desde la configuración.
+**RF-03c (M)** El usuario podrá cambiar de equipo en cualquier momento desde la configuración.
 
-**RF-03d (M)** Cuando cambie el ID del match (reset semanal), el addon deberá descartar el baseline anterior, resolver de nuevo el color y marcar el historial con el nuevo `match_id`.
-- GWT: *Given* un match `2-5` en curso, *When* la API devuelve `2-6` para el mismo mundo, *Then* no se emiten alertas por la diferencia y se crea un baseline nuevo.
+**RF-03d (M)** Cuando cambie el ID del match, el addon deberá descartar el baseline anterior, resolver de nuevo el color y marcar el historial con el nuevo `match_id`. Consultará `/v2/wvw/matches/overview` para detectar el cambio de forma barata y `/v2/wvw/timers/teamAssignment` para anticipar la reasignación de equipos.
+- GWT: *Given* un match `2-5` en curso, *When* la API devuelve `2-6` para el mismo equipo, *Then* no se emiten alertas por la diferencia y se crea un baseline nuevo.
 
-**RF-03e (C)** Si MumbleLink aporta `world_id`, el addon podrá sugerirlo como valor por defecto, nunca como única fuente.
+**RF-03e (S)** El `world_id` de MumbleLink es un *shard id* y **no** identifica el equipo (verificado en el código de `gw2-mumble-rs`: "not usable since the switch to the megaserver system"). Por tanto la selección es manual por defecto. Solo si el spike T-01 demuestra que coincide con el id de equipo se ofrecerá como sugerencia aceptable.
 
-**RF-04 (M)** El primer snapshot tras activar, cambiar de match o recuperar tras un hueco largo se tratará como **baseline** y no generará alertas de flip.
+**RF-03f (S)** El usuario podrá asignar un **alias** propio a su equipo, que se usará en la UI en lugar del nombre de la tabla.
+
+**RF-03g (M)** Tras elegir equipo, el addon deberá mostrar los otros dos equipos del match actual (nombre e id) para que el usuario compruebe que es el suyo.
+- GWT: *Given* un equipo recién elegido, *When* se resuelve el match, *Then* se listan sus dos rivales con nombre e id y el color asignado, con opción de corregir la elección.
+
+**RF-03h (M)** El id de equipo es la única clave de identidad; los nombres, alias y colores son solo de presentación y nunca se usan para comparar ni persistir relaciones.
+
+**RF-03i (M)** El addon deberá llevar la tabla `data/wvw-teams.json` (id → nombre → nación) **dentro del binario o junto a él**, versionada en el repositorio. La tabla se regenera con `scripts/update_wvw_teams.ps1`, que contrasta los equipos en uso según `all_worlds` de la API oficial y conserva los nombres ya conocidos si la fuente de nombres no responde. Sin esa tabla el addon sigue funcionando mostrando ids.
+
+**RF-04 (M)** El primer snapshot tras activar, cambiar de match o recuperar tras un hueco largo se tratará como **baseline** y no generará alertas de flip. Al arrancar el addon el historial anterior **se descarta** (ADR-012) y el baseline reconstruye el estado actual con todos los claims vigentes (RF-25); se registra el `Gap` correspondiente y la UI indica "datos desde <hora de inicio de sesión>".
 
 ## B. Objetivo 1 – Alertas de estructuras
 
@@ -71,32 +102,59 @@ Formato EARS + criterios de aceptación Given/When/Then (GWT). Prioridad: **M** 
 
 ## C. Objetivo 2 – Seguimiento de guilds enemigas
 
-**RF-20 (M)** El usuario podrá añadir guilds a seguir por nombre (`/v2/guild/search?name=`) o por ID, y quitarlas. Se guardará ID, nombre y tag (`/v2/guild/:id`).
+**RF-20 (M)** El usuario podrá añadir guilds a seguir por nombre (`/v2/guild/search?name=`) o por ID, y quitarlas. Se guardará ID, nombre y tag (`/v2/guild/:id`). Para saber a qué **equipo** pertenece cada guild se usará `/v2/wvw/guilds/:region` (mapa guild → equipo de la API oficial), cacheado en disco y refrescado al cambiar de match.
 - GWT: *Given* un nombre ambiguo, *When* la búsqueda devuelve varias guilds, *Then* el usuario elige entre candidatos con nombre y tag.
+- GWT: *Given* una guild seguida, *When* se resuelve el match, *Then* la UI muestra el equipo al que pertenece según `/v2/wvw/guilds/:region` y si es propio o enemigo.
+
+**RF-20a (M)** Además de buscar por nombre, el addon ofrecerá una **lista de guilds sugeridas** para seguir, construida con los claims ya observados en el historial local: ordenada por número de claims en el mapa actual, después en el resto de mapas del match y después en total; cada fila muestra tag, nombre si se conoce, nº de claims y la hora del último. Un clic la añade a seguidas.
+- GWT: *Given* el addon lleva 2 h observando el mapa actual, *When* el usuario abre la pestaña Guilds, *Then* la lista empieza por las guilds con más claims vistos **en ese mapa**, no por orden alfabético.
+- La lista nace **vacía** en cada sesión y crece solo con lo observado en ella (ADR-012); la UI debe indicarlo ("claims vistos desde 12:00") para no aparentar un ranking global. No se obtiene de ninguna fuente externa: la API no publica estadísticas de claims por guild.
 
 **RF-21 (M)** Cuando un objetivo pase a estar reclamado por una guild seguida, el addon deberá avisar con guild, objetivo, mapa y hora del claim.
 
-**RF-22 (M)** El addon deberá registrar cada claim y unclaim observado de guilds seguidas: timestamp, `match_id`, objetivo, mapa, guild, tipo de evento, flag `late`.
+**RF-22 (M)** El addon deberá registrar cada claim y unclaim observado: timestamp, `match_id`, objetivo, mapa, guild, tipo de evento y flag `late`. Como un objetivo admite **un solo claim**, cuando pasa de reclamado por X a reclamado por Y se registran `Unclaim(X)` y `Claim(Y)` con el mismo instante de observación.
+- GWT: *Given* una torre reclamada por X, *When* un snapshot la muestra reclamada por Y, *Then* el historial contiene `Unclaim(X)` seguido de `Claim(Y)` y el widget solo avisa de lo que toque según las guilds seguidas.
 
 **RF-23 (M)** El usuario podrá ver el estado actual: qué objetivos tiene reclamados cada guild seguida ahora mismo.
 
-**RF-24 (M)** El historial deberá persistir entre sesiones y poder consultarse por guild y rango de tiempo.
+**RF-24 (M)** El historial cubrirá **la sesión actual** (ADR-012): al arrancar el addon se descarta el de la sesión anterior y se empieza uno nuevo. Dentro de la sesión podrá consultarse por guild y rango de tiempo. La UI mostrará siempre la hora de inicio de sesión como límite inferior de lo que se puede ver.
 
-**RF-25 (M)** En baseline o tras un hueco, para cada objetivo con `claimed_by` de una guild seguida, el addon deberá registrar un claim marcado `late=true` usando `claimed_at` como hora real.
+**RF-25 (M)** En baseline o tras un hueco, para **cada** objetivo con `claimed_by` —de cualquier guild, no solo las seguidas— el addon deberá registrar un claim marcado `late=true` usando `claimed_at` como hora real. Los claims de guilds no seguidas se guardan como observación: no generan aviso, pero alimentan el ranking de RF-20a.
 
 **RF-26 (M)** Cuando el hueco entre snapshots válidos supere el umbral (por defecto 3 × intervalo), el addon deberá registrar un evento `gap` para que la UI advierta de que pueden faltar claims.
+
+**RF-27 (M)** La UI nunca atribuirá una captura a una guild si no hay claim: `owner` solo dice el **color** del equipo, no quién lo cogió. Los textos usarán "reclamado por <guild>" y nunca "capturado por <guild>", para no prometer un dato que la API no da.
+- GWT: *Given* un campamento que pasa a `owner=Red` sin `claimed_by`, *When* el widget muestra el flip, *Then* dice "Campamento X perdido ante Rojo" y no menciona ninguna guild.
+
+**RF-27a (C)** Aviso opcional de "capturado sin reclamar": cuando un objetivo reclamable cambia de dueño y sigue con `claimed_by = null` (RF-27b), el addon *podrá* avisar de que está disponible para reclamar. Desactivado por defecto: es una pista, no una captura.
+
+**RF-27d (C)** Opcional posterior: si una guild seguida reclama objetivos en una zona y pocos minutos después un objetivo vecino cambia de dueño sin claim, la UI *podría* sugerir "posible captura de <guild>" marcada explícitamente como **inferida**. Desactivado por defecto.
+
+**RF-27b (M)** El addon deberá distinguir y mostrar **tres estados de claim**, todos derivables de un snapshot diffeado:
+1. **Sin reclamar**: `claimed_by = null` en un tipo reclamable (`Camp`, `Tower`, `Keep`, `Castle`). Si además `last_flipped` es posterior al snapshot anterior, se mostrará "capturado hace N s · sin reclamar", que es el caso de un objetivo recién tomado antes de que nadie reclame. En tipos no reclamables (`Ruins`, `Mercenary`, `Spawn`, `Resource`, `Generic`) no se muestra ese estado.
+2. **Reclamado**: `claimed_by` con valor; se muestra la guild, la hora del claim (`claimed_at`) y el tiempo que lleva.
+3. **Reclamo liberado**: antes había guild y ahora `claimed_by = null` con el mismo `owner`; se muestra "claim liberado" y se registra como `Unclaim` (RF-22).
+- GWT: *Given* un campamento con `owner=Blue`, `claimed_by=null` y `last_flipped` de hace 20 s, *When* el usuario abre su tooltip, *Then* lee "sin reclamar · capturado hace 20 s" y no se atribuye a ninguna guild.
+
+**RF-27c (M)** La UI no deberá representar más de un claim por objetivo ni insinuar que varias guilds reclaman a la vez: el modelo de la API es de un único claim por objetivo y cualquier otra lectura sería falsa.
 
 **Limitación conocida:** la API solo da el último claim vigente. Un claim que ocurra y se libere entre dos polls, o dos claims consecutivos de guilds distintas entre dos polls, no se pueden observar. La spec no promete completitud (RNF-05).
 
 ## D. Vistas de mapa
 
-**RF-30 (M)** Mapa simplificado por mapa de WvW: objetivos como figuras coloreadas por equipo (forma por tipo) sobre un fondo esquemático, sin texturas del juego (ADR-002). Selector de mapa.
+**RF-30 (M)** Mapa simplificado por mapa de WvW: objetivos como figuras coloreadas por equipo (forma por tipo) sobre un fondo esquemático, sin texturas del juego (ADR-002). Selector de mapa. Los límites se toman de `continent_rect` de `/v2/maps` (ADR-011) y los objetivos con `coord: null` se omiten del dibujo en lugar de dibujarse en (0,0).
+
+**RF-30a (M)** El mapa tendrá filtros por tipo de objetivo (campamento, torre, fortaleza, castillo) activables individualmente y **persistentes** entre sesiones. Los tipos sin valor de puntuación (`Ruins`, `Mercenary`, `Spawn`, `Resource`, `Generic`) estarán ocultos por defecto.
+- GWT: *Given* solo "torre" y "castillo" activos, *When* se repinta el mapa, *Then* no se dibuja ningún campamento, pero la capa de claims seguidos sigue mostrando los suyos.
+
+**RF-30b (M)** El mapa marcará los objetivos de **alto valor** con un contorno doble, además de la forma y el color. El criterio es **de datos, no una lista cableada**: alto valor = `points_tick` ≥ 8 (hoy: castillos y fortalezas), medio = torres, bajo = campamentos. Un cambio de puntuación en la API se refleja sin tocar código.
+- GWT: *Given* el match `2-2`, *When* se aplica el umbral, *Then* se marcan las 12 fortalezas y el castillo, y no las 24 torres ni los 24 campamentos.
 - GWT: *Given* un snapshot, *When* se abre la vista, *Then* cada objetivo aparece en su posición relativa con el color de su dueño.
 
 **RF-31 (M)** Capa de claims: marca visualmente los objetivos reclamados por guilds seguidas (anillo/etiqueta con tag de guild).
 
-**RF-32 (M)** Vista **Histórico** por guild: dibuja los claims en orden cronológico como polilínea numerada y direccional (ruta simulada), con selector de guild y de rango temporal.
-- GWT: *Given* 5 claims de la guild G en 2 h, *When* se selecciona G y el rango "últimas 2 h", *Then* se dibujan 5 nodos numerados unidos por flechas en orden temporal.
+**RF-32 (M)** Vista **Histórico** por guild: dibuja los claims en orden cronológico como polilínea numerada y direccional (ruta simulada), con selector de guild y de rango temporal. El claim **más reciente** se resaltará de forma inequívoca (relleno distinto y número en negrita), porque es el que el usuario quiere ver primero.
+- GWT: *Given* 5 claims de la guild G en 2 h, *When* se selecciona G y el rango "últimas 2 h", *Then* se dibujan 5 nodos numerados unidos por flechas en orden temporal, con el 5 resaltado como más reciente.
 
 **RF-33 (M)** La vista Histórico deberá indicar de forma visible que la ruta es **inferida**, y los claims `late` y los tramos con `gap` se dibujarán con estilo distinto (trazo discontinuo).
 
@@ -106,9 +164,13 @@ Formato EARS + criterios de aceptación Given/When/Then (GWT). Prioridad: **M** 
 
 **RF-36 (C)** Reproducción animada de la ruta (play/pausa) sobre el tiempo.
 
+**RF-37 (C)** Fondo opcional del mapa con las teselas oficiales (servicio de teselas, continente de Las Brumas), descargadas en ejecución y guardadas en caché local; nunca empaquetadas en la DLL (ADR-011). Desactivado por defecto.
+
+**RF-38 (C)** Iconos oficiales de los objetivos (campo `marker` de `/v2/wvw/objectives`) como alternativa a las formas dibujadas, con las formas como respaldo si el icono no está disponible.
+
 ## E. Configuración y UX
 
-**RF-40 (M)** Ventana de configuración: mundo, ámbito de alertas, opciones del widget (posición, bloqueo, opacidad, líneas, tiempo de vida), sonido, cooldown, intervalo de polling, retención de historial, guilds seguidas.
+**RF-40 (M)** Ventana de configuración: equipo, ámbito de alertas, opciones del widget (posición, bloqueo, opacidad, líneas, tiempo de vida), sonido, cooldown, intervalo de polling, retención de historial, guilds seguidas.
 
 **RF-41 (M)** Persistencia de la configuración en el directorio de addon de Nexus.
 
@@ -146,8 +208,8 @@ Formato EARS + criterios de aceptación Given/When/Then (GWT). Prioridad: **M** 
 | ID | Requisito | Verificación |
 |---|---|---|
 | RNF-01 | Frame time añadido < 0.5 ms en render (widget y mapa abiertos) | Medición con temporizador en dev |
-| RNF-02 | Intervalo de polling configurable; mínimo 15 s; por defecto 30 s hasta medir la caché real (T-02) | Test + spike |
-| RNF-03 | Historial acotado: retención en días y tamaño máx. (por defecto 30 días / 20 MB) con rotación | Test de rotación |
+| RNF-02 | Intervalo de polling configurable; mínimo 15 s; por defecto **30 s**, fijado con datos de T-02 (cambios de propiedad con mediana 19–20 s; 120 de las 600 peticiones/h) | Test + spike |
+| RNF-03 | Historial acotado **por sesión** (ADR-012): tope de 2 MB con rotación dentro de la sesión; al arrancar se descarta la anterior | Test de rotación |
 | RNF-04 | Sin red: UI funcional con último estado y marca "obsoleto"; backoff exponencial con tope | Test con cliente simulado |
 | RNF-05 | El historial es "mejor esfuerzo": no se promete completitud | Documentado en UI y README |
 | RNF-06 | Sin `panic` a través de FFI; errores internos a log | Revisión + `catch_unwind` en puntos de entrada |
@@ -167,11 +229,12 @@ Backend compartido entre usuarios, posición real de jugadores, alertas fuera de
 | Requisito | Módulo de diseño | Tarea |
 |---|---|---|
 | RF-01/02 | `nexus_ui::context` | T-12 |
-| RF-03*, RF-04 | `core::match_resolver`, `core::baseline` | T-05, T-06 |
+| RF-03*, RF-04 | `core::match_resolver`, `core::baseline`, `addon::ui::world_picker`, `data/wvw-teams.json` | T-05, T-06, T-30 |
 | RF-10..15 | `core::diff`, `core::rules`, `nexus_ui::alerts` | T-07, T-08, T-13 |
 | RF-16..19d | `addon::ui::alert_widget` | T-13, T-13b |
 | RF-20..26 | `core::follow`, `store`, `api::guild` | T-09, T-10, T-11 |
 | RF-30..36 | `map::*` | T-14, T-15, T-16 |
+| RF-37..38 | `map::background`, `map::icons` | T-29 |
 | RF-40..43 | `config`, `nexus_ui::settings` | T-12, T-17 |
 | RF-60..63 | `addon::ui::theme` | T-28 |
 | RF-50..53 | `addon::update`, `addon::safe_mode` | T-25, T-26, T-27 |

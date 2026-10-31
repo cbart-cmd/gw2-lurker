@@ -19,7 +19,7 @@ Cada tarea es pequeña y verificable. Orden recomendado; las dependencias se ind
 
 - **T-03** Workspace + CI local (`fmt`, `clippy`, `test`). *Hecho:* `cargo test` verde.
 - **T-04** `core::model` y deserialización serde de fixtures reales del match y de objetivos. (T-03)
-- **T-05** `match_resolver`: mundo → color propio/enemigos con `all_worlds`. *Hecho:* tests con mundo enlazado. (T-04) — RF-03b
+- **T-05** `match_resolver`: equipo → color propio/enemigos buscando el `team_id` en `all_worlds`; nombres desde `data/wvw-teams.json`. *Hecho:* tests con equipo enlazado y con id sin nombre. (T-04) — RF-03b, RF-03i
 - **T-06** Baseline y cambio de match en `diff`. (T-04) — RF-03d, RF-04
 - **T-07** `diff` de flips y claims/unclaims con orden determinista. (T-06) — RF-10, RF-21, RF-22
 - **T-08** `rules`: ámbito, equipo propio, cooldown, guilds seguidas. (T-07) — RF-12, RF-13

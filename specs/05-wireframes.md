@@ -1,6 +1,6 @@
 # 05 – Bocetos de interfaz (wireframes)
 
-Boceto de estructura, no de estilo visual. Leyenda: `[R]` rojo, `[A]` azul, `[V]` verde; formas: `●` campamento, `■` torre, `◆` fortaleza, `★` castillo. El color nunca es la única señal (RF-19).
+Boceto de estructura, no de estilo visual. Leyenda: `[R]` rojo, `[A]` azul, `[V]` verde; formas: `●` campamento, `■` torre, `◆` fortaleza, `★` castillo; **contorno doble** `(◆)` = objetivo de alto valor. El color nunca es la única señal (RF-19).
 
 ## W1 – Widget fijo de alertas (RF-16..19)
 
@@ -22,17 +22,21 @@ Bloqueado (sin cabecera, sin capturar clics, opacidad configurable):
 ```
 Estados: sin alertas y bloqueado → widget oculto (opcional: texto tenue "Sin novedades"); datos obsoletos → línea fija `⚠ Datos obsoletos desde 14:02`.
 
-## W2 – Primer uso: elegir mundo (RF-03a)
+## W2 – Primer uso: elegir equipo (RF-03a, RF-03g)
 ```
-┌ WvW Watch – Configuración inicial ────┐
-│ Elige tu mundo:                       │
-│ [ buscar…                        🔍 ] │
-│  ○ Mundo A      ○ Mundo B             │
-│  ○ Mundo C      ○ …                   │
-│                       [ Guardar ]     │
-│ Tu equipo se detecta cada semana.     │
-└───────────────────────────────────────┘
+┌ WvW Watch – Configuración inicial ───────────────────┐
+│ Elige tu equipo (match 2-2 · EU):                    │
+│ [ buscar equipo…                              🔍 ]   │
+│  ◉ Great House Aviary (12014)                        │
+│  ○ Bava Nisos      (12015)                           │
+│  ○ Bloodstone Gulch (12007)                          │
+│                                                      │
+│ Comprobación: eres AZUL; tus rivales son             │
+│ Bava Nisos (rojo) y Bloodstone Gulch (verde).        │
+│                        [ Correcto ]   [ Cambiar ]    │
+└──────────────────────────────────────────────────────┘
 ```
+El nombre sale de `data/wvw-teams.json`; si el id no está en la tabla se muestra solo `(12014)`. La identidad es el id: los nombres y los colores cambian cada temporada.
 
 ## W3 – Configuración (RF-40)
 ```
@@ -51,31 +55,44 @@ Estados: sin alertas y bloqueado → widget oculto (opcional: texto tenue "Sin n
 └───────────────────────────────────────────────────┘
 ```
 
-## W4 – Guilds seguidas (RF-20, RF-23)
+## W4 – Guilds seguidas y sugeridas (RF-20, RF-20a, RF-23)
 ```
-┌ Guilds seguidas ──────────────────────────────────┐
-│ Añadir: [ nombre o ID…        ] [Buscar]          │
-│  Resultados: ○ Nombre [TAG]  ○ Nombre2 [TG2]      │
-├───────────────────────────────────────────────────┤
-│ ▸ Nombre [TAG]            2 objetivos ahora   [✕] │
-│     ◆ Fortaleza X – Frontera Roja – desde 14:20   │
-│     ■ Torre Y     – Ojos de Aguas – desde 14:41   │
-│ ▸ Otra [OTR]              0 objetivos ahora   [✕] │
-└───────────────────────────────────────────────────┘
+┌ Guilds seguidas ─────────────────────────────────────┐
+│ Añadir: [ nombre o ID…          ] [Buscar]           │
+│  Resultados: ○ Nombre [TAG]   ○ Nombre2 [TG2]        │
+├──────────────────────────────────────────────────────┤
+│ Sugeridas (claims vistos desde 31/10 12:00)          │
+│  YAK [YAK]  6 claims · este mapa  · últ. 14:41  [+]  │
+│  OTR [OTR]  3 claims · este mapa  · últ. 14:02  [+]  │
+│  XYZ [XYZ]  9 claims · otros mapas · últ. 13:50  [+] │
+├──────────────────────────────────────────────────────┤
+│ ▸ Nombre [TAG]            2 objetivos ahora     [✕]  │
+│     ◆ Fortaleza X – Frontera Roja – desde 14:20      │
+│     ■ Torre Y     – Ojos de Aguas – desde 14:41      │
+│ ▸ Otra [OTR]              0 objetivos ahora     [✕]  │
+└──────────────────────────────────────────────────────┘
 ```
+La lista de sugeridas sale **solo** de claims que el addon ha visto (RF-20a): nace vacía y crece. Se ordena por claims en el mapa actual y luego por el resto, con la fecha de inicio de observación siempre visible para no aparentar un ranking global.
 
-## W5 – Mapa simplificado (RF-30, RF-31)
+## W5 – Mapa simplificado (RF-30, RF-30a, RF-30b, RF-31)
 ```
-┌ Mapa ─ [Ojos ▾] [Frontera R] [Frontera A] [Frontera V] ┐
-│                      ■[R]                              │
-│        ●[V]                ◆[R]★                       │
-│                ●[A]             <TAG>                  │
-│   ■[V]                   ●[R]                          │
-│ Capas: [x] Dueños  [x] Claims seguidos  [ ] Flips 10m  │
-│ Actualizado 14:45:10 (hace 8 s)                        │
-└────────────────────────────────────────────────────────┘
+┌ Mapa ─ [Ojos de Aguas ▾] ────────────────── hace 8 s ┐
+│ Tipo:  [● Camp] [■ Torre] [◆ Fort] [★ Cast]          │
+│ Capas: [x] Dueños   [x] Claims seguidos   [ ] Flips  │
+├──────────────────────────────────────────────────────┤
+│                          ■[R]                        │
+│      ●[V]                    (◆)[R]                  │
+│               ●[A]              <TAG>                │
+│  ■[V]                              ●[R]              │
+│                                                      │
+│ Actualizado 14:45:10 · próxima petición en 22 s      │
+└──────────────────────────────────────────────────────┘
 ```
-Tooltip al pasar el ratón: nombre, tipo, dueño, último flip, claim (guild + hora).
+Lectura sin etiquetas: el **tamaño** de la figura crece con `points_tick` (campamento < torre < fortaleza ≈ castillo) y el **contorno doble** marca alto valor (RF-30b), así se distingue lo importante de un vistazo sin leer texto ni depender del color.
+
+Tooltip al pasar el ratón: nombre, tipo, dueño, último flip, claim (guild + hora), puntos por tick y por captura.
+
+Con el filtro por tipo (RF-30a) solo quedan las figuras marcadas; la capa de claims seguidos no se filtra, para no ocultar justo lo que se está siguiendo.
 
 ## W6 – Histórico por guild (RF-32..35)
 ```
@@ -92,7 +109,7 @@ Tooltip al pasar el ratón: nombre, tipo, dueño, último flip, claim (guild + h
 │ 5 Campamento Z 15:10  ⌚ tardío                         │
 └────────────────────────────────────────────────────────┘
 ```
-Nodos tardíos con contorno punteado; saltos entre mapas con indicador `→ Ojos de Aguas`.
+Nodos tardíos con contorno punteado; saltos entre mapas con indicador `→ Ojos de Aguas`. El nodo **más reciente** va relleno y con el número en negrita (RF-32): es la respuesta a "¿qué ha reclamado por última vez?".
 
 ## W7 – Banner de actualización (RF-50)
 ```
