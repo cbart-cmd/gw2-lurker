@@ -32,9 +32,20 @@ const MAX_BACKOFF: Duration = Duration::from_secs(300);
 
 /// Whether the worker may use the network (set from the render callback's gate).
 static MAY_POLL: AtomicBool = AtomicBool::new(false);
-/// Set while the team picker is on screen: the list of live teams is needed even when polling
-/// is not allowed (outside WvW), so the drop-down is never empty (bug of 2026-10-31).
-static NEEDS_TEAMS: AtomicBool = AtomicBool::new(false);
+/// When the UI last asked for the list of live teams (the picker or the guild search).
+///
+/// A timestamp and not a flag: the render and the options pane are two callbacks whose order in
+/// the frame is not guaranteed, so «on» has to survive a moment after the UI says so.
+static NEEDS_TEAMS: Mutex<Option<Instant>> = Mutex::new(None);
+/// How long an ask for the team list is honoured, in seconds.
+const TEAMS_WANTED_FOR: Duration = Duration::from_secs(3);
+/// How often the nine matchups are fetched while the picker is on screen (~400 KB each time).
+///
+/// The list of teams changes at reset, not every poll: with a 5 s interval, asking for all nine
+/// every time would be 4,8 MB per minute for nothing.
+const ALL_MATCHUPS_TTL: Duration = Duration::from_secs(60);
+/// When the nine matchups were fetched last.
+static LAST_ALL: Mutex<Option<Instant>> = Mutex::new(None);
 /// Set on unload so the thread leaves its loop.
 static STOP: AtomicBool = AtomicBool::new(false);
 
@@ -187,7 +198,19 @@ pub fn set_may_poll(allowed: bool) {
 /// Tells the worker the team picker is on screen, so it fetches the list of live teams even
 /// when polling is not allowed (the settings window also opens outside WvW).
 pub fn set_teams_needed(needed: bool) {
-    NEEDS_TEAMS.store(needed, Ordering::Relaxed);
+    if needed {
+        *NEEDS_TEAMS
+            .lock()
+            .unwrap_or_else(|error| error.into_inner()) = Some(Instant::now());
+    }
+}
+
+/// Whether the UI asked for the team list a moment ago.
+fn teams_needed() -> bool {
+    NEEDS_TEAMS
+        .lock()
+        .unwrap_or_else(|error| error.into_inner())
+        .is_some_and(|at| at.elapsed() < TEAMS_WANTED_FOR)
 }
 
 /// Starts the worker. Idempotent: a second call does nothing.
@@ -219,7 +242,7 @@ fn run() {
         if !MAY_POLL.load(Ordering::Relaxed) {
             // Outside WvW, only the team list is worth fetching, and rarely: it changes at
             // reset, not every half minute.
-            if NEEDS_TEAMS.load(Ordering::Relaxed) && teams_stale(&mut teams_at) {
+            if teams_needed() && teams_stale(&mut teams_at) {
                 match api.matches_all() {
                     Ok(live) => publish_teams(&live, crate::team::selected()),
                     Err(error) => log::warn!("worker: sin lista de equipos ({error})"),
@@ -318,11 +341,10 @@ fn poll_once(
     store: Option<&mut SessionStore>,
 ) -> Result<(), String> {
     let saved = crate::team::selected();
-    // The picker lists every team of the region and colour, so it needs all nine matchups.
-    // Inside WvW the worker would otherwise ask for the player's match alone and the list
-    // showed one team per colour (bug of 2026-10-31).
-    let full = wants_full_list(saved, NEEDS_TEAMS.load(Ordering::Relaxed));
-    let needs_all = full || crate::detect::due();
+    // Con el selector en pantalla hacen falta los nueve emparejamientos, pero como mucho una vez
+    // por minuto: la lista de equipos solo cambia al reiniciarse el emparejamiento y a 5 s serían
+    // 4,8 MB por minuto (informe del jugador, 2026-10-31).
+    let needs_all = needs_all_now(saved, teams_needed(), crate::detect::due(), all_stale());
     // Lo que se pide es la partida del equipo que **se va a vigilar**, no la del guardado: con
     // la detección cacheada un cuarto de hora, pedir la del guardado y evaluar después el equipo
     // detectado dejaba al addon mirando otra partida 14 de cada 15 minutos (informe de
@@ -451,10 +473,26 @@ fn poll_once(
     Ok(())
 }
 
-/// live in all nine matchups, not just the player's: inside WvW the list showed one team per
-/// colour (bug of 2026-10-31, RF-03a).
-fn wants_full_list(team_id: Option<u32>, picker_on_screen: bool) -> bool {
-    team_id.is_none() || picker_on_screen
+/// Whether this poll has to ask for the nine matchups (~400 KB) or just for one match (~44 KB).
+///
+/// All nine are needed when there is no team yet (the picker has to be filled), when it is time
+/// to look for the player's match again, or when the picker is on screen **and** the list is
+/// stale. Asking for all nine on every poll was 4,8 MB per minute at the five-second cadence.
+fn needs_all_now(saved: Option<u32>, picker: bool, detect_due: bool, all_stale: bool) -> bool {
+    detect_due || saved.is_none() || (picker && all_stale)
+}
+
+/// Whether the nine matchups were fetched longer than [`ALL_MATCHUPS_TTL`] ago.
+fn all_stale() -> bool {
+    LAST_ALL
+        .lock()
+        .unwrap_or_else(|error| error.into_inner())
+        .is_none_or(|at| at.elapsed() >= ALL_MATCHUPS_TTL)
+}
+
+/// Remembers that this poll fetched the nine matchups.
+fn remember_all() {
+    *LAST_ALL.lock().unwrap_or_else(|error| error.into_inner()) = Some(Instant::now());
 }
 
 /// Team whose match the poll asks for: the one the game gave, or the saved one as before.
@@ -503,7 +541,11 @@ fn fetch_live(
     polled: Option<u32>,
 ) -> Result<Vec<Match>, String> {
     match plan {
-        Fetch::All => api.matches_all().map_err(|error| error.to_string()),
+        Fetch::All => {
+            let live = api.matches_all().map_err(|error| error.to_string())?;
+            remember_all();
+            Ok(live)
+        }
         Fetch::ById(id) => {
             let found = api.match_by_id(&id).map_err(|error| error.to_string())?;
             // La partida guardada puede haber terminado o el jugador haber cambiado de equipo:

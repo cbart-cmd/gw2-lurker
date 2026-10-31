@@ -146,11 +146,10 @@ pub fn register() {
                 // crashed the game once (reported 2026-10-31).
                 guard("widget", || draw_widget(ui));
             }
-            // The team picker needs the list of live teams even outside WvW, where polling is
-            // off: without this the drop-down was empty (bug of 2026-10-31).
-            crate::worker::set_teams_needed(
-                gate.settings_available() || crate::config().debug_show_everywhere,
-            );
+            // El selector de equipo y el buscador de clanes encienden `set_teams_needed` mientras
+            // se dibujan (y el worker lo recuerda unos segundos): antes se pedía «por si acaso» en
+            // cada sondeo —`gate.settings_available()` es cierto casi siempre—, lo que a 5 s
+            // serían 4,8 MB por minuto.
             crate::persist_if_changed();
         }),
     )

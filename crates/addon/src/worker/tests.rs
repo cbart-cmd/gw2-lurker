@@ -39,18 +39,29 @@ fn live_pipeline_builds_the_dashboard() {
 }
 
 #[test]
-fn rf03a_the_picker_asks_for_every_matchup() {
+fn rf03a_the_picker_asks_for_every_matchup_but_not_on_every_poll() {
+    // Con el selector en pantalla hacen falta los nueve matchups para llenar la lista, pero la
+    // lista solo cambia al reiniciarse el emparejamiento: a 5 s, pedirla en cada sondeo serían
+    // 4,8 MB por minuto (informe del jugador, 2026-10-31).
     assert!(
-        wants_full_list(Some(12014), true),
-        "con el selector en pantalla hacen falta los nueve matchups, no solo el mío"
+        needs_all_now(Some(12014), true, false, true),
+        "selector abierto y lista vieja: se piden los nueve"
     );
     assert!(
-        !wants_full_list(Some(12014), false),
-        "sin el selector basta el matchup del jugador (~44 KB en vez de ~400 KB)"
+        !needs_all_now(Some(12014), true, false, false),
+        "selector abierto con la lista reciente: basta una partida"
     );
     assert!(
-        wants_full_list(None, false),
+        !needs_all_now(Some(12014), false, false, false),
+        "sin selector basta el matchup del jugador (~44 KB en vez de ~400 KB)"
+    );
+    assert!(
+        needs_all_now(None, false, false, false),
         "sin equipo configurado hay que pedirlo todo"
+    );
+    assert!(
+        needs_all_now(Some(12014), false, true, false),
+        "toca buscar la partida del jugador otra vez"
     );
 }
 

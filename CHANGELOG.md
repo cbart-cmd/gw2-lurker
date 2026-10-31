@@ -1,6 +1,14 @@
 # Changelog
 Formato [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/), versionado [SemVer](https://semver.org/lang/es/).
 
+## [0.23.1] - 2026-10-31
+### Corregido
+- **Coste del sondeo a 5 s**: el addon pedía los nueve emparejamientos (`ids=all`, ~400 KB) en
+  **cada** sondeo, porque el indicador «el selector de equipo está en pantalla» estaba encendido
+  casi siempre. A 5 s eso serían 4,8 MB por minuto. Ahora se piden los nueve solo cuando hace
+  falta de verdad (sin equipo, cada 15 min para buscar la partida, o el selector abierto con la
+  lista vieja) y como mucho una vez por minuto; el resto de sondeos van a una partida (~44 KB).
+
 ## [0.23.0] - 2026-10-31
 ### Añadido
 - **Sondeo cada 5 segundos**, como la live map de gw2mists. El sondeo pide ahora **una** partida por

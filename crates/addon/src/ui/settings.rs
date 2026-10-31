@@ -89,6 +89,9 @@ pub fn body(
     candidates: &[Candidate],
     worlds: &std::collections::BTreeMap<u32, String>,
 ) -> Option<TeamChange> {
+    // Mientras el selector está en pantalla hacen falta los nueve emparejamientos: sin esto la
+    // lista de equipos se queda como esté (bug de 2026-10-31, el desplegable salía vacío).
+    crate::worker::set_teams_needed(true);
     let table = gw2lurker_core::bundled();
     let language = i18n::effective().code();
     let selected = crate::team::selected_in(config);
