@@ -341,6 +341,11 @@ fn poll_once(
     store: Option<&mut SessionStore>,
 ) -> Result<(), String> {
     let saved = crate::team::selected();
+    // El personaje manda: la lista por personaje es de RF-03a, así que un alt con otro equipo
+    // tiene que revalidar (una sola vez) al entrar.
+    if character_changed() {
+        crate::detect::forget();
+    }
     // Con el selector en pantalla hacen falta los nueve emparejamientos, pero como mucho una vez
     // por minuto: la lista de equipos solo cambia al reiniciarse el emparejamiento y a 5 s serían
     // 4,8 MB por minuto (informe del jugador, 2026-10-31).
@@ -488,6 +493,22 @@ fn all_stale() -> bool {
         .lock()
         .unwrap_or_else(|error| error.into_inner())
         .is_none_or(|at| at.elapsed() >= ALL_MATCHUPS_TTL)
+}
+
+/// Whether the character changed since the last poll, which re-arms the one sweep of the nine
+/// matchups: the roster is per character (RF-03a).
+fn character_changed() -> bool {
+    static LAST: Mutex<Option<String>> = Mutex::new(None);
+    let Some(name) = crate::ffi::character_name() else {
+        return false;
+    };
+    let mut last = LAST.lock().unwrap_or_else(|error| error.into_inner());
+    if last.as_deref() == Some(name.as_str()) {
+        return false;
+    }
+    let changed = last.is_some();
+    *last = Some(name);
+    changed
 }
 
 /// Remembers that this poll fetched the nine matchups.

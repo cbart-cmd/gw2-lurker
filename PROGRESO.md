@@ -22,7 +22,7 @@ Reglas:
 - **Sondeo cada 5 s** (RNF-02 actualizado): el coste se arregla pidiendo **una** partida por id
   (`match_by_id`, 44 096 B con sus cuatro mapas) en vez de `match_for_team` —que por dentro pide
   `ids=all`, 400 KB—. Con el id conocido el gasto baja de 13 KB/s a 9 KB/s. `ids=all` queda para el
-  selector en pantalla y la detección (cada 15 min).
+  selector en pantalla y la validación al entrar (una vez por carga y al cambiar de personaje).
 - **Historial desde el baseline** (ADR-012 punto 2, que el código incumplía): `history_row` ya no
   tira los reclamos `late`; entran con su `claimed_at` real. Los avisos siguen ignorándolos
   (`AlertLine::late`), que era el motivo del filtro.

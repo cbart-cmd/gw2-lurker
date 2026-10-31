@@ -1,12 +1,21 @@
 # Changelog
 Formato [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/), versionado [SemVer](https://semver.org/lang/es/).
 
+## [0.23.2] - 2026-10-31
+### Cambiado
+- **Los nueve emparejamientos se piden una vez al entrar**, no cada cuarto de hora. Hasta ahora el
+  addon barría las nueve partidas cada 15 minutos «para localizarte», y eso no servía de nada: el
+  `shard_id` de Mumble no identifica la partida (medido: `0x80000001`, no aparece en ninguna). Ese
+  barrido queda para lo que sí hace falta —**validar tu equipo y llenar el selector**— al cargar el
+  addon y cuando **cambias de personaje** (cada uno tiene su equipo). A partir de ahí, todos los
+  sondeos van a la partida que tengas elegida y a ninguna otra.
+
 ## [0.23.1] - 2026-10-31
 ### Corregido
 - **Coste del sondeo a 5 s**: el addon pedía los nueve emparejamientos (`ids=all`, ~400 KB) en
   **cada** sondeo, porque el indicador «el selector de equipo está en pantalla» estaba encendido
   casi siempre. A 5 s eso serían 4,8 MB por minuto. Ahora se piden los nueve solo cuando hace
-  falta de verdad (sin equipo, cada 15 min para buscar la partida, o el selector abierto con la
+  falta de verdad (sin equipo, al entrar —una vez— para validar tu equipo, o el selector abierto con la
   lista vieja) y como mucho una vez por minuto; el resto de sondeos van a una partida (~44 KB).
 
 ## [0.23.0] - 2026-10-31

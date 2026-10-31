@@ -4,14 +4,11 @@
 //! §2.7) y porque es una responsabilidad propia: preguntar a Mumble y buscar la partida.
 
 use std::sync::{Mutex, OnceLock};
-use std::time::{Duration, Instant};
+use std::time::Instant;
 
 use gw2lurker_core::model::Match;
 
 pub use gw2lurker_core::detect::Detected;
-
-/// How often the worker re-asks the game where the player is (the shard only changes at reset).
-const DETECT_EVERY: Duration = Duration::from_secs(15 * 60);
 
 /// When the last detection ran and what came out of it.
 type Detection = Option<(Instant, Option<Detected>)>;
@@ -21,13 +18,25 @@ fn slot() -> &'static Mutex<Detection> {
     SLOT.get_or_init(|| Mutex::new(None))
 }
 
-/// Whether it is time to ask all nine matchups where the player is.
+/// Whether the nine matchups have to be asked for: **once per load**, not every quarter of an hour.
+///
+/// `shard_id` does not identify the matchup (measured 2026-10-31: it is `0x80000001` and appears
+/// in none of the nine), so asking again and again buys nothing: what this first sweep is for is
+/// **validating the saved team** and filling the picker. From then on the poll asks for the match
+/// the player chose and nothing else (petición del jugador, 2026-10-31).
 pub fn due() -> bool {
-    let slot = slot().lock().unwrap_or_else(|error| error.into_inner());
-    match slot.as_ref() {
-        Some((at, _)) => at.elapsed() >= DETECT_EVERY,
-        None => true,
-    }
+    slot()
+        .lock()
+        .unwrap_or_else(|error| error.into_inner())
+        .is_none()
+}
+
+/// Forgets the last sweep, so the next poll asks for the nine matchups again.
+///
+/// Used when the character changes: the roster is per character, so another alt can play with a
+/// different team (RF-03a).
+pub fn forget() {
+    *slot().lock().unwrap_or_else(|error| error.into_inner()) = None;
 }
 
 pub fn cached() -> Option<Detected> {
