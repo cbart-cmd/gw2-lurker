@@ -1,6 +1,16 @@
 # Changelog
 Formato [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/), versionado [SemVer](https://semver.org/lang/es/).
 
+## [0.14.5] - 2026-10-31
+### Corregido
+- **Cierre al abrir la pestaña Mapa, por fin con causa**: `get_window_draw_list()` solo se puede
+  pedir **una vez por frame** — la segunda llamada lanza un pánico de `arcdps-imgui`
+  («You can only load one instance of it!») y se llevaba el addon. Se pedía una vez por objetivo,
+  así que el mapa cerraba el juego en cuanto había algo que dibujar. Ahora se pide una vez y se
+  pasa por referencia.
+- El `catch_unwind` de 0.14.3 hizo su trabajo: el pánico quedó en `Nexus.log` en vez de una
+  pantalla negra, y por eso se ha podido identificar.
+
 ## [0.14.4] - 2026-10-31
 ### Añadido
 - **Máximo 10 clanes seguidos** (`MAX_FOLLOWED`): la lista deja de poder crecer sin freno y avisa

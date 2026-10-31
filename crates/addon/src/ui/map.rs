@@ -90,6 +90,10 @@ pub fn body(ui: &Ui, view: &View<'_>, role: &mut MapRole, here: Option<MapRole>)
     // straight to the draw list, which is what imgui wants for shapes.
     ui.dummy([width, MAP_HEIGHT]);
 
+    // **Once per frame**: `get_window_draw_list` panics if an instance of the window draw list is
+    // already alive ("You can only load one instance of it!", `arcdps-imgui` draw_list.rs:103).
+    // Asking for it inside the loop took the game down the first time the tab was opened
+    // (reported and confirmed in `Nexus.log`, 2026-10-31).
     let list = ui.get_window_draw_list();
     let corner = [origin[0] + width, origin[1] + MAP_HEIGHT];
     list.add_rect(origin, corner, [0.10, 0.11, 0.13, 0.85])
@@ -112,7 +116,7 @@ pub fn body(ui: &Ui, view: &View<'_>, role: &mut MapRole, here: Option<MapRole>)
         };
         let row = rows.iter().find(|row| row.objective_id == objective.id);
         draw_objective(
-            ui,
+            &list,
             point,
             objective.kind,
             row.and_then(|row| row.owner),
@@ -121,7 +125,7 @@ pub fn body(ui: &Ui, view: &View<'_>, role: &mut MapRole, here: Option<MapRole>)
         );
     }
 
-    draw_route(ui, &frame, origin, size, map.id, names, history);
+    draw_route(&list, &frame, origin, size, map.id, names, history);
 }
 
 /// Numbered, directed path of the chosen guild on this map (T-16, RF-32).
@@ -129,7 +133,7 @@ pub fn body(ui: &Ui, view: &View<'_>, role: &mut MapRole, here: Option<MapRole>)
 /// The route is **inferred** from the claims (ADR-005): the caption that says so is drawn by the
 /// guilds tab, next to the same data.
 fn draw_route(
-    ui: &Ui,
+    list: &nexus::imgui::DrawListMut<'_>,
     frame: &Frame,
     origin: [f32; 2],
     size: [f32; 2],
@@ -153,7 +157,6 @@ fn draw_route(
     // `history` llega en orden de llegada; el dibujo va en orden temporal (RF-32).
     steps.sort_by_key(|(_, at)| *at);
 
-    let list = ui.get_window_draw_list();
     for pair in steps.windows(2) {
         list.add_line(pair[0].0, pair[1].0, [1.0, 0.75, 0.3, 0.8])
             .thickness(2.0)
@@ -229,14 +232,13 @@ fn is_drawable(kind: ObjectiveType) -> bool {
 }
 
 fn draw_objective(
-    ui: &Ui,
+    list: &nexus::imgui::DrawListMut<'_>,
     point: [f32; 2],
     kind: ObjectiveType,
     owner: Option<TeamColor>,
     high_value: bool,
     followed: bool,
 ) {
-    let list = ui.get_window_draw_list();
     let colour = owner.map_or(UNCLAIMED, colour_rgba);
     let radius = match kind {
         ObjectiveType::Camp => 4.0,

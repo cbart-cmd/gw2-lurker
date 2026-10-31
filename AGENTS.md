@@ -184,6 +184,12 @@ Cada punto de esta lista sale de un fallo real de este proyecto, no de una buena
     `changed` en el `Edits` y aplica solo eso. Y cuidado con `config.window(key)`: **crea** la
     entrada si no existe, con `visible = true`, así que pedirla por una ventana cerrada la
     resucita.
+12. **Los draw lists de imgui son singletons por frame.** `get_window_draw_list()` **panics**
+    (`arcdps-imgui` `draw_list.rs:103`: «You can only load one instance of it!») si ya hay un
+    `DrawListMut` de la ventana vivo. Se pide **una vez** y se pasa por referencia a quien dibuje;
+    pedirlo dentro de un bucle cierra el juego en cuanto hay más de un elemento. Costó un cierre
+    real al abrir la pestaña Mapa (2026-10-31); el `catch_unwind` del render lo dejó en una línea
+    de `Nexus.log` en vez de una pantalla negra.
 
 ## 12. CI: lanzar y seguir
 

@@ -141,3 +141,13 @@ Estado: `[ ]` pendiente · `[x]` hecho.
   es de arcDPS; las menciones en la UI se generan desde la constante. (3) El render va envuelto en
   `catch_unwind`: un panico queda en `nexus.log` y el overlay sigue vivo. **Pendiente:** si vuelve a
   cerrarse al abrir Mapa, manda esa linea del log.
+
+
+## [x] Crash al abrir la pestaña Mapa (2026-10-31)
+- Al clicar «Mapa» se cerraba el juego.
+- **Hecho (0.14.5):** causa exacta en `Nexus.log`:
+  `panicked at arcdps-imgui-0.8.0/src/draw_list.rs:103: The DrawListMut instance for the window
+  draw list is already loaded! You can only load one instance of it!`. `ui::map` pedía
+  `get_window_draw_list()` **una vez por objetivo** y esa llamada es un singleton por frame: la
+  segunda panica. Ahora se pide una sola vez y se pasa por referencia. El `catch_unwind` de 0.14.3
+  evitó la pantalla negra y dejó la traza, que es lo que ha permitido cerrarlo.

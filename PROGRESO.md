@@ -13,6 +13,20 @@ Reglas:
 
 ---
 
+## HECHO – 2026-10-31 · Cierre al abrir el mapa: el draw list es un singleton (0.14.5)
+- **Causa encontrada en `Nexus.log` del usuario**, no adivinando:
+  `panicked at arcdps-imgui-0.8.0/src/draw_list.rs:103: The DrawListMut instance for the window
+  draw list is already loaded! You can only load one instance of it!` con la línea previa
+  `mapa: 4 mapas, 178 objetivos (97 con coord), rol Unknown, en Some(RedHome)`.
+- `ui::map` pedía `get_window_draw_list()` **una vez por objetivo**. La segunda llamada panica
+  (es un singleton por frame con un flag atómico y `Drop`). Ahora se pide una sola vez en `body` y
+  se pasa `&DrawListMut<'_>` a `draw_objective` y `draw_route`.
+- El `catch_unwind` de 0.14.3 evitó que la excepción cruzara el FFI y dejó la traza en el log:
+  sin él esto habría sido otra pantalla negra sin diagnóstico. Merece la pena tenerlo.
+- Regla nueva en `AGENTS.md` §11.12 para no repetirlo.
+- Ojo para la próxima: tras un pánico el guard deja de dibujar el widget **durante esa sesión**;
+  con el fallo arreglado eso ya no se dispara, pero si se vuelve a ver «no aparece nada», es eso.
+
 ## HECHO – 2026-10-31 · Bloquear ≠ click-through, atajo libre y sin cierres (0.14.2)
 
 - **Tres reportes del usuario a la vez:**
