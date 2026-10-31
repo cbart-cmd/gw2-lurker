@@ -13,7 +13,7 @@ use std::sync::Mutex;
 
 use gw2lurker_core::matchup::GuildSummary;
 use gw2lurker_core::model::{Region, TeamColor};
-use gw2lurker_core::{select, AlertFilter, Candidate, FollowList, TeamTable};
+use gw2lurker_core::{select, AlertFilter, Candidate, FollowList, TeamTable, MAX_FOLLOWED};
 use nexus::imgui::{ComboBox, Slider, StyleColor, Ui};
 
 use crate::config::{AlertScope, LanguagePreference};
@@ -298,7 +298,13 @@ fn draw_alert_filters(
     }
 
     ui.separator();
-    ui.text(i18n::text("Followed guilds"));
+    let count = format!("{}/{MAX_FOLLOWED}", follow.len());
+    ui.text(i18n::format("Followed guilds ({0})", &[&count]));
+    if follow.is_full() {
+        ui.text_disabled(i18n::text(
+            "The list is full: stop following one to add another.",
+        ));
+    }
     if guilds.is_empty() {
         ui.text_disabled(i18n::text("No claims yet"));
         return;

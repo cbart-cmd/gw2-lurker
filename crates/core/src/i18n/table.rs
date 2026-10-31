@@ -96,6 +96,24 @@ pub const TEXT: &[(&str, [&str; COLUMNS])] = &[
         ],
     ),
     (
+        "Followed guilds ({0})",
+        [
+            "Clanes seguidos ({0})",
+            "Followed guilds ({0})",
+            "Guildes suivies ({0})",
+            "Verfolgte Gilden ({0})",
+        ],
+    ),
+    (
+        "The list is full: stop following one to add another.",
+        [
+            "La lista está llena: deja de seguir uno para añadir otro.",
+            "The list is full: stop following one to add another.",
+            "La liste est pleine : arrêtez de suivre une guilde pour en ajouter une autre.",
+            "Die Liste ist voll: eine Gilde entfolgen, um eine andere hinzuzufügen.",
+        ],
+    ),
+    (
         "Nothing matches the filters",        [
             "Nada cumple los filtros",
             "Nothing matches the filters",

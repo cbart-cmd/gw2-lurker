@@ -69,6 +69,11 @@ pub fn body(
         }
 
         ui.text(i18n::text("Ordered by most recent claim"));
+        if follow.is_full() {
+            ui.text_disabled(i18n::text(
+                "The list is full: stop following one to add another.",
+            ));
+        }
         // The list scrolls on its own: it is longer than the window, and with the history
         // pushed off-screen choosing a guild looked like it did nothing (bug of 2026-10-31).
         nexus::imgui::ChildWindow::new("###guild_list")

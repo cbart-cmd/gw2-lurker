@@ -85,6 +85,26 @@ Cada tarea es pequeña y verificable. Orden recomendado; las dependencias se ind
   Falta decidir el origen de la traducción: el juego no traduce nombres de clan, así que solo puede
   salir de una tabla propia (como `data/team-names.json` para equipos) o de un campo que escriba el
   usuario, reutilizando el patrón de `team_translations`. (T-37)
+- **T-44** Selector de clanes a seguir rediseñado (pedido del usuario, 2026-10-31). Hoy la lista de
+  «clanes seguidos» de los ajustes vuelca **todos** los clanes del matchup, así que crece sin freno y
+  acabará pesando. Debe quedar así:
+  1. La sección enseña **solo los clanes que ya sigo**, con su `[TAG] Nombre` y un botón para dejar
+     de seguir cada uno. **Máximo 10** (`MAX_FOLLOWED`, ya aplicado en 0.14.4).
+  2. Botón **Añadir** con dos vías:
+     - **Los que han reclamado algo desde que arrancó el addon** (los que tienen «logs», es decir,
+       los que aparecen en el historial de la sesión): un clic lo añade a seguidos.
+     - **Buscador**: obligatorio indicar **el equipo** (y que sea de la región en la que estoy, EU o
+       NA), escribir parte del nombre y buscar.
+  Verificado contra la API el 2026-10-31 y **no hace falta inventar nada**:
+  - `GET /v2/guild/search?name=<texto>` → lista de ids de clan (sin clave, ya probado: `name=lord`
+    devolvió un id). Con esos ids, `/v2/guild/:id` da `name` y `tag`, y `/v2/guild/:id/log` no vale
+    porque **pide clave**.
+  - `GET /v2/wvw/guilds/:region` (`eu`/`na`) → `{ "<guild_id>": "<team_id>" }` (282 KB para EU):
+    es la forma de saber en qué equipo está un clan y de filtrar por el equipo elegido.
+  - La región sale de la pertenencia del equipo ya configurado (`1-x` NA, `2-x` EU), que es lo que
+    hace que «obligatorio que sea de mi zona» no necesite configuración extra.
+  Rendimiento: la búsqueda se lanza a mano (nunca por frame), con resultados acotados y cacheados
+  como los nombres de clan (`catalog::resolve_guild_names`). (T-37, T-13) — RF-73, RF-31
 - **T-17 ✔ (2026-10-31, parcial)** Contrato de ventana compartido en `addon::ui::window`:
   barra de título propia con `×`, plegado con doble clic, mover/redimensionar solo si no está
   bloqueada, opacidad sobre el fondo, menú contextual (bloquear, opacidad, restablecer) y

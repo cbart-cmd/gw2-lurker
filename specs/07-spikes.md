@@ -263,3 +263,15 @@ Medido contra la API en vivo (`/v2/maps?ids=38,95,96,1099` y `/v2/wvw/objectives
   **8, 12, 16 o 20**; castillo **12**; ruinas, mercenarios y spawns **0**. Con el umbral 8 de
   RF-30b quedan marcados 17 objetivos y ningún campamento.
 - `/v2/maps` con los cuatro ids son ~2 KB: se piden una vez por sesión.
+### Notas de verificación: buscar clanes y saber su equipo (2026-10-31)
+
+Comprobado `[API]` en vivo, para el rediseño del selector de clanes (T-44).
+
+- **`GET /v2/guild/search?name=<texto>` existe, no pide clave y devuelve ids de clan.** Medido:
+  `name=lord` → `["114D20B6-6E89-4432-982C-C77B58F57460"]`. Aparece en el índice de `/v2` como
+  `/v2/guild/search` sin marca `[a]` ni `[l]`.
+- **Lo que no sirve:** `/v2/guild/:id/log` (el historial real del clan) **requiere clave `[a]`**, así
+  que el «historial del clan» solo puede salir de lo que veamos nosotros.
+- **`GET /v2/wvw/guilds/:region`** (`eu`/`na`) devuelve `{ "<guild_id>": "<team_id>" }`; 282 644
+  bytes para EU. Es la única fuente oficial para saber en qué equipo está un clan.
+- La región del jugador no se expone: se deduce del equipo configurado (`1-x` = NA, `2-x` = EU).

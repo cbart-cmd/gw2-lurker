@@ -7,6 +7,13 @@ use serde::{Deserialize, Serialize};
 
 use crate::matchup::GuildSummary;
 
+/// How many guilds can be followed at once.
+///
+/// Every followed guild is a ring on the map, a filter on the alerts and a row in the settings
+/// list; the list used to be every guild of the matchup, which is what made it long and slow
+/// (report of 2026-10-31). Ten is more than anyone watches.
+pub const MAX_FOLLOWED: usize = 10;
+
 /// Ordered, duplicate-free list of followed guild ids.
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(transparent)]
@@ -25,13 +32,18 @@ impl FollowList {
         self.ids.iter().any(|g| g == guild)
     }
 
-    /// Follows a guild. Returns `false` if it already was followed.
+    /// Follows a guild. Returns `false` if it already was followed or the list is full.
     pub fn add(&mut self, guild: &str) -> bool {
-        if self.contains(guild) {
+        if self.contains(guild) || self.is_full() {
             return false;
         }
         self.ids.push(guild.to_string());
         true
+    }
+
+    /// Whether the list already has [`MAX_FOLLOWED`] guilds.
+    pub fn is_full(&self) -> bool {
+        self.ids.len() >= MAX_FOLLOWED
     }
 
     /// Stops following a guild. Returns `false` if it was not followed.
@@ -46,12 +58,13 @@ impl FollowList {
     }
 
     /// Adds or removes, returning the new state.
+    ///
+    /// With the list full it does nothing and keeps saying `false`: the UI has to explain it.
     pub fn toggle(&mut self, guild: &str) -> bool {
         if self.remove(guild) {
             false
         } else {
-            self.add(guild);
-            true
+            self.add(guild)
         }
     }
 
@@ -99,6 +112,24 @@ mod tests {
             ),
             last_map: Some((38, MapRole::Center)),
         }
+    }
+
+    #[test]
+    fn rf73_the_list_stops_at_ten_guilds() {
+        let mut list = FollowList::new();
+        for index in 0..MAX_FOLLOWED {
+            assert!(list.add(&format!("g{index}")), "caben diez");
+        }
+        assert!(list.is_full());
+        assert!(
+            !list.add("una-mas"),
+            "el onceavo no entra: la lista no puede crecer sin fin"
+        );
+        assert!(!list.toggle("otra-mas"), "toggle tampoco lo cuela");
+        assert_eq!(list.len(), MAX_FOLLOWED);
+
+        assert!(!list.toggle("g0"), "quitar sigue funcionando");
+        assert!(list.add("una-mas"), "con un hueco vuelve a entrar");
     }
 
     #[test]

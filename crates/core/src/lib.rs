@@ -20,7 +20,7 @@ pub mod teams;
 
 pub use alerts::Filter as AlertFilter;
 pub use diff::{BaselineReason, DiffConfig, Differ, Event, Snapshot};
-pub use follow::{favourites_first, FollowList};
+pub use follow::{favourites_first, FollowList, MAX_FOLLOWED};
 pub use gate::{evaluate, GameState, Gate, Hidden};
 pub use i18n::Language;
 pub use matchup::{by_map, claims, rank_guilds, split_by_map, ClaimRow, GuildSummary};

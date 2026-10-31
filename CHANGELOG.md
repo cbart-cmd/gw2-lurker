@@ -1,6 +1,12 @@
 # Changelog
 Formato [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/), versionado [SemVer](https://semver.org/lang/es/).
 
+## [0.14.4] - 2026-10-31
+### Añadido
+- **Máximo 10 clanes seguidos** (`MAX_FOLLOWED`): la lista deja de poder crecer sin freno y avisa
+  cuando está llena, tanto en los ajustes como en la pestaña de clanes. El rediseño del selector
+  con buscador está apuntado como T-44.
+
 ## [0.14.3] - 2026-10-31
 ### Corregido
 - Tras un pánico dibujando el widget, el addon deja de dibujarlo en esa sesión en vez de repetir el
