@@ -65,3 +65,11 @@ Estado: `[ ]` pendiente · `[x]` hecho.
   ellas.
 - **Hecho (0.17.1):** la barra de pestañas usa `FITTING_POLICY_SCROLL`, así que imgui dibuja las
   flechas de desplazamiento en la propia barra (el «…» que se pedía), como el proyecto hermano.
+
+## [ ] widget
+- registro de avisos no hace lipieza al reiniciar el juego
+- pestaña de clanes deberia tener una primera seccion "clanes seguidos" (sacarlo de ajustes) y otra "añadir clanes" donde esté la lista de últimos 10 que han relcamado algo más el buscador
+- el buscador de clanes no funciona: 
+a. falta secciond de Eu / na
+b. el desplgable muestra "ids"  numercios
+c. al poner el nuimbre de unb clan da un error el buscador /invalid type string 11004

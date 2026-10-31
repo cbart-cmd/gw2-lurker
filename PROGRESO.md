@@ -13,6 +13,24 @@ Reglas:
 
 ---
 
+## HECHO – 2026-10-31 · El widget en el Bastión y el clic derecho para salir del click-through (0.17.3)
+
+- **T-48 · el widget en el Bastión del Armisticio**: `map_type` 18 se ocultaba entero por no tener
+  objetivos. Nuevo `Gate::CONFIG_ONLY` (`show_ui` alto, `poll` bajo): la ventana se dibuja —es donde se
+  configuran los ajustes— y no se gasta una sola petición. La lista de equipos se sigue pidiendo
+  (`settings_available`), así que el selector funciona allí. Fortaleza del Valor (13) y Sagrario de
+  Obsidiana (14) siguen ocultos. Cambia el GWT de RF-01, pedido por el usuario.
+- La cabecera dice en gris «en este mapa no hay nada que vigilar, pero los ajustes funcionan» en vez de
+  enseñar pestañas vacías sin explicación.
+- **T-49 · clic derecho para salir del click-through**: con `NO_INPUTS` la ventana no recibe el ratón, así
+  que `ui::right_click_on_widget` lo mira desde el callback de render, **solo en el flanco de bajada** (con
+  `mouse_down` a secas se alternaría sesenta veces por segundo) y contra la caja guardada de la ventana
+  (`window::covers`, pura y con test). Al acertar se apaga el click-through y se guarda.
+- De paso: el aviso naranja decía `Alt+Shift+L` **escrito a mano** (el atajo viejo que se queda arcDPS) y
+  se enseñaba según `locked` en vez de según `click_through`. Ahora se construye con `LOCK_SHORTCUT` y sale
+  cuando toca.
+- Verificación: 192 tests en verde (77 addon · 15 api · 94 core · 6 store), `clippy -D warnings` limpio.
+
 ## HECHO – 2026-10-31 · La descarga de teselas no se da por hecha sin mapas (0.17.2)
 
 - Al revisar el arreglo de las teselas apareció una regresión que yo mismo había metido: `ensure_tiles`

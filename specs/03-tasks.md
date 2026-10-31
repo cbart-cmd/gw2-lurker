@@ -167,6 +167,20 @@ Cada tarea es pequeña y verificable. Orden recomendado; las dependencias se ind
   Pendiente solo si el usuario aporta los PNG reales: cambiarlos es sustituir `icons::parts`. (T-29) —
   RF-30, RF-31, RF-38
 
+- **T-48 ✔ (2026-10-31)** **El widget también en el Bastión del Armisticio**: `map_type` 18 no tiene
+  objetivos que vigilar, pero es donde el jugador quiere tocar los ajustes. `Gate::CONFIG_ONLY` deja
+  `show_ui` en alto y `poll` en bajo (no se gasta red), la lista de equipos se sigue pidiendo y la
+  cabecera lo explica («en este mapa no hay nada que vigilar, pero los ajustes funcionan»). La Fortaleza
+  del Valor y el Sagrario de Obsidiana siguen ocultos: son una recompensa y un puzle, no un mapa de MvM
+  al que uno vaya a configurar. Cambia el GWT de RF-01 (lo pidió el usuario). — RF-01, RF-02
+
+- **T-49 ✔ (2026-10-31)** **El clic derecho saca del click-through**: con `NO_INPUTS` la ventana no recibe
+  nada del ratón, así que la única salida era el atajo o el panel de Nexus. El callback de render mira el
+  ratón por su cuenta (`ui::right_click_on_widget`, solo en el flanco de bajada) y, si el clic derecho cae
+  dentro de la caja guardada de la ventana (`window::covers`, pura y con test), apaga el click-through y
+  guarda. El aviso naranja del widget lo dice y usa el atajo real (`LOCK_SHORTCUT`), que estaba escrito a
+  mano con el `Alt+Shift+L` viejo. — RF-02, RF-18
+
 ## Fase 4b – Actualización y fallo seguro
 
 - **T-25** Spike y aviso de actualización: comprobar cómo deja Nexus la DLL nueva y construir el banner W7 (ADR-007). (T-01, T-12) — RF-50, RF-53

@@ -69,6 +69,27 @@ pub fn toggle_click_through(config: &mut crate::config::Config) -> bool {
     through
 }
 
+/// Whether the right mouse button was just pressed on top of the widget.
+///
+/// Rising edge only: with `mouse_down` alone the flag would flip on every frame the button was
+/// held. The rectangle the click is tested against is the one in the configuration, because a
+/// click-through window cannot report its own.
+fn right_click_on_widget(ui: &nexus::imgui::Ui) -> bool {
+    static DOWN: AtomicBool = AtomicBool::new(false);
+    let pressed = ui.io().mouse_down[1];
+    let was = DOWN.swap(pressed, Ordering::Relaxed);
+    if !pressed || was {
+        return false;
+    }
+    let Some(state) = crate::config().windows.get(WIDGET) else {
+        return false;
+    };
+    if !state.visible {
+        return false;
+    }
+    window::covers(state.position, state.size, ui.io().mouse_pos)
+}
+
 /// Registers the render callbacks. Must be called from `load`, never per frame.
 pub fn register() {
     nexus::keybind::register_keybind_with_string(
@@ -91,6 +112,21 @@ pub fn register() {
                 let locked = toggle_click_through(&mut config);
                 crate::request_save(&config);
                 log::info!("click-through: {locked}");
+            }
+
+            // Con click-through la ventana no recibe nada del ratón, así que la única salida era
+            // el atajo o el panel de Nexus. El clic derecho sobre el widget lo desactiva
+            // (petición de 2026-10-31): se mira el ratón desde aquí, que sí lo vemos.
+            if crate::config()
+                .windows
+                .get(WIDGET)
+                .is_some_and(|state| state.click_through)
+                && right_click_on_widget(ui)
+            {
+                let mut config = crate::runtime();
+                let through = toggle_click_through(&mut config);
+                crate::request_save(&config);
+                log::info!("clic derecho en el widget: click-through {through}");
             }
 
             if gate.show_ui || crate::config().debug_show_everywhere {
@@ -434,10 +470,20 @@ fn draw_health(ui: &nexus::imgui::Ui, config: &mut crate::config::Config, data: 
     // Click-through has no visual trace of its own: without this line the only symptom is that
     // nothing answers the mouse, which is indistinguishable from a frozen addon (bug of
     // 2026-10-31).
-    if config.window(WIDGET).locked {
+    if config.window(WIDGET).click_through {
         let _tint = ui.push_style_color(nexus::imgui::StyleColor::Text, [1.0, 0.75, 0.3, 1.0]);
-        ui.text_wrapped(i18n::text(
-            "Click-through is on: Alt+Shift+L or the Nexus options to use the mouse.",
+        ui.text_wrapped(i18n::format(
+            "Click-through is on: right-click here or press {0} to use the mouse again.",
+            &[LOCK_SHORTCUT],
+        ));
+    }
+
+    // El Bastión del Armisticio: se dibuja pero no hay partida que mirar, y conviene decirlo en
+    // vez de enseñar pestañas vacías sin explicación (petición de 2026-10-31).
+    let gate = crate::context::gate();
+    if gate.show_ui && !gate.poll {
+        ui.text_disabled(i18n::text(
+            "Nothing to watch on this map, but the settings work here.",
         ));
     }
 }

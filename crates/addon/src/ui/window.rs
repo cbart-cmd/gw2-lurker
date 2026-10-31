@@ -137,6 +137,23 @@ fn clamp_size(size: [f32; 2]) -> [f32; 2] {
     ]
 }
 
+/// Whether a point falls inside a window drawn at `position` with that `size`.
+///
+/// Click-through means imgui gives the window **no** input at all (`NO_INPUTS`), so the only way
+/// to notice the mouse is to look at it from outside: this is the test the right-click escape
+/// uses (request of 2026-10-31).
+pub fn covers(position: Option<[f32; 2]>, size: Option<[f32; 2]>, point: [f32; 2]) -> bool {
+    let (Some(position), Some(size)) = (position, size) else {
+        // Sin caja guardada no se adivina: mejor no quitar el click-through por accidente.
+        return false;
+    };
+    let size = clamp_size(size);
+    point[0] >= position[0]
+        && point[1] >= position[1]
+        && point[0] <= position[0] + size[0]
+        && point[1] <= position[1] + size[1]
+}
+
 /// Opacity as whole percent, which is how the user thinks about it (0–100).
 ///
 /// The configuration keeps `0.0–1.0` because that is what imgui's `bg_alpha` takes; the
@@ -186,5 +203,28 @@ mod tests {
         assert_eq!(opacity_from_percent(150.0), 1.0, "se recorta al rango");
         assert_eq!(opacity_from_percent(-5.0), 0.0);
         assert_eq!(opacity_from_percent(f32::INFINITY), 0.9);
+    }
+
+    #[test]
+    fn rf18_a_right_click_on_the_widget_is_noticed_even_with_click_through() {
+        // Con `NO_INPUTS` la ventana no recibe el ratón, así que el clic derecho se busca desde
+        // fuera: dentro de su caja cuenta, fuera no.
+        let position = Some([100.0, 200.0]);
+        let size = Some([400.0, 480.0]);
+        assert!(covers(position, size, [300.0, 400.0]), "en el centro");
+        assert!(covers(position, size, [100.0, 200.0]), "en la esquina");
+        assert!(
+            !covers(position, size, [99.0, 400.0]),
+            "un píxel a la izquierda"
+        );
+        assert!(!covers(position, size, [300.0, 681.0]), "por debajo");
+        assert!(
+            !covers(None, size, [300.0, 400.0]),
+            "sin caja guardada no se toca nada"
+        );
+        assert!(
+            !covers(position, None, [300.0, 400.0]),
+            "sin tamaño tampoco, para no desactivarlo por accidente"
+        );
     }
 }

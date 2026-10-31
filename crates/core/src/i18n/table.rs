@@ -185,12 +185,21 @@ pub const TEXT: &[(&str, [&str; COLUMNS])] = &[
     ("Sample objective", ["Objetivo de ejemplo", "Sample objective", "Objectif d'exemple", "Beispielziel"]),
     ("Test guild", ["[TEST] Clan de prueba", "[TEST] Test guild", "[TEST] Guilde de test", "[TEST] Testgilde"]),
     (
-        "Click-through is on: {0} or the Nexus options to use the mouse.",
+        "Click-through is on: right-click here or press {0} to use the mouse again.",
         [
-            "Click-through activo: {0} o las opciones de Nexus para usar el ratón.",
-            "Click-through is on: {0} or the Nexus options to use the mouse.",
-            "Clics traversants actifs : {0} ou les options de Nexus pour utiliser la souris.",
-            "Klickdurchlässig aktiv: {0} oder die Nexus-Optionen für die Maus.",
+            "Click-through activo: haz clic derecho aquí o pulsa {0} para volver a usar el ratón.",
+            "Click-through is on: right-click here or press {0} to use the mouse again.",
+            "Clics traversants actifs : clic droit ici ou {0} pour réutiliser la souris.",
+            "Klickdurchlässig aktiv: Rechtsklick hier oder {0}, um die Maus zu nutzen.",
+        ],
+    ),
+    (
+        "Nothing to watch on this map, but the settings work here.",
+        [
+            "En este mapa no hay nada que vigilar, pero los ajustes funcionan.",
+            "Nothing to watch on this map, but the settings work here.",
+            "Rien à surveiller sur cette carte, mais les réglages fonctionnent.",
+            "Auf dieser Karte gibt es nichts zu beobachten, die Einstellungen gehen aber.",
         ],
     ),
     (

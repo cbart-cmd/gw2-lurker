@@ -35,7 +35,7 @@ Comprobado el **2026-10-31** contra la API real, el código fuente de `nexus-rs`
 
 **RF-01 (M)** Cuando el MumbleLink indique que el jugador está en un mapa de WvW, el addon deberá activar polling y UI. La detección se hará por **`Context::map_type`** ∈ {9 EBG, 10 frontera azul, 11 verde, 12 roja, 15 EotM}, no por una lista de `map_id`, para no romperse si ArenaNet añade mapas.
 - GWT: *Given* el jugador está en Ojos de Aguas Eternas (`map_type` 9), *When* el addon recibe el contexto por Mumble, *Then* arranca el polling en ≤ 1 intervalo.
-- GWT: *Given* el jugador entra en el Bastión del Armisticio (`map_type` 18, `map_id` 1315), *When* el addon lee el contexto, *Then* **no** activa nada.
+- GWT *(cambio del 2026-10-31, a petición del usuario)*: *Given* el jugador entra en el Bastión del Armisticio (`map_type` 18, `map_id` 1315), *When* el addon lee el contexto, *Then* **dibuja la ventana** (es donde se configuran los ajustes) y **no** activa el polling. La Fortaleza del Valor (13) y el Sagrario de Obsidiana (14) sí se siguen ocultando.
 
 **RF-02 (M)** Cuando el jugador salga de un mapa de WvW, el addon deberá detener el polling y ocultar toda su UI (excepto la ventana de configuración si está abierta).
 - GWT: *Given* el polling activo, *When* el jugador viaja a una ciudad, *Then* no se emiten peticiones de red y no se dibuja nada.
@@ -103,6 +103,10 @@ Comprobado el **2026-10-31** contra la API real, el código fuente de `nexus-rs`
 
 El click-through se alterna desde la configuración, desde las opciones de Nexus y con un atajo **keybind de Nexus, reasignable**. Por defecto `Ctrl+Shift+L`: **`Alt+Shift+L` no vale**, es el menú legacy de arcDPS y el juego se lo queda (comprobado en el juego, 2026-10-31).
 - GWT: *Given* el widget en click-through, *When* el usuario hace clic sobre él, *Then* el clic llega al juego.
+- GWT *(2026-10-31)*: *Given* el widget en click-through, *When* el usuario hace **clic derecho**
+  dentro de la caja del widget, *Then* el click-through se apaga y se guarda, sin abrir los ajustes. Con
+  `NO_INPUTS` la ventana no recibe el ratón, así que el callback de render lo mira por su cuenta
+  (`ui::right_click_on_widget`, solo en el flanco de bajada, contra la caja guardada).
 - GWT: *Given* el widget con la posición bloqueada, *When* el usuario hace clic en una pestaña, *Then* cambia de pestaña.
 
 **RF-19 (M)** Cada línea deberá mostrar: icono/forma de tipo de objetivo, texto, mapa y antigüedad ("hace 2 min"), con color según el equipo implicado y distinción por tipo de alerta (pérdida, claim de guild seguida, informativa). No se usará solo el color para distinguirlas.

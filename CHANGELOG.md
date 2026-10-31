@@ -1,6 +1,18 @@
 # Changelog
 Formato [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/), versionado [SemVer](https://semver.org/lang/es/).
 
+## [0.17.3] - 2026-10-31
+### Añadido
+- **El widget funciona en el Bastión del Armisticio**: antes se ocultaba por no tener objetivos. Ahora se
+  dibuja (es donde están los ajustes) y no se sondea nada; la cabecera lo explica. La Fortaleza del Valor
+  y el Sagrario de Obsidiana siguen ocultos.
+- **El clic derecho saca del click-through**: con click-through la ventana no recibe nada del ratón, así
+  que la única salida era el atajo o el panel de Nexus. Un clic derecho dentro del widget lo desactiva y
+  lo guarda.
+### Corregido
+- El aviso del click-through decía `Alt+Shift+L` (escrito a mano) y se enseñaba según el interruptor de
+  «bloquear posición» en vez de según el de click-through. Ahora usa el atajo real y sale cuando toca.
+
 ## [0.17.2] - 2026-10-31
 ### Corregido
 - **El mapa real podía quedarse vacío toda la sesión**: la descarga de teselas se daba por hecha en
