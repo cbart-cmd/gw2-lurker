@@ -1,6 +1,13 @@
 # Changelog
 Formato [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/), versionado [SemVer](https://semver.org/lang/es/).
 
+## [0.17.2] - 2026-10-31
+### Corregido
+- **El mapa real podía quedarse vacío toda la sesión**: la descarga de teselas se daba por hecha en
+  la primera llamada, y esa llamada puede llegar antes que `/v2/maps` (sin mapas no hay nada que
+  pedir). Ahora solo se da por hecha cuando ya hay cajas de mapa, y el registro dice cuántas teselas
+  se piden y a qué continente.
+
 ## [0.17.1] - 2026-10-31
 ### Corregido
 - **Los clanes seguidos ya dicen su nombre**: se pedían a la API solo los clanes que habían reclamado

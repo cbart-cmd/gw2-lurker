@@ -178,7 +178,10 @@ fn forget_stale_tiles(keep_prefix: &str) {
 /// only reads the files afterwards; whatever is still missing simply is not drawn yet.
 pub fn ensure_tiles(maps: &[gw2lurker_core::WvwMap]) {
     static STARTED: OnceLock<()> = OnceLock::new();
-    if STARTED.set(()).is_err() {
+    // Sin cajas de mapa no hay nada que pedir, y marcarlo como hecho dejaría el mapa real vacío
+    // para toda la sesión: el primer sondeo puede llegar antes que `/v2/maps` (bug encontrado
+    // revisando el de las teselas, 2026-10-31).
+    if maps.is_empty() || STARTED.set(()).is_err() {
         return;
     }
     forget_stale_tiles(&format!("{TILE_CONTINENT}-{TILE_FLOOR}-"));
@@ -200,6 +203,10 @@ pub fn ensure_tiles(maps: &[gw2lurker_core::WvwMap]) {
         log::info!("tiles: las del mapa ya estaban en caché");
         return;
     }
+    log::info!(
+        "tiles: {} teselas del mapa pedidas a {TILE_CONTINENT}/{TILE_FLOOR}",
+        jobs.len()
+    );
 
     let spawned = std::thread::Builder::new()
         .name("gw2lurker-tiles".to_owned())

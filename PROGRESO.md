@@ -13,6 +13,16 @@ Reglas:
 
 ---
 
+## HECHO – 2026-10-31 · La descarga de teselas no se da por hecha sin mapas (0.17.2)
+
+- Al revisar el arreglo de las teselas apareció una regresión que yo mismo había metido: `ensure_tiles`
+  marcaba la sesión como «ya descargado» en la **primera** llamada, y esa llamada puede llegar antes
+  que `/v2/maps` (el registro de 19:40:45 lo enseñaba: «mapa: 0 mapas, 0 objetivos»). Sin mapas no hay
+  teselas que pedir, así que el mapa real se habría quedado esquemático toda la sesión.
+- Ahora solo se marca cuando hay cajas de mapa, y se registra cuántas teselas se piden y a qué
+  continente/piso.
+- Verificación: 190 tests en verde, `clippy -D warnings` limpio.
+
 ## HECHO – 2026-10-31 · Los cinco fallos del widget (0.17.1)
 
 Leídos de `bugs.md` y diagnosticados con el `Nexus.log` y el `settings.json` reales.
