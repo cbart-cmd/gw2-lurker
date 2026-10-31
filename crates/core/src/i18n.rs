@@ -72,6 +72,21 @@ impl Language {
             _ => None,
         }
     }
+
+    /// Maps a Windows primary language id (low 10 bits of `LANGID`).
+    ///
+    /// Used only when the RealTime API is not installed, which is common: without it the
+    /// game language is unreadable, and guessing from the OS language beats showing English
+    /// to someone whose client is Spanish, French or German.
+    pub fn from_windows_language(primary: u16) -> Option<Self> {
+        match primary {
+            0x09 => Some(Language::En),
+            0x0A => Some(Language::Es),
+            0x0C => Some(Language::Fr),
+            0x07 => Some(Language::De),
+            _ => None,
+        }
+    }
 }
 
 /// The table: `(english key, [es, en, fr, de])`.
@@ -396,6 +411,24 @@ mod tests {
             Language::from_game_code(99),
             None,
             "un valor futuro cae a inglés"
+        );
+    }
+
+    #[test]
+    fn rf44_windows_language_is_only_a_fallback() {
+        assert_eq!(Language::from_windows_language(0x0A), Some(Language::Es));
+        assert_eq!(Language::from_windows_language(0x0C), Some(Language::Fr));
+        assert_eq!(Language::from_windows_language(0x07), Some(Language::De));
+        assert_eq!(Language::from_windows_language(0x09), Some(Language::En));
+        assert_eq!(
+            Language::from_windows_language(0x11),
+            None,
+            "japonés: sin columna"
+        );
+        assert_eq!(
+            Language::from_windows_language(0x040A & 0x3FF),
+            Some(Language::Es),
+            "con subidioma también funciona"
         );
     }
 

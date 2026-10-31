@@ -12,6 +12,7 @@ mod context;
 mod ffi;
 mod i18n;
 mod ui;
+mod writer;
 
 use std::sync::{Mutex, MutexGuard, OnceLock};
 
@@ -33,9 +34,12 @@ pub const ADDON_DIR: &str = "gw2_lurker";
 /// defaults; T-26 will surface that as the safe-mode notice (RF-51).
 static CONFIG: OnceLock<config::Config> = OnceLock::new();
 
-/// Editable copy the UI mutates (window positions, opacity, lock…). Written back on unload,
-/// so nothing touches the disk from the render callback (rule 6 of the constitution).
+/// Editable copy the UI mutates (window positions, opacity, lock…). Written by
+/// [`writer::Writer`], so the render callback never touches the disk (rule 6).
 static RUNTIME: OnceLock<Mutex<config::Config>> = OnceLock::new();
+
+/// Background writer for `settings.json`. `Option` so `unload` can take it and join.
+static WRITER: OnceLock<Mutex<Option<writer::Writer>>> = OnceLock::new();
 
 /// Editable configuration used by the UI.
 ///
@@ -47,21 +51,84 @@ pub fn runtime() -> MutexGuard<'static, config::Config> {
     runtime.lock().unwrap_or_else(|error| error.into_inner())
 }
 
+/// Asks the writer to persist the configuration. Cheap enough for the render callback.
+pub fn request_save(config: &config::Config) {
+    if let Some(slot) = WRITER.get() {
+        let guard = slot.lock().unwrap_or_else(|error| error.into_inner());
+        if let Some(writer) = guard.as_ref() {
+            writer.request(config);
+        }
+    }
+}
+
+/// Persists the configuration when it changed, at most twice a second.
+///
+/// Dragging a window changes the position every frame; without the throttle that would be
+/// sixty writes per second for nothing.
+pub fn persist_if_changed() {
+    use std::time::{Duration, Instant};
+
+    static GATE: OnceLock<Mutex<(Option<config::Config>, Option<Instant>)>> = OnceLock::new();
+    const MIN_INTERVAL: Duration = Duration::from_millis(500);
+
+    let current = runtime();
+    let mut gate = GATE
+        .get_or_init(|| Mutex::new((None, None)))
+        .lock()
+        .unwrap_or_else(|error| error.into_inner());
+
+    if gate.0.as_ref() == Some(&*current) {
+        return;
+    }
+    let due = match gate.1 {
+        None => true,
+        Some(at) => at.elapsed() >= MIN_INTERVAL,
+    };
+    if !due {
+        return;
+    }
+
+    request_save(&current);
+    gate.0 = Some(current.clone());
+    gate.1 = Some(Instant::now());
+}
+
 fn load() {
     let (config, report) = config::load();
     if let Some(error) = report {
         log::warn!("config: {error}");
     }
     let _ = CONFIG.set(config);
-    i18n::register_translations();
+
+    match config::config_path() {
+        Ok(path) => log::info!("WvW Lurker: ajustes en {}", path.display()),
+        Err(error) => log::warn!("WvW Lurker: sin carpeta de addon escribible ({error})"),
+    }
+    let (map_id, map_type) = ffi::mumble_map().unwrap_or((0, 0));
+    log::info!(
+        "WvW Lurker cargado: mumble map {map_id} tipo {map_type}, gameplay {:?}, idioma {}",
+        ffi::is_gameplay(),
+        i18n::effective().code()
+    );
+
+    let _ = WRITER.set(Mutex::new(Some(writer::Writer::start())));
     ui::register();
-    log::info!("WvW Lurker cargado (idioma {})", i18n::effective().code());
 }
 
 fn unload() {
     let runtime = runtime();
-    if let Err(error) = config::save(&runtime) {
-        log::warn!("no se pudo guardar la config: {error}");
+    let taken = WRITER.get().and_then(|slot| {
+        slot.lock()
+            .unwrap_or_else(|error| error.into_inner())
+            .take()
+    });
+    match taken {
+        Some(writer) => writer.finish(&runtime),
+        None => {
+            if let Err(error) = config::save(&runtime) {
+                log::warn!("no se pudo guardar settings.json: {error}");
+            }
+        }
     }
     log::info!("WvW Lurker descargado");
 }

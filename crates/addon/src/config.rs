@@ -112,6 +112,8 @@ pub struct Config {
     pub widget_locked: bool,
     /// Per-window UI state, keyed by the window's English title (RF-46).
     pub windows: BTreeMap<String, WindowState>,
+    /// Draws the overlay outside WvW too. Diagnostic only: `false` in normal use (RF-01).
+    pub debug_show_everywhere: bool,
 }
 
 impl Default for Config {
@@ -126,6 +128,7 @@ impl Default for Config {
             widget_opacity: 0.85,
             widget_locked: true,
             windows: BTreeMap::new(),
+            debug_show_everywhere: false,
         }
     }
 }
@@ -163,18 +166,30 @@ pub fn addon_dir() -> io::Result<PathBuf> {
     Ok(dir)
 }
 
-/// Path of the configuration file.
+/// Name of the settings file, like `settings.json` in the neighbouring addons.
+pub const SETTINGS_FILE: &str = "settings.json";
+/// Previous good copy, also like the neighbours.
+pub const SETTINGS_BACKUP: &str = "settings.json.bak";
+/// Name used by 0.1–0.3, still read so nobody loses what they configured.
+pub const LEGACY_FILE: &str = "config.json";
+
+/// Path of the settings file.
 pub fn config_path() -> io::Result<PathBuf> {
-    Ok(addon_dir()?.join("config.json"))
+    Ok(addon_dir()?.join(SETTINGS_FILE))
 }
 
-/// Loads the configuration.
+/// Path of the previous good copy.
+pub fn backup_path() -> io::Result<PathBuf> {
+    Ok(addon_dir()?.join(SETTINGS_BACKUP))
+}
+
+/// Loads the settings.
 ///
 /// The second element explains what happened when the file had to be discarded, so the
-/// caller can log it and, later, show the safe-mode notice.
+/// caller can log it and, later, show the safe-mode notice (T-26 / RF-51).
 pub fn load() -> (Config, Option<String>) {
-    let path = match config_path() {
-        Ok(path) => path,
+    let dir = match addon_dir() {
+        Ok(dir) => dir,
         Err(e) => {
             return (
                 Config::default(),
@@ -183,43 +198,66 @@ pub fn load() -> (Config, Option<String>) {
         }
     };
 
+    let primary = dir.join(SETTINGS_FILE);
+    let legacy = dir.join(LEGACY_FILE);
+    let (path, was_legacy) = if primary.exists() {
+        (primary, false)
+    } else if legacy.exists() {
+        (legacy, true)
+    } else {
+        return (Config::default(), None);
+    };
+
     let raw = match fs::read_to_string(&path) {
         Ok(raw) => raw,
-        Err(e) if e.kind() == io::ErrorKind::NotFound => return (Config::default(), None),
         Err(e) => return (Config::default(), Some(format!("no se pudo leer: {e}"))),
     };
 
     match serde_json::from_str::<Config>(&raw) {
         Ok(mut config) => {
             config.sanitize();
-            (config, None)
+            let note = was_legacy.then(|| {
+                format!(
+                    "leído {LEGACY_FILE} de una versión anterior; se guardará como {SETTINGS_FILE}"
+                )
+            });
+            (config, note)
         }
         Err(e) => {
-            let backup = path.with_extension(format!(
-                "json.corrupt-{}",
+            let stem = path
+                .file_name()
+                .and_then(|name| name.to_str())
+                .unwrap_or(SETTINGS_FILE);
+            let backup = dir.join(format!(
+                "{stem}.corrupt-{}",
                 Utc::now().format("%Y%m%d-%H%M%S")
             ));
             let renamed = fs::rename(&path, &backup).is_ok();
             let detail = if renamed {
-                format!("config.json dañado ({e}); copia en {}", backup.display())
+                format!("{stem} dañado ({e}); copia en {}", backup.display())
             } else {
-                format!("config.json dañado ({e}) y no se pudo conservar copia")
+                format!("{stem} dañado ({e}) y no se pudo conservar copia")
             };
             (Config::default(), Some(detail))
         }
     }
 }
 
-/// Writes the configuration. Called from configuration changes, never from render.
+/// Writes the settings atomically and keeps the previous file as `settings.json.bak`.
 ///
-/// Nothing calls it yet: the settings window that edits values is T-17.
-#[allow(dead_code)]
+/// Called from the writer thread, never from the render callback (rule 6).
 pub fn save(config: &Config) -> io::Result<()> {
     let path = config_path()?;
     let mut config = config.clone();
     config.sanitize();
     let json = serde_json::to_string_pretty(&config).map_err(io::Error::other)?;
-    fs::write(path, json)
+
+    let temp = path.with_extension("json.tmp");
+    fs::write(&temp, json)?;
+    if path.exists() {
+        let _ = fs::copy(&path, backup_path()?);
+    }
+    fs::rename(&temp, &path)
 }
 
 #[cfg(test)]

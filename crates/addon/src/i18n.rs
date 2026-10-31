@@ -20,15 +20,24 @@ pub fn active() -> Language {
     }
 }
 
-/// Saved preference unless it is *Auto*, then the game language, then English (RF-44).
+/// Saved preference unless it is *Auto*, then the game language, then the Windows language,
+/// then English (RF-44).
 pub fn effective() -> Language {
-    resolve(crate::config().language, game_language())
+    resolve(
+        crate::config().language,
+        game_language(),
+        Language::from_windows_language(crate::ffi::keys::os_primary_language()),
+    )
 }
 
-/// Precedence between the saved preference and the language the game reports.
-fn resolve(preference: LanguagePreference, game: Option<Language>) -> Language {
+/// Precedence between the saved preference, the language the game reports and the OS one.
+fn resolve(
+    preference: LanguagePreference,
+    game: Option<Language>,
+    os: Option<Language>,
+) -> Language {
     match preference {
-        LanguagePreference::Auto => game.unwrap_or(Language::En),
+        LanguagePreference::Auto => game.or(os).unwrap_or(Language::En),
         LanguagePreference::Es => Language::Es,
         LanguagePreference::En => Language::En,
         LanguagePreference::Fr => Language::Fr,
@@ -70,13 +79,17 @@ pub fn format(key: &'static str, args: &[&str]) -> String {
 
 /// Registers our strings in Nexus so its own UI can show them in the user's language.
 ///
-/// Must be called from `load`: it needs the addon API, which panics before initialization.
-pub fn register_translations() {
-    for (key, cells) in i18n::TEXT {
-        for language in Language::ALL {
-            nexus::localization::set_translation(key, language.code(), cells[language.index()]);
+/// Must run **after** `load`: it needs the addon API, which panics before initialization.
+/// Called on the first frame for that reason, guarded so it only happens once.
+pub fn register_translations_once() {
+    static DONE: std::sync::Once = std::sync::Once::new();
+    DONE.call_once(|| {
+        for (key, cells) in i18n::TEXT {
+            for language in Language::ALL {
+                nexus::localization::set_translation(key, language.code(), cells[language.index()]);
+            }
         }
-    }
+    });
 }
 
 #[cfg(test)]
@@ -86,28 +99,46 @@ mod tests {
     #[test]
     fn rf44_auto_follows_the_game_language() {
         assert_eq!(
-            resolve(LanguagePreference::Auto, Some(Language::Fr)),
+            resolve(LanguagePreference::Auto, Some(Language::Fr), None),
             Language::Fr
         );
         assert_eq!(
-            resolve(LanguagePreference::Auto, Some(Language::De)),
-            Language::De
-        );
-        assert_eq!(
-            resolve(LanguagePreference::Auto, None),
-            Language::En,
-            "sin RTAPI no hay idioma del juego: inglés"
+            resolve(
+                LanguagePreference::Auto,
+                Some(Language::De),
+                Some(Language::Es)
+            ),
+            Language::De,
+            "el idioma del juego gana al de Windows"
         );
     }
 
     #[test]
-    fn rf44_explicit_preference_beats_the_game_language() {
+    fn rf44_without_rtapi_the_os_language_is_used() {
         assert_eq!(
-            resolve(LanguagePreference::De, Some(Language::Fr)),
+            resolve(LanguagePreference::Auto, None, Some(Language::Es)),
+            Language::Es,
+            "sin RTAPI, el idioma de Windows es mejor que inglés"
+        );
+        assert_eq!(
+            resolve(LanguagePreference::Auto, None, None),
+            Language::En,
+            "y si tampoco hay, inglés"
+        );
+    }
+
+    #[test]
+    fn rf44_explicit_preference_beats_everything() {
+        assert_eq!(
+            resolve(
+                LanguagePreference::De,
+                Some(Language::Fr),
+                Some(Language::Es)
+            ),
             Language::De
         );
         assert_eq!(
-            resolve(LanguagePreference::Es, Some(Language::En)),
+            resolve(LanguagePreference::Es, Some(Language::En), None),
             Language::Es
         );
     }

@@ -21,6 +21,31 @@ struct Edits {
     scope: AlertScope,
 }
 
+/// Draws the settings inline, without window chrome.
+///
+/// Used by Nexus' own options pane (`RenderType::OptionsRender`), which is reachable even
+/// outside WvW: that is how RF-02 keeps the configuration available everywhere, and it also
+/// gives us a view that does not depend on the gate at all.
+pub fn draw_inline(ui: &Ui) {
+    let mut config = crate::runtime();
+    let table = gw2lurker_core::bundled();
+    let mut edits = Edits {
+        team_id: config.team_id,
+        alias: config.team_alias.clone().unwrap_or_default(),
+        language: config.language,
+        poll_secs: config.poll_secs as i32,
+        scope: config.alert_scope,
+    };
+
+    draw_body(ui, table, &mut edits);
+
+    config.team_id = edits.team_id;
+    config.team_alias = Some(edits.alias.trim().to_owned()).filter(|alias| !alias.is_empty());
+    config.language = edits.language;
+    config.alert_scope = edits.scope;
+    config.poll_secs = edits.poll_secs.clamp(15, 600) as u32;
+}
+
 /// Draws the window; the per-window UI state comes from `config` like every other window.
 pub fn draw(ui: &Ui, config: &mut crate::config::Config) {
     let table = gw2lurker_core::bundled();

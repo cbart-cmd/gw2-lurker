@@ -13,18 +13,29 @@ use crate::i18n;
 /// Translation key (and stable id) of the status window.
 const STATUS: &str = "WvW Lurker";
 
-/// Registers the render callback. Must be called from `load`, never per frame.
+/// Registers the render callbacks. Must be called from `load`, never per frame.
 pub fn register() {
     register_render(
         RenderType::Render,
         render!(|ui| {
+            i18n::register_translations_once();
             let gate = crate::context::gate();
-            if !gate.show_ui {
-                return;
+            crate::context::log_gate(gate);
+
+            if gate.show_ui || crate::config().debug_show_everywhere {
+                draw_status(ui);
             }
-            draw_status(ui);
-            settings::draw(ui, &mut crate::runtime());
+            if gate.settings_available() || crate::config().debug_show_everywhere {
+                settings::draw(ui, &mut crate::runtime());
+            }
+            crate::persist_if_changed();
         }),
+    )
+    .revert_on_unload();
+
+    register_render(
+        RenderType::OptionsRender,
+        render!(|ui| settings::draw_inline(ui)),
     )
     .revert_on_unload();
 }

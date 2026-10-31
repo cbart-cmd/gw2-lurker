@@ -125,6 +125,7 @@ Patrón adoptado tras revisar `../fight_analysis_danger` y `../gw2-rotation-buil
 - `crates/core/src/i18n.rs`: tabla `TEXT: &[(&str, [&str; 4])]` indexada por el texto original en inglés, columnas `[es, en, fr, de]`. Funciones `t(&str) -> &str`, `w(&str) -> String` (añade `###<clave>` para que el id de imgui sea estable al cambiar de idioma) y `f(&str, args)` con `{0}`, `{1}`.
   - *Implementación:* la tabla vive en `core` (no en `addon`) porque es pura y así el test de completitud corre en el job de Linux, que no compila el addon. `addon::i18n` queda como la capa que decide el idioma y añade el override de Ctrl derecho.
 - Detección, en este orden: preferencia del usuario (si no es *Auto*) → `nexus::rtapi::RealTimeApi::get().and_then(|a| a.read_game()).language` (0=en, 2=fr, 3=de, 4=es) → evento `EV_UNOFFICIAL_EXTRAS_LANGUAGE_CHANGED` → `nexus::localization::translate(...)` → inglés.
+  - *Implementación (2026-10-31):* el RealTime API **no está instalado** en la máquina de referencia y `NexusLink` no expone ningún idioma, así que entre el idioma del juego y el inglés se usa el idioma de Windows (`GetUserDefaultUILanguage`, primario `0x0A`=es, `0x0C`=fr, `0x07`=de, `0x09`=en). Es una propuesta de cambio de RF-44: sin ese paso, un cliente español ve el addon en inglés sólo porque falta RTAPI. El paso por el evento de Unofficial Extras queda pendiente.
 - Se registran las claves propias con `nexus::localization::set_translation` para que Nexus traduzca lo suyo.
 - Nombres de la API: `?lang=<código>` y caché en disco **por idioma**, para que el override no necesite red.
 
@@ -134,12 +135,17 @@ Patrón adoptado tras revisar `../fight_analysis_danger` y `../gw2-rotation-buil
 - Se aplica si el proceso en primer plano es el nuestro (`GetForegroundWindow` + `GetWindowThreadProcessId` frente a `std::process::id()`, igual que en `../fight_analysis_danger`), para no reaccionar mientras se escribe en otra aplicación.
 - Se evalúa **cada frame** y afecta al render, no a lo persistido.
 
-**Contrato de ventana (RF-46)**
-- `crates/addon/src/ui/window.rs`: un `WindowConfig { visible, position, size, opacity, locked, collapsed }` por ventana (el widget ya usa ese estado en §7b) y una función única que dibuja el cromo: barra de título propia (`.title_bar(false)`), `×` para ocultar, doble clic para plegar, `resizable(true)`, `.bg_alpha(opacity)`, y menú contextual con clic derecho (Bloquear / Opacidad / Restablecer / Ajustes).
+**Contrato de ventana (RF-46)**- `crates/addon/src/ui/window.rs`: un `WindowConfig { visible, position, size, opacity, locked, collapsed }` por ventana (el widget ya usa ese estado en §7b) y una función única que dibuja el cromo: barra de título propia (`.title_bar(false)`), `×` para ocultar, doble clic para plegar, `resizable(true)`, `.bg_alpha(opacity)`, y menú contextual con clic derecho (Bloquear / Opacidad / Restablecer / Ajustes).
 - La posición se impone siempre desde config (la arrastra la barra propia) y solo se relee del ratón cuando la ventana **no** está bloqueada y no se está arrastrando; si no, el guardado pisa el movimiento del frame.
   - *Implementación:* el plegado **no** usa el `collapsed` de imgui (con `title_bar(false)` una ventana plegada no se podría ni volver a abrir); lo controla `WindowState::collapsed` y, plegada, la ventana se autoajusta con `always_auto_resize`.
   - *Implementación:* las ventanas escriben en una copia mutable de la config (`lib::runtime()`, `OnceLock<Mutex<Config>>`) y el fichero se guarda en `unload`, porque el hilo de render no puede hacer E/S (regla 6). El guardado diferido con *debounce* llega con el worker de T-11c.
 - Si la posición guardada cae fuera de pantalla, se corrige al cargar.
+
+**Persistencia (RF-41, alineado con los proyectos vecinos)**
+- Fichero `settings.json` en la carpeta del addon (`<addons>/gw2_lurker/`), como `timers_wvw` y `gw2_builds_wvw`. Se mantiene `settings.json.bak` con la copia anterior y la escritura es atómica (`.json.tmp` + rename).
+- Se sigue leyendo el `config.json` de 0.1–0.3 y se reescribe como `settings.json`; un fichero dañado se conserva como `settings.json.corrupt-<fecha>`.
+- La escritura vive en un hilo propio (`addon::writer`): la UI solo envía una copia por un canal y el hilo se queda con el último valor, como mucho dos guardados por segundo. Así se cumple la regla 6 (nada de E/S en render) y no se pierde lo movido si el juego se cierra de golpe. En `unload` se hace un guardado final y se espera (`join`) al hilo.
+- Los mismos ajustes aparecen también en el panel de opciones de Nexus (`RenderType::OptionsRender`), que es accesible fuera de WvW (RF-02).
 
 ## 8. Vista Histórico y ruta simulada (ADR-005)
 

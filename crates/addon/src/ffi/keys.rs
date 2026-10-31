@@ -16,6 +16,22 @@ extern "system" {
     fn GetWindowThreadProcessId(window: *mut c_void, process_id: *mut u32) -> u32;
 }
 
+#[link(name = "kernel32")]
+extern "system" {
+    fn GetUserDefaultUILanguage() -> u16;
+}
+
+/// Primary language id of the Windows display language.
+///
+/// Used only as a last resort to guess the game language when the RealTime API is not
+/// installed (`GetUserDefaultUILanguage` returns a `LANGID`; the low 10 bits are the primary
+/// language).
+pub fn os_primary_language() -> u16 {
+    // SAFETY: no arguments, no pointers: the function reads a value set by Windows and
+    // returns it. Masking with 0x3FF is the documented way to get the primary language.
+    unsafe { GetUserDefaultUILanguage() & 0x3FF }
+}
+
 /// Whether right Ctrl is being held.
 pub fn right_ctrl_down() -> bool {
     // SAFETY: `GetAsyncKeyState` only reads the global keyboard state; it takes a value and

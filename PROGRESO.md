@@ -34,6 +34,35 @@ Reglas:
   bueno un HTTP 200. Se reintenta con `-VerifyOnly` pasados unos minutos; no se cambia la URL
   ni la versión para taparlo.
 
+## HECHO – 2026-10-31 · Ajustes como los vecinos y escritura fuera del render
+
+- Fichero `settings.json` en `<addons>/gw2_lurker/` (antes `config.json`), con
+  `settings.json.bak`, escritura atómica y lectura del fichero antiguo para migrar.
+- `addon::writer`: hilo propio que recibe copias de la config por canal, coalesce y escribe;
+  la UI llama a `persist_if_changed()` como mucho cada 500 ms. En `unload` hay guardado final
+  y `join`. Cumple la regla 6 sin perder ajustes si el juego se cierra de golpe.
+- Ajustes también en el panel de opciones de Nexus (`RenderType::OptionsRender`), visible
+  fuera de WvW: la configuración deja de depender de la compuerta.
+- Diagnóstico para el caso «carga pero no dibuja nada»: en `load` se registra la ruta de
+  ajustes y `mumble map/tipo/gameplay`; cada cambio de compuerta deja una línea
+  `gate: map .. tipo .. gameplay .. -> show_ui ..`; y `debug_show_everywhere` (por defecto
+  `false`) permite saltarse la compuerta sin tocar código.
+- Verificado: `clippy -D warnings` limpio, 16 tests en el addon (uno nuevo del escritor).
+- **Primera prueba real en juego (2026-10-31 15:38, versión 0.3.0)**: `Nexus.log` dice
+  `Loaded addon: gw2_lurker.dll` en 695 µs con `Signature: -1282765419` y
+  `WvW Lurker cargado (idioma en)`. Se creó `addons/gw2_lurker/config.json`, pero con
+  `"windows": {}` y sin entrada en `Nexus/imgui.ini` ⇒ **el render no llegó a dibujar la
+  ventana ni una vez**: o la compuerta la ocultaba (el usuario cerró el juego 25 s después de
+  cargar, probablemente en carga/selección de personaje) o no estaba en WvW. La build 0.3.1
+  deja la respuesta en el log (`gate: map .. tipo .. gameplay .. -> show_ui ..`) y añade los
+  ajustes en el panel de opciones de Nexus, que no depende de la compuerta.
+- Dato del mismo log: **RealTime API no está instalado** en esa máquina (no aparece en
+  `Nexus.log`), de ahí el `idioma en` con el cliente en español. Añadido el respaldo por
+  idioma de Windows; queda propuesto como cambio de RF-44.
+- La carpeta de datos real del addon es `C:\Program Files\Guild Wars 2\addons\gw2_lurker\`
+  (junto a `ControlOptions`, `WvWFightAnalysis`…), no la de Documentos: ahí `addons/` es sólo
+  datos de arcdps. La DLL va a `<juego>\addons\gw2_lurker.dll`.
+
 ## HECHO – 2026-10-31 · Ventana de ajustes con selector de equipo (T-30, T-17 parcial)
 
 - `addon::ui::settings`: ComboBox de equipo con `nombre (id)` sobre la tabla incluida, opción
