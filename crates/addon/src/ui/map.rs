@@ -1,8 +1,8 @@
 //! Simplified map of one WvW map (T-14, RF-30).
 //!
-//! Objectives as coloured shapes on a plain background: circle for a camp, square for a tower,
-//! diamond for a keep and triangle for the castle. No textures and no tiles (ADR-002); the
-//! projection comes from `continent_rect` of `/v2/maps` (ADR-011) and lives in
+//! Objectives as the circles of the game: team colour outside and the drawing of a camp, a tower,
+//! a keep or the castle inside ([`super::icons`]), over the official tiles or a plain background.
+//! The projection comes from `continent_rect` of `/v2/maps` (ADR-011) and lives in
 //! `gw2lurker_core::project`, which is pure and tested against the real fixtures.
 //!
 //! Only draws: coordinates, owners and guilds are resolved by the worker.
@@ -546,49 +546,15 @@ fn draw_objective(
     followed: bool,
 ) {
     let colour = owner.map_or(UNCLAIMED, colour_rgba);
+    // Como en el juego: un círculo del color del equipo con el dibujo dentro (T-46). El tamaño
+    // sigue al tipo, así que la forma se lee aunque el color no se distinga.
     let radius = match kind {
-        ObjectiveType::Camp => 4.0,
-        ObjectiveType::Tower => 5.0,
-        ObjectiveType::Keep => 6.0,
-        _ => 7.5,
+        ObjectiveType::Camp => 5.5,
+        ObjectiveType::Tower => 6.5,
+        ObjectiveType::Keep => 8.0,
+        _ => 9.5,
     };
-
-    match kind {
-        ObjectiveType::Camp => {
-            list.add_circle(point, radius, colour).filled(true).build();
-        }
-        ObjectiveType::Tower => {
-            let half = radius;
-            list.add_rect(
-                [point[0] - half, point[1] - half],
-                [point[0] + half, point[1] + half],
-                colour,
-            )
-            .filled(true)
-            .build();
-        }
-        ObjectiveType::Keep => {
-            // Diamond: two triangles, because that is what the draw list gives us.
-            let up = [point[0], point[1] - radius];
-            let down = [point[0], point[1] + radius];
-            let left = [point[0] - radius, point[1]];
-            let right = [point[0] + radius, point[1]];
-            list.add_triangle(left, up, right, colour)
-                .filled(true)
-                .build();
-            list.add_triangle(left, down, right, colour)
-                .filled(true)
-                .build();
-        }
-        _ => {
-            let up = [point[0], point[1] - radius];
-            let left = [point[0] - radius, point[1] + radius];
-            let right = [point[0] + radius, point[1] + radius];
-            list.add_triangle(up, left, right, colour)
-                .filled(true)
-                .build();
-        }
-    }
+    super::icons::badge(list, kind, point, radius, colour);
 
     if high_value {
         // Double outline: a second mark, never colour alone (RF-30b, accessibility).

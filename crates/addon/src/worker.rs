@@ -160,6 +160,7 @@ impl Dashboard {
                 at: *at,
                 received,
                 map_role: role(objective),
+                objective_kind: self.objective_kind(objective),
                 kind: AlertKind::Flip,
                 objective: name(objective),
                 guild: None,
@@ -177,6 +178,7 @@ impl Dashboard {
                 at: *at,
                 received,
                 map_role: role(objective),
+                objective_kind: self.objective_kind(objective),
                 kind: AlertKind::Claim,
                 objective: name(objective),
                 guild: Some(guild.clone()),
@@ -193,6 +195,7 @@ impl Dashboard {
                 at: *at,
                 received,
                 map_role: role(objective),
+                objective_kind: self.objective_kind(objective),
                 kind: AlertKind::Unclaim,
                 objective: name(objective),
                 guild: Some(guild.clone()),
@@ -240,6 +243,14 @@ impl Dashboard {
             .find(|objective| objective.id == id)
             .map(|objective| objective.name.as_str())
     }
+
+    /// Kind of an objective, for the drawing of the alert lines (T-47).
+    fn objective_kind(&self, id: &str) -> gw2lurker_core::ObjectiveType {
+        self.names
+            .iter()
+            .find(|objective| objective.id == id)
+            .map_or(gw2lurker_core::ObjectiveType::Unknown, |known| known.kind)
+    }
 }
 
 /// What happened, for the alert widget.
@@ -259,6 +270,8 @@ pub struct AlertLine {
     pub received: DateTime<Utc>,
     /// Map of the matchup the objective belongs to, for the alert filter.
     pub map_role: MapRole,
+    /// Camp, tower, keep or castle: the drawing that goes ahead of the line (T-47).
+    pub objective_kind: gw2lurker_core::ObjectiveType,
     pub kind: AlertKind,
     pub objective: String,
     pub guild: Option<String>,

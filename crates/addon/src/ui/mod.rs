@@ -6,6 +6,7 @@
 mod alerts;
 mod follow;
 mod guilds;
+mod icons;
 mod map;
 mod matchup;
 mod settings;
@@ -488,6 +489,7 @@ fn test_popup_line(now: chrono::DateTime<chrono::Utc>) -> Option<crate::worker::
         at: now,
         received: now,
         map_role: gw2lurker_core::MapRole::Center,
+        objective_kind: gw2lurker_core::ObjectiveType::Camp,
         kind: crate::worker::AlertKind::Claim,
         objective: i18n::text("Sample objective").to_owned(),
         guild: None,

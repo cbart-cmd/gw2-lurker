@@ -13,6 +13,23 @@ Reglas:
 
 ---
 
+## HECHO – 2026-10-31 · Iconos del juego en el mapa y en los avisos (0.17.0)
+
+- **T-46**: los objetivos del mapa ya no son formas geométricas: son el **círculo del color del equipo
+  con el dibujo dentro**, como en el juego. Módulo nuevo `ui::icons` que construye cada dibujo como una
+  lista de primitivas puras (`Rect`/`Tri` con tinta y «papel» para la puerta recortada) y las pinta aparte,
+  así que la geometría **se puede testear sin juego**: que los cuatro tipos que puntúan tengan dibujo, que
+  ninguno se dibuje igual que otro (forma y número de piezas), que la torre sea alta y la fortaleza ancha, y
+  que el dibujo quede centrado donde se le pide.
+- Los dibujos no son assets: el usuario pasó capturas, pero un PNG en el repo puede faltar en una
+  instalación y esto no. Si algún día llegan los PNG reales, se sustituye `icons::parts` y nada más.
+- **T-47**: `AlertLine` gana `objective_kind` (lo resuelve el worker con la tabla de objetivos) y cada
+  línea del widget y del pop-up lleva delante su dibujo en el color de la línea.
+- **Trampa evitada**: el dibujo de las líneas se pinta en **una sola pasada**, con las posiciones
+  apuntadas mientras se maquetan los textos y la lista tomada una vez (AGENTS §11.12); pedirla por línea
+  habría vuelto a tumbar el juego.
+- Verificación: 187 tests en verde (73 addon · 15 api · 93 core · 6 store), `clippy -D warnings` limpio.
+
 ## HECHO – 2026-10-31 · El mapa real se pide al continente correcto y con la escala correcta (0.16.1)
 
 - **Bug real de 0.16.0**: las teselas se pedían al **continente 1**, y ese continente devuelve una

@@ -38,6 +38,12 @@ pub const WIDGET_MINUTES: i64 = 10;
 /// How many lines the pop-up shows at once.
 const MAX_POPUP_LINES: usize = 5;
 
+/// Space reserved ahead of each line for the drawing of the objective (T-47).
+const GLYPH_WIDTH: f32 = 11.0;
+
+/// Half size of that drawing: it has to fit in a line of text.
+const GLYPH_HALF: f32 = 4.5;
+
 /// Body of the *Alerts* tab: what just happened, so it is readable during a fight.
 pub fn body(ui: &Ui, alerts: &[AlertLine], now: DateTime<Utc>) {
     ui.text_disabled(i18n::format(
@@ -49,10 +55,7 @@ pub fn body(ui: &Ui, alerts: &[AlertLine], now: DateTime<Utc>) {
         ui.text_disabled(i18n::text("No alerts yet"));
         return;
     }
-    let language = i18n::effective();
-    for line in recent.iter().take(MAX_LINES) {
-        draw_line(ui, line, language);
-    }
+    draw_lines(ui, &recent.iter().take(MAX_LINES).collect::<Vec<_>>());
 }
 
 /// Body of the *Alert log* tab: the whole session, scrolling if needed.
@@ -61,9 +64,41 @@ pub fn log_body(ui: &Ui, alerts: &[AlertLine]) {
         ui.text_disabled(i18n::text("No alerts yet"));
         return;
     }
+    let all: Vec<&AlertLine> = alerts.iter().collect();
+    draw_lines(ui, &all);
+}
+
+/// One line per alert, each preceded by the drawing of what was taken (T-47).
+///
+/// The drawing needs the draw list, and `get_window_draw_list` panics if two instances are alive
+/// at once (`AGENTS.md` §11.12), so the list is taken **once** after the text pass, using the
+/// positions remembered while the lines were laid out.
+fn draw_lines(ui: &Ui, lines: &[&AlertLine]) {
     let language = i18n::effective();
-    for line in alerts {
+    let mut marks: Vec<([f32; 2], AlertLine)> = Vec::with_capacity(lines.len());
+    for line in lines {
+        let start = ui.cursor_screen_pos();
+        if super::icons::has_glyph(line.objective_kind) {
+            marks.push((start, (*line).clone()));
+            let x = ui.cursor_pos()[0];
+            ui.dummy([GLYPH_WIDTH, ui.text_line_height()]);
+            ui.same_line_with_pos(x + GLYPH_WIDTH);
+        }
         draw_line(ui, line, language);
+    }
+    if marks.is_empty() {
+        return;
+    }
+    let list = ui.get_window_draw_list();
+    let middle = ui.text_line_height() / 2.0;
+    for (start, line) in marks {
+        super::icons::glyph(
+            &list,
+            line.objective_kind,
+            [start[0] + GLYPH_HALF, start[1] + middle],
+            GLYPH_HALF,
+            colour_of(&line),
+        );
     }
 }
 
@@ -111,7 +146,6 @@ pub fn draw_popup(
         return;
     }
     let [width, _] = ui.io().display_size;
-    let language = i18n::effective();
     let at = position.unwrap_or([(width - 420.0) / 2.0, 90.0]);
 
     Window::new(i18n::widget(POPUP_KEY))
@@ -123,9 +157,8 @@ pub fn draw_popup(
         .position(at, Condition::FirstUseEver)
         .bg_alpha((opacity * fade).clamp(0.0, 1.0))
         .build(ui, || {
-            for line in lines {
-                draw_line(ui, line, language);
-            }
+            let lines: Vec<&AlertLine> = lines.iter().collect();
+            draw_lines(ui, &lines);
         });
 
     *position = Some(ui.window_pos());
@@ -229,6 +262,7 @@ mod tests {
             at,
             received: at,
             map_role: gw2lurker_core::model::MapRole::Center,
+            objective_kind: gw2lurker_core::ObjectiveType::Tower,
             kind,
             objective: "Zanja de Mendon".to_owned(),
             guild: guild.map(str::to_owned),

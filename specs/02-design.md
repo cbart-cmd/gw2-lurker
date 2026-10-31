@@ -104,7 +104,12 @@ JSON-lines, un fichero por mes: `history/2026-10.jsonl`. Una línea por evento:
 
 - Sin texturas: cada mapa se dibuja como un rectángulo con fondo liso.
 - `coord` de `/v2/wvw/objectives` da la posición del objetivo; los límites del mapa se calculan como el mínimo/máximo de coordenadas de sus objetivos más un margen. Se proyecta a la caja de la ventana con una transformación afín (`world_to_screen`), con Y invertida.
-- Forma por tipo: círculo (camp), cuadrado (torre), rombo (fortaleza), estrella (castillo). Color por equipo; accesible con forma + letra, no solo color.
+- Forma por tipo: desde 0.17.0, el **círculo del color del equipo con el dibujo del juego dentro**
+  (tienda, torre, fortaleza con almenas, castillo con dos torres), dibujado con primitivas en
+  `ui::icons`; el tamaño también cambia por tipo. Accesible con **forma + color**, nunca solo color
+  (RF-30b). El marcador de alto valor es un anillo extra y el de clan seguido, un segundo anillo.
+- Los dibujos son geometría, no assets: no puede faltar un fichero en una instalación y escalan con el
+  mapa. Si en el futuro se quieren los PNG reales, se sustituye `icons::parts` y nada más.
 - Opcional posterior: contorno esquemático por mapa dibujado a mano como polilínea estática.
 - Mapa activo: el de Mumble por defecto; selector manual.
 

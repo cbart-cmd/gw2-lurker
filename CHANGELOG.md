@@ -1,6 +1,15 @@
 # Changelog
 Formato [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/), versionado [SemVer](https://semver.org/lang/es/).
 
+## [0.17.0] - 2026-10-31
+### Añadido
+- **Iconos del mapa como en el juego (T-46)**: cada objetivo es un **círculo del color del equipo con el
+  dibujo dentro** (tienda de campaña, torre, fortaleza con almenas y castillo con dos torres), dibujado
+  con primitivas y sin assets. El tamaño también cambia por tipo, así que se distingue sin depender del
+  color. El marcador de «alto valor» y el anillo del clan seguido se mantienen.
+- **Icono del tipo en los avisos (T-47)**: cada línea del widget y del pop-up lleva delante el dibujo de
+  lo que se ha tomado, en el color de la línea.
+
 ## [0.16.1] - 2026-10-31
 ### Corregido
 - **El mapa real salía mal encuadrado (zoom y continente)**: se pedían las teselas del **continente 1**,

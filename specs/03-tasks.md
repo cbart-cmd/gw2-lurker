@@ -151,17 +151,21 @@ Cada tarea es pequeña y verificable. Orden recomendado; las dependencias se ind
   encima de la ventana (`lib::safe_mode`, aviso permanente durante la sesión). El registro de la
   sesión ya toleraba líneas corruptas (`adr003_corrupt_line_is_skipped_and_counted`). (T-10, T-12)
   — RF-51, RNF-06
-- **T-47** **Icono del tipo de objetivo en los avisos**: además del mapa, cada línea de aviso (y el
-  pop-up) llevará un icono que diga si es **campamento, torre o fortaleza/piedraniebla**, con la
-  misma idea que T-46: el dibujo del juego dentro del color del equipo, y con la forma como respaldo
-  accesible. (T-13) — RF-19, RF-38
+- **T-47 ✔ (2026-10-31)** **Icono del tipo de objetivo en los avisos**: cada línea del widget y del pop-up
+  lleva delante el dibujo del objetivo (campamento, torre, fortaleza o piedraniebla) en el color de la
+  línea; los objetivos que no son de esos cuatro (ruinas, spawns) no llevan dibujo y no reservan hueco.
+  El espacio se reserva con un `dummy` y el dibujo se pinta en **una sola pasada** con la lista tomada una
+  vez (AGENTS §11.12). Módulo `ui::icons`, compartido con T-46. (T-13) — RF-19, RF-38
 
 - **T-29 ✔ (2026-10-31, parcial)** Fondo con las **teselas oficiales**: `tiles.guildwars2.com`, **continente 2, piso 1**, a zoom 5 (**1024 unidades por tesela**; 4 teselas por lado y mapa, 59 en total para los cuatro), descargadas por el worker a `<addon>/tiles/` y dibujadas con `add_image` heredando la **opacidad de la ventana**. Las que aún no están en disco no se dibujan y se van rellenando. Interruptor **Mapa real** en los ajustes. Los iconos van en T-46. (T-14) — RF-37, RF-38
 
-- **T-46** Iconos del mapa como en el juego: dentro del círculo de color, el dibujo del **campamento**
-  y de la **torre** que pasó el usuario (2026-10-31); el de la **fortaleza** no se pudo capturar
-  porque el marcador de reclamado lo tapa en el livemap de gw2mists. Sustituyen a las formas
-  geométricas actuales manteniendo forma+color accesibles. (T-29) — RF-30, RF-31, RF-38
+- **T-46 ✔ (2026-10-31, sin las capturas)** Iconos del mapa como en el juego: círculo del color del equipo
+  con el dibujo **dentro**, dibujado con primitivas (`ui::icons`), porque las capturas del usuario (tienda y
+  torre) no están disponibles como ficheros en el repo y el dibujo no depende de un asset que pueda faltar.
+  Los cuatro que puntúan tienen dibujo propio (tienda, torre, fortaleza con tres almenas y castillo con dos
+  torres), más el tamaño por tipo; el de piedraniebla se dibuja más ancho que la fortaleza para distinguirse.
+  Pendiente solo si el usuario aporta los PNG reales: cambiarlos es sustituir `icons::parts`. (T-29) —
+  RF-30, RF-31, RF-38
 
 ## Fase 4b – Actualización y fallo seguro
 

@@ -13,3 +13,5 @@ Formato:
 
 Estado: `[ ]` pendiente · `[x]` hecho.
 
+## [ ] clanes seguidos no dice el nombre
+![ver imagen](image-1.png)
