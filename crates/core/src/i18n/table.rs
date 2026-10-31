@@ -228,6 +228,24 @@ pub const TEXT: &[(&str, [&str; COLUMNS])] = &[
         ],
     ),
     (
+        "Ordered by most recent claim",
+        [
+            "Ordenados por la reclamación más reciente",
+            "Ordered by most recent claim",
+            "Triés par revendication la plus récente",
+            "Nach der neuesten Beanspruchung sortiert",
+        ],
+    ),
+    (
+        "Pick a guild to see its history",
+        [
+            "Elige un clan para ver su historial",
+            "Pick a guild to see its history",
+            "Choisissez une guilde pour voir son historique",
+            "Wähle eine Gilde, um ihren Verlauf zu sehen",
+        ],
+    ),
+    (
         "No claims yet",
         [
             "Sin reclamaciones todavía",

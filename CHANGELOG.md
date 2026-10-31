@@ -1,6 +1,16 @@
 # Changelog
 Formato [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/), versionado [SemVer](https://semver.org/lang/es/).
 
+## [0.10.0] - 2026-10-31
+### Añadido
+- **Ventana de clanes**: los que tienen algo reclamado, ordenados por lo más reciente, con su
+  número de claims y el mapa de la última. La estrella sigue a un clan, de modo que avisa en
+  cualquier mapa del emparejamiento.
+- **Historial por clan**: al elegir uno, sus reclamaciones de la sesión separadas entre el mapa
+  en el que estás y los demás.
+### Cambiado
+- El objetivo de tamaño de la DLL pasa a 2,2 MB (ADR-013); el límite sigue en 2,5 MB.
+
 ## [0.9.1] - 2026-10-31
 ### Corregido
 - El selector de equipo ya no muestra «EU (0)» / «NA (0)» sin datos: la lista de equipos se

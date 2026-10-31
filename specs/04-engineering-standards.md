@@ -41,7 +41,7 @@ Presupuesto **provisional**, a calibrar con el addon mínimo del spike T-01:
 
 | Medida | Objetivo | Límite CI |
 |---|---|---|
-| DLL release | ≤ 1.5 MB | 2.5 MB |
+| DLL release | ≤ 2,2 MB | 2,5 MB |
 
 Perfil release recomendado:
 

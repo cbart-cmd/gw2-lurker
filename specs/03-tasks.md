@@ -126,15 +126,16 @@ tarea indica de qué depende.
    plegables, cada fila `hora · objetivo · clan` con el color del dueño y el mapa actual marcado
    con «estás aquí». Filtros de sesión, todos activos al empezar: campamentos, torres,
    fortalezas/castillos y «solo alto valor». (T-11, T-15) — RF-70
-6. **T-37 (M)** Lista de guilds con claim ordenada por el más reciente. (T-36) — RF-71
-   - **Parcial (2026-10-31):** `core::matchup::rank_guilds` hecho, con desempate estable
-     (más claims y luego id) para que la lista no baile entre polls.
-7. **T-38 (M)** Historial por guild separando el mapa actual de los demás. (T-16, T-37) — RF-72
-   - **Parcial (2026-10-31):** `split_by_map` y `guild_timeline` hechos y probados.
-8. **T-39 (M)** Favoritos (seguir/dejar de seguir) con persistencia. (T-37) — RF-73
-   - **Parcial (2026-10-31):** `core::follow::FollowList` (añadir/quitar/toggle, sin
-     duplicados, serializable como lista JSON) y `favourites_first`, que pone las seguidas
-     arriba sin romper el orden por recencia. Falta guardarlo en la config (T-12).
+6. **T-37 ✔ (2026-10-31)** Lista de clanes con claim ordenada por la más reciente, con número
+   de claims, hora y mapa de la última; estrella para **seguir** el clan, que es lo que hace que
+   avise en cualquier mapa del matchup. (T-36) — RF-71
+7. **T-38 ✔ (2026-10-31)** Historial por clan al seleccionarlo, **separado entre el mapa en el que
+   estás y los demás**, en orden cronológico. Se alimenta de los `Claim` de la sesión
+   (`Dashboard::history`, tope 2000; el `store` guarda todo). (T-16, T-37) — RF-72
+8. **T-39 ✔ (2026-10-31)** Favoritos: la propia lista de clanes tiene la estrella de
+   seguir/dejar de seguir y se guarda en `settings.json` (`followed`), además de en los ajustes.
+   `FollowList` ya impedía duplicados y `favourites_first` mantiene el orden por recencia.
+   (T-37) — RF-73
 9. **T-40 (C)** Ruta virtual con origen inferido (garrison → colinas/bahía → respawn).
    (T-38) — RF-32a
 10. **T-41 (S)** Cerrar i18n: terminología de tipos con hablantes nativos de fr/de. (T-31)

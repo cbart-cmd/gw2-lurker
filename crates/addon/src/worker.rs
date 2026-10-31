@@ -24,6 +24,8 @@ use crate::net::WinHttpTransport;
 
 /// Rounds of alerts kept for the widget (RF-19); the store keeps everything else.
 const MAX_ALERTS: usize = 50;
+/// Claims kept in memory for the guild history of the session (RF-72); the store has all.
+const MAX_HISTORY: usize = 2000;
 
 /// How often a failing API is retried at most, on top of the configured interval.
 const MAX_BACKOFF: Duration = Duration::from_secs(300);
@@ -67,6 +69,8 @@ pub struct Dashboard {
     pub candidates: Vec<gw2lurker_core::Candidate>,
     /// Map id → matchup role, so an alert knows which map it happened on.
     pub map_roles: std::collections::BTreeMap<u32, MapRole>,
+    /// Claims seen during this session, oldest first: the guild history of ADR-012.
+    pub history: Vec<ClaimRow>,
     /// Most recent events, newest last (RF-19).
     pub alerts: Vec<Event>,
     /// When the dashboard was last rebuilt.
@@ -175,6 +179,11 @@ impl Dashboard {
             }),
             Event::Baseline { .. } | Event::Gap { .. } | Event::MatchChanged { .. } => None,
         }
+    }
+
+    /// Claims of one guild during the session, in the order they happened (RF-72).
+    pub fn guild_history(&self, guild: &str) -> Vec<ClaimRow> {
+        matchup::guild_timeline(&self.history, guild)
     }
 
     /// Human name of an objective, for the alert lines (T-13).
@@ -384,6 +393,13 @@ fn poll_once(
     let mut events = Vec::new();
     let mut claims = Vec::new();
     let mut guilds = Vec::new();
+    let mut new_history = Vec::new();
+    let roles_of_match: std::collections::BTreeMap<u32, MapRole> = live
+        .iter()
+        .find(|entry| Some(entry.id.as_str()) == match_id.as_deref())
+        .map(|entry| entry.maps.iter().map(|map| (map.id, map.role)).collect())
+        .unwrap_or_default();
+
     if let Some(entry) = current_match(&live, match_id.as_deref()) {
         events = differ.push(gw2lurker_core::diff::Snapshot::from_match(
             entry,
@@ -391,6 +407,10 @@ fn poll_once(
         ));
         claims = matchup::claims(entry, &names);
         guilds = matchup::rank_guilds(&claims);
+        new_history = events
+            .iter()
+            .filter_map(|event| history_row(event, entry, &names, &roles_of_match))
+            .collect();
         if let Some(store) = store {
             for event in &events {
                 let record = Record::new(Utc::now(), entry.id.clone(), event.clone());
@@ -423,11 +443,65 @@ fn poll_once(
     board.map_roles = map_roles;
     board.claims = claims;
     board.guilds = guilds;
-    for event in events {
-        board.push_alert(event);
+    for event in &events {
+        board.push_alert(event.clone());
+    }
+    board.history.extend(new_history);
+    if board.history.len() > MAX_HISTORY {
+        let excess = board.history.len() - MAX_HISTORY;
+        board.history.drain(..excess);
     }
     board.updated_at = Some(now);
     Ok(())
+}
+
+/// Turns a claim event into a history row, resolving name, kind and owner from the snapshot.
+///
+/// Free function on purpose: the caller has the match snapshot and the names at hand, and this
+/// keeps the dashboard lock out of the loop that also writes to disk.
+fn history_row(
+    event: &Event,
+    entry: &Match,
+    names: &[ObjectiveInfo],
+    map_roles: &std::collections::BTreeMap<u32, MapRole>,
+) -> Option<ClaimRow> {
+    let Event::Claim {
+        objective,
+        guild,
+        at,
+        ..
+    } = event
+    else {
+        return None;
+    };
+    let map_id = objective
+        .split_once('-')
+        .and_then(|(map, _)| map.parse::<u32>().ok())?;
+    let role = map_roles
+        .get(&map_id)
+        .copied()
+        .unwrap_or_else(|| MapRole::from_map_id(map_id));
+    if role == MapRole::Unknown {
+        return None;
+    }
+    let info = names.iter().find(|known| &known.id == objective);
+    let owner = entry
+        .maps
+        .iter()
+        .flat_map(|map| map.objectives.iter())
+        .find(|candidate| &candidate.id == objective)
+        .and_then(|candidate| candidate.owner);
+
+    Some(ClaimRow {
+        map_id,
+        map_role: role,
+        objective_id: objective.clone(),
+        name: info.map(|known| known.name.clone()),
+        kind: info.map_or(gw2lurker_core::ObjectiveType::Unknown, |known| known.kind),
+        owner,
+        guild: guild.clone(),
+        claimed_at: Some(*at),
+    })
 }
 
 fn current_match<'a>(live: &'a [Match], id: Option<&str>) -> Option<&'a Match> {

@@ -88,7 +88,7 @@ jobs:
       - name: cargo test (addon)
         run: cargo test -p gw2lurker-addon
 
-      # RNF-09 / ADR-008: objetivo 1.5 MB, límite 2.5 MB.
+      # RNF-09 / ADR-013: objetivo 2.2 MB, límite 2.5 MB.
       - name: check_size.sh
         shell: bash
         run: ./scripts/check_size.sh target/release/gw2_lurker.dll

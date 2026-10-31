@@ -267,7 +267,7 @@ La ruta se etiqueta como **inferida** (RF-33): es una reconstrucción, no el rec
 | RNF-06 | Sin `panic` a través de FFI; errores internos a log | Revisión + `catch_unwind` en puntos de entrada |
 | RNF-07 | Compatible con las versiones de Nexus/GW2 objetivo; el addon se desactiva sin romper si falla la carga | Prueba manual |
 | RNF-08 | Todo texto propio pasa por la tabla de traducción (es/en/fr/de, con caída a inglés); sin literales en la UI. Un test recorre las claves y detecta columnas vacías | Revisión + test |
-| RNF-09 | DLL release ≤ 1.5 MB objetivo, 2.5 MB límite (ADR-008) | `check_size.sh` en CI |
+| RNF-09 | DLL release ≤ 2,2 MB objetivo, 2,5 MB límite (ADR-013) | `check_size.sh` en CI |
 | RNF-10 | Ningún fichero de código > 800 líneas | `check_loc.sh` en CI |
 | RNF-11 | Formato y lints: `rustfmt` y `clippy -D warnings` | CI |
 | RNF-12 | DLL generada es PE x64 válido y exporta el punto de entrada de Nexus | Test de humo en CI |

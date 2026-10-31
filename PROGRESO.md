@@ -34,6 +34,23 @@ Reglas:
   bueno un HTTP 200. Se reintenta con `-VerifyOnly` pasados unos minutos; no se cambia la URL
   ni la versión para taparlo.
 
+## HECHO – 2026-10-31 · Presupuesto a 2,2 MB, lista de clanes e historial (T-37, T-38; 0.10.0)
+
+- **ADR-013**: el objetivo de `check_size.sh` pasa a **2 306 867 bytes (2,2 MB)**; el límite
+  sigue en 2,5 MB. Actualizados CI, `04-engineering-standards.md`, RNF-09, ADR-008 (nota de
+  recalibrado) y el espejo `specs/adr/`. Con 1,57 MB quedan ~700 KB de aire.
+- `worker::Dashboard::history`: los `Claim` de la sesión, con nombre, tipo y dueño resueltos, en
+  un `Vec<ClaimRow>` con tope de 2000 (el `store` guarda el registro completo). Se construye con
+  la función libre `history_row`, **fuera** del candado del dashboard, porque en ese bucle
+  también se escribe en disco.
+- `ui::guilds` (T-37 + T-38 en una ventana): clanes ordenados por la reclamación más reciente,
+  con el número de claims, la hora y el mapa de la última; **estrella para seguir** (RF-73), que
+  es lo que hace que ese clan avise en todos los mapas del matchup. Al pinchar uno se abre su
+  historial, **separado entre «mapa actual» y «otros mapas»**, en orden cronológico.
+- Verificado: 52 tests en el addon (2 nuevos), 80 en `core`, `clippy -D warnings` limpio,
+  `check_loc` y `check_traceability` en verde. DLL de 1 571 328 bytes, muy por debajo del nuevo
+  objetivo.
+
 ## HECHO – 2026-10-31 · Fuera RTAPI, y `bugs.md` como bandeja obligatoria (0.9.1)
 
 - **`rtapi` eliminado** de las features de `nexus-rs` y todo su código (`i18n::game_language`).

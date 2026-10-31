@@ -4,6 +4,7 @@
 //! English text is the key, so nothing here needs touching when a language changes.
 
 mod alerts;
+mod guilds;
 mod matchup;
 mod settings;
 mod window;
@@ -28,6 +29,7 @@ pub fn register() {
             if gate.show_ui || crate::config().debug_show_everywhere {
                 draw_status(ui);
                 draw_matchup(ui);
+                draw_guilds(ui);
                 draw_alerts(ui);
             }
             // The team picker needs the list of live teams even outside WvW, where polling is
@@ -141,6 +143,29 @@ fn draw_status(ui: &nexus::imgui::Ui) {
 
     if open_settings {
         config.window(settings::KEY).visible = true;
+    }
+}
+
+/// Guilds of the matchup, ordered by the most recent claim, with the history of the chosen one
+/// (T-37, T-38). The star follows a guild so it alerts on every map (RF-73).
+fn draw_guilds(ui: &nexus::imgui::Ui) {
+    let (guilds, follow) = {
+        let board = crate::worker::dashboard();
+        (board.guilds.clone(), crate::config().followed.clone())
+    };
+    let current = crate::context::current_map_role();
+
+    let action = {
+        let mut config = crate::runtime();
+        let state = config.window(guilds::KEY);
+        guilds::draw(ui, state, &guilds, &follow, current, |guild| {
+            crate::worker::dashboard().guild_history(guild)
+        })
+    };
+
+    if let Some(guilds::Action::ToggleFollow(guild)) = action {
+        let mut config = crate::runtime();
+        config.followed.toggle(&guild);
     }
 }
 
