@@ -18,6 +18,7 @@ use nexus::gui::{register_render, render, RenderType};
 use std::sync::atomic::{AtomicBool, AtomicI64, Ordering};
 
 use crate::i18n;
+use gw2lurker_core::model::MapRole;
 
 /// Translation key (and stable id) of the only window of the addon (T-42).
 ///
@@ -364,7 +365,7 @@ struct Tabbed<'a> {
     claims: &'a [gw2lurker_core::matchup::ClaimRow],
     alerts: &'a [crate::worker::AlertLine],
     follow: &'a gw2lurker_core::FollowList,
-    current: Option<gw2lurker_core::MapRole>,
+    current: Option<MapRole>,
     now: chrono::DateTime<chrono::Utc>,
     /// Objectives of the player's language, with the `coord` the map needs.
     objectives: &'a [gw2lurker_core::ObjectiveInfo],
@@ -506,11 +507,10 @@ fn draw_tabs(
 ///
 /// Session state on purpose: the default is always the map the player is on, which is the one
 /// they care about.
-fn map_choice() -> std::sync::MutexGuard<'static, gw2lurker_core::MapRole> {
-    static CHOICE: std::sync::OnceLock<std::sync::Mutex<gw2lurker_core::MapRole>> =
-        std::sync::OnceLock::new();
+fn map_choice() -> std::sync::MutexGuard<'static, MapRole> {
+    static CHOICE: std::sync::OnceLock<std::sync::Mutex<MapRole>> = std::sync::OnceLock::new();
     CHOICE
-        .get_or_init(|| std::sync::Mutex::new(gw2lurker_core::MapRole::Unknown))
+        .get_or_init(|| std::sync::Mutex::new(MapRole::Unknown))
         .lock()
         .unwrap_or_else(|error| error.into_inner())
 }
@@ -530,9 +530,16 @@ fn draw_health(ui: &nexus::imgui::Ui, config: &mut crate::config::Config, data: 
     let team_id = crate::team::selected_in(config);
     let language = i18n::effective().code();
 
-    let map_id = state.map_id.to_string();
-    let map_type = state.map_type.to_string();
-    ui.text_disabled(i18n::format("Map {0} (type {1})", &[&map_id, &map_type]));
+    // El jugador reconoce el mapa por su nombre, no por el id de Mumble: el id solo se enseña
+    // cuando no hay rol, que es cuando de verdad hace falta para diagnosticar (informe de
+    // 2026-10-31, «no sé qué es mapa 95»).
+    let role = MapRole::from_map_id(state.map_id);
+    if role == MapRole::Unknown {
+        let map_id = state.map_id.to_string();
+        ui.text_disabled(i18n::format("Outside WvW (map {0})", &[&map_id]));
+    } else {
+        ui.text_disabled(i18n::format("You are in {0}", &[map::map_label(role)]));
+    }
     match team_id.map(|id| crate::team::display_name(config, language, id)) {
         Some(label) => ui.text(i18n::format("Team {0}", &[&label])),
         None => ui.text(i18n::text("No team configured yet")),
@@ -564,7 +571,10 @@ fn draw_health(ui: &nexus::imgui::Ui, config: &mut crate::config::Config, data: 
     if when.is_empty() {
         ui.text_disabled(summary);
     } else {
-        ui.text_disabled(format!("{summary} · {} {when}", i18n::text("Last update")));
+        ui.text_disabled(format!(
+            "{summary} · {}",
+            i18n::format("Last update {0}", &[&when])
+        ));
     }
 
     // Click-through has no visual trace of its own: without this line the only symptom is that
@@ -681,7 +691,7 @@ fn test_popup_line(now: chrono::DateTime<chrono::Utc>) -> Option<crate::worker::
     Some(crate::worker::AlertLine {
         at: now,
         received: now,
-        map_role: gw2lurker_core::MapRole::Center,
+        map_role: MapRole::Center,
         objective_kind: gw2lurker_core::ObjectiveType::Camp,
         kind: crate::worker::AlertKind::Claim,
         objective: i18n::text("Sample objective").to_owned(),

@@ -662,6 +662,24 @@ pub const TEXT: &[(&str, [&str; COLUMNS])] = &[
         ],
     ),
     (
+        "You are in {0}",
+        [
+            "Estás en: {0}",
+            "You are in {0}",
+            "Vous êtes sur : {0}",
+            "Du bist in: {0}",
+        ],
+    ),
+    (
+        "Outside WvW (map {0})",
+        [
+            "Fuera de WvW (mapa {0})",
+            "Outside WvW (map {0})",
+            "Hors MvM (carte {0})",
+            "Außerhalb von WvW (Karte {0})",
+        ],
+    ),
+    (
         "Error: {0}",
         ["Error: {0}", "Error: {0}", "Erreur : {0}", "Fehler: {0}"],
     ),

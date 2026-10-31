@@ -655,7 +655,8 @@ fn colour_rgba(colour: TeamColor) -> [f32; 4] {
     super::theme::team_colour(colour)
 }
 
-fn map_label(role: MapRole) -> &'static str {
+/// El nombre del mapa en el idioma activo: lo comparten la pestaña y la cabecera del widget.
+pub(super) fn map_label(role: MapRole) -> &'static str {
     match role {
         MapRole::Center => i18n::text("Eternals"),
         MapRole::BlueHome => i18n::text("Blue alpine"),

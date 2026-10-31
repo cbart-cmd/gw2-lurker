@@ -7,6 +7,10 @@ Formato [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/), versionado 
   meter el cuerpo en una ventana hija (0.22.0) el mapa siguió usando la lista de dibujo del padre,
   que en imgui es la misma para la hija, así que le faltaba su propio recorte. Ahora el mapa y los
   iconos del registro se dibujan con `with_clip_rect_intersect` sobre su rectángulo.
+- **La cabecera dice dónde estás con nombre**: «Estás en: Desierto rojo» en vez de «MAPA 1099
+  (TIPO 12)». El id solo se enseña cuando no es un mapa de WvW, que es cuando sirve para algo.
+- **«LAST UPDATE» estaba en inglés**: el código pedía la clave `Last update` y en la tabla solo
+  estaba `Last update {0}`, así que caía al inglés en todos los idiomas.
 
 ## [0.22.1] - 2026-10-31
 ### Corregido

@@ -36,3 +36,9 @@ Estado: `[ ]` pendiente · `[x]` arreglado en esta tanda (se borra al cerrarla).
 - **Pendiente:** comprobarlo en el juego con 0.22.0. El mapa se elige en el desplegable de la pestaña y
   en el «salto a <mapa>» de la ruta; si al cambiar de mapa se queda el fondo anterior, el fallo está en
   qué `Frame` usan las teselas y no en la selección.
+- mapa lo pinta fuera de sitio, pinta encima de las pestañs de arriba y por debajo, adjunto imagen
+![alt text](image-4.png)
+- el pop up de avisos salta varios aviso s de golpe cada mucho, en vez de ir sacando el aviso suelto cuando alguien reclama algo (pueden pasar unos pocos segundos, maximo 5).  el selector de segundos deberia ser mas larego, permitri entre 0 y 20 segunods
+- ![ no soy un robotm, no se que es mapa 99 tipo 12 ni emparejamiento 1-1, esos numeros para mi no significan nada](image-6.png)
+- la ruta inferida de un clan deberia pintarla sobre  el mapa
+- el mapa sale chafado, es mucho mas cuadrado. mira el mapa de gw2mists para ver como se deberian ver los mapas

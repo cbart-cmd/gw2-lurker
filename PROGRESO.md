@@ -26,6 +26,10 @@ Reglas:
   grande que ella.
 - De paso, la captura confirma que **la orientación ya es correcta**: Eternos sale al derecho y cada
   anillo sobre su estructura.
+- **Cabecera legible** (de la misma captura): «MAPA 1099 (TIPO 12)» pasa a «Estás en: Desierto rojo»
+  (`MapRole::from_map_id` + `map::map_label`, ahora `pub(super)`); el id solo sale cuando el mapa no
+  es de WvW. Y «LAST UPDATE» en inglés era una clave mal escrita: el código pedía `Last update` y la
+  tabla tiene `Last update {0}`, así que caía al inglés en los cuatro idiomas.
 - Verificación: 207 tests en verde, `clippy -D warnings` limpio, `cargo fmt --check` limpio.
 - **No verificado en el juego** (la DLL estaba bloqueada por el juego al instalar; hay que cerrarlo).
 
