@@ -123,7 +123,9 @@ pub fn tile_path(x: u32, y: u32) -> Option<std::path::PathBuf> {
 /// URL of one tile on the official tile server.
 pub fn tile_url(x: u32, y: u32) -> String {
     format!(
-        "https://tiles.guildwars2.com/1/1/{}/{x}/{y}.jpg",
+        // Continente 2, piso 1: es donde viven los mapas de MvM (calibrado con teselas reales,
+        // 2026-10-31; el continente 1 devuelve océano para cualquier coordenada).
+        "https://tiles.guildwars2.com/2/1/{}/{x}/{y}.jpg",
         gw2lurker_core::project::TILE_ZOOM
     )
 }

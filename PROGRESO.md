@@ -13,10 +13,25 @@ Reglas:
 
 ---
 
+## HECHO – 2026-10-31 · El mapa real se pide al continente correcto y con la escala correcta (0.16.1)
+
+- **Bug real de 0.16.0**: las teselas se pedían al **continente 1**, y ese continente devuelve una
+  imagen de océano para cualquier coordenada (falla en silencio, sin 404). Los mapas de MvM viven en
+  **continente 2, piso 1**.
+- Y la escala estaba mal: se suponía 2048 unidades por tesela a zoom 5 cuando son **1024**. Fórmula
+  corregida: `units_per_tile(zoom) = 256 · 2^(7 − zoom)` (`core::project`), así que un mapa son
+  **4×4 teselas** y los cuatro mapas **59 imágenes** en total.
+- Verificación: descargadas las 59 URLs (`2/1/5/{x}/{y}.jpg` para Eternos, Alpino verde, Alpino azul
+  y Desierto) y **todas responden imagen real** (>5 KB). El test de `tiles_of` ahora espera 1024
+  unidades por tesela y como mucho 16 teselas.
+- Si una tesela no está en disco todavía, se sigue viendo el tablero esquemático; y apagando **Mapa
+  real** vuelve el esquemático siempre.
+
 ## HECHO – 2026-10-31 · Mapa real con teselas, rango de la ruta y pop-up arreglado (0.16.0)
 
 - **T-29 (parcial)**: verificado que `tiles.guildwars2.com` llega hasta **zoom 5** (zoom 6 y 7 dan
-  404) y que a ese nivel una tesela son **2048 unidades de continente**: un mapa son 2–3 teselas
+  404) y que a ese nivel una tesela son **2048 unidades de continente** (⚠ **falso, corregido en
+  0.16.1**: son **1024**, y el continente es el 2): un mapa son 2–3 teselas
   por lado, ~20 en total para los cuatro. `core::project::{units_per_tile, tile_box, tiles_of}` es
   puro y tiene dos tests (cobertura de esquinas y «degenerado = ninguna»).
   - El **worker** descarga las que falten a `<addon>/tiles/` en su propio hilo (`ensure_tiles`), así

@@ -67,12 +67,11 @@ pub const TILE_ZOOM: u32 = 5;
 
 /// Continent units covered by one tile at `zoom`.
 ///
-/// The tile server is an image pyramid of nine levels: at zoom 8 a tile covers 256 continent units
-/// and at zoom 0 it covers the whole continent. At [`TILE_ZOOM`] a borderland is two or three
-/// tiles across, which is what makes drawing the real map cheap: about twenty small images for
-/// the four maps.
+/// Calibrado con teselas reales (2026-10-31): a zoom 5 una tesela son **1024 unidades**. El
+/// servidor es una pirámide de nueve niveles y el nivel 8 no existe como tal, así que la fórmula
+/// es `256 · 2^(7 − zoom)`: a zoom 5 un mapa son 4×4 teselas y a zoom 0 el continente entero.
 pub fn units_per_tile(zoom: u32) -> f64 {
-    256.0 * 2f64.powi(8 - zoom as i32)
+    256.0 * 2f64.powi(7 - zoom as i32)
 }
 
 /// Continent box of one tile: `[min_x, min_y, max_x, max_y]`.
@@ -185,7 +184,10 @@ mod tests {
 
         assert!(!tiles.is_empty());
         let step = units_per_tile(TILE_ZOOM);
-        assert_eq!(step, 2048.0, "zoom 5 son 2048 unidades por tesela");
+        assert_eq!(
+            step, 1024.0,
+            "zoom 5 son 1024 unidades por tesela (calibrado)"
+        );
 
         // Cada esquina del mapa cae dentro de alguna de las teselas elegidas.
         for corner_x in [frame.x[0], frame.x[1]] {
@@ -200,8 +202,8 @@ mod tests {
             }
         }
         assert!(
-            tiles.len() <= 9,
-            "un mapa son dos o tres teselas por lado, no {}",
+            tiles.len() <= 16,
+            "un mapa son cuatro teselas por lado a zoom 5, no {}",
             tiles.len()
         );
     }

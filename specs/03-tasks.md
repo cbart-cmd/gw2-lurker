@@ -151,7 +151,12 @@ Cada tarea es pequeña y verificable. Orden recomendado; las dependencias se ind
   encima de la ventana (`lib::safe_mode`, aviso permanente durante la sesión). El registro de la
   sesión ya toleraba líneas corruptas (`adr003_corrupt_line_is_skipped_and_counted`). (T-10, T-12)
   — RF-51, RNF-06
-- **T-29 ✔ (2026-10-31, parcial)** Fondo con las **teselas oficiales**: `tiles.guildwars2.com` a zoom 5 (2048 unidades por tesela; 2–3 teselas por lado y mapa, ~20 para los cuatro), descargadas por el worker a `<addon>/tiles/` y dibujadas con `add_image` heredando la **opacidad de la ventana**. Las que aún no están en disco no se dibujan y se van rellenando. Interruptor **Mapa real** en los ajustes. Los iconos van en T-46. (T-14) — RF-37, RF-38
+- **T-47** **Icono del tipo de objetivo en los avisos**: además del mapa, cada línea de aviso (y el
+  pop-up) llevará un icono que diga si es **campamento, torre o fortaleza/piedraniebla**, con la
+  misma idea que T-46: el dibujo del juego dentro del color del equipo, y con la forma como respaldo
+  accesible. (T-13) — RF-19, RF-38
+
+- **T-29 ✔ (2026-10-31, parcial)** Fondo con las **teselas oficiales**: `tiles.guildwars2.com`, **continente 2, piso 1**, a zoom 5 (**1024 unidades por tesela**; 4 teselas por lado y mapa, 59 en total para los cuatro), descargadas por el worker a `<addon>/tiles/` y dibujadas con `add_image` heredando la **opacidad de la ventana**. Las que aún no están en disco no se dibujan y se van rellenando. Interruptor **Mapa real** en los ajustes. Los iconos van en T-46. (T-14) — RF-37, RF-38
 
 - **T-46** Iconos del mapa como en el juego: dentro del círculo de color, el dibujo del **campamento**
   y de la **torre** que pasó el usuario (2026-10-31); el de la **fortaleza** no se pudo capturar

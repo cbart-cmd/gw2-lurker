@@ -1,6 +1,14 @@
 # Changelog
 Formato [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/), versionado [SemVer](https://semver.org/lang/es/).
 
+## [0.16.1] - 2026-10-31
+### Corregido
+- **El mapa real salía mal encuadrado (zoom y continente)**: se pedían las teselas del **continente 1**,
+  que responde con una imagen de océano para cualquier coordenada, y se suponía que a zoom 5 una
+  tesela cubre 2048 unidades de continente cuando son **1024**. Ahora se piden al **continente 2,
+  piso 1** y `units_per_tile(zoom) = 256 · 2^(7 − zoom)`, así que cada mapa son 4×4 teselas (59 en
+  total para los cuatro) y el fondo cae donde toca. Verificado descargando las 59.
+
 ## [0.16.0] - 2026-10-31
 ### Añadido
 - **Mapa real (T-29)**: las teselas oficiales de `tiles.guildwars2.com` a zoom 5 (~20 imágenes para

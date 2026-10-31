@@ -275,6 +275,26 @@ Comprobado `[API]` en vivo, para el rediseño del selector de clanes (T-44).
 - **`GET /v2/wvw/guilds/:region`** (`eu`/`na`) devuelve `{ "<guild_id>": "<team_id>" }`; 282 644
   bytes para EU. Es la única fuente oficial para saber en qué equipo está un clan.
 - La región del jugador no se expone: se deduce del equipo configurado (`1-x` = NA, `2-x` = EU).
+### Notas de verificación: servidor de teselas del mapa (T-29, 2026-10-31)
+
+Medido descargando imágenes reales con `curl` (una a una, comparando tamaños y contenido).
+
+- **`GET https://tiles.guildwars2.com/{continente}/{piso}/{zoom}/{x}/{y}.jpg`** existe, no pide clave
+  y no necesita `User-Agent` especial.
+- **Los mapas de MvM están en el continente `2`, piso `1`.** El continente **1** devuelve una imagen
+  de océano para *cualquier* coordenada: no da 404, así que una ruta mal montada **falla en
+  silencio** con un fondo azul plausible.
+- **El zoom máximo útil es 5** (6 y 7 dan 404). A zoom 5 una tesela cubre **1024 unidades de
+  continente**, no 2048: la fórmula es `256 · 2^(7 − zoom)`.
+- **Calibración con una tesela conocida**: `2/1/5/10/14.jpg` es Eternos con el Castillo de
+  Piedraniebla en el centro. Con 1024 unidades por tesela, la caja de Eternos
+  X[8958..12030] Y[12798..15870] cae en x 8..11, y 11..15 → **4×4 teselas**.
+- **Cobertura comprobada**: 59 teselas entre los cuatro mapas (Eternos 16, Alpino verde 12, Alpino
+  azul 15, Desierto 16), todas descargables. Es un orden de magnitud razonable para llevarlas a
+  `<addon>/tiles/` la primera vez.
+- Se descargan en el **worker** (`catalog::ensure_tiles`, hilo propio) y el render solo pide texturas
+  ya presentes (4 por frame como máximo), con `add_image(..).col([1,1,1,opacidad])` para heredar la
+  opacidad de la ventana.
 ### Notas de verificación: `/v2/guild/search` (T-44, 2026-10-31)
 
 Medido con `curl` contra la API en vivo, porque el buscador de clanes depende de esto.
