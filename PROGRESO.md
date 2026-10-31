@@ -34,6 +34,22 @@ Reglas:
   bueno un HTTP 200. Se reintenta con `-VerifyOnly` pasados unos minutos; no se cambia la URL
   ni la versión para taparlo.
 
+## HECHO – 2026-10-31 · DLL en `target\release` como los vecinos
+
+- Duda del usuario: los proyectos hermanos dejan la DLL en `target\release\` y aquí aparecía en
+  `target\x86_64-pc-windows-msvc\release\`. La causa era mía: compilaba siempre con
+  `--target x86_64-pc-windows-msvc`, y Cargo anida la salida bajo el triple cuando se pasa ese
+  flag. El host **ya es** ese triple, así que el flag no aportaba nada.
+- Cambiado a `cargo build --release` en `scripts/release.ps1` (`-Target` queda como opción
+  explícita), en el job `build-windows` de `ci.yml` y en `docs/RELEASE.md` / `AGENTS.md` §7.
+- Segunda duda: había **dos** DLL, `gw2_lurker.dll` y `gw2lurker_addon.dll`. La segunda era un
+  resto de antes de fijar `[lib] name = "gw2_lurker"`: Cargo nombra el cdylib como el paquete
+  (`gw2lurker-addon`) si no se le dice otra cosa. El árbol viejo se ha borrado y solo queda
+  `target\release\gw2_lurker.dll`.
+- La build sin `--target` pesa 1 270 784 bytes (1 536 menos, misma funcionalidad: cambia la
+  metadata, no el código) y es la que se ha vuelto a publicar como 0.3.2 para que el asset
+  coincida con lo que produce el script.
+
 ## HECHO – 2026-10-31 · Idioma real del juego vía Extras y Nexus (T-31 cerrada en lo posible)
 
 - Pregunta del usuario: «Nexus sabe el idioma que usas, ¿cómo lo hace?». Respuesta medida:

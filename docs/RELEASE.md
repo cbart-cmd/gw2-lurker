@@ -34,8 +34,8 @@ script comprueba y como salida manual si el script no se puede usar.
 1. Subir la versión en `Cargo.toml` y en `CHANGELOG.md`.
 2. `cargo fmt --all --check`, `cargo clippy --workspace --all-targets -- -D warnings`,
    `cargo test --workspace`, `bash ./scripts/check_loc.sh`.
-3. `cargo build --release --target x86_64-pc-windows-msvc -p gw2lurker-addon`
-   y comprobar tamaño con `bash ./scripts/check_size.sh <dll>`.
+3. `cargo build --release -p gw2lurker-addon` (sin `--target`: la salida va a
+   `target\release\gw2_lurker.dll`) y comprobar tamaño con `bash ./scripts/check_size.sh <dll>`.
 4. Copiar la DLL a `..\gw2addonsreleases\gw2_lurker.dll`.
 5. Calcular MD5 y escribirlo en `..\gw2addonsreleases\gw2_lurker.dll.md5`
    (exactamente 32 caracteres hexadecimales en minúsculas, sin BOM, sin `\n`).

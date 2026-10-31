@@ -79,16 +79,16 @@ jobs:
 
       - uses: Swatinem/rust-cache@v2
 
-      - name: cargo build --release (x86_64-pc-windows-msvc)
-        run: cargo build --release --target x86_64-pc-windows-msvc -p gw2lurker-addon
+      - name: cargo build --release
+        run: cargo build --release -p gw2lurker-addon
 
       - name: cargo clippy (addon)
-        run: cargo clippy --target x86_64-pc-windows-msvc -p gw2lurker-addon --all-targets -- -D warnings
+        run: cargo clippy -p gw2lurker-addon --all-targets -- -D warnings
 
       - name: cargo test (addon)
-        run: cargo test --target x86_64-pc-windows-msvc -p gw2lurker-addon
+        run: cargo test -p gw2lurker-addon
 
       # RNF-09 / ADR-008: objetivo 1.5 MB, límite 2.5 MB.
       - name: check_size.sh
         shell: bash
-        run: ./scripts/check_size.sh target/x86_64-pc-windows-msvc/release/gw2_lurker.dll
+        run: ./scripts/check_size.sh target/release/gw2_lurker.dll

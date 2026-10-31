@@ -17,7 +17,9 @@
 param(
     [switch]$DryRun,
     [switch]$VerifyOnly,
-    [string]$Target = 'x86_64-pc-windows-msvc',
+    # Empty on purpose: the host is already windows-msvc and a plain build keeps the DLL in
+    # `target\release\`, like the sibling projects. Pass `-Target <triple>` to override.
+    [string]$Target = '',
     [string]$DistRepo = 'github.com/cbart-cmd/gw2addonsreleases',
     [string]$LocalDistRepo = ''
 )
@@ -85,24 +87,28 @@ function Test-PublishedDll([string]$expectedPath) {
     }
 }
 
+# Empty `-Target` keeps the plain `target\release` layout, like the sibling projects.
+$BuildArgs = @('build', '--release', '-p', 'gw2lurker-addon')
+if ($Target) { $BuildArgs += @('--target', $Target) }
+$OutDir = if ($Target) { Join-Path $RepoRoot "target\$Target\release" } else { Join-Path $RepoRoot 'target\release' }
 $version = Get-WorkspaceVersion
 $tag = "gw2-lurker-v$version"
 Step "Version $version (tag $tag)"
 
 if ($VerifyOnly) {
-    Test-PublishedDll (Join-Path $RepoRoot "target\$Target\release\$DllName")
+    Test-PublishedDll (Join-Path $OutDir $DllName)
     return
 }
 
 Step 'Compilando release'
 Push-Location $RepoRoot
 try {
-    & cargo build --release --target $Target -p gw2lurker-addon
+    & cargo @BuildArgs
     if ($LASTEXITCODE -ne 0) { Fail 'cargo build fallo' }
 } finally {
     Pop-Location
 }
-$dll = Join-Path $RepoRoot "target\$Target\release\$DllName"
+$dll = Join-Path $OutDir $DllName
 if (-not (Test-Path $dll)) { Fail "no existe $dll" }
 $size = (Get-Item $dll).Length
 Ok "DLL de $size bytes"
