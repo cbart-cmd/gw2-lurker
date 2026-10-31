@@ -57,7 +57,7 @@ fn set_narrowing(value: Narrowing) {
 /// Working copy of everything this window can edit.
 struct Edits {
     team_id: Option<u32>,
-    alias: String,
+    translation: String,
     language: LanguagePreference,
     poll_secs: i32,
     scope: AlertScope,
@@ -74,10 +74,11 @@ pub fn draw(
     candidates: &[Candidate],
 ) -> Option<TeamChange> {
     let table = gw2lurker_core::bundled();
+    let language = i18n::effective().code();
     let selected = crate::team::selected_in(config);
     let mut edits = Edits {
         team_id: selected,
-        alias: config.team_alias.clone().unwrap_or_default(),
+        translation: initial_translation(config, table, selected, language),
         language: config.language,
         poll_secs: config.poll_secs as i32,
         scope: config.alert_scope,
@@ -92,7 +93,7 @@ pub fn draw(
         });
     }
 
-    config.team_alias = Some(edits.alias.trim().to_owned()).filter(|alias| !alias.is_empty());
+    remember_translation(config, edits.translation.as_str(), language);
     config.language = edits.language;
     config.alert_scope = edits.scope;
     config.poll_secs = edits.poll_secs.clamp(15, 600) as u32;
@@ -107,11 +108,12 @@ pub fn draw(
 /// outside WvW: that is how RF-02 keeps the configuration available everywhere.
 pub fn draw_inline(ui: &Ui, candidates: &[Candidate]) -> Option<TeamChange> {
     let table = gw2lurker_core::bundled();
+    let language = i18n::effective().code();
     let mut config = crate::runtime();
     let selected = crate::team::selected_in(&config);
     let mut edits = Edits {
         team_id: selected,
-        alias: config.team_alias.clone().unwrap_or_default(),
+        translation: initial_translation(&config, table, selected, language),
         language: config.language,
         poll_secs: config.poll_secs as i32,
         scope: config.alert_scope,
@@ -121,7 +123,7 @@ pub fn draw_inline(ui: &Ui, candidates: &[Candidate]) -> Option<TeamChange> {
 
     draw_body(ui, table, &mut edits, candidates);
 
-    config.team_alias = Some(edits.alias.trim().to_owned()).filter(|alias| !alias.is_empty());
+    remember_translation(&mut config, edits.translation.as_str(), language);
     config.language = edits.language;
     config.alert_scope = edits.scope;
     config.poll_secs = edits.poll_secs.clamp(15, 600) as u32;
@@ -183,10 +185,13 @@ fn draw_body(ui: &Ui, table: &TeamTable, edits: &mut Edits, candidates: &[Candid
     draw_colour(ui, edits);
     draw_team(ui, table, edits, candidates);
 
-    let alias_id = i18n::widget("Alias");
-    ui.input_text(alias_id, &mut edits.alias).build();
+    let translation_id = i18n::widget("Translation");
+    ui.input_text(translation_id, &mut edits.translation)
+        .build();
     if ui.is_item_hovered() {
-        ui.tooltip_text(i18n::text("Alias (only for you)"));
+        ui.tooltip_text(i18n::text(
+            "Prefilled with the name in the game language. Clear it to use the automatic one.",
+        ));
     }
 
     draw_language(ui, edits);
@@ -256,7 +261,8 @@ fn draw_team(ui: &Ui, table: &TeamTable, edits: &mut Edits, candidates: &[Candid
     };
 
     let current = match edits.team_id {
-        Some(id) => table_alias(&edits.alias).unwrap_or_else(|| table.label_in(language, id)),
+        Some(_) if !edits.translation.trim().is_empty() => edits.translation.trim().to_owned(),
+        Some(id) => table.label_in(language, id),
         None => i18n::text("No team configured yet").to_owned(),
     };
 
@@ -292,10 +298,37 @@ fn draw_team(ui: &Ui, table: &TeamTable, edits: &mut Edits, candidates: &[Candid
         });
 }
 
-/// The alias replaces the name of the chosen team, and only while there is one.
-fn table_alias(alias: &str) -> Option<String> {
-    let alias = alias.trim();
-    (!alias.is_empty()).then(|| alias.to_owned())
+/// The translation the field starts with: what the player saved, or the automatic name.
+///
+/// The language is a parameter, not read here, so the rule can be tested: reading the active
+/// language touches Nexus' RealTime API, which panics outside the game.
+fn initial_translation(
+    config: &crate::config::Config,
+    table: &TeamTable,
+    selected: Option<u32>,
+    language: &str,
+) -> String {
+    if let Some(custom) = config.custom_name(language) {
+        return custom.to_owned();
+    }
+    match selected {
+        Some(id) => table
+            .name_in(language, id)
+            .map(str::to_owned)
+            .unwrap_or_default(),
+        None => String::new(),
+    }
+}
+
+/// Stores what the player left in the field. Writing the automatic name back is not an
+/// override: the configuration drops the entry so the bundled translations keep applying.
+fn remember_translation(config: &mut crate::config::Config, written: &str, language: &str) {
+    let Some(team_id) = crate::team::selected_in(config) else {
+        // No team chosen: there is nothing to name yet.
+        return;
+    };
+    let automatic = crate::team::automatic_name(language, team_id);
+    config.set_custom_name(language, written, &automatic);
 }
 
 fn draw_language(ui: &Ui, edits: &mut Edits) {
@@ -434,10 +467,25 @@ mod tests {
     }
 
     #[test]
-    fn rf03f_alias_only_replaces_a_team_name() {
-        assert_eq!(table_alias("Mi equipo").as_deref(), Some("Mi equipo"));
-        assert_eq!(table_alias("  Mi equipo  ").as_deref(), Some("Mi equipo"));
-        assert_eq!(table_alias("   "), None);
+    fn rf03f_the_field_starts_with_the_automatic_translation() {
+        let table = gw2lurker_core::bundled();
+        let empty = crate::config::Config::default();
+
+        // Without Mumble there is no character, so the roster cannot match; the automatic
+        // name is what the field shows for a chosen team.
+        assert_eq!(
+            initial_translation(&empty, table, Some(12014), "es"),
+            "Pajar de la Gran Casa"
+        );
+        assert_eq!(initial_translation(&empty, table, None, "es"), "");
+
+        let mut custom = crate::config::Config::default();
+        custom.set_custom_name("es", "Bosquemugoso", "Pajar de la Gran Casa");
+        assert_eq!(
+            initial_translation(&custom, table, Some(12014), "es"),
+            "Bosquemugoso",
+            "lo guardado gana al nombre de la tabla"
+        );
     }
 
     #[test]

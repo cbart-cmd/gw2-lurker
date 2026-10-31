@@ -96,7 +96,14 @@ impl WindowState {
 pub struct Config {
     /// Configured team id (`11xxx`/`12xxx`), `None` until the user picks one (RF-03a).
     pub team_id: Option<u32>,
-    /// Alias shown instead of the table name (RF-03f).
+    /// Name the user wrote for their team, per language code (RF-03f).
+    ///
+    /// Prefilled with the name in the game language, so a wrong or missing translation can be
+    /// fixed without waiting for a release. Stored per language on purpose: switching the game
+    /// language must not show the Spanish name over the French one.
+    pub team_names: BTreeMap<String, String>,
+    /// Single alias of 0.5.x, migrated into `team_names` on first save.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub team_alias: Option<String>,
     /// Polling interval in seconds; the measured default is 30 (RNF-02).
     pub poll_secs: u32,
@@ -123,6 +130,7 @@ impl Default for Config {
         Self {
             team_id: None,
             team_alias: None,
+            team_names: BTreeMap::new(),
             poll_secs: 30,
             alert_scope: AlertScope::default(),
             language: LanguagePreference::default(),
@@ -140,6 +148,34 @@ impl Config {
     /// State of one window, created with defaults the first time it is asked for.
     pub fn window(&mut self, key: &str) -> &mut WindowState {
         self.windows.entry(key.to_owned()).or_default()
+    }
+
+    /// Name the user gave the team in this language, if any.
+    ///
+    /// Falls back to the single alias of 0.5.x so nobody loses what they had written.
+    pub fn custom_name(&self, language: &str) -> Option<&str> {
+        if let Some(name) = self.team_names.get(language) {
+            return (!name.trim().is_empty()).then_some(name.trim());
+        }
+        self.team_alias
+            .as_deref()
+            .map(str::trim)
+            .filter(|alias| !alias.is_empty())
+    }
+
+    /// Stores (or clears, when equal to the automatic name) the translation of a language.
+    ///
+    /// Writing the automatic name back is not an override: it removes the entry, so the addon
+    /// keeps following the bundled translations.
+    pub fn set_custom_name(&mut self, language: &str, name: &str, automatic: &str) {
+        let name = name.trim();
+        if name.is_empty() || name == automatic.trim() {
+            self.team_names.remove(language);
+        } else {
+            self.team_names.insert(language.to_owned(), name.to_owned());
+        }
+        // Anything stored per language supersedes the legacy single alias.
+        self.team_alias = None;
     }
 
     /// Colour of the configured team inside the given match, if it can be resolved.

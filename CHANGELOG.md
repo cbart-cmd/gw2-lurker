@@ -1,6 +1,13 @@
 # Changelog
 Formato [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/), versionado [SemVer](https://semver.org/lang/es/).
 
+## [0.6.0] - 2026-10-31
+### Cambiado
+- El campo «Alias» pasa a llamarse **«Traducción»** y viene relleno con el nombre del equipo en
+  el idioma del juego. Puedes corregirlo y se guarda por idioma, para que cambiar el idioma del
+  juego no te muestre el nombre de otro. Si lo dejas como está (o lo vacías), se sigue usando la
+  traducción incluida en el addon.
+
 ## [0.5.1] - 2026-10-31
 ### Añadido
 - Nombres de equipo traducidos a español, francés y alemán, extraídos de `data/equipos.xlsx`

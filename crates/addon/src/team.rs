@@ -73,6 +73,22 @@ pub fn roster() -> Roster {
     crate::runtime().roster.clone()
 }
 
+/// Name the team has in the bundled tables for a language (no override).
+pub fn automatic_name(language: &str, team_id: u32) -> String {
+    gw2lurker_core::bundled()
+        .name_in(language, team_id)
+        .map(str::to_owned)
+        .unwrap_or_else(|| format!("({team_id})"))
+}
+
+/// Name shown to the player: their own translation wins over the bundled one (RF-03f).
+pub fn display_name(config: &Config, language: &str, team_id: u32) -> String {
+    config
+        .custom_name(language)
+        .map(str::to_owned)
+        .unwrap_or_else(|| automatic_name(language, team_id))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -96,6 +112,67 @@ mod tests {
             resolve(None, &roster, None),
             None,
             "sin Mumble no se inventa nada"
+        );
+    }
+
+    #[test]
+    fn rf03f_the_players_translation_wins_over_the_bundled_one() {
+        let mut config = Config::default();
+        assert_eq!(
+            display_name(&config, "es", 12014),
+            "Pajar de la Gran Casa",
+            "sin traducción propia se usa la de la tabla"
+        );
+
+        config.set_custom_name("es", "Bosquemugoso", "Pajar de la Gran Casa");
+        assert_eq!(display_name(&config, "es", 12014), "Bosquemugoso");
+        assert_eq!(
+            display_name(&config, "en", 12014),
+            "Great House Aviary",
+            "la traducción es por idioma: en inglés no se cuela el nombre español"
+        );
+
+        config.set_custom_name("es", "  ", "Pajar de la Gran Casa");
+        assert_eq!(
+            display_name(&config, "es", 12014),
+            "Pajar de la Gran Casa",
+            "vaciar el campo vuelve al automático"
+        );
+    }
+
+    #[test]
+    fn rf03f_writing_the_automatic_name_is_not_an_override() {
+        let mut config = Config::default();
+        config.set_custom_name("es", "Pajar de la Gran Casa", "Pajar de la Gran Casa");
+        assert!(
+            config.team_names.is_empty(),
+            "dejarlo como estaba no crea una entrada"
+        );
+
+        config.set_custom_name("fr", "Bosquemugoso", "Volière de la Grande Maison");
+        assert_eq!(
+            config.team_names.get("fr").map(String::as_str),
+            Some("Bosquemugoso")
+        );
+    }
+
+    #[test]
+    fn rf03f_the_old_single_alias_is_still_honoured() {
+        let mut config = Config {
+            team_alias: Some("Conservatorio de lutgardis".to_owned()),
+            ..Config::default()
+        };
+        assert_eq!(
+            display_name(&config, "es", 11011),
+            "Conservatorio de lutgardis",
+            "el alias de 0.5.x se sigue usando hasta que se guarde la traducción"
+        );
+
+        config.set_custom_name("es", "Invernadero de Lutgardis", "Lutgardis Conservatory");
+        assert_eq!(config.team_alias, None, "al guardar se migra y se limpia");
+        assert_eq!(
+            display_name(&config, "es", 11011),
+            "Invernadero de Lutgardis"
         );
     }
 }

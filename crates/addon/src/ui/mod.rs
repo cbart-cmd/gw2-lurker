@@ -65,8 +65,10 @@ fn draw_status(ui: &nexus::imgui::Ui) {
     let state = crate::context::snapshot();
     let mut config = crate::runtime();
     let team_id = crate::team::selected_in(&config);
-    let team_alias = config.team_alias.clone();
+
     let poll_secs = config.poll_secs;
+    let team_label =
+        team_id.map(|id| crate::team::display_name(&config, i18n::effective().code(), id));
     let mut open_settings = false;
 
     // The worker's view, read under a short lock: nothing here touches the network or disks.
@@ -87,14 +89,8 @@ fn draw_status(ui: &nexus::imgui::Ui) {
         let map_type = state.map_type.to_string();
         ui.text(i18n::format("Map {0} (type {1})", &[&map_id, &map_type]));
 
-        match team_id {
-            Some(id) => {
-                let label = match team_alias.clone() {
-                    Some(alias) => alias,
-                    None => gw2lurker_core::bundled().label_in(i18n::effective().code(), id),
-                };
-                ui.text(i18n::format("Team {0}", &[&label]));
-            }
+        match &team_label {
+            Some(label) => ui.text(i18n::format("Team {0}", &[label])),
             None => ui.text(i18n::text("No team configured yet")),
         }
 

@@ -56,9 +56,11 @@ Comprobado el **2026-10-31** contra la API real, el código fuente de `nexus-rs`
 
 **RF-03e (S)** El `world_id` de MumbleLink es un *shard id* y **no** identifica el equipo (verificado en el código de `gw2-mumble-rs`: "not usable since the switch to the megaserver system"). Por tanto la selección es manual por defecto. Solo si el spike T-01 demuestra que coincide con el id de equipo se ofrecerá como sugerencia aceptable.
 
-**RF-03f (S)** El usuario podrá asignar un **alias** propio a su equipo, que se usará en la UI en lugar del nombre de la tabla.
-- **El alias es local**: vive en su `settings.json` y no se comparte con otros usuarios del addon. Para que *todos* vean un nombre concreto hay que promoverlo a `data/wvw-teams.json` (`names: {es, fr, de}`), que va dentro de la DLL: se estrena con la siguiente versión, no en caliente.
-- Editar el alias no cambia el equipo elegido, y cambiarlo se ve al instante en la ventana de estado y en el desplegable.
+**RF-03f (S)** El usuario podrá **corregir la traducción** del nombre de su equipo, que se usará en la UI en lugar del nombre de la tabla.
+- El campo viene **prellenado** con el nombre en el idioma del juego (el efectivo, no el override de Ctrl derecho) y se guarda **por idioma** (`team_names: { "es": "…" }`), para que cambiar el idioma del juego no muestre el nombre de otro idioma.
+- Escribir exactamente el nombre automático **no** crea una entrada: el campo vuelve a seguir las traducciones incluidas. Vaciar el campo hace lo mismo.
+- La corrección es **local**: vive en su `settings.json` y no se comparte. Para que *todos* vean un nombre concreto hay que promoverlo a `data/wvw-teams.json` (`names` por id) o a `data/team-names.json` (por nombre inglés), que van dentro de la DLL: se estrena con la siguiente versión, no en caliente.
+- El alias único de 0.5.x se sigue leyendo y se migra a `team_names` en cuanto se guarda.
 
 **RF-03g (M)** Tras elegir equipo, el addon deberá mostrar los otros dos equipos del match actual (nombre e id) para que el usuario compruebe que es el suyo.
 - GWT: *Given* un equipo recién elegido, *When* se resuelve el match, *Then* se listan sus dos rivales con nombre e id y el color asignado, con opción de corregir la elección.

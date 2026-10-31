@@ -34,6 +34,23 @@ Reglas:
   bueno un HTTP 200. Se reintenta con `-VerifyOnly` pasados unos minutos; no se cambia la URL
   ni la versión para taparlo.
 
+## HECHO – 2026-10-31 · «Alias» pasa a «Traducción», prellenada (0.6.0)
+
+- El campo se llama **Traducción** y viene **prellenado** con el nombre en el idioma del juego
+  (el efectivo, no el de Ctrl derecho, para que mantenerlo pulsado no reescriba nada).
+- Se guarda **por idioma** en `team_names: {"es": "…"}`: cambiar el idioma del juego no muestra
+  el nombre español encima del francés. `Config::custom_name` / `set_custom_name` son las dos
+  únicas puertas; escribir exactamente el nombre automático **no** crea entrada, así que el
+  campo sigue las traducciones incluidas cuando el jugador no corrige nada.
+- El `team_alias` único de 0.5.x se sigue leyendo (`custom_name` cae a él) y se migra a
+  `team_names` en cuanto se guarda, para no perder lo que ya estaba escrito.
+- `team::display_name` es ahora la única forma de pintar el nombre del equipo (ventana de estado
+  y desplegable), así que no hay dos criterios.
+- Verificado: 39 tests en el addon (4 nuevos), 73 en `core`, `clippy -D warnings` limpio.
+- Trampa: al leer el idioma activo se toca `RealTimeApi` y eso revienta en un test
+  (`AddonApi::get()`), así que la regla recibe el idioma como parámetro; es la regla 3 del
+  §10 otra vez.
+
 ## HECHO – 2026-10-31 · Nombres de equipo desde `data/equipos.xlsx` (0.5.1)
 
 - `scripts/merge_team_names.ps1`: lee el `.xlsx` sin dependencias (es un ZIP con XML,
