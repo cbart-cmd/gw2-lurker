@@ -19,7 +19,7 @@ use nexus::gui::{register_render, render, RenderType};
 use std::sync::atomic::{AtomicBool, AtomicI64, Ordering};
 
 use crate::i18n;
-use gw2lurker_core::model::MapRole;
+use gw2lurker_core::model::{MapRole, TeamColor};
 
 pub use popup::start_test_popup;
 
@@ -526,7 +526,7 @@ fn map_choice() -> std::sync::MutexGuard<'static, MapRole> {
 /// One line with the state of the worker and the configured team (RF-02, RF-46).
 fn draw_health(ui: &nexus::imgui::Ui, config: &mut crate::config::Config, data: &Tabbed) {
     let state = crate::context::snapshot();
-    let (health, match_id, updated, selection, last_claim_at) = {
+    let (health, match_id, updated, selection, last_claim_at, candidates) = {
         let board = crate::worker::dashboard();
         (
             board.health.clone(),
@@ -534,6 +534,7 @@ fn draw_health(ui: &nexus::imgui::Ui, config: &mut crate::config::Config, data: 
             board.updated_at,
             board.selection.clone(),
             board.last_claim_at,
+            board.candidates.clone(),
         )
     };
     let team_id = crate::team::selected_in(config);
@@ -553,12 +554,29 @@ fn draw_health(ui: &nexus::imgui::Ui, config: &mut crate::config::Config, data: 
         Some(label) => ui.text(i18n::format("Team {0}", &[&label])),
         None => ui.text(i18n::text("No team configured yet")),
     }
-    // The region goes in the line on purpose: a team of the other region is watched through a
-    // matchup that has nothing to do with the player, and then nothing ever alerts (report of
-    // 2026-10-31, the saved team played NA while the player was in an EU borderland).
+    // Nada de «1-1»: eso es un código interno del API. Lo que el jugador reconoce es **quién
+    // juega** en su partida, con sus colores. El id sigue en el log, que es donde sirve
+    // (insistencia del jugador, 2026-10-31: «soy humano, nadie dice 1-1»).
     if let Some(id) = &match_id {
-        let label = format!("{id} · {}", region_of_matchup(id));
-        ui.text_disabled(i18n::format("Matchup {0}", &[&label]));
+        let region = match region_of_matchup(id) {
+            "NA" => i18n::text("North America"),
+            "EU" => i18n::text("Europe"),
+            _ => i18n::text("Unknown region"),
+        };
+        ui.text_disabled(i18n::format("Match in {0}", &[region]));
+        let teams: Vec<String> = [TeamColor::Green, TeamColor::Blue, TeamColor::Red]
+            .into_iter()
+            .filter_map(|colour| {
+                let candidate = candidates
+                    .iter()
+                    .find(|c| c.match_id == *id && c.color == colour)?;
+                let name = crate::team::display_name(config, language, candidate.team_id);
+                Some(format!("{} · {name}", colour_label(colour)))
+            })
+            .collect();
+        if !teams.is_empty() {
+            ui.text_wrapped(teams.join("   "));
+        }
     }
     // A saved team that no longer plays leaves the addon watching a matchup that is not the
     // player's: saying it out loud is the difference between "no funciona" and "elige equipo".
@@ -632,15 +650,34 @@ fn draw_health(ui: &nexus::imgui::Ui, config: &mut crate::config::Config, data: 
     }
 }
 
+/// Nombre del color del equipo, el mismo que usa el panel de WvW del juego.
+fn colour_label(colour: TeamColor) -> &'static str {
+    match colour {
+        TeamColor::Red => i18n::text("Red"),
+        TeamColor::Green => i18n::text("Green"),
+        TeamColor::Blue => i18n::text("Blue"),
+    }
+}
+
 /// Region of a matchup id: `1-x` is North America and `2-x` is Europe.
 ///
 /// It is in the widget on purpose: a team of the wrong region makes the addon watch a matchup
 /// that has nothing to do with the player, and then no alert ever fires (bug of 2026-10-31).
-fn region_of_matchup(match_id: &str) -> &'static str {
+/// The **id itself is never shown**: `1-1` means nothing to a player, so only the region is.
+pub(super) fn region_of(match_id: &str) -> Option<gw2lurker_core::model::Region> {
+    use gw2lurker_core::model::Region;
     match match_id.split_once('-').map(|(region, _)| region) {
-        Some("1") => "NA",
-        Some("2") => "EU",
-        _ => "?",
+        Some("1") => Some(Region::Na),
+        Some("2") => Some(Region::Eu),
+        _ => None,
+    }
+}
+
+fn region_of_matchup(match_id: &str) -> &'static str {
+    match region_of(match_id) {
+        Some(gw2lurker_core::model::Region::Na) => "NA",
+        Some(gw2lurker_core::model::Region::Eu) => "EU",
+        None => "?",
     }
 }
 

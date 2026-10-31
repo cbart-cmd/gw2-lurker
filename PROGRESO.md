@@ -13,6 +13,19 @@ Reglas:
 
 ---
 
+## HECHO – 2026-10-31 · Nada de «1-1» en la interfaz (0.22.6)
+
+- El jugador lo había pedido cinco veces y tenía razón: `1-1` es un identificador del API y no
+  significa nada para una persona. Cabecera: `PARTIDA EN NORTEAMÉRICA` + `Verde · <equipo>   Azul ·
+  <equipo>   Rojo · <equipo>` (los tres del emparejamiento, con `theme::team_colour`). El id sigue
+  en el log, que es donde sirve para diagnosticar.
+- El selector de equipo también lo enseñaba (`Invernadero de Lutgardis · 1-1 · Europa`): ahora
+  `Invernadero de Lutgardis · EU · Lutgardis, Vabbi`. `ui::region_of` pasa a ser la fuente única de
+  región a partir del id.
+- Verificación: 211 tests en verde, `clippy -D warnings` y `cargo fmt --check` limpios.
+- La tabla i18n llegó a 806 líneas: se parte en `i18n/table.rs` y `i18n/table/more.rs`, con
+  `i18n::entries()` recorriendo las dos y un test que comprueba que una clave de cada mitad traduce.
+
 ## HECHO – 2026-10-31 · «Aviso emergente», todo lo que sigo, último reclamo y teselas a medias (0.22.5)
 
 Tres cosas del informe de las 22:09, con la evidencia del `Nexus.log` y del API.

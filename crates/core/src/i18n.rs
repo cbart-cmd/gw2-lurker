@@ -92,8 +92,14 @@ impl Language {
 mod table;
 pub use table::TEXT;
 
+/// All the entries of the table, in two files so neither grows past the line limit.
+fn entries() -> impl Iterator<Item = (&'static str, [&'static str; COLUMNS])> {
+    TEXT.iter().chain(table::more::TEXT.iter()).copied()
+}
+
 /// Looks a key up in an arbitrary table. Kept separate so the English fallback can be tested
-/// with a table that does have an empty cell, which [`TEXT`] may never have.
+/// with a table that does have an empty cell, which the real table may never have.
+#[cfg(test)]
 fn lookup(
     table: &'static [(&'static str, [&'static str; COLUMNS])],
     language: Language,
@@ -112,7 +118,15 @@ fn lookup(
 
 /// Translation of `key`, falling back to the key itself when it is not in the table.
 pub fn t(language: Language, key: &'static str) -> &'static str {
-    lookup(TEXT, language, key)
+    let Some((_, cells)) = entries().find(|(english, _)| *english == key) else {
+        return key;
+    };
+    let cell = cells[language.index()];
+    if cell.is_empty() {
+        cells[EN]
+    } else {
+        cell
+    }
 }
 
 /// Translation with a stable imgui id appended.
@@ -138,7 +152,7 @@ mod tests {
 
     #[test]
     fn rf44_every_column_is_filled() {
-        for (key, cells) in TEXT {
+        for (key, cells) in entries() {
             for language in Language::ALL {
                 assert!(
                     !cells[language.index()].is_empty(),
@@ -151,15 +165,25 @@ mod tests {
 
     #[test]
     fn rf44_keys_are_unique() {
-        for (index, (key, _)) in TEXT.iter().enumerate() {
-            let repeated = TEXT[index + 1..].iter().find(|(other, _)| other == key);
-            assert!(repeated.is_none(), "clave duplicada: «{key}»");
+        let all: Vec<(&str, [&str; COLUMNS])> = entries().collect();
+        for index in 0..all.len() {
+            let key = all[index].0;
+            let repeated = all[index + 1..].iter().any(|(other, _)| *other == key);
+            assert!(!repeated, "clave duplicada: «{key}»");
         }
     }
 
     #[test]
     fn rf44_unknown_key_is_returned_as_is() {
         assert_eq!(t(Language::De, "not in the table"), "not in the table");
+    }
+
+    #[test]
+    fn rf44_both_halves_of_the_table_are_looked_up() {
+        // La tabla vive en dos ficheros: una clave de cada mitad tiene que traducirse, o la
+        // segunda mitad se quedaría sin usar en silencio.
+        assert_eq!(t(Language::Es, "Region"), "Región");
+        assert_eq!(t(Language::Es, "Red desert"), "Desierto rojo");
     }
 
     #[test]

@@ -529,15 +529,19 @@ fn draw_team(
             }
             for candidate in options {
                 // Los mundos antiguos de ese equipo, que es como el jugador lo reconoce: los
-                // nombres de equipo son nuevos y no dicen nada (informe de 2026-10-31).
+                // nombres de equipo son nuevos y no dicen nada (informe de 2026-10-31). Nada de
+                // «1-1»: la región, en palabras (insistencia del jugador, 2026-10-31).
                 let worlds = worlds_label(&candidate.worlds, worlds);
-                let label = format!(
-                    "{}  ·  {}{}###team{}",
-                    table.label_in(language, candidate.team_id),
-                    candidate.match_id,
-                    worlds,
-                    candidate.team_id
+                let region = match super::region_of(&candidate.match_id) {
+                    Some(Region::Eu) => region_label(Region::Eu),
+                    Some(Region::Na) => region_label(Region::Na),
+                    None => "?",
+                };
+                let head = format!(
+                    "{}  ·  {region}",
+                    table.label_in(language, candidate.team_id)
                 );
+                let label = format!("{head}{worlds}###team{}", candidate.team_id);
                 let _tint = ui.push_style_color(StyleColor::Text, colour_rgba(candidate.color));
                 if Selectable::new(label)
                     .selected(edits.team_id == Some(candidate.team_id))

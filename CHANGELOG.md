@@ -1,6 +1,14 @@
 # Changelog
 Formato [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/), versionado [SemVer](https://semver.org/lang/es/).
 
+## [0.22.6] - 2026-10-31
+### Cambiado
+- **Se acabaron los códigos en la cabecera**: donde decía `EMPAREJAMIENTO 1-1 · NA` ahora pone
+  **`PARTIDA EN NORTEAMÉRICA`** y debajo **quién juega**, con sus colores:
+  `Verde · Invernadero de Lutgardis   Azul · …   Rojo · …`. El id interno (`1-1`) ya solo aparece en
+  el log. El selector de equipo tampoco enseña el código: `Nombre · EU · mundos antiguos`.
+- Mismo criterio que el mapa: la cabecera dice `ESTÁS EN: DESIERTO ROJO`, nunca `MAPA 1099 (TIPO 12)`.
+
 ## [0.22.5] - 2026-10-31
 ### Cambiado
 - **«Aviso emergente» en vez de «toast»**: en los ajustes se llama «Aviso emergente (Nexus) de todo
