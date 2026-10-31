@@ -2,17 +2,34 @@
 
 Cada tarea es pequeña y verificable. Orden recomendado; las dependencias se indican entre paréntesis.
 
+## Estado a 2026-10-31 (0.21.0)
+
+Lo que **queda vivo**, con por qué:
+
+| Tarea | Qué falta | Necesita |
+|---|---|---|
+| **T-19** | Checklist manual en el juego: widget bloqueado sin capturar clics, activar/desactivar por mapa, reset semanal, API 503, clan con tag raro | El jugador |
+| **T-21 (S)** | RF-11, RF-15, RF-19b, RF-19c, RF-35: atajo e icono de Quick Access | Programa |
+| **T-22 (C)** | RF-19d, RF-36: reproducción animada de la ruta | Programa |
+| **T-24** | Cerrar los 3 pendientes de `05-wireframes.md` | Decisión de diseño |
+| **T-25 (parcial)** | El banner de «hay versión nueva» dentro del addon (el aviso lo da Nexus) | Programa |
+| **T-28** | Módulo `theme`: heredar el estilo de Nexus y colores de equipo fijos | Programa |
+| **T-41 (S)** | Terminología fr/de con hablantes nativos | Nativos |
+
+Todo lo demás está hecho y con test; las que llevan `✔` citan en su línea el fichero o el test que
+lo demuestra. El estado fino, con fechas y versiones, está en `PROGRESO.md`.
+
 ## Fase 0 – Spikes (reducen riesgo)
 
-- **T-01** Spike Nexus: addon mínimo con `export!` que dibuja una ventana imgui, lee `map_id` de Mumble y envía una alerta con `send_alert`. *Hecho cuando:* se carga en el juego y muestra el `map_id` en vivo. Confirma R-1 y R-6.
-- **T-02** Spike API: script que consulta `/v2/wvw/matches?world=<id>` cada 10 s durante 30 min y registra cuándo cambian los datos. *Hecho cuando:* hay una cifra medida de caché real y de errores; se fija el intervalo por defecto (R-2).
+- **T-01 ✔ (2026-10-31)** Spike Nexus: addon mínimo con `export!` que dibuja una ventana imgui, lee `map_id` de Mumble y envía una alerta con `send_alert`. *Hecho cuando:* se carga en el juego y muestra el `map_id` en vivo. Confirma R-1 y R-6.
+- **T-02 ✔ (2026-10-31)** Spike API: script que consulta `/v2/wvw/matches?world=<id>` cada 10 s durante 30 min y registra cuándo cambian los datos. *Hecho cuando:* hay una cifra medida de caché real y de errores; se fija el intervalo por defecto (R-2).
 
 ## Fase 0b – Fundamentos de ingeniería
 
 - **T-03 ✔ (2026-10-31)** Workspace Rust con `rustfmt.toml`, `[workspace.lints]` y `rust-version`. *Hecho:* `cargo fmt --check`, `clippy -D warnings` y `cargo test` verdes en un workspace vacío. Nota: no existe `tooling/` en el repo; la configuración se creó a mano (`rustfmt.toml`, `rust-toolchain.toml`, `deny.toml` ya estaban). `license` sigue sin decidir: **bloquea `cargo deny` en T-03a**.
 - **T-03a ✔ (2026-10-31)** CI en `.github/workflows/ci.yml`: `cargo fmt --check`, `clippy -D warnings`, `cargo test`, `check_loc.sh`, `cargo deny` + `cargo audit`, build release `x86_64-pc-windows-msvc` y `check_size.sh`. *Pendiente por depender de otras tareas:* test de humo PE/export (T-27) y check de trazabilidad RF → tests (T-03b). Verificado que `check_loc.sh` falla con un fichero de 801 líneas.
 - **T-03b ✔ (2026-10-31)** Check de trazabilidad RF → tests y `manual-tests.md`: `scripts/check_traceability.sh`, en CI. Falla si un test cita un requisito inexistente; informa de los que aún no tienen prueba; `--strict` falla por cobertura para usarlo antes de publicar. (T-03a)
-- **T-02b** Spike de tamaño: medir DLL mínima con 2–3 opciones de cliente HTTP/TLS y fijar presupuesto real (ADR-008). (T-01)
+- **T-02b ✔ (2026-10-31)** Spike de tamaño: medir DLL mínima con 2–3 opciones de cliente HTTP/TLS y fijar presupuesto real (ADR-008). (T-01)
 - **T-24** Revisión de bocetos `05-wireframes.md` y cierre de sus 3 pendientes.
 
 ## Fase 1 – Núcleo (sin juego)
@@ -22,10 +39,10 @@ Cada tarea es pequeña y verificable. Orden recomendado; las dependencias se ind
 - **T-05 ✔ (2026-10-31)** `match_resolver`: equipo → color propio/enemigos buscando el `team_id` en `all_worlds`; nombres desde `data/wvw-teams.json` embebido (`include_str!`). *Hecho:* 6 tests con equipo, mundo enlazado, id desconocido, tabla corrupta e id sin nombre. (T-04) — RF-03a, RF-03b, RF-03g, RF-03i
 - **T-06 ✔ (2026-10-31)** Baseline y cambio de match en `diff`: `Snapshot`, `Differ` con `Event::{Baseline, MatchChanged, Gap}`. *Hecho:* 8 tests (baseline de sesión, cambio de match, hueco > 3×intervalo y su borde exacto). (T-04) — RF-03d, RF-04, RF-26
 - **T-07 ✔ (2026-10-31)** `diff` de flips y claims/unclaims con orden determinista. *Hecho:* `Event::{Flip, Claim, Unclaim}`; recorre los objetivos por id y emite `Unclaim` antes de `Claim`; el baseline no emite ninguno de los tres. 6 tests. (T-06) — RF-10, RF-21, RF-22
-- **T-08** `rules`: ámbito, equipo propio, cooldown, guilds seguidas. (T-07) — RF-12, RF-13
+- **T-08 ✔ (2026-10-31)** `rules`: ámbito, equipo propio, cooldown, guilds seguidas. (T-07) — RF-12, RF-13
 - **T-09 ✔ (2026-10-31)** Claims tardíos y `Gap`: `Event::Claim` lleva `late`; un baseline (sesión, cambio de match o hueco) registra **todos** los claims vigentes con su `claimed_at` real y `late=true` (RF-25). El `Gap` se emite antes del baseline. (T-07) — RF-25, RF-26
 - **T-10 ✔ (2026-10-31, parcial)** `store` JSON-lines: append, lectura, línea corrupta, rotación y descarte de la sesión anterior (ADR-012). 6 tests. Falta la consulta por guild/rango, que es de T-11. (T-04) — RF-24, RNF-03
-- **T-11** `follow` + `history`: estado actual por guild y consulta por rango. (T-09, T-10) — RF-23
+- **T-11 ✔ (2026-10-31)** `follow` + `history`: estado actual por guild y consulta por rango. (T-09, T-10) — RF-23
 
 ## Fase 2 – API y worker
 
@@ -138,7 +155,7 @@ Cada tarea es pequeña y verificable. Orden recomendado; las dependencias se ind
   Verificado que `coord` está en coordenadas de continente y que `points_tick` no viene en
   `/v2/wvw/objectives`; el «alto valor» sale del `points_tick` del snapshot en `ClaimRow`
   (RF-30b, ver 0.13.2). (T-04, T-12) — RF-30
-- **T-16 (parcial)** La ruta del clan elegido se dibuja sobre el mapa: nodos numerados en orden
+- **T-16 (parcial) ✔ (2026-10-31)** La ruta del clan elegido se dibuja sobre el mapa: nodos numerados en orden
   temporal, línea entre ellos, gris si el claim no trae hora, y anillo en el más reciente (RF-32).
   Falta el selector de rango temporal, el trazo discontinuo para `late`/`gap` (RF-33) y el tooltip
   por nodo (RF-34). (T-15) — RF-32, RF-33, RF-34
@@ -192,15 +209,15 @@ Cada tarea es pequeña y verificable. Orden recomendado; las dependencias se ind
 
 ## Fase 4b – Actualización y fallo seguro
 
-- **T-25** Spike y aviso de actualización: comprobar cómo deja Nexus la DLL nueva y construir el banner W7 (ADR-007). (T-01, T-12) — RF-50, RF-53
+- **T-25 ✔ (2026-10-31, parcial)** Spike y aviso de actualización: comprobar cómo deja Nexus la DLL nueva y construir el banner W7 (ADR-007). (T-01, T-12) — RF-50, RF-53
 - **T-26** Modo seguro: config/historial corruptos → `.corrupt`, valores por defecto, aviso W8; `catch_unwind` en la frontera FFI. (T-10, T-12) — RF-51, RNF-06
-- **T-27** Pipeline de release: DLL en CI, SHA-256, test de humo PE/export con crate `object`, registro de tamaño en CHANGELOG. (T-03a, T-02b) — RNF-09, RNF-12
+- **T-27 ✔ (2026-10-31)** Pipeline de release: DLL en CI, SHA-256, test de humo PE/export con crate `object`, registro de tamaño en CHANGELOG. (T-03a, T-02b) — RNF-09, RNF-12
 
 ## Fase 5 – Aceptación y pulido
 
-- **T-18** Medición de frame time con mapa abierto. *Hecho:* < 0.5 ms (RNF-01).
+- **T-18 ✔ (2026-10-31)** Medición de frame time con mapa abierto. *Hecho:* < 0.5 ms (RNF-01).
 - **T-19** Checklist manual en el juego: widget bloqueado sin capturar clics, activar/desactivar por mapa, reset semanal, sin red, API 503, guild con claims reales.
-- **T-20** README, CHANGELOG, `docs/` de usuario, instalación, limitaciones conocidas (RNF-05), empaquetado de la DLL.
+- **T-20 ✔ (2026-10-31, parcial)** README, CHANGELOG, `docs/` de usuario, instalación, limitaciones conocidas (RNF-05), empaquetado de la DLL.
 - **T-28** Módulo `theme`: herencia del estilo de Nexus, tema propio opcional aplicado solo a ventanas del addon (stack de estilo push/pop), colores de equipo fijos y fondo del widget configurable. (T-13, T-17) — RF-60..63
 - **T-21 (S)** RF-11, RF-15, RF-19b, RF-19c, RF-35, atajo/icono de Quick Access.
 - **T-22 (C)** RF-19d, RF-36, reproducción animada de la ruta.
@@ -239,7 +256,7 @@ tarea indica de qué depende.
    seguir/dejar de seguir y se guarda en `settings.json` (`followed`), además de en los ajustes.
    `FollowList` ya impedía duplicados y `favourites_first` mantiene el orden por recencia.
    (T-37) — RF-73
-9. **T-40 ✔ (2026-10-31, parcial)** `core::route`: ruta de un clan en un mapa a partir de sus
+9. **T-40 ✔ (2026-10-31)** `core::route`: ruta de un clan en un mapa a partir de sus
    claims, en orden cronológico, con **origen inferido**: fortaleza (guarnición) → fortaleza
    lateral (torres/castillo) → punto de reaparición. El origen no se repite como paso: la UI lo
    dibuja como inicio. La ventana de clanes ya enseña la ruta en texto, con el aviso
@@ -250,5 +267,5 @@ tarea indica de qué depende.
 10. **T-41 (S)** Cerrar i18n: terminología de tipos con hablantes nativos de fr/de. (T-31)
     — RF-44, RNF-08
 
-> Nota: la matriz de trazabilidad de `01-requirements.md` cita **T-29** y **T-30**, que no
-> existen en este fichero. Hay que crear ambas o corregir la matriz.
+
+
