@@ -241,7 +241,7 @@ fn run() {
             }
         }
 
-        let interval = Duration::from_secs(u64::from(crate::config().poll_secs));
+        let interval = Duration::from_secs(u64::from(crate::runtime().poll_secs));
         let wait = interval
             .max(Duration::from_millis(backoff_ms))
             .min(MAX_BACKOFF);
@@ -321,7 +321,12 @@ fn poll_once(
     // showed one team per colour (bug of 2026-10-31).
     let full = wants_full_list(saved, NEEDS_TEAMS.load(Ordering::Relaxed));
     let needs_all = full || crate::detect::due();
-    let live = match saved {
+    // Lo que se pide es la partida del equipo que **se va a vigilar**, no la del guardado: con
+    // la detección cacheada un cuarto de hora, pedir la del guardado y evaluar después el equipo
+    // detectado dejaba al addon mirando otra partida 14 de cada 15 minutos (informe de
+    // 2026-10-31).
+    let polled = polled_team(saved, crate::detect::cached().map(|found| found.team));
+    let live = match polled {
         // Known team: ask only for its match (~44 KB instead of ~400 KB).
         Some(team) if !needs_all => match api.match_for_team(team) {
             Ok(found) => vec![found],
@@ -372,10 +377,13 @@ fn poll_once(
             .filter_map(|event| history_row(event, entry, &names, &roles_of_match))
             .collect();
         if let Some(store) = store {
+            // La lista que manda es la de la ventana, no la del arranque: un clan que el jugador
+            // acaba de dejar de seguir no puede seguir escribiéndose en disco.
+            let followed = crate::runtime().followed.clone();
             for event in &events {
                 // On disk only the followed guilds: the rest of the claims are the state of the
                 // matchup, which the API returns anyway (bug of 2026-10-31).
-                if !keeps_in_the_store(event, &crate::config().followed) {
+                if !keeps_in_the_store(event, &followed) {
                     continue;
                 }
                 let record = Record::new(Utc::now(), entry.id.clone(), event.clone());
@@ -388,7 +396,7 @@ fn poll_once(
 
     let now = Utc::now();
     let candidates = select::candidates(&live);
-    let followed = crate::config().followed.clone();
+    let followed = crate::runtime().followed.clone();
     let guild_names = resolve_guild_names(api, &guilds, &followed);
     let world_names = crate::catalog::world_names(api);
     let maps = maps_for(api);
@@ -450,6 +458,15 @@ fn poll_once(
 /// colour (bug of 2026-10-31, RF-03a).
 fn wants_full_list(team_id: Option<u32>, picker_on_screen: bool) -> bool {
     team_id.is_none() || picker_on_screen
+}
+
+/// Team whose match the poll asks for: the one the game gave, or the saved one as before.
+///
+/// The detection is cached for a quarter of an hour, so after a successful detection the save
+/// in the settings can be a different team; asking for the saved match and then evaluating the
+/// detected team found it nowhere and fell back to that same wrong match.
+fn polled_team(saved: Option<u32>, detected: Option<u32>) -> Option<u32> {
+    detected.or(saved)
 }
 
 /// Whether an event is worth writing to disk: only what a followed guild did.
@@ -526,263 +543,4 @@ fn current_match<'a>(live: &'a [Match], id: Option<&str>) -> Option<&'a Match> {
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::alerts::MAX_ALERTS;
-
-    /// Full data path against the live API: WinHTTP + parse + the core view models.
-    /// Ignored by default because CI must not depend on the network.
-    #[test]
-    #[ignore = "requiere red"]
-    fn live_pipeline_builds_the_dashboard() {
-        let api = Api::new(WinHttpTransport::default());
-        let live = api.matches_all().expect("matches");
-        let names = api.objectives("es").expect("objectives");
-
-        let team = 12014;
-        let selection = select::evaluate(Some(team), &live);
-        let Selection::Confirmed { match_id, .. } = selection else {
-            panic!("12014 deberia estar jugando: {selection:?}");
-        };
-
-        let entry = api.match_by_id(&match_id).expect("match");
-        let rows = matchup::claims(&entry, &names);
-        let guilds = matchup::rank_guilds(&rows);
-
-        assert!(!rows.is_empty(), "el matchup real tiene claims");
-        assert!(
-            rows.iter().any(|row| row.name.is_some()),
-            "las filas llevan nombre de objetivo en espanol"
-        );
-        assert!(!guilds.is_empty());
-        assert!(
-            guilds
-                .windows(2)
-                .all(|pair| pair[0].last_at >= pair[1].last_at),
-            "el ranking va de mas reciente a menos"
-        );
-    }
-
-    #[test]
-    fn rf03a_the_picker_asks_for_every_matchup() {
-        assert!(
-            wants_full_list(Some(12014), true),
-            "con el selector en pantalla hacen falta los nueve matchups, no solo el mío"
-        );
-        assert!(
-            !wants_full_list(Some(12014), false),
-            "sin el selector basta el matchup del jugador (~44 KB en vez de ~400 KB)"
-        );
-        assert!(
-            wants_full_list(None, false),
-            "sin equipo configurado hay que pedirlo todo"
-        );
-    }
-
-    #[test]
-    fn rf25_a_restart_does_not_show_yesterday() {
-        let mut board = Dashboard::default();
-        board.push_alert(Event::Claim {
-            objective: "38-20".to_owned(),
-            guild: "1DB147F0".to_owned(),
-            at: Utc::now(),
-            late: true,
-        });
-        board.push_alert(Event::Claim {
-            objective: "38-21".to_owned(),
-            guild: "1DB147F0".to_owned(),
-            at: Utc::now(),
-            late: false,
-        });
-
-        let filter = gw2lurker_core::AlertFilter::default();
-        let follow = gw2lurker_core::FollowList::new();
-        let lines = board.recent_alerts(&filter, &follow, None, 50);
-
-        assert_eq!(lines.len(), 1, "solo el claim visto en vivo");
-        assert_eq!(lines[0].objective, "38-21");
-        assert!(!lines[0].late);
-    }
-
-    #[test]
-    fn rf21_a_followed_guild_is_told_when_the_claim_is_fresh() {
-        let now = Utc::now();
-        let mut board = Dashboard::default();
-        // Reclamado hace dos minutos: nos lo hemos perdido al arrancar, pero es de ahora.
-        board.push_alert(Event::Claim {
-            objective: "38-20".to_owned(),
-            guild: "1DB147F0".to_owned(),
-            at: now - chrono::Duration::minutes(2),
-            late: true,
-        });
-
-        let mut follow = gw2lurker_core::FollowList::new();
-        follow.add("1DB147F0");
-        let filter = gw2lurker_core::AlertFilter::default();
-
-        let lines = board.recent_alerts(&filter, &follow, None, 50);
-        assert_eq!(
-            lines.len(),
-            1,
-            "un clan seguido avisa de un claim de hace un momento, aunque fuera `late`"
-        );
-        assert!(lines[0].late);
-    }
-
-    #[test]
-    fn rf25_a_restart_does_not_refill_the_log_with_yesterdays_claims() {
-        // El bug de 2026-10-31: al reiniciar, el registro se llenaba con lo que ya estaba
-        // reclamado. Un claim viejo no es un aviso, ni siquiera de un clan seguido.
-        let now = Utc::now();
-        let mut board = Dashboard::default();
-        for hours in [1, 3, 26] {
-            board.push_alert(Event::Claim {
-                objective: format!("38-{hours}"),
-                guild: "1DB147F0".to_owned(),
-                at: now - chrono::Duration::hours(hours),
-                late: true,
-            });
-        }
-
-        let mut follow = gw2lurker_core::FollowList::new();
-        follow.add("1DB147F0");
-        let filter = gw2lurker_core::AlertFilter::default();
-        assert!(
-            board.recent_alerts(&filter, &follow, None, 50).is_empty(),
-            "el registro empieza vacío en cada sesión"
-        );
-    }
-
-    #[test]
-    fn t51_clicking_a_guild_knows_its_last_map() {
-        // Al clicar un clan se lleva el mapa al último donde reclamó algo (petición de
-        // 2026-10-31). El id del objetivo ya lleva el mapa delante.
-        let at = Utc::now();
-        let row = |objective: &str, at| ClaimRow {
-            map_id: 96,
-            map_role: MapRole::BlueHome,
-            objective_id: objective.to_owned(),
-            name: Some("Algo".to_owned()),
-            kind: gw2lurker_core::ObjectiveType::Tower,
-            owner: Some(gw2lurker_core::TeamColor::Red),
-            guild: "1DB147F0".to_owned(),
-            claimed_at: Some(at),
-            points_tick: 4,
-        };
-        let board = Dashboard {
-            history: vec![
-                row("38-20", at - chrono::Duration::minutes(30)),
-                row("96-40", at - chrono::Duration::minutes(5)),
-                row("1099-10", at - chrono::Duration::minutes(20)),
-            ],
-            ..Dashboard::default()
-        };
-
-        assert_eq!(
-            board.last_map_of("1DB147F0"),
-            Some(MapRole::BlueHome),
-            "el más reciente, no el primero"
-        );
-        assert_eq!(
-            board.last_map_of("OTRO"),
-            None,
-            "un clan sin historial no lleva a ningún mapa"
-        );
-    }
-
-    #[test]
-    fn rf73_only_the_followed_guilds_go_to_disk() {
-        let mut follow = gw2lurker_core::FollowList::new();
-        follow.add("1DB147F0");
-
-        let claim = |guild: &str, late: bool| Event::Claim {
-            objective: "38-20".to_owned(),
-            guild: guild.to_owned(),
-            at: Utc::now(),
-            late,
-        };
-
-        assert!(keeps_in_the_store(&claim("1DB147F0", false), &follow));
-        assert!(
-            !keeps_in_the_store(&claim("OTRO", false), &follow),
-            "los claims de clanes que no sigues no se guardan"
-        );
-        assert!(
-            !keeps_in_the_store(&claim("1DB147F0", true), &follow),
-            "lo que ya estaba al arrancar no es historial de esta sesión"
-        );
-        assert!(!keeps_in_the_store(
-            &Event::Gap {
-                from: Utc::now(),
-                to: Utc::now(),
-            },
-            &follow
-        ));
-    }
-
-    #[test]
-    fn rf19_alerts_are_bounded_and_skip_baselines() {
-        let mut board = Dashboard::default();
-        board.push_alert(Event::Baseline {
-            reason: gw2lurker_core::BaselineReason::SessionStart,
-        });
-        assert!(board.alerts.is_empty(), "un baseline no es un aviso");
-
-        for _ in 0..(MAX_ALERTS + 10) {
-            board.push_alert(Event::Unclaim {
-                objective: "38-20".to_owned(),
-                guild: "1DB147F0".to_owned(),
-                at: Utc::now(),
-            });
-        }
-        assert_eq!(board.alerts.len(), MAX_ALERTS);
-    }
-
-    #[test]
-    fn rf38_an_alert_says_which_kind_of_objective_it_is_about() {
-        // T-47: la línea lleva el dibujo del objetivo, así que el tipo tiene que llegar hasta
-        // ella. `names` es la tabla de objetivos de `/v2/wvw/objectives`.
-        let mut board = Dashboard {
-            names: vec![ObjectiveInfo {
-                id: "38-20".to_owned(),
-                name: "Zanja de Mendon".to_owned(),
-                kind: gw2lurker_core::ObjectiveType::Tower,
-                map_id: 38,
-                coord: None,
-                label_coord: None,
-                marker: None,
-            }],
-            ..Dashboard::default()
-        };
-        board.push_alert(Event::Claim {
-            objective: "38-20".to_owned(),
-            guild: "1DB147F0".to_owned(),
-            at: Utc::now(),
-            late: false,
-        });
-        board.push_alert(Event::Claim {
-            objective: "38-99".to_owned(),
-            guild: "1DB147F0".to_owned(),
-            at: Utc::now(),
-            late: false,
-        });
-
-        let follow = gw2lurker_core::FollowList::new();
-        let lines = board.recent_alerts(&gw2lurker_core::AlertFilter::default(), &follow, None, 50);
-        assert_eq!(lines.len(), 2);
-        let known = lines
-            .iter()
-            .find(|line| line.objective == "Zanja de Mendon")
-            .expect("el objetivo se nombra");
-        assert_eq!(known.objective_kind, gw2lurker_core::ObjectiveType::Tower);
-        let unknown = lines
-            .iter()
-            .find(|line| line.objective == "38-99")
-            .expect("un objetivo que no está en la tabla se enseña por su id");
-        assert_eq!(
-            unknown.objective_kind,
-            gw2lurker_core::ObjectiveType::Unknown,
-            "sin datos no se inventa un tipo"
-        );
-    }
-}
+mod tests;

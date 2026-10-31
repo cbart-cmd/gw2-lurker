@@ -71,6 +71,14 @@ fn pending_remove() -> std::sync::MutexGuard<'static, Option<String>> {
         .unwrap_or_else(|error| error.into_inner())
 }
 
+/// Width reserved on the right of each followed row for the `×`.
+///
+/// The `Selectable` of the label spans the whole width of the tab, so a button drawn after it
+/// with `same_line` ends up **outside** the window and cannot be clicked — which is exactly what
+/// «pulsar x no lo borra» looked like (report of 2026-10-31). The space is reserved first, the
+/// same trick the title bar uses for its own close button.
+const REMOVE_WIDTH: f32 = 24.0;
+
 /// The guilds the player follows, with a `×` to stop following each one.
 ///
 /// It lives in the *Guilds* tab and not in the settings: following a guild is something you
@@ -111,11 +119,28 @@ pub fn followed_section(
             continue;
         }
         // Se puede clicar: el jugador quiere ver la ruta de ese clan (petición de 2026-10-31).
-        if Selectable::new(format!("{}###followed{guild}", label(names, guild))).build(ui) {
+        // La fila lleva **ancho fijo** en vez de estirarse: una `Selectable` a todo lo ancho se
+        // comía el sitio de la `×` y la empujaba fuera de la ventana (informe de 2026-10-31).
+        let mut unfollow = false;
+        let start = ui.cursor_pos();
+        let width = ui.content_region_avail()[0];
+        let row = Selectable::new(format!("{}###followed{guild}", label(names, guild)));
+        if width > REMOVE_WIDTH * 2.0 {
+            let row_width = (width - REMOVE_WIDTH - ui.clone_style().item_spacing[0]).max(40.0);
+            ui.set_cursor_pos([start[0] + width - REMOVE_WIDTH, start[1]]);
+            unfollow = ui.small_button(format!("×###unfollow{guild}"));
+            ui.set_cursor_pos(start);
+            if row.size([row_width, 0.0]).build(ui) {
+                chosen = Some(guild.to_owned());
+            }
+        } else if row.build(ui) {
             chosen = Some(guild.to_owned());
         }
-        ui.same_line();
-        if ui.small_button(format!("×###unfollow{guild}")) {
+        if width <= REMOVE_WIDTH * 2.0 {
+            ui.same_line();
+            unfollow = ui.small_button(format!("×###unfollow{guild}"));
+        }
+        if unfollow {
             *pending = Some(guild.to_owned());
         }
     }
@@ -152,12 +177,25 @@ pub fn add_section(
     }
     session_block(ui, follow, session, names);
     ui.separator();
-    search_block(ui, follow, candidates, my_team);
+    search_block(ui, follow, candidates, my_team, names);
 }
 
 /// `[TAG] Nombre` when it is known, the raw id otherwise.
 fn label(names: &BTreeMap<String, String>, id: &str) -> String {
     names.get(id).cloned().unwrap_or_else(|| id.to_owned())
+}
+
+/// Whether a followed guild matches what the player typed, by name (tag included) or by id.
+///
+/// Unlike the API this is a plain substring, on purpose: it has to find **their** guild while the
+/// API is returning a different one with a similar name.
+fn matches_text(label: Option<&str>, id: &str, needle: &str) -> bool {
+    let needle = needle.trim().to_lowercase();
+    if needle.is_empty() {
+        return false;
+    }
+    label.unwrap_or_default().to_lowercase().contains(&needle)
+        || id.to_lowercase().starts_with(&needle)
 }
 
 /// Guilds that claimed something during this session: one click and they are followed.
@@ -195,7 +233,13 @@ fn session_block(
 }
 
 /// Search by team and name. The team is mandatory and only lists teams of the player's region.
-fn search_block(ui: &Ui, follow: &mut FollowList, candidates: &[Candidate], my_team: Option<u32>) {
+fn search_block(
+    ui: &Ui,
+    follow: &mut FollowList,
+    candidates: &[Candidate],
+    my_team: Option<u32>,
+    names: &BTreeMap<String, String>,
+) {
     // The list of live teams is fetched by the worker while this is on screen: inside WvW it is
     // only fetched when asked for, and nobody was asking (bug of 2026-10-31).
     crate::worker::set_teams_needed(true);
@@ -276,7 +320,25 @@ fn search_block(ui: &Ui, follow: &mut FollowList, candidates: &[Candidate], my_t
     if go && !text.trim().is_empty() {
         crate::search::start(region, chosen, text.trim().to_owned());
     }
+    // Los clanes que ya sigue se buscan aquí, sin red y sin API. Es lo que faltaba: en EU,
+    // «dolyak» devuelve otro clan (**DYAK · Dolyak**) y no el suyo (**YaK · Dolyak Sanctuary**),
+    // así que la ventana decía «no existe» sobre un clan que el jugador ya seguía (informe de
+    // 2026-10-31).
+    let already: Vec<String> = {
+        let needle = text.trim().to_owned();
+        follow
+            .iter()
+            .filter(|guild| matches_text(names.get(*guild).map(String::as_str), guild, &needle))
+            .map(|guild| label(names, guild))
+            .collect()
+    };
     drop(text);
+    if !already.is_empty() {
+        for name in &already {
+            ui.text(i18n::format("{0} · you already follow it", &[name]));
+        }
+        ui.separator();
+    }
 
     match crate::search::snapshot() {
         crate::search::State::Idle => {
@@ -290,6 +352,13 @@ fn search_block(ui: &Ui, follow: &mut FollowList, candidates: &[Candidate], my_t
         }
         crate::search::State::Done(hits) => {
             if hits.is_empty() {
+                if !already.is_empty() {
+                    // El clan está arriba, ya seguido: decirlo en vez de «no existe».
+                    ui.text_disabled(i18n::text(
+                        "The API has nothing else by that name; the guild you already follow is above.",
+                    ));
+                    return;
+                }
                 // El API busca por el **principio de una palabra del nombre**, así que un tag
                 // («YaK») no encuentra nada por mucho que exista (comprobado 2026-10-31).
                 ui.text_wrapped(i18n::text(
@@ -302,9 +371,17 @@ fn search_block(ui: &Ui, follow: &mut FollowList, candidates: &[Candidate], my_t
                 // Se enseñan todos los de la región, con su equipo: el que no es del equipo elegido
                 // sale igual, porque descartarlo hacía que un clan propio «no existiera» (informe
                 // de 2026-10-31). Los del equipo elegido van primero.
+                // La estrella marca lo que ya se sigue: el API devuelve **otro** clan con un
+                // nombre parecido y sin la marca no hay forma de saber cuál es cuál.
+                let star = if follow.contains(&hit.id) { "★ " } else { "" };
                 let text = match hit.team {
-                    Some(team) => format!("{}  ·  {}###hit{}", hit.label, team_label(team), hit.id),
-                    None => format!("{}  ·  ?###hit{}", hit.label, hit.id),
+                    Some(team) => format!(
+                        "{star}{}  ·  {}###hit{}",
+                        hit.label,
+                        team_label(team),
+                        hit.id
+                    ),
+                    None => format!("{star}{}  ·  ?###hit{}", hit.label, hit.id),
                 };
                 if !hit.matches_team {
                     let _dim = ui
@@ -389,5 +466,25 @@ mod tests {
             "un equipo que ya no juega no da región"
         );
         assert_eq!(region_of(&[], Some(11011)), None);
+    }
+
+    #[test]
+    fn t44_the_guilds_you_follow_are_found_whatever_the_api_answers() {
+        // El caso real del 2026-10-31: en EU, `/v2/guild/search?name=dolyak` devuelve
+        // **DYAK · Dolyak**, no **YaK · Dolyak Sanctuary**, que es el clan del jugador y el que
+        // sigue. Buscando en la lista de seguidos, «dolyak» y «yak» lo encuentran.
+        let yak = "[YaK] Dolyak Sanctuary";
+        assert!(matches_text(Some(yak), "6C45F3C8", "dolyak"));
+        assert!(matches_text(Some(yak), "6C45F3C8", "YAK"));
+        assert!(matches_text(Some(yak), "6C45F3C8", " dolyak "));
+        assert!(matches_text(None, "6C45F3C8", "6c45"), "también por id");
+        assert!(
+            !matches_text(Some(yak), "6C45F3C8", "waifu"),
+            "lo que no coincide no se cuela"
+        );
+        assert!(
+            !matches_text(Some(yak), "6C45F3C8", "  "),
+            "sin texto no se enseña la lista entera"
+        );
     }
 }

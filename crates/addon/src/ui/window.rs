@@ -211,6 +211,64 @@ pub fn covers(position: Option<[f32; 2]>, size: Option<[f32; 2]>, point: [f32; 2
         && point[1] <= position[1] + size[1]
 }
 
+/// Rectangle a window occupies, resolved the same way [`draw`] resolves it.
+///
+/// Needed from outside the window: a click-through one sees no mouse, so the right-click escape
+/// has to check the rectangle stored in the configuration.
+pub fn frame(
+    state: &WindowState,
+    slot: usize,
+    default_size: [f32; 2],
+) -> (Option<[f32; 2]>, Option<[f32; 2]>) {
+    (
+        Some(state.position.unwrap_or_else(|| default_position(slot))),
+        Some(clamp_size(state.size.unwrap_or(default_size))),
+    )
+}
+
+/// Whether the right mouse button was just pressed on top of the window `key`.
+///
+/// Rising edge only: with `mouse_down` alone the flag would flip on every frame the button was
+/// held. The rectangle comes from the **runtime** configuration: the loaded one never sees a
+/// click-through enabled from the settings, so the right click that is supposed to undo it never
+/// fired (report of 2026-10-31).
+pub fn right_click_on(key: &str, default_size: [f32; 2], ui: &Ui) -> bool {
+    static DOWN: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+    let pressed = ui.io().mouse_down[1];
+    let was = DOWN.swap(pressed, std::sync::atomic::Ordering::Relaxed);
+    if !pressed || was {
+        return false;
+    }
+    let (click_through, visible, position, size) = {
+        let config = crate::runtime();
+        match config.windows.get(key) {
+            Some(state) => {
+                let (position, size) = frame(state, 0, default_size);
+                (state.click_through, state.visible, position, size)
+            }
+            None => return false,
+        }
+    };
+    right_click_undoes_click_through(
+        click_through,
+        visible,
+        covers(position, size, ui.io().mouse_pos),
+    )
+}
+
+/// What the right click on a click-through window has to do. Pure, so the rule can be tested.
+pub fn right_click_undoes_click_through(click_through: bool, visible: bool, inside: bool) -> bool {
+    click_through && visible && inside
+}
+
+/// Whether the window chrome is the one that changed a field this frame.
+///
+/// The settings tab can flip the same field while the chrome runs, so the copy is written back
+/// field by field and the chrome only wins on what nobody else touched.
+pub fn chrome_wins<T: PartialEq>(before: T, after: T) -> bool {
+    before == after
+}
+
 /// Opacity as whole percent, which is how the user thinks about it (0–100).
 ///
 /// The configuration keeps `0.0–1.0` because that is what imgui's `bg_alpha` takes; the
@@ -236,6 +294,36 @@ pub fn opacity_from_percent(percent: f32) -> f32 {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn rf18_the_right_click_is_the_way_back_from_click_through() {
+        assert!(
+            right_click_undoes_click_through(true, true, true),
+            "clic derecho sobre una ventana en click-through la devuelve"
+        );
+        assert!(
+            !right_click_undoes_click_through(false, true, true),
+            "sin click-through no hay nada que deshacer"
+        );
+        assert!(
+            !right_click_undoes_click_through(true, false, true),
+            "una ventana cerrada no recibe el clic"
+        );
+        assert!(
+            !right_click_undoes_click_through(true, true, false),
+            "un clic fuera de la ventana es del juego"
+        );
+    }
+
+    #[test]
+    fn rf46_the_chrome_only_writes_the_fields_nobody_else_touched() {
+        assert!(chrome_wins(false, false), "nadie lo cambió: manda el cromo");
+        assert!(chrome_wins(0.9f32, 0.9f32));
+        assert!(
+            !chrome_wins(false, true),
+            "los ajustes lo cambiaron en el mismo fotograma: no se pisa"
+        );
+    }
 
     #[test]
     fn rf46_opacity_is_shown_as_percent() {

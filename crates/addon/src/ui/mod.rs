@@ -29,6 +29,9 @@ pub use popup::start_test_popup;
 /// settings, so everything the player needs is in the same place.
 pub const WIDGET: &str = "WvW Lurker";
 
+/// Size the widget opens with, before the player resizes it.
+pub const WIDGET_DEFAULT_SIZE: [f32; 2] = [470.0, 480.0];
+
 /// Tabs of the widget, in order. The last one is always the settings (T-42).
 const TABS: [&str; 5] = [
     alerts::KEY,
@@ -95,27 +98,6 @@ pub fn toggle_click_through(config: &mut crate::config::Config) -> bool {
     through
 }
 
-/// Whether the right mouse button was just pressed on top of the widget.
-///
-/// Rising edge only: with `mouse_down` alone the flag would flip on every frame the button was
-/// held. The rectangle the click is tested against is the one in the configuration, because a
-/// click-through window cannot report its own.
-fn right_click_on_widget(ui: &nexus::imgui::Ui) -> bool {
-    static DOWN: AtomicBool = AtomicBool::new(false);
-    let pressed = ui.io().mouse_down[1];
-    let was = DOWN.swap(pressed, Ordering::Relaxed);
-    if !pressed || was {
-        return false;
-    }
-    let Some(state) = crate::config().windows.get(WIDGET) else {
-        return false;
-    };
-    if !state.visible {
-        return false;
-    }
-    window::covers(state.position, state.size, ui.io().mouse_pos)
-}
-
 /// Registers the render callbacks. Must be called from `load`, never per frame.
 pub fn register() {
     nexus::keybind::register_keybind_with_struct(
@@ -151,12 +133,7 @@ pub fn register() {
             // Con click-through la ventana no recibe nada del ratón, así que la única salida era
             // el atajo o el panel de Nexus. El clic derecho sobre el widget lo desactiva
             // (petición de 2026-10-31): se mira el ratón desde aquí, que sí lo vemos.
-            if crate::config()
-                .windows
-                .get(WIDGET)
-                .is_some_and(|state| state.click_through)
-                && right_click_on_widget(ui)
-            {
+            if window::right_click_on(WIDGET, WIDGET_DEFAULT_SIZE, ui) {
                 let mut config = crate::runtime();
                 let through = toggle_click_through(&mut config);
                 crate::request_save(&config);
@@ -243,6 +220,13 @@ fn draw_widget(ui: &nexus::imgui::Ui) {
 
     let filters = FILTERS.get_or_init(|| std::sync::Mutex::new(matchup::Filters::all_kinds()));
     let current = crate::context::current_map_role();
+    // De la copia editable, no de la del arranque: un clan que el jugador acaba de añadir o de
+    // dejar de seguir tiene que verse en la pestaña y en los filtros en el mismo momento
+    // (informe de 2026-10-31, «pulsar x no lo borra»).
+    let (alerts_cfg, follow) = {
+        let config = crate::runtime();
+        (config.alerts, config.followed.clone())
+    };
     let (candidates, guilds, names, claims, alerts, objectives, maps, worlds) = {
         let board = crate::worker::dashboard();
         (
@@ -250,28 +234,23 @@ fn draw_widget(ui: &nexus::imgui::Ui) {
             board.guilds.clone(),
             board.guild_names.clone(),
             board.claims.clone(),
-            board.recent_alerts(
-                &crate::config().alerts,
-                &crate::config().followed,
-                current,
-                50,
-            ),
+            board.recent_alerts(&alerts_cfg, &follow, current, 50),
             board.names.clone(),
             board.maps.clone(),
             board.world_names.clone(),
         )
     };
-    let follow = crate::config().followed.clone();
     let now = chrono::Utc::now();
 
     let mut config = crate::runtime();
     let mut state = config.window(WIDGET).clone();
     let wanted_visible = state.visible;
     let wanted_locked = state.locked;
+    let wanted_through = state.click_through;
     let mut change = None;
     let mut filters = filters.lock().unwrap_or_else(|error| error.into_inner());
 
-    let still_open = window::draw(ui, WIDGET, 0, [470.0, 480.0], &mut state, |ui| {
+    let still_open = window::draw(ui, WIDGET, 0, WIDGET_DEFAULT_SIZE, &mut state, |ui| {
         change = draw_tabs(
             ui,
             &mut config,
@@ -297,11 +276,16 @@ fn draw_widget(ui: &nexus::imgui::Ui) {
     // copy is written back field by field: the chrome only wins on the fields nobody else
     // touched this frame.
     let slot = config.window(WIDGET);
-    if slot.visible == wanted_visible {
+    if window::chrome_wins(slot.visible, wanted_visible) {
         slot.visible = still_open && state.visible;
     }
-    if slot.locked == wanted_locked {
+    if window::chrome_wins(slot.locked, wanted_locked) {
         slot.locked = state.locked;
+    }
+    // Sin esta línea el clic derecho del menú «Click-through» no hacía nada: cambiaba la copia
+    // que se tira al final del fotograma (informe de 2026-10-31).
+    if window::chrome_wins(slot.click_through, wanted_through) {
+        slot.click_through = state.click_through;
     }
     slot.collapsed = state.collapsed;
     slot.opacity = state.opacity;
