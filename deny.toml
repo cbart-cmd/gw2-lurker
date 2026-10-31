@@ -1,12 +1,25 @@
 [advisories]
 version = 2
 yanked = "deny"
+# RUSTSEC-2024-0384 (instant) y RUSTSEC-2024-0436 (paste): avisos de "sin mantenimiento"
+# en crates que arrastra `nexus-rs`. No son vulnerabilidades, están fuera de nuestro
+# control y no podemos actualizarlos por separado: se fijan aquí a propósito.
+ignore = ["RUSTSEC-2024-0384", "RUSTSEC-2024-0436"]
 
 [licenses]
 version = 2
 # GPL-3.0-only: licencia del propio proyecto (ver LICENSE).
 allow = ["MIT", "Apache-2.0", "BSD-2-Clause", "BSD-3-Clause", "ISC", "Unicode-3.0", "Zlib", "CC0-1.0", "MPL-2.0", "GPL-3.0-only", "GPL-3.0-or-later"]
 confidence-threshold = 0.9
+
+# `nexus-rs` no declara `license` en su Cargo.toml, pero su LICENSE es MIT.
+[[licenses.clarify]]
+name = "nexus"
+expression = "MIT"
+
+[[licenses.clarify]]
+name = "nexus_codegen"
+expression = "MIT"
 
 [bans]
 multiple-versions = "warn"

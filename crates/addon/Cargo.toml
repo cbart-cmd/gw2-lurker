@@ -16,7 +16,7 @@ chrono = { version = "0.4", default-features = false, features = ["std", "serde"
 gw2lurker-core = { path = "../core", version = "0.1.0" }
 gw2lurker-store = { path = "../store", version = "0.1.0" }
 log = "0.4"
-nexus = { git = "https://github.com/zerthox/nexus-rs", tag = "0.12.0", features = [
+nexus = { git = "https://github.com/zerthox/nexus-rs", tag = "0.12.0", version = "0.12.0", features = [
     "log",
     "log_filter",
     "mumble",
