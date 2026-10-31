@@ -13,6 +13,19 @@ Reglas:
 
 ---
 
+## HECHO – 2026-10-31 · El atajo trae la ventana y se registra por código de tecla (0.18.1)
+
+- El atajo «no hacía nada». Dos causas a la vez: (1) solo alternaba click-through, así que con la
+  ventana cerrada (`×`) no se veía ningún cambio; y (2) se registraba **por cadena**
+  (`register_keybind_with_string("CTRL+SHIFT+L")`), y una cadena que el parser de Nexus no acepta se
+  registra en silencio — no hay error ni aviso.
+- Ahora se registra con `register_keybind_with_struct` y un `Keybind { key: 0x4C /* L */, ctrl, shift }`,
+  que no pasa por ningún parser, y lo que hace es **traer la ventana**: `ui::reveal` la muestra, la
+  despliega y le quita el click-through. Test `rf18_the_shortcut_brings_the_window_back`.
+- Se registra en el log el atajo al cargar y cada pulsación, que es lo que faltaba para poder decir
+  «no llega» o «llega y no hace nada».
+- Verificación: 197 tests en verde (82 addon · 15 api · 94 core · 6 store), `clippy -D warnings` limpio.
+
 ## HECHO – 2026-10-31 · Clanes en su pestaña, horas locales y registro limpio (0.18.0)
 
 Cinco fallos nuevos de `bugs.md`, diagnosticados con el código y con la API en vivo.

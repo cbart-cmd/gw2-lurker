@@ -36,12 +36,19 @@ const TABS: [&str; 5] = [
 /// Identifier of the lock keybind. Nexus lists it with this name, so the user can rebind it.
 const LOCK_KEYBIND: &str = "GW2LURKER_CLICK_THROUGH";
 
-/// Shortcut registered by default for the click-through toggle.
+/// Shortcut registered by default for bringing the window back.
 ///
 /// **Not** `ALT+SHIFT+L`: that one is the arcDPS legacy window and the game gives it to arcDPS
 /// first, so the player pressed our shortcut and got somebody else's menu (reported 2026-10-31).
 /// Nexus lists this binding in its own UI, so it can be rebound without touching the addon.
 pub const LOCK_SHORTCUT: &str = "CTRL+SHIFT+L";
+
+/// Virtual-key code of `L`, which is what Nexus' keybind API takes.
+///
+/// The binding is registered **by key code and not by string**: a string the Nexus parser does
+/// not like is accepted in silence, which is exactly how "the shortcut does nothing" looked
+/// (report of 2026-10-31).
+const VK_L: u16 = 0x4C;
 
 /// Set by the keybind handler and consumed by the render callback.
 ///
@@ -57,6 +64,20 @@ fn on_lock_keybind(_identifier: &str, is_release: bool) {
 
 fn take_lock_toggle() -> bool {
     LOCK_TOGGLE.swap(false, Ordering::Relaxed)
+}
+
+/// Brings the window back: shown, not click-through, and not collapsed.
+///
+/// Before this the shortcut only flipped click-through, so with the window hidden — which is how
+/// it is left after pressing `×` — nothing visible happened and it looked broken (report of
+/// 2026-10-31). Returns the click-through state it had, for the log line.
+fn reveal(config: &mut crate::config::Config) -> bool {
+    let state = config.window(WIDGET);
+    state.visible = true;
+    state.collapsed = false;
+    let through = state.click_through;
+    state.click_through = false;
+    through
 }
 
 /// Turns click-through on or off, and returns the new state.
@@ -92,12 +113,18 @@ fn right_click_on_widget(ui: &nexus::imgui::Ui) -> bool {
 
 /// Registers the render callbacks. Must be called from `load`, never per frame.
 pub fn register() {
-    nexus::keybind::register_keybind_with_string(
+    nexus::keybind::register_keybind_with_struct(
         LOCK_KEYBIND,
         nexus::keybind::keybind_handler!(on_lock_keybind),
-        LOCK_SHORTCUT,
+        nexus::keybind::Keybind {
+            key: VK_L,
+            alt: false,
+            ctrl: true,
+            shift: true,
+        },
     )
     .revert_on_unload();
+    log::info!("atajo registrado: {LOCK_SHORTCUT} ({LOCK_KEYBIND})");
 
     register_render(
         RenderType::Render,
@@ -109,9 +136,11 @@ pub fn register() {
 
             if take_lock_toggle() {
                 let mut config = crate::runtime();
-                let locked = toggle_click_through(&mut config);
+                let had_click_through = reveal(&mut config);
                 crate::request_save(&config);
-                log::info!("click-through: {locked}");
+                log::info!(
+                    "atajo: ventana traída al frente (click-through era {had_click_through})"
+                );
             }
 
             // Con click-through la ventana no recibe nada del ratón, así que la única salida era
@@ -637,6 +666,25 @@ mod tests {
 
         assert!(!toggle_click_through(&mut config), "la segunda desactiva");
         assert!(!config.window(WIDGET).click_through);
+    }
+
+    #[test]
+    fn rf18_the_shortcut_brings_the_window_back() {
+        // El bug de 2026-10-31: el atajo solo alternaba click-through, así que con la ventana
+        // cerrada (que es como queda al pulsar `×`) no pasaba nada visible y parecía roto.
+        let mut config = crate::config::Config::default();
+        let state = config.window(WIDGET);
+        state.visible = false;
+        state.collapsed = true;
+        state.click_through = true;
+
+        let had = reveal(&mut config);
+
+        let state = config.window(WIDGET);
+        assert!(had, "dice de dónde venía, para el registro");
+        assert!(state.visible, "la ventana vuelve");
+        assert!(!state.collapsed, "y desplegada");
+        assert!(!state.click_through, "y con ratón");
     }
 
     #[test]

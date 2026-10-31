@@ -273,7 +273,7 @@ fn draw_body(ui: &Ui, table: &TeamTable, edits: &mut Edits, candidates: &[Candid
     }
     ui.checkbox(i18n::widget("Real map"), &mut edits.map_tiles);
     ui.text_disabled(i18n::format(
-        "Click-through keeps the mouse for the game. Shortcut: {0}, rebindable in Nexus.",
+        "Click-through keeps the mouse for the game. The shortcut {0} brings the window back, and it can be rebound in Nexus.",
         &[crate::ui::LOCK_SHORTCUT],
     ));
 

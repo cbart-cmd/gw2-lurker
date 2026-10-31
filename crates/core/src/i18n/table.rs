@@ -295,12 +295,12 @@ pub const TEXT: &[(&str, [&str; COLUMNS])] = &[
     ("Save", ["Grabar", "Save", "Enregistrer", "Speichern"]),
     ("Windows", ["Ventanas", "Windows", "Fenêtres", "Fenster"]),
     (
-        "Click-through keeps the mouse for the game. Shortcut: {0}, rebindable in Nexus.",
+        "Click-through keeps the mouse for the game. The shortcut {0} brings the window back, and it can be rebound in Nexus.",
         [
-            "Click-through deja el ratón para el juego. Atajo: {0}, reasignable en Nexus.",
-            "Click-through keeps the mouse for the game. Shortcut: {0}, rebindable in Nexus.",
-            "Les clics traversants laissent la souris au jeu. Raccourci : {0}, modifiable dans Nexus.",
-            "Klickdurchlässig lässt die Maus beim Spiel. Kürzel: {0}, in Nexus änderbar.",
+            "Click-through deja el ratón para el juego. El atajo {0} devuelve la ventana, y se puede reasignar en Nexus.",
+            "Click-through keeps the mouse for the game. The shortcut {0} brings the window back, and it can be rebound in Nexus.",
+            "Les clics traversants laissent la souris au jeu. Le raccourci {0} ramène la fenêtre, et il se modifie dans Nexus.",
+            "Klickdurchlässig lässt die Maus beim Spiel. Das Kürzel {0} holt das Fenster zurück, änderbar in Nexus.",
         ],
     ),
     ("from their keep", ["desde su fortaleza", "from their keep", "depuis leur forteresse", "aus ihrer Festung"]),

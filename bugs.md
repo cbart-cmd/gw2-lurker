@@ -98,7 +98,18 @@ Estado: `[ ]` pendiente · `[x]` hecho.
   letras, y con la ventana contrada **un solo clic** en la barra la abre: pedir otro doble clic
   sobre una caja de dos centímetros era optimista.
 
-## [x] widget · el horario no coincide con el de España (2026-10-31)
+## [x] el atajo de teclado no abre el widget (2026-10-31)
+- «La combinación de teclas no abre el widget; lo he probado con diferentes combinaciones y ninguna
+  funciona.»
+- Causa doble: (1) el atajo **solo alternaba click-through**, así que con la ventana cerrada (que es
+  como queda al pulsar `×`) no pasaba nada visible; y (2) el binding se registraba **por cadena**
+  (`"CTRL+SHIFT+L"`), y una cadena que el parser de Nexus no acepta se registra en silencio, sin
+  avisar.
+- **Hecho (0.18.1):** el atajo se registra **por código de tecla** (`Keybind { key: VK_L, ctrl,
+  shift }`, sin parser de por medio) y lo que hace es **traer la ventana**: la muestra, la despliega
+  y le quita el click-through (`ui::reveal`, con test). El registro deja una línea en el log
+  (`atajo registrado: …`) y cada pulsación otra, para no volver a quedarse sin evidencia.
+
 - Las horas se pintaban en **UTC** (la API y el historial van en UTC, que es lo correcto para
   comparar), así que una captura de las 21:40 salía como 19:40.
 - **Hecho (0.18.0):** `addon::clock` convierte a la hora local del sistema en el último momento, y

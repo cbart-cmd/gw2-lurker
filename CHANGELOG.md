@@ -1,6 +1,15 @@
 # Changelog
 Formato [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/), versionado [SemVer](https://semver.org/lang/es/).
 
+## [0.18.1] - 2026-10-31
+### Corregido
+- **El atajo de teclado ya abre el widget**: se registraba por cadena (y una cadena que Nexus no
+  acepta se registra en silencio) y además solo alternaba click-through, así que con la ventana
+  cerrada no pasaba nada visible. Ahora se registra por código de tecla y lo que hace es **traer la
+  ventana**: la muestra, la despliega y le quita el click-through. El registro deja constancia en el
+  log del atajo y de cada pulsación.
+- El aviso de los ajustes dice lo que hace el atajo de verdad.
+
 ## [0.18.0] - 2026-10-31
 ### Añadido
 - **La pestaña Clanes es donde se sigue a los clanes**: empieza por **Clanes seguidos** (con la ×
