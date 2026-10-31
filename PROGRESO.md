@@ -22,6 +22,19 @@ Reglas:
 - **Requiere GW2**: T-12 (leer `NexusLink`/`Context`), T-35, T-01, T-02b, T-25.
 - Decidido: **sí** a la feature `rtapi` (RF-44); su coste en DLL se mide en T-02b.
 
+## HECHO – 2026-10-31 · Capa de API con transporte intercambiable (T-11b parcial)
+
+- `crates/api`: `trait Transport` (solo baja bytes) y `Api<T>` con `matches_all`,
+  `match_for_team(team_id)`, `objectives(lang)` y `guild(id)`. El cliente HTTP real queda
+  fuera a propósito: lo elige la medición de T-02b.
+- `match_for_team` **escanea `ids=all`** en vez de usar `?world=<id>`, porque ese parámetro
+  espera un id de mundo antiguo y nosotros identificamos equipos por 11xxx/12xxx.
+- `ApiError` (transporte, estado, parseo, no existe) y `Backoff` exponencial con tope y
+  criterio de reintento (5xx y 429 sí, 4xx no).
+- 9 tests con fixtures reales: equipo 12014 → match `2-2` azul, 503, JSON truncado, idioma
+  en la URL, guild con tag.
+- 65 tests en total (50 core + 9 api + 6 store).
+
 ## HECHO – 2026-10-31 · Addon real: export, contexto y configuración (T-12 parcial)
 
 - `nexus` 0.12.0 (tag fijo) con `log`, `log_filter`, `mumble` y `rtapi`; añadido `log` y

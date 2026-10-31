@@ -29,7 +29,7 @@ Cada tarea es pequeña y verificable. Orden recomendado; las dependencias se ind
 
 ## Fase 2 – API y worker
 
-- **T-11b** `api`: cliente con `trait ApiClient`, backoff exponencial, búsqueda de guild, caché de nombres/objetivos en disco. (T-04) — RF-20, RNF-04
+- **T-11b ✔ (2026-10-31, parcial)** `api`: `trait Transport` + `Api<T>` tipado (`matches_all`, `match_for_team`, `objectives(lang)`, `guild`), `ApiError` y `Backoff` exponencial con tope. 9 tests con las fixtures reales, incluidos 503, JSON truncado y equipo inexistente. Falta el cliente HTTP real (lo decide T-02b) y la caché en disco. (T-04) — RF-20, RNF-04
 - **T-11c** `worker`: hilo de polling con parada limpia y estado de salud. (T-11b, T-07)
 
 ## Fase 3 – Integración Nexus

@@ -189,6 +189,11 @@ impl Match {
     pub fn map(&self, role: MapRole) -> Option<&MatchMap> {
         self.maps.iter().find(|map| map.role == role)
     }
+
+    /// Total objectives across every map of the matchup.
+    pub fn objectives_total(&self) -> usize {
+        self.maps.iter().map(|map| map.objectives.len()).sum()
+    }
 }
 
 /// Static objective metadata from `/v2/wvw/objectives`.
