@@ -34,6 +34,21 @@ Reglas:
   bueno un HTTP 200. Se reintenta con `-VerifyOnly` pasados unos minutos; no se cambia la URL
   ni la versión para taparlo.
 
+## HECHO – 2026-10-31 · Selector de equipo en dos pasos y memoria por personaje
+
+- `core::select` (69 tests en `core`, todos con datos reales de `/v2/wvw/matches?ids=all`):
+  `Selection::{Missing, Confirmed, Stale}`, `candidates`, `teams_of`, `matchups_of`,
+  `rivals`, `is_team` y `Roster` por personaje.
+- Respuesta a las dudas del usuario, comprobadas en el código: **el juego no puede decirte tu
+  equipo** (Mumble no lo tiene; `Identity::team_color_id` es un id de tinte, no el color de
+  WvW; Extras no incluye equipo; Nexus no lo expone), y **la API no traduce nombres de
+  equipo** (`/v2/wvw/teams` → 404, mientras que `/v2/wvw/objectives?lang=es` sí traduce).
+- Diseño aceptado: región → matchup → 3 equipos con color; solo ids de equipo (los `2xxx` de
+  mundo antiguo quedan fuera); si el equipo guardado ya no juega, el selector se abre solo; y
+  memoria por personaje para que la cuenta alt tenga la suya.
+- Trampa: `TeamColor::ALL` está en orden `[Red, Green, Blue]` (el de la UI), no
+  `[Red, Blue, Green]`; el test lo fija para que nadie lo desordene sin querer.
+
 ## HECHO – 2026-10-31 · DLL en `target\release` como los vecinos
 
 - Duda del usuario: los proyectos hermanos dejan la DLL en `target\release\` y aquí aparecía en

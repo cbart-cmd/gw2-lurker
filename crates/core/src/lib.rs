@@ -25,5 +25,8 @@ pub use model::{
     TeamScores, WvwMap, HIGH_VALUE_TICK,
 };
 pub use resolver::Resolution;
-pub use select::{candidates, evaluate as evaluate_team, rivals, Candidate, Selection};
+pub use select::{
+    candidates, evaluate as evaluate_team, evaluate_for, is_team, matchups_of, rivals, teams_of,
+    Candidate, Roster, Selection,
+};
 pub use teams::{bundled, TeamEntry, TeamTable};

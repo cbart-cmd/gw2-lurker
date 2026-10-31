@@ -34,6 +34,50 @@ pub struct Candidate {
     pub color: TeamColor,
 }
 
+/// The team chosen for each character.
+///
+/// Keyed by character name (Mumble's `Identity::name`) on purpose: a second account has
+/// different characters, so an alt in the other region does not inherit the main's team and
+/// gets its own picker once. Two accounts with the same character name would collide, which
+/// is rare enough to be covered by the manual picker.
+#[derive(Debug, Clone, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[serde(default)]
+pub struct Roster {
+    by_character: std::collections::BTreeMap<String, u32>,
+}
+
+impl Roster {
+    /// Team remembered for a character.
+    pub fn get(&self, character: &str) -> Option<u32> {
+        self.by_character.get(character.trim()).copied()
+    }
+
+    /// Remembers the team of a character. An empty name is ignored: without a name the
+    /// selection could not be told apart from any other.
+    pub fn set(&mut self, character: &str, team_id: u32) {
+        let character = character.trim();
+        if character.is_empty() {
+            return;
+        }
+        self.by_character.insert(character.to_owned(), team_id);
+    }
+
+    /// Forgets a character, used when its team is no longer in any live match.
+    pub fn forget(&mut self, character: &str) {
+        self.by_character.remove(character.trim());
+    }
+
+    /// Characters remembered.
+    pub fn len(&self) -> usize {
+        self.by_character.len()
+    }
+
+    /// Whether nobody has chosen a team yet.
+    pub fn is_empty(&self) -> bool {
+        self.by_character.is_empty()
+    }
+}
+
 /// Decides whether the saved team still makes sense.
 pub fn evaluate(saved: Option<u32>, live: &[Match]) -> Selection {
     let Some(team_id) = saved else {
@@ -46,6 +90,11 @@ pub fn evaluate(saved: Option<u32>, live: &[Match]) -> Selection {
         },
         None => Selection::Stale { previous: team_id },
     }
+}
+
+/// Same decision, but looking the character up in the roster first.
+pub fn evaluate_for(character: &str, roster: &Roster, live: &[Match]) -> Selection {
+    evaluate(roster.get(character), live)
 }
 
 /// Every team playing a live match, ordered by match and then by colour.
@@ -78,6 +127,26 @@ pub fn candidates(live: &[Match]) -> Vec<Candidate> {
 /// Whether an id is a WvW team id rather than a legacy world id.
 pub fn is_team(id: u32) -> bool {
     (11_000..=12_999).contains(&id)
+}
+
+/// Matchups of a region, `EU` for ids starting with `2-` and `NA` for `1-` (RF-03b).
+///
+/// Used by the two-step picker: choose region, then matchup, then one of its three teams.
+pub fn matchups_of(live: &[Match], region: crate::model::Region) -> Vec<&Match> {
+    let mut out: Vec<&Match> = live
+        .iter()
+        .filter(|entry| entry.region() == Some(region))
+        .collect();
+    out.sort_by(|a, b| a.id.cmp(&b.id));
+    out
+}
+
+/// The three teams of a matchup, in colour order.
+pub fn teams_of(live: &[Match], match_id: &str) -> Vec<Candidate> {
+    candidates(live)
+        .into_iter()
+        .filter(|candidate| candidate.match_id == match_id)
+        .collect()
 }
 
 /// Teams of the match the player is in, for the "pick again" case: the three rivals are far
@@ -163,6 +232,62 @@ mod tests {
         assert_eq!(picked.len(), 3);
         assert!(picked.contains(&12014));
         assert!(!picked.contains(&2014));
+    }
+
+    #[test]
+    fn rf03a_roster_keeps_one_team_per_character() {
+        let all = live();
+        let mut roster = Roster::default();
+        assert_eq!(evaluate_for("Main", &roster, &all), Selection::Missing);
+
+        roster.set("Main", 12014);
+        assert_eq!(
+            evaluate_for("Main", &roster, &all),
+            Selection::Confirmed {
+                team_id: 12014,
+                match_id: "2-2".to_owned()
+            }
+        );
+        assert_eq!(
+            evaluate_for("Alt", &roster, &all),
+            Selection::Missing,
+            "el alt de otra cuenta no hereda el equipo del main"
+        );
+
+        roster.set("Alt", 11001);
+        assert_eq!(
+            evaluate_for("Alt", &roster, &all),
+            Selection::Stale { previous: 11001 },
+            "si su equipo ya no juega, se le vuelve a preguntar solo a él"
+        );
+        assert_eq!(roster.len(), 2);
+
+        roster.set("   ", 12015);
+        roster.set("", 12015);
+        assert_eq!(roster.len(), 2, "un nombre vacío no se guarda");
+
+        roster.forget("Alt");
+        assert_eq!(roster.len(), 1);
+    }
+
+    #[test]
+    fn rf03b_two_step_picker_groups_by_region_and_matchup() {
+        use crate::model::Region;
+
+        let all = live();
+        let eu = matchups_of(&all, Region::Eu);
+        assert_eq!(eu.len(), 1, "la fixture solo trae 2-2");
+        assert_eq!(eu[0].id, "2-2");
+        assert!(matchups_of(&all, Region::Na).is_empty());
+
+        let three = teams_of(&all, "2-2");
+        assert_eq!(three.len(), 3);
+        assert!(three.iter().all(|c| c.match_id == "2-2"));
+        assert_eq!(
+            three.iter().map(|c| c.color).collect::<Vec<_>>(),
+            vec![TeamColor::Red, TeamColor::Green, TeamColor::Blue],
+            "el orden de TeamColor::ALL, el mismo que usa la UI"
+        );
     }
 
     #[test]
