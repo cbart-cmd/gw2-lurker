@@ -1,0 +1,171 @@
+{
+    "note":  "WvW team id -> name. Ids come from the official API (all_worlds, /v2/wvw/guilds/:region); names are curated because the API does not expose them. Regenerate with scripts/update_wvw_teams.ps1.",
+    "updated_at":  "2026-10-31T11:29:31Z",
+    "teams":  [
+                  {
+                      "id":  11001,
+                      "name":  "Moogooloo",
+                      "nation":  "NA"
+                  },
+                  {
+                      "id":  11002,
+                      "name":  "Rall\u0027s Rest",
+                      "nation":  "NA"
+                  },
+                  {
+                      "id":  11003,
+                      "name":  "Domain of Torment",
+                      "nation":  "NA"
+                  },
+                  {
+                      "id":  11004,
+                      "name":  "Yohlon Haven",
+                      "nation":  "NA"
+                  },
+                  {
+                      "id":  11005,
+                      "name":  "Tombs of Drascir",
+                      "nation":  "NA"
+                  },
+                  {
+                      "id":  11006,
+                      "name":  "Hall of Judgment",
+                      "nation":  "NA"
+                  },
+                  {
+                      "id":  11007,
+                      "name":  "Throne of Balthazar",
+                      "nation":  "NA"
+                  },
+                  {
+                      "id":  11008,
+                      "name":  "Dwayna\u0027s Temple",
+                      "nation":  "NA"
+                  },
+                  {
+                      "id":  11009,
+                      "name":  "Abaddon\u0027s Prison",
+                      "nation":  "NA"
+                  },
+                  {
+                      "id":  11010,
+                      "name":  "Ruined Cathedral of Blood",
+                      "nation":  "NA"
+                  },
+                  {
+                      "id":  11011,
+                      "name":  "Lutgardis Conservatory",
+                      "nation":  "NA"
+                  },
+                  {
+                      "id":  11012,
+                      "name":  "Mosswood",
+                      "nation":  "NA"
+                  },
+                  {
+                      "id":  11013,
+                      "name":  "Mithric Cliffs",
+                      "nation":  "NA"
+                  },
+                  {
+                      "id":  11014,
+                      "name":  "Lagula\u0027s Kraal",
+                      "nation":  "NA"
+                  },
+                  {
+                      "id":  11015,
+                      "name":  "De Molish Post",
+                      "nation":  "NA"
+                  },
+                  {
+                      "id":  12001,
+                      "name":  "Skrittsburgh",
+                      "nation":  "EU"
+                  },
+                  {
+                      "id":  12002,
+                      "name":  "Fortune\u0027s Vale",
+                      "nation":  "EU"
+                  },
+                  {
+                      "id":  12003,
+                      "name":  "Silent Woods",
+                      "nation":  "EU"
+                  },
+                  {
+                      "id":  12004,
+                      "name":  "Ettin\u0027s Back",
+                      "nation":  "EU"
+                  },
+                  {
+                      "id":  12005,
+                      "name":  "Domain of Anguish",
+                      "nation":  "EU"
+                  },
+                  {
+                      "id":  12006,
+                      "name":  "Palawadan",
+                      "nation":  "EU"
+                  },
+                  {
+                      "id":  12007,
+                      "name":  "Bloodstone Gulch",
+                      "nation":  "EU"
+                  },
+                  {
+                      "id":  12008,
+                      "name":  "Frost Citadel",
+                      "nation":  "EU"
+                  },
+                  {
+                      "id":  12009,
+                      "name":  "Dragrimmar",
+                      "nation":  "EU"
+                  },
+                  {
+                      "id":  12010,
+                      "name":  "Grenth\u0027s Door",
+                      "nation":  "EU"
+                  },
+                  {
+                      "id":  12011,
+                      "name":  "Mirror of Lyssa",
+                      "nation":  "EU"
+                  },
+                  {
+                      "id":  12012,
+                      "name":  "Melandru\u0027s Dome",
+                      "nation":  "EU"
+                  },
+                  {
+                      "id":  12013,
+                      "name":  "Kormir\u0027s Library",
+                      "nation":  "EU"
+                  },
+                  {
+                      "id":  12014,
+                      "name":  "Great House Aviary",
+                      "nation":  "EU"
+                  },
+                  {
+                      "id":  12015,
+                      "name":  "Bava Nisos",
+                      "nation":  "EU"
+                  },
+                  {
+                      "id":  12016,
+                      "name":  "Temple of Febe",
+                      "nation":  "EU"
+                  },
+                  {
+                      "id":  12017,
+                      "name":  "Gyala Hatchery",
+                      "nation":  "EU"
+                  },
+                  {
+                      "id":  12018,
+                      "name":  "Grekvelnn Burrows",
+                      "nation":  "EU"
+                  }
+              ]
+}
