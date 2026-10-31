@@ -13,7 +13,7 @@ Reglas:
 
 ---
 
-## HECHO – 2026-10-31 · Live map de verdad: 5 s, ruta desde el primer minuto y avisos «solo los míos» (0.23.0)
+## HECHO – 2026-10-31 · Live map de verdad: 5 s, ruta desde el primer minuto y avisos «solo los míos» (0.23.1)
 
 - El jugador pidió lo que hace gw2mists: lista de favoritos, seguimiento de sus reclamos mientras no
   se reinicie el juego, ruta al clicar un favorito y avisos configurados. Tres de las cuatro ya
@@ -29,11 +29,16 @@ Reglas:
 - **Clic en favorito o en un aviso → pestaña Mapa** (`TabItemFlags::SET_SELECTED` en el fotograma
   siguiente). **Flecha de dirección** en el último tramo y un solo reclamo ya dibuja punto.
 - **«Solo los clanes que sigo»**: `AlertFilter::only_followed`, una casilla.
-- Verificación: 227 tests en verde, clippy y fmt limpios, sin ficheros >800 líneas.
+- Verificación: 226 tests en verde, clippy y fmt limpios, sin ficheros >800 líneas.
+- **0.23.1 (mismo día):** el sondeo pedía `ids=all` en **cada** sondeo, porque «el selector está
+  en pantalla» se encendía con `gate.settings_available()` (cierto casi siempre): a 5 s eran
+  4,8 MB por minuto. Ahora el aviso caduca a los 3 s, los nueve se piden como mucho una vez por
+  minuto y el resto de sondeos van a una partida (44 KB). Publicada 0.23.1 el 2026-10-31 23:5x.
 - **Trampa nueva:** Nexus **sustituye** nuestra DLL en cada arranque si difiere de la publicada
   (`UpdateProvider::Direct`). Instalar en local una versión que no esté publicada no sirve: el
   `install.ps1` copia, pero al abrir el juego el updater vuelve a bajar la del repo. Para probar,
-  publicar.
+  publicar. Y `raw.githubusercontent.com` tarda ~3 min en servir el blob nuevo: el `.md5` sale
+  antes que la DLL, así que hay que comprobar la **descarga**, no el HTTP 200.
 
 ## HECHO – 2026-10-31 · Los cuatro bugs de la bandeja, con el juego abierto como testigo (0.22.10)
 
@@ -1358,7 +1363,10 @@ Leídos de `bugs.md` y diagnosticados con el `Nexus.log` y el `settings.json` re
   deshiciera nada (0.22.10).
 - **La DLL instalada no se queda**: Nexus (`UpdateProvider::Direct`) la sobrescribe en cada arranque
   con la que haya publicada en `gw2addonsreleases`. Probar una versión local exige publicarla
-  (`scripts/release.ps1`) o desactivar la comprobación de actualización en Nexus (0.23.0).
+  (`scripts/release.ps1`) o desactivar la comprobación de actualización en Nexus (0.23.1).
+- **`raw.githubusercontent.com` cachea ~3 min**: el `.md5` se sirve antes que la DLL, así que una
+  release recién subida parece buena si solo se mira el HTTP 200. Comprobar **bytes y MD5** de la
+  descarga real (`scripts/release.ps1 -VerifyOnly`) antes de decirle al jugador que abra el juego.
 - MumbleLink `name` = «Guild Wars 2», **no** el personaje: el personaje está en `identity`
   (`{"name":"Jhoin",…}`). Y `shard_id` en WvW vale `0x80000001` (medido 2026-10-31): no es el mundo
   ni la partida, así que no sirve para detectar el emparejamiento.
