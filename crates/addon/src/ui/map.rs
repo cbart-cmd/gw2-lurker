@@ -198,6 +198,10 @@ fn draw_tiles(
     size: [f32; 2],
     opacity: f32,
 ) {
+    // El presupuesto de texturas es **por frame**: sin reiniciarlo se gastaba una vez por sesión
+    // y el mapa se quedaba con las cuatro primeras teselas y nada más (informe de 2026-10-31,
+    // «el mapa no es real»).
+    TILE_BUDGET.store(TILES_PER_FRAME, std::sync::atomic::Ordering::Relaxed);
     for (x, y) in tiles_of(frame, TILE_ZOOM) {
         let Some(texture) = tile_texture(x, y) else {
             continue;
@@ -223,12 +227,15 @@ static TILE_TEXTURES: std::sync::OnceLock<
     std::sync::Mutex<BTreeMap<(u32, u32), nexus::imgui::TextureId>>,
 > = std::sync::OnceLock::new();
 
+/// How many tiles may be created in one frame. The first time the tab is opened the map fills in
+/// over a few frames instead of stalling the game.
+const TILES_PER_FRAME: u8 = 4;
+
+/// What is left of that allowance in the current frame. Reset by [`draw_tiles`].
+static TILE_BUDGET: std::sync::atomic::AtomicU8 = std::sync::atomic::AtomicU8::new(TILES_PER_FRAME);
+
 /// Texture of one tile, loading it from the disk cache the first time it is needed.
-///
-/// Loads at most a few per frame: the first time the tab is opened the map fills in over a couple
-/// of frames instead of stalling the game.
 fn tile_texture(x: u32, y: u32) -> Option<nexus::imgui::TextureId> {
-    static LOADED_THIS_FRAME: std::sync::atomic::AtomicU8 = std::sync::atomic::AtomicU8::new(0);
     let cache = TILE_TEXTURES.get_or_init(|| std::sync::Mutex::new(BTreeMap::new()));
     if let Some(id) = cache
         .lock()
@@ -237,16 +244,20 @@ fn tile_texture(x: u32, y: u32) -> Option<nexus::imgui::TextureId> {
     {
         return Some(*id);
     }
-    if LOADED_THIS_FRAME.load(std::sync::atomic::Ordering::Relaxed) >= 4 {
+    if TILE_BUDGET.load(std::sync::atomic::Ordering::Relaxed) == 0 {
         return None;
     }
     let path = crate::catalog::tile_path(x, y)?;
     if !path.exists() {
         return None;
     }
-    LOADED_THIS_FRAME.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+    TILE_BUDGET.fetch_sub(1, std::sync::atomic::Ordering::Relaxed);
     let identifier = format!("gw2lurker-tile-{x}-{y}");
-    let texture = nexus::texture::get_texture_or_create_from_file(&identifier, &path)?;
+    let Some(texture) = nexus::texture::get_texture_or_create_from_file(&identifier, &path) else {
+        // Sin esta línea, «el mapa no es real» no se puede distinguir de «las teselas no están».
+        log::warn!("tiles: no se pudo cargar la textura de {path:?}");
+        return None;
+    };
     let id = texture.id();
     cache
         .lock()

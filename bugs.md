@@ -131,12 +131,14 @@ Estado: `[ ]` pendiente · `[x]` hecho.
   llevan el mapa al **último donde reclamó** (`Dashboard::last_map_of`, que elige por `claimed_at`),
   así que la pestaña Mapa ya dibuja su ruta. Test `t51_clicking_a_guild_knows_its_last_map`.
 
-## [ ] el mapa no es real (2026-10-31)
-- «El mapa no es real»: sigue saliendo el tablero esquemático aunque **Mapa real** está activado.
-- Estado (0.19.0): las teselas ya se piden al continente correcto y la descarga no se da por hecha sin
-  cajas de mapa (0.16.1 / 0.17.2). Si sigue sin verse, hay que mirar el `Nexus.log` de la sesión: las
-  líneas `tiles:` dicen cuántas se piden, cuántas se guardan y si alguna falla. Pendiente de esa
-  evidencia (no se puede reproducir sin el juego).
+## [x] el mapa no es real (2026-10-31)
+- «El mapa no es real»: seguía saliendo el tablero esquemático aunque **Mapa real** está activado.
+- **Hecho (0.20.1):** era un bug de verdad y estaba en el código: el presupuesto de texturas se
+  gastaba **una vez por sesión** (el contador no se reiniciaba), así que de las 16 teselas de un mapa
+  solo se cargaban 4 y el resto no se dibujaba nunca. Ahora el presupuesto es **por frame** y una
+  textura que falle deja un `warn` con su ruta. Comprobado además en tu instalación que la caché es la
+  buena (59 ficheros `2-1-*`, «las del mapa ya estaban en caché»).
+
 
 ## [ ] el hover del mapa enseña el id del clan, no su nombre (2026-10-31)
 - «Pasar el ratón por encima de un objetivo no dice el nombre del clan sino un id.»
@@ -169,3 +171,10 @@ Estado: `[ ]` pendiente · `[x]` hecho.
   sesión se ve si el sondeo se paró, si el emparejamiento cambió o si el filtro se lo comió. Para lo
   segundo, la lista que se pinta en el registro se puede limitar a las últimas 50 sin tocar el
   historial de la sesión (que es lo que alimenta la ruta).
+
+## [ ] la ventana no se puiede mover
+- n otiene ni clocktough ni bloqueada, pero no se mueve
+- he instalado la versión niueva y no detecta que he cogido campa y relcaamado, ponew que nadie ha hecho nada en los ultimos 15 minutos desde que mepeceé a jugar ma so menos
+- indica "mapa 95" y emparejamiento 1-1
+![alt text](image-3.png)
+- el boton "x" no cierra la ventana, hace una especie de plegado

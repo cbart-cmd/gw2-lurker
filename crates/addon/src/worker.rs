@@ -8,7 +8,7 @@
 //! once the team is selected it switches to `/wvw/matches/{id}` (~44 KB), which at one poll
 //! every 30 s keeps us well inside the 600 requests/hour budget.
 
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::{Mutex, MutexGuard, OnceLock};
 use std::time::{Duration, Instant};
 
@@ -382,13 +382,15 @@ fn poll_once(
     let mut board = dashboard();
     board.health = Health::Ok { at: now };
     board.selection = selection;
-    board.match_id = match_id;
+    board.match_id = match_id.clone();
     board.names = names;
     board.candidates = candidates;
     board.guild_names = guild_names;
     board.maps = maps;
     board.map_roles = map_roles;
+    let objective_count = board.names.len();
     board.claims = claims;
+    let claim_count = board.claims.len();
     board.guilds = guilds;
     for event in &events {
         board.push_alert(event.clone());
@@ -399,7 +401,30 @@ fn poll_once(
         board.history.drain(..excess);
     }
     board.updated_at = Some(now);
+    drop(board);
+    heartbeat(
+        events.len(),
+        claim_count,
+        objective_count,
+        match_id.as_deref(),
+    );
     Ok(())
+}
+
+/// A line every few polls with what the last one saw.
+///
+/// «No me avisa» has three very different causes and only the log can tell them apart: the poll may
+/// not be running, the differ may see no changes, or the events may arrive and the filter eat them.
+/// One line every ten polls (five minutes at the default) is cheap and answers the first two
+/// (report of 2026-10-31).
+fn heartbeat(events: usize, claims: usize, objectives: usize, match_id: Option<&str>) {
+    static POLLS: AtomicU64 = AtomicU64::new(0);
+    let count = POLLS.fetch_add(1, Ordering::Relaxed) + 1;
+    if count.is_multiple_of(10) {
+        log::info!(
+            "sondeo {count}: partida {match_id:?}, {claims} reclamados de {objectives} objetivos, {events} eventos nuevos"
+        );
+    }
 }
 
 /// Whether the next poll has to fetch every matchup instead of only the player's one.

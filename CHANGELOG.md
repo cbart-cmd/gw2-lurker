@@ -1,6 +1,15 @@
 # Changelog
 Formato [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/), versionado [SemVer](https://semver.org/lang/es/).
 
+## [0.20.1] - 2026-10-31
+### Corregido
+- **El mapa real ya puede dibujarse entero**: el presupuesto de teselas era «4 en toda la sesión» en
+  lugar de «4 por frame», así que el mapa se quedaba con las cuatro primeras y nada más (era el «el
+  mapa no es real»). Si una textura no se puede crear, ahora queda dicho en el log.
+- **Se puede saber si el sondeo funciona**: cada diez sondeos el registro escribe una línea con la
+  partida, los objetivos reclamados y los eventos nuevos, que es lo que faltaba para distinguir «no
+  llega nada» de «llega y se filtra».
+
 ## [0.20.0] - 2026-10-31
 ### Añadido
 - **Nombres de equipo de verdad (T-45)**: `data/team-names.json` se rehace con las cuatro páginas de

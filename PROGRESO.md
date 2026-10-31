@@ -13,6 +13,26 @@ Reglas:
 
 ---
 
+## HECHO – 2026-10-31 · El mapa real se dibuja entero y el sondeo se puede ver (0.20.1)
+
+- **«El mapa no es real», encontrado en el código**: `tile_texture` gastaba un presupuesto de 4
+  teselas **por sesión** en lugar de 4 **por frame** (el contador nunca se reiniciaba), así que de las
+  16 teselas de un mapa solo se cargaban las 4 primeras y el resto no aparecía nunca. Ahora el
+  presupuesto se reinicia en `draw_tiles`, y una textura que no se pueda crear deja un `warn` con la
+  ruta.
+- Comprobado además en la instalación del jugador que la caché ya es la correcta: **59 ficheros
+  `2-1-*`** y el log dice «las del mapa ya estaban en caché», así que el continente y la escala están
+  bien desde 0.16.1.
+- **Latido del worker** (`worker::heartbeat`): cada diez sondeos, una línea con la partida, los
+  reclamados de los objetivos y los eventos nuevos. «Desde las 20:22 no recoge nada» pasa a ser
+  comprobable: si el latido avanza, el sondeo va; si `eventos nuevos` se queda en 0 y no hay
+  `evento:` detrás, el problema está en el diferencial o en el filtro, no en la red.
+- Dato del log del jugador: `worker: vigilando 1-1 (NA) · Confirmed { team_id: 11011 }` y gw2mists
+  lista **Lutgardis Conservatory en la tabla NA**, así que el equipo está bien elegido y la partida
+  vigilada es la suya.
+- Verificación: 200 tests en verde, `clippy -D warnings` limpio, ningún fichero por encima de 800
+  líneas.
+
 ## HECHO – 2026-10-31 · Nombres de equipo desde gw2mists, con el navegador (0.20.0)
 
 - **T-45, desbloqueada**: el jugador tenía razón — el navegador integrado de VS Code ejecuta el
