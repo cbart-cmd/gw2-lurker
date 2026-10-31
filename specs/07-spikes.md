@@ -226,7 +226,6 @@ Comprobado `[API]` contra el índice de endpoints (`https://api.guildwars2.com/v
 - **Orden de región:** `1-x` = NA y `2-x` = EU (deducido de los mundos de cada `all_worlds`; no viene indicado en el JSON).
 
 ### Notas de verificación: `claimed_by` es un id de gremio usable y `/v2/guild/:id` lo resuelve (2026-10-31)
-
 Comprobado `[API]` con datos en vivo (`/v2/wvw/matches?ids=all`, 403 622 bytes, y dos gremios reales).
 
 - **`claimed_by` llega como UUID con guiones y en mayúsculas**, p. ej.
@@ -241,3 +240,23 @@ Comprobado `[API]` con datos en vivo (`/v2/wvw/matches?ids=all`, 403 622 bytes, 
 - **Coste:** una llamada por gremio. Con un tope de 10 por sondeo, un matchup de veinte gremios
   queda con nombre completo en ~1 minuto y luego vive en memoria toda la sesión.
 
+### Notas de verificación: coordenadas y cajas del mapa (T-14, 2026-10-31)
+
+Medido contra la API en vivo (`/v2/maps?ids=38,95,96,1099` y `/v2/wvw/objectives?ids=all`).
+
+- **`coord` de los objetivos está ya en coordenadas de continente**, el mismo espacio que
+  `continent_rect` de `/v2/maps`: Mendon's Gap (Eternos) llega como `10256.6, 13514.4` y la caja de
+  Eternos es X[8958..12030] Y[12798..15870]. **No hay que pasar por `map_rect`** (que además es
+  simétrico, ±36864 o ±30720/±43008) para dibujar: la proyección es normalizar dentro de
+  `continent_rect` y voltear la Y. Test: `rf30_every_real_objective_of_eternals_falls_inside_the_box`.
+- **`continent_rect` siempre viene con la esquina menor primero**: Eternos `[[8958,12798],
+  [12030,15870]]`, Alpino verde/azul `[[5630,11518],[8190,15102]]` / `[[12798,10878],[15358,14462]]`,
+  Desierto `[[9214,8958],[12286,12030]]`.
+- **`points_tick` NO viene en `/v2/wvw/objectives`** (los 178 objetivos llegan sin ese campo): el
+  umbral de «alto valor» de RF-30b solo se puede calcular desde los objetivos del **matchup**
+  (`/v2/wvw/matches`), que sí lo traen. La vista de mapa usa por ahora el criterio por tipo.
+- **Cobertura de datos**: 178 objetivos en total, **81 con `coord: null`** (spawns y algunos
+  genéricos), así que omitirlos (RF-30) no es un caso raro. Eternos trae 28, de ellos 22 con
+  coordenada. Tipos: 42 campamentos, 39 torres, 24 fortalezas, 1 castillo, 30 ruinas, 24 spawns,
+  9 genéricos, 6 recursos, 3 mercenarios.
+- `/v2/maps` con los cuatro ids son ~2 KB: se piden una vez por sesión.

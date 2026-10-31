@@ -13,6 +13,26 @@ Reglas:
 
 ---
 
+## HECHO – 2026-10-31 · Pestaña Mapa con proyección real (T-14; 0.13.0)
+
+- **`core::project`**: `Frame` (caja de `continent_rect`) y `project` (coordenada de continente →
+  píxeles con la Y volteada). Cuatro tests contra las fixtures reales, incluido
+  `rf30_every_real_objective_of_eternals_falls_inside_the_box`.
+- **Verificado en vivo**: `coord` de los objetivos **ya está en coordenadas de continente** (no hay
+  que pasar por `map_rect`), `continent_rect` viene siempre con la esquina menor primero y
+  **`points_tick` no existe en `/v2/wvw/objectives`** — el umbral de RF-30b solo se puede calcular
+  desde los objetivos del matchup. Todo en `specs/07-spikes.md`.
+- **`Api::maps`** pide los cuatro ids (≈2 KB) y el worker lo guarda una vez por sesión
+  (`maps_for`), publicado en `Dashboard.maps`.
+- **`ui::map`**: dibuja con el `DrawList` de imgui (sin texturas): círculo campamento, cuadrado
+  torre, rombo fortaleza (dos triángulos), triángulo castillo; color por equipo o gris si no tiene
+  dueño; contorno doble en alto valor; anillo dorado en los de guilds seguidas (RF-31). Los tipos
+  sin puntuación no se dibujan y los `coord: null` se omiten.
+- La pestaña «Mapa» sustituye en el mismo sitio a la lista de objetivos, que queda plegada debajo
+  (`CollapsingHeader`): el texto se lee más rápido que el dibujo en mitad de una pelea.
+- Pendiente para la próxima: usar `points_tick` del matchup en `ClaimRow` para que RF-30b sea por
+  datos y no por tipo, y la ruta numerada de T-16 sobre este mismo mapa.
+
 ## HECHO – 2026-10-31 · El historial empieza vacío al arrancar (0.12.1)
 
 - **Lo reportó el usuario**: «el historial de claims no se borra al reiniciar; lo que se guarda es

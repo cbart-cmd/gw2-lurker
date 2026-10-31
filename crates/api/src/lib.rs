@@ -115,6 +115,17 @@ impl<T: Transport> Api<T> {
         let body = self.transport.get(&format!("{BASE}/guild/{id}"))?;
         parse(&body)
     }
+
+    /// The four WvW maps with the boxes the projection needs (RF-30, ADR-011).
+    ///
+    /// Asking for the four ids instead of `ids=all` keeps the answer at a couple of kilobytes;
+    /// the map list never changes, so the worker fetches it once per session.
+    pub fn maps(&self) -> Result<Vec<gw2lurker_core::WvwMap>, ApiError> {
+        let body = self
+            .transport
+            .get(&format!("{BASE}/maps?ids=38,95,96,1099"))?;
+        parse(&body)
+    }
 }
 
 fn parse<T: for<'de> Deserialize<'de>>(body: &[u8]) -> Result<T, ApiError> {
@@ -182,6 +193,7 @@ mod tests {
     const MATCH: &[u8] = include_bytes!("../tests/fixtures/match_2-2.json");
     const OBJECTIVES: &[u8] = include_bytes!("../tests/fixtures/objectives_all.json");
     const GUILD: &[u8] = include_bytes!("../tests/fixtures/guild.json");
+    const MAPS: &[u8] = include_bytes!("../tests/fixtures/maps_wvw.json");
 
     /// Transport that answers from a table of URLs and records what was asked.
     #[derive(Default)]
@@ -267,6 +279,27 @@ mod tests {
         let g = api.guild(id).unwrap();
         assert_eq!(g.tag, "LAX");
         assert!(!g.name.is_empty());
+    }
+
+    #[test]
+    fn rf30_maps_come_with_the_boxes_of_the_projection() {
+        let url = format!("{BASE}/maps?ids=38,95,96,1099");
+        let api = Api::new(Fake::with(&url, MAPS));
+        let maps = api.maps().unwrap();
+
+        assert!(
+            maps.len() >= 4,
+            "la fixture trae los cuatro mapas de MvM y algo más"
+        );
+        for id in [38, 95, 96, 1099] {
+            assert!(
+                maps.iter().any(|map| map.id == id),
+                "falta el mapa {id} en la respuesta"
+            );
+        }
+        let ebg = maps.iter().find(|map| map.id == 38).unwrap();
+        assert_eq!(ebg.continent_rect, [[8958.0, 12798.0], [12030.0, 15870.0]]);
+        assert_eq!(api.transport().asked.borrow().as_slice(), [url]);
     }
 
     #[test]

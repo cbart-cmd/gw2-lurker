@@ -5,6 +5,7 @@
 
 mod alerts;
 mod guilds;
+mod map;
 mod matchup;
 mod settings;
 mod window;
@@ -24,7 +25,7 @@ pub const WIDGET: &str = "WvW Lurker";
 /// Tabs of the widget, in order. The last one is always the settings (T-42).
 const TABS: [&str; 5] = [
     alerts::KEY,
-    matchup::KEY,
+    map::KEY,
     guilds::KEY,
     alerts::LOG_KEY,
     settings::KEY,
@@ -136,7 +137,7 @@ fn draw_widget(ui: &nexus::imgui::Ui) {
 
     let filters = FILTERS.get_or_init(|| std::sync::Mutex::new(matchup::Filters::all_kinds()));
     let current = crate::context::current_map_role();
-    let (candidates, guilds, names, claims, alerts) = {
+    let (candidates, guilds, names, claims, alerts, objectives, maps) = {
         let board = crate::worker::dashboard();
         (
             board.candidates.clone(),
@@ -149,6 +150,8 @@ fn draw_widget(ui: &nexus::imgui::Ui) {
                 current,
                 50,
             ),
+            board.names.clone(),
+            board.maps.clone(),
         )
     };
     let follow = crate::config().followed.clone();
@@ -175,6 +178,8 @@ fn draw_widget(ui: &nexus::imgui::Ui) {
                 follow: &follow,
                 current,
                 now,
+                objectives: &objectives,
+                maps: &maps,
             },
         );
     });
@@ -222,6 +227,10 @@ struct Tabbed<'a> {
     follow: &'a gw2lurker_core::FollowList,
     current: Option<gw2lurker_core::MapRole>,
     now: chrono::DateTime<chrono::Utc>,
+    /// Objectives of the player's language, with the `coord` the map needs.
+    objectives: &'a [gw2lurker_core::ObjectiveInfo],
+    /// Boxes of the four WvW maps (RF-30).
+    maps: &'a [gw2lurker_core::WvwMap],
 }
 
 /// Draws the tab bar and the body of the tab the player picked. The last tab is the settings.
@@ -243,14 +252,31 @@ fn draw_tabs(
         for (index, key) in TABS.iter().enumerate() {
             TabItem::new(i18n::widget(key)).build(ui, || match index {
                 0 => alerts::body(ui, data.alerts, data.now),
-                1 => matchup::body(
-                    ui,
-                    filters,
-                    data.claims,
-                    data.current,
-                    data.follow,
-                    data.names,
-                ),
+                1 => {
+                    map::body(
+                        ui,
+                        data.claims,
+                        data.objectives,
+                        data.maps,
+                        &mut map_choice(),
+                        data.current,
+                        data.follow,
+                    );
+                    // The list is the same data as the map, one click away: during a fight the
+                    // text is faster to read than the picture.
+                    ui.separator();
+                    if nexus::imgui::CollapsingHeader::new(i18n::widget("Matchup claims")).build(ui)
+                    {
+                        matchup::body(
+                            ui,
+                            filters,
+                            data.claims,
+                            data.current,
+                            data.follow,
+                            data.names,
+                        );
+                    }
+                }
                 2 => {
                     if let Some(guilds::Action::ToggleFollow(guild)) = guilds::body(
                         ui,
@@ -269,6 +295,19 @@ fn draw_tabs(
         }
     }
     change
+}
+
+/// Which map the *Map* tab draws: the session's choice, `Unknown` until the player picks one.
+///
+/// Session state on purpose: the default is always the map the player is on, which is the one
+/// they care about.
+fn map_choice() -> std::sync::MutexGuard<'static, gw2lurker_core::MapRole> {
+    static CHOICE: std::sync::OnceLock<std::sync::Mutex<gw2lurker_core::MapRole>> =
+        std::sync::OnceLock::new();
+    CHOICE
+        .get_or_init(|| std::sync::Mutex::new(gw2lurker_core::MapRole::Unknown))
+        .lock()
+        .unwrap_or_else(|error| error.into_inner())
 }
 
 /// One line with the state of the worker and the configured team (RF-02, RF-46).

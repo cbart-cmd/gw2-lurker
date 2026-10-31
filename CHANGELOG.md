@@ -1,6 +1,16 @@
 # Changelog
 Formato [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/), versionado [SemVer](https://semver.org/lang/es/).
 
+## [0.13.0] - 2026-10-31
+### Añadido
+- **Pestaña Mapa** (T-14): mapa simplificado de cada uno de los cuatro mapas de Mundo contra Mundo,
+  con los objetivos como figuras coloreadas por equipo —círculo campamento, cuadrado torre, rombo
+  fortaleza, triángulo castillo—, contorno doble en los de alto valor y anillo dorado en los de las
+  guilds que sigues. Selector de mapa, con el mapa en el que estás marcado y elegido por defecto.
+  Sin texturas ni teselas (ADR-002). La lista de objetivos del matchup sigue ahí, plegada.
+- `Api::maps` y `core::project` (`Frame`, `project`): proyección pura desde `continent_rect`, con
+  tests contra las fixtures reales.
+
 ## [0.12.1] - 2026-10-31
 ### Corregido
 - Al reiniciar el juego, la lista de avisos y el historial de clanes seguían mostrando claims de

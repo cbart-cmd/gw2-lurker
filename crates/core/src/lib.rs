@@ -12,6 +12,7 @@ pub mod gate;
 pub mod i18n;
 pub mod matchup;
 pub mod model;
+pub mod project;
 pub mod resolver;
 pub mod route;
 pub mod select;
@@ -27,6 +28,7 @@ pub use model::{
     MapRole, Match, MatchMap, MatchObjective, ObjectiveInfo, ObjectiveType, Region, TeamColor,
     TeamScores, WvwMap, HIGH_VALUE_TICK,
 };
+pub use project::{project, Frame};
 pub use resolver::Resolution;
 pub use route::{build as build_route, Origin as RouteOrigin, Route, Step as RouteStep};
 pub use select::{

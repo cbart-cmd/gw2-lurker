@@ -92,8 +92,15 @@ Cada tarea es pequeña y verificable. Orden recomendado; las dependencias se ind
 
 ## Fase 4 – Mapas
 
-- **T-14** Proyección `world_to_screen` + mapa simplificado con colores y formas. (T-04, T-12) — RF-30
-- **T-15** Capa de claims y vista de estado por guild. (T-14, T-11) — RF-31, RF-23
+- **T-14 ✔ (2026-10-31)** Proyección `world_to_screen` y mapa simplificado: `core::project`
+  (`Frame::of`, `normalise`, `to_screen`, `project`) con tests contra las fixtures reales, `Api::maps`
+  cacheado una vez por sesión y `ui::map` dibujando objetivos con `DrawList` (forma por tipo, color
+  por equipo, contorno doble en alto valor, anillo en guilds seguidas) más selector de mapa.
+  Verificado que `coord` está en coordenadas de continente y que `points_tick` no viene en
+  `/v2/wvw/objectives`. (T-04, T-12) — RF-30
+- **T-15 (parcial)** Capa de claims sobre el mapa: los objetivos de las guilds seguidas llevan
+  anillo dorado (RF-31). Falta la etiqueta con el tag y la vista de estado por guild. (T-14, T-11)
+  — RF-31, RF-23
 - **T-16** Vista Histórico: ruta simulada numerada, flechas, selector de rango, banner de "inferida", estilo para `late`/`gap`, tooltip. (T-15) — RF-32, RF-33, RF-34
 
 - **T-29 (S)** `map::background` y `map::icons`: fondo opcional con teselas oficiales e iconos de objetivo del campo `marker`, con caché en disco y sin empaquetar imágenes (ADR-011). Desactivado por defecto. *Hecho:* el mapa se ve igual con el fondo apagado. (T-14) — RF-37, RF-38

@@ -13,9 +13,6 @@ use nexus::imgui::{StyleColor, Ui};
 
 use crate::i18n;
 
-/// Translation key (and stable id) of this window.
-pub const KEY: &str = "Matchup claims";
-
 /// Filters the player can toggle; session state, like the team narrowing.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub struct Filters {

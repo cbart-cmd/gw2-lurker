@@ -20,6 +20,7 @@ use gw2lurker_core::model::{MapRole, Match, ObjectiveInfo, TeamColor};
 use gw2lurker_core::select::{self, Selection};
 use gw2lurker_store::{Record, SessionStore};
 
+use crate::catalog::{maps_for, objectives_for, resolve_guild_names};
 use crate::net::WinHttpTransport;
 
 /// Rounds of alerts kept for the widget (RF-19); the store keeps everything else.
@@ -67,6 +68,8 @@ pub struct Dashboard {
     pub names: Vec<ObjectiveInfo>,
     /// Guild id → `[TAG] Nombre`, from `/v2/guild` (RF-20). Missing ones are shown as the id.
     pub guild_names: std::collections::BTreeMap<String, String>,
+    /// The four WvW maps with their boxes, for the projection (RF-30).
+    pub maps: Vec<gw2lurker_core::WvwMap>,
     /// Every team playing right now, with its matchup and colour (RF-03a).
     pub candidates: Vec<gw2lurker_core::Candidate>,
     /// Map id → matchup role, so an alert knows which map it happened on.
@@ -444,6 +447,7 @@ fn poll_once(
     let now = Utc::now();
     let candidates = select::candidates(&live);
     let guild_names = resolve_guild_names(api, &guilds);
+    let maps = maps_for(api);
     let map_roles = match_id
         .as_deref()
         .and_then(|id| live.iter().find(|entry| entry.id == id))
@@ -462,6 +466,7 @@ fn poll_once(
     board.names = names;
     board.candidates = candidates;
     board.guild_names = guild_names;
+    board.maps = maps;
     board.map_roles = map_roles;
     board.claims = claims;
     board.guilds = guilds;
@@ -484,65 +489,6 @@ fn poll_once(
 /// colour (bug of 2026-10-31, RF-03a).
 fn wants_full_list(team_id: Option<u32>, picker_on_screen: bool) -> bool {
     team_id.is_none() || picker_on_screen
-}
-
-/// How many guild names are looked up per poll.
-///
-/// `/v2/guild` answers one guild per call, so asking for all of them at once would be a burst.
-/// With this budget a matchup with twenty guilds is fully named in about a minute, and the
-/// answers stay for the session.
-const GUILD_LOOKUPS_PER_POLL: usize = 10;
-
-#[derive(Default)]
-struct GuildNameCache {
-    known: std::collections::BTreeMap<String, String>,
-    /// Guilds the API refused once. A disbanded guild answers 404 forever, so retrying it on
-    /// every poll would burn the request budget for nothing.
-    failed: std::collections::HashSet<String>,
-}
-
-/// `[TAG] Nombre`, the way the game shows a guild.
-fn guild_label(info: &gw2lurker_api::GuildInfo) -> String {
-    match (info.tag.trim(), info.name.trim()) {
-        ("", name) => name.to_owned(),
-        (tag, "") => format!("[{tag}]"),
-        (tag, name) => format!("[{tag}] {name}"),
-    }
-}
-
-/// Names of the guilds in the matchup: from the session cache, then from the API.
-///
-/// Returns the whole map so the caller publishes it with the dashboard and the UI never has to
-/// take a second lock to label a row.
-fn resolve_guild_names(
-    api: &Api<WinHttpTransport>,
-    guilds: &[GuildSummary],
-) -> std::collections::BTreeMap<String, String> {
-    static CACHE: OnceLock<Mutex<GuildNameCache>> = OnceLock::new();
-    let cache = CACHE.get_or_init(|| Mutex::new(GuildNameCache::default()));
-    let mut cache = cache.lock().unwrap_or_else(|error| error.into_inner());
-
-    let mut budget = GUILD_LOOKUPS_PER_POLL;
-    for summary in guilds {
-        if budget == 0 {
-            break;
-        }
-        let id = &summary.guild;
-        if cache.known.contains_key(id) || cache.failed.contains(id) {
-            continue;
-        }
-        budget -= 1;
-        match api.guild(id) {
-            Ok(info) => {
-                cache.known.insert(id.clone(), guild_label(&info));
-            }
-            Err(error) => {
-                log::debug!("worker: sin nombre de clan {id} ({error})");
-                cache.failed.insert(id.clone());
-            }
-        }
-    }
-    cache.known.clone()
 }
 
 /// Whether an event is worth writing to disk: only what a followed guild did.
@@ -617,22 +563,6 @@ fn current_match<'a>(live: &'a [Match], id: Option<&str>) -> Option<&'a Match> {
     }
 }
 
-fn objectives_for(api: &Api<WinHttpTransport>) -> Result<Vec<ObjectiveInfo>, String> {
-    static NAMES: OnceLock<Mutex<(String, Vec<ObjectiveInfo>)>> = OnceLock::new();
-    let language = crate::i18n::effective().code();
-    let cache = NAMES.get_or_init(|| Mutex::new((String::new(), Vec::new())));
-    let mut guard = cache.lock().unwrap_or_else(|error| error.into_inner());
-
-    // Static data: fetched once per session and per language. Changing the language refetches
-    // once, which is what RF-44 asks for (no network while holding right Ctrl).
-    if guard.0 != language || guard.1.is_empty() {
-        let fetched = api
-            .objectives(language)
-            .map_err(|error| error.to_string())?;
-        *guard = (language.to_owned(), fetched);
-    }
-    Ok(guard.1.clone())
-}
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -684,28 +614,6 @@ mod tests {
             wants_full_list(None, false),
             "sin equipo configurado hay que pedirlo todo"
         );
-    }
-
-    #[test]
-    fn rf20_a_guild_is_named_with_its_tag() {
-        let info = gw2lurker_api::GuildInfo {
-            id: "1DB147F0".to_owned(),
-            name: "Legends Of Ravenous Destruction".to_owned(),
-            tag: "Lord".to_owned(),
-        };
-        assert_eq!(guild_label(&info), "[Lord] Legends Of Ravenous Destruction");
-
-        let untagged = gw2lurker_api::GuildInfo {
-            tag: String::new(),
-            ..info.clone()
-        };
-        assert_eq!(guild_label(&untagged), "Legends Of Ravenous Destruction");
-
-        let anon = gw2lurker_api::GuildInfo {
-            name: String::new(),
-            ..info
-        };
-        assert_eq!(guild_label(&anon), "[Lord]", "sin nombre queda la etiqueta");
     }
 
     #[test]
