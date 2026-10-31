@@ -31,6 +31,12 @@ Tres bugs nuevos del jugador, apuntados de golpe en `bugs.md`:
   ancha). Ahora el alto sale de `continent_rect`, se recorta entre 160 y 620 px y, si hay que
   estrechar el ancho para que quepa, se mantiene la proporción y se centra.
 - Refactor: `ui::popup` sale de `ui/mod.rs`, que había llegado a 808 líneas.
+- **`install.ps1` dice la versión**: la lee del `Cargo.toml` (no del nombre del fichero) y comprueba
+  que esa cadena esté dentro de la DLL (`env!("CARGO_PKG_VERSION")` la mete en el binario), así que
+  una DLL compilada antes de subir la versión sale avisada con «usa -Build». También dice qué había
+  instalado antes (MD5 y fecha: la versión de una DLL ajena no se puede leer, no lleva recurso de
+  versión) y avisa si ya estaba la misma. Probado con PowerShell 5.1, que es el que lanza
+  `install.bat`, y con el manifiesto subido a 0.22.4 a propósito para ver el aviso.
 - Verificación: 209 tests en verde (90 addon · 15 api · 98 core · 6 store), `clippy -D warnings`
   limpio, `cargo fmt --check` limpio, ningún fichero por encima de 800 líneas.
 - **Pendiente de comprobar en el juego**: el pop-up de uno en uno, la proporción del mapa y —del
