@@ -32,23 +32,15 @@ Estado: `[ ]` pendiente · `[x]` hecho.
 - **Hecho (0.17.1):** `ui::settings::label_column` mide la columna sobre la lista real de rótulos en
   el idioma activo, y los controles se quedan con el resto (`push_item_width`).
 
-## [ ] avisos no funciona (2026-10-31)
-- «En mapa azul he reclamado y no ha saltado el aviso de que he reclamado, aunque tengo marcado
-  seguir reclamaciones de mi mapa.»
-- **Diagnóstico (0.17.1):** el registro del juego dice que el addon estaba vigilando el
-  emparejamiento **`1-1`, que es de Norteamérica**, con el equipo guardado `11011`
-  («Lutgardis Conservatory», un equipo NA). Si el jugador está en Europa, el addon nunca ve sus
-  capturas: son de otro emparejamiento. Los ids de equipo son de la temporada actual y el nombre
-  del equipo no tiene por qué coincidir con el mundo antiguo que uno recuerda (T-45).
-- **Hecho (0.17.1) en la parte que se puede arreglar sin el jugador:** la cabecera del widget
-  enseña ahora la **región del emparejamiento** («Matchup 1-1 · NA»), se avisa en naranja cuando el
-  equipo guardado ya no juega, y el worker escribe una línea por sondeo cuando cambia el
-  emparejamiento vigilado (`worker: vigilando …`) más una por evento detectado
-  (`evento: Claim … (late: …)`), que es lo que faltaba para distinguir «no llega» de «llega y se
-  filtra».
-- **Pendiente de confirmar por el jugador:** volver a elegir equipo (Ajustes → Región → Equipo) y,
-  si sigue sin saltar, mandar las líneas `evento:` y `worker: vigilando` del `Nexus.log`.
-
+## [x] avisos no funciona (2026-10-31)
+- «En mapa azul he reclamado y no ha saltado el aviso, aunque tengo marcado seguir reclamaciones de
+  mi mapa.»
+- **Causa:** el addon vigilaba la partida **`1-1` (NA)** con un equipo NA (`11011`), así que los
+  eventos se detectaban pero eran de otra partida; lo capturado por el jugador, si juega en Europa,
+  no estaba ahí. Detalle completo en «la ventana no se puede mover» (2026-10-31).
+- **Hecho (0.17.1, 0.20.1 y 0.21.0):** la cabecera enseña la **región** del emparejamiento, el
+  worker deja en el log la partida vigilada, cada evento y un latido cada diez sondeos, y el selector
+  de equipo enseña **los mundos antiguos** de cada equipo para poder elegir el de tu región.
 ## [x] wdiget - buscador de clanes no muestra nada (2026-10-31)
 - El desplegable de equipo no desplegaba nada y escribir una palabra y pulsar «Buscar» no hacía
   nada.
@@ -188,9 +180,11 @@ Estado: `[ ]` pendiente · `[x]` hecho.
   verá si el sondeo avanza y si el diferencial ve cambios.
 
 
-## [ ] la ventana no se puiede mover
-- n otiene ni clocktough ni bloqueada, pero no se mueve
-- he instalado la versión niueva y no detecta que he cogido campa y relcaamado, ponew que nadie ha hecho nada en los ultimos 15 minutos desde que mepeceé a jugar ma so menos
-- indica "mapa 95" y emparejamiento 1-1
-![alt text](image-3.png)
-- el boton "x" no cierra la ventana, hace una especie de plegado
+## [x] la ventana no se puiede mover (parte original del jugador, 2026-10-31)
+- Lo que reportó, tal cual, para que no se pierda el contexto: «n otiene ni clocktough ni bloqueada,
+  pero no se mueve»; «he instalado la versión nueva y no detecta que he cogido campa y reclamado, pone
+  que nadie ha hecho nada en los últimos 15 minutos»; «indica mapa 95 y emparejamiento 1-1»; «el botón
+  × no cierra la ventana, hace una especie de plegado».
+- Resuelto en la entrada «la ventana no se puede mover (2026-10-31)»: barra de título, partida NA y
+  selector con los mundos antiguos.
+![captura del widget](image-3.png)
