@@ -41,6 +41,8 @@ Reglas:
   `diff/mod.rs` (196) + `diff/tests.rs` (244). El fichero más grande ahora es `model.rs` (375).
 - 49 tests en verde; trazabilidad: 21 requisitos con test, 52 sin cubrir.
 - Trampa: `cargo fmt | Select-Object -First 5` corta el proceso y deja el formateo a medias.
+- Trampa: una dependencia entre crates del workspace **necesita `version`** además de
+  `path`; sin ella `cargo deny` la ve como wildcard y falla el job de supply-chain.
 
 ## HECHO – 2026-10-31 · Vistas de claims y trazabilidad (T-36/37/38 parcial, T-03b)
 
