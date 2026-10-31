@@ -1,6 +1,13 @@
 # Changelog
 Formato [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/), versionado [SemVer](https://semver.org/lang/es/).
 
+## [0.4.2] - 2026-10-31
+### Corregido
+- **Cuelgue al entrar en un mapa.** La ventana de ajustes pedía el equipo con una función
+  que bloquea la configuración mientras el render ya la tenía bloqueada: std::sync::Mutex
+  no es reentrante y el juego se congelaba al dibujarse la primera vez tras la pantalla de
+  selección. Ahora esa consulta se hace sobre la referencia que ya se tiene (*_in).
+
 ## [0.4.1] - 2026-10-31
 ### Cambiado
 - La opacidad se ajusta en **porcentaje (0–100 %)** en el menú de cada ventana, no en

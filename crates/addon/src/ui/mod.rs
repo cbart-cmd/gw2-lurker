@@ -58,11 +58,11 @@ pub fn register() {
 
 fn draw_status(ui: &nexus::imgui::Ui) {
     let state = crate::context::snapshot();
-    let team_id = crate::team::selected();
-    let team_alias = crate::config().team_alias.clone();
-    let poll_secs = crate::config().poll_secs;
-    let mut open_settings = false;
     let mut config = crate::runtime();
+    let team_id = crate::team::selected_in(&config);
+    let team_alias = config.team_alias.clone();
+    let poll_secs = config.poll_secs;
+    let mut open_settings = false;
 
     // The worker's view, read under a short lock: nothing here touches the network or disks.
     let (health, match_id, claims, guilds, updated) = {

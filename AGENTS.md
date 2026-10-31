@@ -95,6 +95,13 @@ La DLL se distribuye desde **`https://github.com/cbart-cmd/gw2addonsreleases`**,
 - El nombre del fichero sale del `[lib] name` de `crates/addon`: **`gw2_lurker`**, no
   `gw2lurker_addon`. Si alguien lo cambia, Nexus busca un nombre que ya no existe.
 
+- **Nunca** llames a una función que bloquee `RUNTIME` (`runtime()`, `team::selected()`,
+  `team::remember()`, `request_save`) mientras ya tengas el candado: `std::sync::Mutex` no es
+  reentrante y el juego se congela (pasó el 2026-10-31 al dibujar los ajustes). Usa las
+  variantes `*_in(&Config)` desde dentro del render o de cualquier código que ya lo tenga.
+- La escritura de `settings.json` vive en su propio hilo (`addon::writer`); el render solo
+  llama a `persist_if_changed()`, que está limitado a dos guardados por segundo.
+
 ## 9. Progreso y continuidad (`PROGRESO.md`)
 
 `PROGRESO.md`, en la raíz, es la bitácora del trabajo. Existe para que **otra IA pueda

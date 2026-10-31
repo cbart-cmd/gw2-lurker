@@ -60,6 +60,8 @@ pub struct Dashboard {
     pub guilds: Vec<GuildSummary>,
     /// Objectives of the current language, for naming alerts.
     pub names: Vec<ObjectiveInfo>,
+    /// Every team playing right now, with its matchup and colour (RF-03a).
+    pub candidates: Vec<gw2lurker_core::Candidate>,
     /// Most recent events, newest last (RF-19).
     pub alerts: Vec<Event>,
     /// When the dashboard was last rebuilt.
@@ -240,11 +242,13 @@ fn poll_once(
     }
 
     let now = Utc::now();
+    let candidates = select::candidates(&live);
     let mut board = dashboard();
     board.health = Health::Ok { at: now };
     board.selection = selection;
     board.match_id = match_id;
     board.names = names;
+    board.candidates = candidates;
     board.claims = claims;
     board.guilds = guilds;
     for event in events {

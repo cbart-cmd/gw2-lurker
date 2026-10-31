@@ -32,7 +32,7 @@ pub fn draw_inline(ui: &Ui) -> Option<TeamChange> {
     let table = gw2lurker_core::bundled();
     let mut config = crate::runtime();
     let mut edits = Edits {
-        team_id: crate::team::selected(),
+        team_id: crate::team::selected_in(&config),
         alias: config.team_alias.clone().unwrap_or_default(),
         language: config.language,
         poll_secs: config.poll_secs as i32,
@@ -74,7 +74,7 @@ pub enum TeamChange {
 pub fn draw(ui: &Ui, config: &mut crate::config::Config) -> Option<TeamChange> {
     let table = gw2lurker_core::bundled();
     let mut edits = Edits {
-        team_id: crate::team::selected(),
+        team_id: crate::team::selected_in(config),
         alias: config.team_alias.clone().unwrap_or_default(),
         language: config.language,
         poll_secs: config.poll_secs as i32,

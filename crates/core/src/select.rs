@@ -35,6 +35,33 @@ pub struct Candidate {
     pub color: TeamColor,
 }
 
+impl Candidate {
+    /// Region of the matchup, from its id prefix (`1-x` is NA, `2-x` is EU).
+    pub fn region(&self) -> Option<crate::model::Region> {
+        match self.match_id.split_once('-')?.0 {
+            "1" => Some(crate::model::Region::Na),
+            "2" => Some(crate::model::Region::Eu),
+            _ => None,
+        }
+    }
+}
+
+/// Teams of one region and one colour: **one per matchup**, which is what the third step of
+/// the picker offers (RF-03a).
+///
+/// This is the whole point of asking region and colour first: the player recognises their
+/// colour in the in-game panel and goes from thirty-three names to four or five.
+pub fn of_region_and_color(
+    all: &[Candidate],
+    region: crate::model::Region,
+    color: TeamColor,
+) -> Vec<Candidate> {
+    all.iter()
+        .filter(|candidate| candidate.color == color && candidate.region() == Some(region))
+        .cloned()
+        .collect()
+}
+
 /// The team chosen for each character.
 ///
 /// Keyed by character name (Mumble's `Identity::name`) on purpose: a second account has
@@ -289,6 +316,26 @@ mod tests {
             vec![TeamColor::Red, TeamColor::Green, TeamColor::Blue],
             "el orden de TeamColor::ALL, el mismo que usa la UI"
         );
+    }
+
+    #[test]
+    fn rf03a_region_and_colour_narrow_the_picker_to_one_team_per_matchup() {
+        use crate::model::{Region, TeamColor};
+        let all = candidates(&live());
+
+        let blue_eu = of_region_and_color(&all, Region::Eu, TeamColor::Blue);
+        assert_eq!(blue_eu.len(), 1, "un equipo azul por matchup de EU");
+        assert_eq!(blue_eu[0].team_id, 12014);
+
+        assert_eq!(
+            of_region_and_color(&all, Region::Eu, TeamColor::Red)[0].team_id,
+            12015
+        );
+        assert!(
+            of_region_and_color(&all, Region::Na, TeamColor::Blue).is_empty(),
+            "la fixture solo trae el matchup 2-2"
+        );
+        assert_eq!(all[0].region(), Some(Region::Eu));
     }
 
     #[test]

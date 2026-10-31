@@ -26,7 +26,7 @@ pub use model::{
 };
 pub use resolver::Resolution;
 pub use select::{
-    candidates, evaluate as evaluate_team, evaluate_for, is_team, matchups_of, rivals, teams_of,
-    Candidate, Roster, Selection,
+    candidates, evaluate as evaluate_team, evaluate_for, is_team, matchups_of, of_region_and_color,
+    rivals, teams_of, Candidate, Roster, Selection,
 };
 pub use teams::{bundled, TeamEntry, TeamTable};

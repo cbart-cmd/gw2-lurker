@@ -34,6 +34,24 @@ Reglas:
   bueno un HTTP 200. Se reintenta con `-VerifyOnly` pasados unos minutos; no se cambia la URL
   ni la versión para taparlo.
 
+## HECHO – 2026-10-31 · Arreglado el cuelgue al entrar en un mapa (0.4.2)
+
+- **Síntoma**: el juego se congelaba al entrar en un mapa después de elegir personaje (reportado
+  por el usuario en 0.4.1).
+- **Causa**: `ui::settings::draw` pedía el equipo con `team::selected()`, que hace
+  `runtime()` (bloquea la configuración) mientras el render ya tenía ese mismo candado tomado.
+  `std::sync::Mutex` no es reentrante ⇒ interbloqueo en el propio hilo. Se disparaba en el
+  primer frame tras la selección de personaje porque es cuando `settings_available()` pasa a
+  verdadero y el selector se dibuja. Mismo problema en el panel de opciones de Nexus.
+- **Arreglo**: `team` tiene ahora variantes `selected_in(&Config)`, `remember_in(&mut Config)` y
+  `forget_in(&mut Config)`, y los sitios que ya tienen el candado usan esas. La regla queda
+  escrita en el módulo: *nunca llamar a la variante que bloquea con un guard vivo*.
+- **Test**: la precedencia (override manual → roster del personaje) se comprobó con una función
+  pura `resolve(manual, roster, character)`, porque en un test no hay Nexus y `character_name()`
+  revienta al llamar a `AddonApi::get()`.
+- Verificado: `clippy -D warnings` limpio, 30 tests en el addon, 71 en `core`; DLL 0.4.2 de
+  1 461 760 bytes.
+
 ## HECHO – 2026-10-31 · Worker de sondeo y datos en vivo en la ventana de estado (T-11c)
 
 - `addon::worker`: hilo propio, `MAY_POLL` como `AtomicBool` que escribe el render (la compuerta
