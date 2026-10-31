@@ -411,7 +411,7 @@ fn detail_line(
             row.guild.clone()
         });
         if let Some(at) = row.claimed_at {
-            parts.push(at.format("%H:%M").to_string());
+            parts.push(crate::clock::clock(at));
         }
     } else {
         parts.push(i18n::text("Unclaimed").to_owned());

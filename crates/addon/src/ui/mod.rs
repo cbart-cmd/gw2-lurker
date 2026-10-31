@@ -160,11 +160,8 @@ pub fn register() {
 /// everything that the mouse cannot reach (RF-02).
 fn draw_options(ui: &nexus::imgui::Ui) {
     draw_openers(ui);
-    let (candidates, names) = {
-        let board = crate::worker::dashboard();
-        (board.candidates.clone(), board.guild_names.clone())
-    };
-    let change = settings::draw_inline(ui, &candidates, &names);
+    let candidates = crate::worker::dashboard().candidates.clone();
+    let change = settings::draw_inline(ui, &candidates);
     match change {
         Some(settings::TeamChange::Pick(team_id)) => crate::team::remember(team_id),
         Some(settings::TeamChange::Clear) => crate::team::forget(),
@@ -380,6 +377,20 @@ fn draw_tabs(
                     }
                 }
                 2 => {
+                    // T-44: seguir un clan y añadirlo se decide aquí, mirando la partida, no en
+                    // los ajustes (petición de 2026-10-31).
+                    let team = crate::team::selected_in(config);
+                    let session = crate::worker::dashboard().session_guilds();
+                    follow::followed_section(ui, &mut config.followed, data.names);
+                    follow::add_section(
+                        ui,
+                        &mut config.followed,
+                        data.names,
+                        data.candidates,
+                        team,
+                        &session,
+                    );
+                    ui.separator();
                     if let Some(guilds::Action::ToggleFollow(guild)) = guilds::body(
                         ui,
                         data.guilds,
@@ -393,7 +404,7 @@ fn draw_tabs(
                     }
                 }
                 3 => alerts::log_body(ui, data.alerts),
-                _ => change = settings::body(ui, config, data.candidates, data.names),
+                _ => change = settings::body(ui, config, data.candidates),
             });
         }
     }
@@ -458,9 +469,7 @@ fn draw_health(ui: &nexus::imgui::Ui, config: &mut crate::config::Config, data: 
         }
         crate::worker::Health::Degraded { error, .. } => i18n::format("Error: {0}", &[error]),
     };
-    let when = updated
-        .map(|at| at.format("%H:%M:%S").to_string())
-        .unwrap_or_default();
+    let when = updated.map(crate::clock::clock_seconds).unwrap_or_default();
     if when.is_empty() {
         ui.text_disabled(summary);
     } else {

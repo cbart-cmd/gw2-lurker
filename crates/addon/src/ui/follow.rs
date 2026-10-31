@@ -11,6 +11,10 @@
 //!
 //! The cap is [`MAX_FOLLOWED`]: ten is more than anyone watches, and every followed guild is a
 //! ring on the map plus a filter on the alerts.
+//!
+//! Since 0.18.0 the two sections are drawn by the **Guilds** tab and not by the settings:
+//! following a guild is something you decide while looking at the match, not a preference you go
+//! hunting for (report of 2026-10-31).
 
 use std::collections::BTreeMap;
 
@@ -21,10 +25,15 @@ use nexus::imgui::{ComboBox, InputText, Selectable, Ui};
 
 use crate::i18n;
 
+/// How many guilds the *Claimed since the addon started* shortcut offers.
+const MAX_SESSION_ROWS: usize = 10;
+
 /// What the player typed in the search box and for which team. Session state on purpose: it is
 /// a tool, not a setting.
 static SEARCH_TEXT: std::sync::OnceLock<std::sync::Mutex<String>> = std::sync::OnceLock::new();
 static SEARCH_TEAM: std::sync::OnceLock<std::sync::Mutex<Option<u32>>> = std::sync::OnceLock::new();
+static SEARCH_REGION: std::sync::OnceLock<std::sync::Mutex<Option<Region>>> =
+    std::sync::OnceLock::new();
 
 fn text_slot() -> std::sync::MutexGuard<'static, String> {
     SEARCH_TEXT
@@ -40,27 +49,29 @@ fn team_slot() -> std::sync::MutexGuard<'static, Option<u32>> {
         .unwrap_or_else(|error| error.into_inner())
 }
 
-/// The whole section: the followed list plus the two ways of adding.
-pub fn body(
-    ui: &Ui,
-    follow: &mut FollowList,
-    names: &BTreeMap<String, String>,
-    candidates: &[Candidate],
-    my_team: Option<u32>,
-    session: &[(String, usize, Option<DateTime<Utc>>)],
-) {
-    let label = |id: &str| names.get(id).cloned().unwrap_or_else(|| id.to_owned());
+/// Region the player last picked in the search. Starts as their own, which is the useful default.
+fn region_slot() -> std::sync::MutexGuard<'static, Option<Region>> {
+    SEARCH_REGION
+        .get_or_init(|| std::sync::Mutex::new(None))
+        .lock()
+        .unwrap_or_else(|error| error.into_inner())
+}
 
-    ui.separator();
+/// The guilds the player follows, with a `×` to stop following each one.
+///
+/// It lives in the *Guilds* tab and not in the settings: following a guild is something you
+/// decide while looking at the match, not a preference you go hunting for (report of 2026-10-31).
+pub fn followed_section(ui: &Ui, follow: &mut FollowList, names: &BTreeMap<String, String>) {
     let count = format!("{}/{MAX_FOLLOWED}", follow.len());
     ui.text(i18n::format("Followed guilds ({0})", &[&count]));
 
     if follow.is_empty() {
         ui.text_disabled(i18n::text("None followed yet"));
+        return;
     }
     let mut remove = None;
     for guild in follow.clone().iter() {
-        ui.text(label(guild));
+        ui.text(label(names, guild));
         ui.same_line();
         if ui.small_button(format!("×###unfollow{guild}")) {
             remove = Some(guild.to_owned());
@@ -69,23 +80,40 @@ pub fn body(
     if let Some(guild) = remove {
         follow.remove(&guild);
     }
+}
 
+/// Ways of following a new guild: what claimed something this session, and the search.
+///
+/// It is a collapsing header, closed by default: it is a tool, and the list above is the answer
+/// most of the time.
+pub fn add_section(
+    ui: &Ui,
+    follow: &mut FollowList,
+    names: &BTreeMap<String, String>,
+    candidates: &[Candidate],
+    my_team: Option<u32>,
+    session: &[(String, usize, Option<DateTime<Utc>>)],
+) {
     if follow.is_full() {
         ui.text_disabled(i18n::text(
             "The list is full: stop following one to add another.",
         ));
         return;
     }
-
-    ui.separator();
-    if nexus::imgui::CollapsingHeader::new(i18n::widget("Add guild"))
+    if !nexus::imgui::CollapsingHeader::new(i18n::widget("Add guild"))
         .default_open(false)
         .build(ui)
     {
-        session_block(ui, follow, session, &label);
-        ui.separator();
-        search_block(ui, follow, candidates, my_team);
+        return;
     }
+    session_block(ui, follow, session, names);
+    ui.separator();
+    search_block(ui, follow, candidates, my_team);
+}
+
+/// `[TAG] Nombre` when it is known, the raw id otherwise.
+fn label(names: &BTreeMap<String, String>, id: &str) -> String {
+    names.get(id).cloned().unwrap_or_else(|| id.to_owned())
 }
 
 /// Guilds that claimed something during this session: one click and they are followed.
@@ -93,12 +121,15 @@ fn session_block(
     ui: &Ui,
     follow: &mut FollowList,
     session: &[(String, usize, Option<DateTime<Utc>>)],
-    label: &impl Fn(&str) -> String,
+    names: &BTreeMap<String, String>,
 ) {
     ui.text(i18n::text("Claimed since the addon started"));
+    // The ten most recent: the list is a shortcut, not an inventory, and it was growing without
+    // bound (report of 2026-10-31).
     let candidates: Vec<_> = session
         .iter()
         .filter(|(guild, ..)| !follow.contains(guild))
+        .take(MAX_SESSION_ROWS)
         .collect();
     if candidates.is_empty() {
         ui.text_disabled(i18n::text("None yet"));
@@ -106,10 +137,8 @@ fn session_block(
     }
     let mut add = None;
     for (guild, claims, last) in candidates {
-        let when = last
-            .map(|at| at.format("%H:%M").to_string())
-            .unwrap_or_default();
-        let text = format!("{}  ·  {claims} · {when}", label(guild));
+        let when = last.map(crate::clock::clock).unwrap_or_default();
+        let text = format!("{}  ·  {claims} · {when}", label(names, guild));
         ui.text(text);
         ui.same_line();
         if ui.small_button(format!("+###add{guild}")) {
@@ -128,17 +157,26 @@ fn search_block(ui: &Ui, follow: &mut FollowList, candidates: &[Candidate], my_t
     crate::worker::set_teams_needed(true);
 
     ui.text(i18n::text("Search a guild"));
-    // The **region** is the mandatory half, not the team: it is what the player always knows
-    // (their own) and the search only needs it to look in the right half of the world.
-    let Some(region) = region_of(candidates, my_team) else {
-        ui.text_disabled(i18n::text(
-            "Pick your team first: the search needs to know your region.",
-        ));
-        if candidates.is_empty() {
-            ui.text_disabled(i18n::text("The list of teams arrives with the next poll."));
-        }
-        return;
-    };
+
+    // **Region first**: a guild only matters if it plays in the half of the world the player cares
+    // about, and that is what the search really needs. It starts as the player's own and can be
+    // changed, because everybody has friends on the other side (report of 2026-10-31).
+    let mine = region_of(candidates, my_team);
+    let mut region = region_slot().or(mine).unwrap_or(Region::Eu);
+    let preview = region_label(region).to_owned();
+    ComboBox::new(i18n::widget("Region"))
+        .preview_value(preview)
+        .build(ui, || {
+            for option in [Region::Eu, Region::Na] {
+                if Selectable::new(region_label(option))
+                    .selected(region == option)
+                    .build(ui)
+                {
+                    region = option;
+                }
+            }
+        });
+    *region_slot() = Some(region);
 
     let mut text = text_slot();
     let mut go = InputText::new(ui, "###gw2lurker_search", &mut text)
@@ -169,7 +207,7 @@ fn search_block(ui: &Ui, follow: &mut FollowList, candidates: &[Candidate], my_t
     } else {
         let any = i18n::text("Team (any)").to_owned();
         let preview = match chosen {
-            Some(team) => team_label(candidates, team),
+            Some(team) => team_label(team),
             None => any.clone(),
         };
         ComboBox::new(i18n::widget("Team (any)"))
@@ -179,7 +217,7 @@ fn search_block(ui: &Ui, follow: &mut FollowList, candidates: &[Candidate], my_t
                     chosen = None;
                 }
                 for candidate in &teams {
-                    let text = team_label(candidates, candidate.team_id);
+                    let text = team_label(candidate.team_id);
                     if Selectable::new(text)
                         .selected(chosen == Some(candidate.team_id))
                         .build(ui)
@@ -213,11 +251,11 @@ fn search_block(ui: &Ui, follow: &mut FollowList, candidates: &[Candidate], my_t
             }
             let mut add = None;
             for hit in &hits {
-                // Con «Team (any)» el equipo del resultado importa: dice si es del
-                // emparejamiento del jugador antes de seguir el clan.
+                // Con «Team (any)» el equipo del resultado importa: dice si es del emparejamiento
+                // del jugador antes de seguir el clan.
                 let text = match hit.team {
                     Some(team) if chosen.is_none() => {
-                        format!("{}  ·  {team}###hit{}", hit.label, hit.id)
+                        format!("{}  ·  {}###hit{}", hit.label, team_label(team), hit.id)
                     }
                     _ => format!("{}###hit{}", hit.label, hit.id),
                 };
@@ -231,15 +269,23 @@ fn search_block(ui: &Ui, follow: &mut FollowList, candidates: &[Candidate], my_t
         }
     }
 }
-/// Name of a team as the player knows it (their own translation), with the id to disambiguate.
-fn team_label(_candidates: &[Candidate], team: u32) -> String {
-    let name = crate::config()
-        .team_translations
-        .get(&team.to_string())
-        .and_then(|by_language| by_language.values().next().cloned());
-    match name {
-        Some(name) => format!("{name} ({team})"),
-        None => team.to_string(),
+/// Name of a team as the player knows it: their own translation first, then the bundled name from
+/// `data/wvw-teams.json`, and the id in brackets to disambiguate.
+///
+/// It used to fall back to the bare id, so the drop-down was a column of numbers (report of
+/// 2026-10-31).
+fn team_label(team: u32) -> String {
+    let config = crate::config();
+    let language = i18n::effective().code();
+    let name = crate::team::display_name(config, language, team);
+    format!("{name} ({team})")
+}
+
+/// `EU` / `NA` as the player thinks of them.
+fn region_label(region: Region) -> &'static str {
+    match region {
+        Region::Eu => "EU",
+        Region::Na => "NA",
     }
 }
 

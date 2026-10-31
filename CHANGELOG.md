@@ -1,6 +1,24 @@
 # Changelog
 Formato [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/), versionado [SemVer](https://semver.org/lang/es/).
 
+## [0.18.0] - 2026-10-31
+### Añadido
+- **La pestaña Clanes es donde se sigue a los clanes**: empieza por **Clanes seguidos** (con la ×
+  para dejar de seguir) y debajo **Añadir clan**, con los **10 últimos que han reclamado algo** en
+  esta sesión y el buscador. En los ajustes queda una línea que dice dónde está.
+- **El buscador de clanes empieza por la región** (EU/NA, con la tuya por defecto y cambiable) y los
+  equipos se enseñan con su **nombre**, no con el número.
+### Corregido
+- **Las horas son las tuyas**: se pintaban en UTC, así que todo salía dos horas antes en España. El
+  almacenamiento sigue en UTC (es lo correcto para comparar) y la conversión se hace al dibujar, en
+  avisos, registro, clanes, emparejamiento y mapa.
+- **Al reiniciar, el registro empieza limpio**: lo que ya estaba reclamado solo avisa si es de un
+  clan seguido **y** de los últimos diez minutos.
+- **La barra de título entera responde**: doble clic contrae y despliega, y con la ventana contrada
+  un solo clic la abre.
+- **Un id que no es de clan ya no se pide a la API** (era el origen del `invalid type string …`), y
+  si la búsqueda falla el mensaje dice qué se buscó y en qué paso.
+
 ## [0.17.4] - 2026-10-31
 ### Corregido
 - **El clic derecho funciona a la primera**: con click-through la ventana no apuntaba su caja, así que

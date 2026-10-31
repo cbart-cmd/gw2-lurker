@@ -14,6 +14,13 @@ use crate::worker::Dashboard;
 /// so the log window can show the session.
 pub const MAX_ALERTS: usize = 50;
 
+/// How recent a claim found at a baseline has to be to still deserve an alert.
+///
+/// At start-up the differ reports every objective that is already claimed. Those are not news —
+/// showing them made the log look like it never restarted (bug of 2026-10-31) — but one from the
+/// last few minutes is something we missed while loading (RF-21).
+const LATE_GRACE: chrono::Duration = chrono::Duration::minutes(10);
+
 impl Dashboard {
     pub fn push_alert(&mut self, event: Event) {
         if !matches!(event, Event::Baseline { .. } | Event::Gap { .. }) {
@@ -40,19 +47,26 @@ impl Dashboard {
         current: Option<MapRole>,
         limit: usize,
     ) -> Vec<AlertLine> {
+        let newest = self.alerts.iter().map(|seen| seen.received).max();
         self.alerts
             .iter()
             .rev()
             .filter_map(|received| self.alert_line(&received.event, received.received))
-            // What was already claimed when the addon started is not news: showing it made the
-            // widget look like it never forgot anything (bug of 2026-10-31). The exception is a
-            // followed guild, which is followed precisely to hear about it (RF-21, RF-25).
+            // What was already claimed when the addon started is **not** an alert: it made the
+            // log look like it never restarted (bugs of 2026-10-31). Those rows stay in the
+            // history and in the route, which is where they belong.
+            //
+            // The only exception is a followed guild that claimed **minutes ago**: that is not
+            // yesterday's news, it is something we missed while loading, which is exactly what
+            // following a guild is for (RF-21).
             .filter(|line| {
                 !line.late
-                    || line
+                    || (line
                         .guild
                         .as_deref()
                         .is_some_and(|guild| follow.contains(guild))
+                        && newest
+                            .is_some_and(|seen| seen.signed_duration_since(line.at) < LATE_GRACE))
             })
             .filter(|line| filter.notify(line.map_role, line.guild.as_deref(), follow, current))
             .take(limit)

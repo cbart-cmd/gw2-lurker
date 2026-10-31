@@ -82,7 +82,6 @@ pub fn body(
     ui: &Ui,
     config: &mut crate::config::Config,
     candidates: &[Candidate],
-    names: &std::collections::BTreeMap<String, String>,
 ) -> Option<TeamChange> {
     let table = gw2lurker_core::bundled();
     let language = i18n::effective().code();
@@ -106,7 +105,7 @@ pub fn body(
     };
     let before = edits.team_id;
 
-    let save_now = draw_body(ui, table, &mut edits, candidates, names);
+    let save_now = draw_body(ui, table, &mut edits, candidates);
 
     remember_translation(config, edits.translation.as_str(), language);
     config.language = edits.language;
@@ -140,13 +139,9 @@ pub fn body(
 ///
 /// Used by Nexus' own options pane (`RenderType::OptionsRender`), which is reachable even
 /// outside WvW: that is how RF-02 keeps the configuration available everywhere.
-pub fn draw_inline(
-    ui: &Ui,
-    candidates: &[Candidate],
-    names: &std::collections::BTreeMap<String, String>,
-) -> Option<TeamChange> {
+pub fn draw_inline(ui: &Ui, candidates: &[Candidate]) -> Option<TeamChange> {
     let mut config = crate::runtime();
-    body(ui, &mut config, candidates, names)
+    body(ui, &mut config, candidates)
 }
 
 fn team_change(before: Option<u32>, now: Option<u32>) -> Option<TeamChange> {
@@ -221,13 +216,7 @@ fn label_column(ui: &Ui) -> f32 {
         + 20.0
 }
 
-fn draw_body(
-    ui: &Ui,
-    table: &TeamTable,
-    edits: &mut Edits,
-    candidates: &[Candidate],
-    names: &std::collections::BTreeMap<String, String>,
-) -> bool {
+fn draw_body(ui: &Ui, table: &TeamTable, edits: &mut Edits, candidates: &[Candidate]) -> bool {
     // imgui puts the label to the right of the widget: cap the widget so the translated labels
     // of a narrow window are not cut off, whatever the language.
     let label_width = label_column(ui);
@@ -261,16 +250,9 @@ fn draw_body(
         .build();
     draw_scope(ui, edits);
     draw_alert_filters(ui, edits);
-    // El selector de clanes vive en su módulo: listar y añadir es lo que crecía sin freno (T-44).
-    let session = crate::worker::dashboard().session_guilds();
-    crate::ui::follow::body(
-        ui,
-        &mut edits.follow,
-        names,
-        candidates,
-        edits.team_id,
-        &session,
-    );
+    ui.text_disabled(i18n::text(
+        "Following guilds lives in the Guilds tab, next to the match you are looking at.",
+    ));
 
     ui.separator();
     ui.text(i18n::text("Windows"));

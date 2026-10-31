@@ -66,10 +66,51 @@ Estado: `[ ]` pendiente · `[x]` hecho.
 - **Hecho (0.17.1):** la barra de pestañas usa `FITTING_POLICY_SCROLL`, así que imgui dibuja las
   flechas de desplazamiento en la propia barra (el «…» que se pedía), como el proyecto hermano.
 
-## [ ] widget
-- registro de avisos no hace lipieza al reiniciar el juego
-- pestaña de clanes deberia tener una primera seccion "clanes seguidos" (sacarlo de ajustes) y otra "añadir clanes" donde esté la lista de últimos 10 que han relcamado algo más el buscador
-- el buscador de clanes no funciona: 
-a. falta secciond de Eu / na
-b. el desplgable muestra "ids"  numercios
-c. al poner el nuimbre de unb clan da un error el buscador /invalid type string 11004
+## [x] widget · registro de avisos no hace limpieza al reiniciar (2026-10-31)
+- Al reiniciar el juego, el registro seguía lleno de lo de antes.
+- Causa: la línea base de cada sesión marca como `late` todo lo que ya estaba reclamado, y esas
+  líneas se enseñaban igual si el clan era seguido, así que hasta 50 filas viejas entraban en el
+  registro.
+- **Hecho (0.18.0):** un `late` **solo** se enseña si el clan es seguido **y** la captura es de los
+  últimos 10 minutos (`alerts::LATE_GRACE`): eso no es lo de ayer, es lo que nos perdimos al
+  arrancar. Lo viejo sigue estando en el historial y en la ruta, que es su sitio. Test
+  `rf25_a_restart_does_not_refill_the_log_with_yesterdays_claims`.
+
+## [x] widget · clanes seguidos fuera de ajustes y sección de añadir (2026-10-31)
+- **Hecho (0.18.0):** la pestaña **Clanes** empieza por **Clanes seguidos** (con la × para dejar de
+  seguir) y debajo **Añadir clan**, que abre **los 10 últimos que han reclamado algo** esta sesión
+  más el **buscador**. En los ajustes queda una línea que dice dónde está.
+
+## [x] widget · buscador de clanes (2026-10-31)
+- a. **falta sección EU/NA** → **hecho (0.18.0):** el buscador empieza por la **región** (EU/NA),
+  con la del jugador por defecto y cambiable.
+- b. **el desplegable muestra ids numéricos** → **hecho (0.18.0):** `team_label` usa el nombre del
+  equipo (`data/wvw-teams.json`) y, si el jugador le puso uno suyo, el suyo; el id va entre
+  paréntesis.
+- c. **`invalid type string 11004`** → **mitigado (0.18.0):** antes de pedir `/v2/guild/:id` se
+  comprueba que el id tenga forma de id de clan (32 hexágonos), así que un id que no lo sea ya no
+  gasta una petición ni produce ese error; además el mensaje de fallo dice **qué** se buscó («texto»
+  en EU/NA) y **en qué paso** falló (búsqueda o equipos). Si vuelve a salir, el texto dirá de dónde
+  viene.
+
+## [x] widget · el doble clic no volvía a descontraer (2026-10-31)
+- **Hecho (0.18.0):** la barra de título entera responde al ratón (`invisible_button`), no solo las
+  letras, y con la ventana contrada **un solo clic** en la barra la abre: pedir otro doble clic
+  sobre una caja de dos centímetros era optimista.
+
+## [x] widget · el horario no coincide con el de España (2026-10-31)
+- Las horas se pintaban en **UTC** (la API y el historial van en UTC, que es lo correcto para
+  comparar), así que una captura de las 21:40 salía como 19:40.
+- **Hecho (0.18.0):** `addon::clock` convierte a la hora local del sistema en el último momento, y
+  todas las horas del addon (avisos, registro, clanes, emparejamiento y mapa) pasan por ahí.
+  Tests `rf19_the_clock_uses_the_players_timezone_and_not_utc`.
+
+- o en ivnenadoero de lugardis nadie ha reclamado nada en 20 minutos, o falla. solo me pone una reclamacion de fuerte en alpino azulm, por [IRS]
+- el mapa no es real
+- pasar raton por encima de un objetivo noi dice el nombre del clan sino un id
+- el widget deberia pode rtener clicl derencho aunque tengas click-trough para asi poder deshabiltiar clickthough sin tener que abrir settings
+- al clicar sobre un clan en un aviso o en un clan qwue sigo, deberia sacar la ruta virutal del ultimo mapa en el que ha reclamado algo
+- la combinacion de teclas no abre el widget. lo hje probado coni diferentes combinaciones y ninguan fucnioanç
+
+## [ ] nomres de los equiios erroneos
+- los nombres actuales traducidos no son correctos. busca los nombres en ingles de la web que te pise, en aleman de la web que te puse, para español e ingles busca si esta en equiposx.xlsx y si no está pon el nombre inges para español y frances y ya lo traduciré yo

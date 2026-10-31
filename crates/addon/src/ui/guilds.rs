@@ -96,10 +96,7 @@ pub fn body(
                     }
                     ui.same_line();
 
-                    let when = summary
-                        .last_at
-                        .map(|at| at.format("%H:%M").to_string())
-                        .unwrap_or_default();
+                    let when = summary.last_at.map(crate::clock::clock).unwrap_or_default();
                     let here = match summary.last_map {
                         Some((_, role)) if Some(role) == current => {
                             format!(" ← {}", map_label(role))
@@ -187,10 +184,7 @@ fn draw_group(ui: &Ui, heading: &'static str, rows: &[gw2lurker_core::matchup::C
     ui.text_disabled(i18n::text(heading));
     for row in rows {
         let name = row.name.clone().unwrap_or_else(|| row.objective_id.clone());
-        let when = row
-            .claimed_at
-            .map(|at| at.format("%H:%M").to_string())
-            .unwrap_or_default();
+        let when = row.claimed_at.map(crate::clock::clock).unwrap_or_default();
         ui.text(format!("{when}  {name}  ·  {}", map_label(row.map_role)));
     }
 }

@@ -604,12 +604,14 @@ mod tests {
     }
 
     #[test]
-    fn rf21_a_followed_guild_is_told_even_if_the_claim_was_already_there() {
+    fn rf21_a_followed_guild_is_told_when_the_claim_is_fresh() {
+        let now = Utc::now();
         let mut board = Dashboard::default();
+        // Reclamado hace dos minutos: nos lo hemos perdido al arrancar, pero es de ahora.
         board.push_alert(Event::Claim {
             objective: "38-20".to_owned(),
             guild: "1DB147F0".to_owned(),
-            at: Utc::now(),
+            at: now - chrono::Duration::minutes(2),
             late: true,
         });
 
@@ -621,9 +623,33 @@ mod tests {
         assert_eq!(
             lines.len(),
             1,
-            "un clan seguido avisa aunque el claim ya estuviera al arrancar"
+            "un clan seguido avisa de un claim de hace un momento, aunque fuera `late`"
         );
         assert!(lines[0].late);
+    }
+
+    #[test]
+    fn rf25_a_restart_does_not_refill_the_log_with_yesterdays_claims() {
+        // El bug de 2026-10-31: al reiniciar, el registro se llenaba con lo que ya estaba
+        // reclamado. Un claim viejo no es un aviso, ni siquiera de un clan seguido.
+        let now = Utc::now();
+        let mut board = Dashboard::default();
+        for hours in [1, 3, 26] {
+            board.push_alert(Event::Claim {
+                objective: format!("38-{hours}"),
+                guild: "1DB147F0".to_owned(),
+                at: now - chrono::Duration::hours(hours),
+                late: true,
+            });
+        }
+
+        let mut follow = gw2lurker_core::FollowList::new();
+        follow.add("1DB147F0");
+        let filter = gw2lurker_core::AlertFilter::default();
+        assert!(
+            board.recent_alerts(&filter, &follow, None, 50).is_empty(),
+            "el registro empieza vacío en cada sesión"
+        );
     }
 
     #[test]

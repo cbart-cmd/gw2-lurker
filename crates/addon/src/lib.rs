@@ -10,6 +10,7 @@
 mod alerts;
 mod arc_team;
 mod catalog;
+mod clock;
 mod config;
 mod context;
 mod ffi;

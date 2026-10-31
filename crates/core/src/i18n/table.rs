@@ -127,6 +127,15 @@ pub const TEXT: &[(&str, [&str; COLUMNS])] = &[
         ],
     ),
     ("Team (any)", ["Equipo (cualquiera)", "Team (any)", "Équipe (toutes)", "Team (beliebig)"]),
+    (
+        "Following guilds lives in the Guilds tab, next to the match you are looking at.",
+        [
+            "Seguir clanes está en la pestaña Clanes, al lado de la partida que estás mirando.",
+            "Following guilds lives in the Guilds tab, next to the match you are looking at.",
+            "Suivre des guildes se fait dans l'onglet Guildes, à côté du match que vous regardez.",
+            "Gilden folgen geht im Reiter Gilden, direkt neben dem Match, das du siehst.",
+        ],
+    ),
     ("Search", ["Buscar", "Search", "Chercher", "Suchen"]),
     ("Range", ["Rango", "Range", "Plage", "Zeitraum"]),
     ("Last hour", ["Última hora", "Last hour", "Dernière heure", "Letzte Stunde"]),

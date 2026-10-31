@@ -140,10 +140,7 @@ fn draw_row(ui: &Ui, row: &ClaimRow, names: &std::collections::BTreeMap<String, 
         .get(&row.guild)
         .cloned()
         .unwrap_or_else(|| row.guild.clone());
-    let when = row
-        .claimed_at
-        .map(|at| at.format("%H:%M").to_string())
-        .unwrap_or_default();
+    let when = row.claimed_at.map(crate::clock::clock).unwrap_or_default();
 
     if let Some(colour) = row.owner {
         let _tint = ui.push_style_color(StyleColor::Text, colour_rgba(colour));

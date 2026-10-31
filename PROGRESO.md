@@ -13,6 +13,31 @@ Reglas:
 
 ---
 
+## HECHO – 2026-10-31 · Clanes en su pestaña, horas locales y registro limpio (0.18.0)
+
+Cinco fallos nuevos de `bugs.md`, diagnosticados con el código y con la API en vivo.
+
+- **Registro que no se limpiaba al reiniciar**: la línea base marca como `late` todo lo ya
+  reclamado, y esas líneas se enseñaban si el clan era seguido: hasta 50 filas de ayer. Ahora un
+  `late` solo se enseña si es de un clan seguido **y** de los últimos 10 minutos (`LATE_GRACE`);
+  lo viejo se queda en el historial y en la ruta. Tests `rf21_a_followed_guild_is_told_when_the_claim_is_fresh`
+  y `rf25_a_restart_does_not_refill_the_log_with_yesterdays_claims`.
+- **Clanes en su pestaña**: `follow::body` se parte en `followed_section` y `add_section`, y las
+  dibuja la pestaña **Clanes** (que ya tiene el contexto de la partida); los ajustes solo dicen
+  dónde están. La lista de «han reclamado» se corta en **10** filas.
+- **Buscador**: la **región** pasa a ser el primer control (con la del jugador por defecto, y
+  cambiable), los equipos se enseñan con **nombre** (`team_label` usa `data/wvw-teams.json`, no el
+  id) y los resultados dicen a qué equipo pertenecen cuando se busca sin filtrar. Un id que no
+  tenga forma de id de clan se descarta antes de pedirlo (`looks_like_guild_id`, con test): de ahí
+  venía el `invalid type string …`. El error ahora dice qué se buscó y en qué paso falló.
+- **Doble clic en la barra de título**: la barra entera es un `invisible_button` (antes solo las
+  letras) y con la ventana contrada un solo clic la abre.
+- **Horas en UTC**: nuevo `addon::clock` (`clock`, `clock_seconds`, `local`) y todas las horas del
+  addon pasan por ahí; el almacenamiento sigue en UTC. Tests
+  `rf19_the_clock_uses_the_players_timezone_and_not_utc`.
+- Verificación: 196 tests en verde (81 addon · 15 api · 94 core · 6 store), `clippy -D warnings`
+  limpio, ningún fichero por encima de 800 líneas.
+
 ## HECHO – 2026-10-31 · La caja de la ventana se guarda también en click-through (0.17.4)
 
 - El clic derecho de T-49 se prueba contra la caja guardada de la ventana, y esa caja **no se

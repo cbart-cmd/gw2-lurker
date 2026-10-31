@@ -97,11 +97,21 @@ pub fn start(region: Region, team: Option<u32>, text: String) -> bool {
 
 fn run(region: Region, team: Option<u32>, text: &str) -> Result<Vec<Hit>, String> {
     let api = Api::new(WinHttpTransport::default());
-    let ids = api.guild_search(text).map_err(|error| error.to_string())?;
-    let teams = teams_of(region, &api)?;
+    let ctx = format!("«{text}» en {region:?}");
+    let ids = api
+        .guild_search(text)
+        .map_err(|error| format!("{ctx} (búsqueda): {error}"))?;
+    let teams = teams_of(region, &api).map_err(|error| format!("{ctx} (equipos): {error}"))?;
 
     let mut hits = Vec::new();
     for id in ids.into_iter().take(MAX_LOOKUPS) {
+        // Un id de clan es un UUID. Cualquier otra cosa que devuelva el índice se descarta aquí:
+        // pedirla a `/v2/guild/:id` solo produce un error opaco de la API (informe de 2026-10-31,
+        // «invalid type string …»).
+        if !looks_like_guild_id(&id) {
+            log::warn!("search: la API devolvió {id}, que no es un id de clan; se ignora");
+            continue;
+        }
         let of_team = teams.get(&id).copied();
         // With a team chosen, only that team: that is what the selector means. Without one, the
         // whole region, which is what "Team (any)" says.
@@ -114,18 +124,35 @@ fn run(region: Region, team: Option<u32>, text: &str) -> Result<Vec<Hit>, String
                 label: crate::catalog::guild_label(&info),
                 team: of_team,
             }),
-            Err(error) => log::debug!("search: sin nombre de {id} ({error})"),
+            Err(error) => log::warn!("search: sin nombre de {id} ({error})"),
         }
         if hits.len() >= MAX_HITS {
             break;
         }
     }
     log::info!(
-        "search: {} resultados para «{text}» en {:?} con equipo {team:?}",
-        hits.len(),
-        region
+        "search: {} resultados para {ctx} con equipo {team:?}",
+        hits.len()
     );
     Ok(hits)
+}
+
+/// Whether a string has the shape of a guild id: 32 hexadecimal digits, with or without dashes.
+///
+/// `/v2/guild/<id>` answers with an opaque error for anything else, so the shape is checked
+/// before spending a request on it.
+fn looks_like_guild_id(id: &str) -> bool {
+    let mut digits = 0;
+    for character in id.chars() {
+        if character == '-' {
+            continue;
+        }
+        if !character.is_ascii_hexdigit() {
+            return false;
+        }
+        digits += 1;
+    }
+    digits == 32
 }
 
 /// Guild → team of a region, with the moment it was fetched.
@@ -160,5 +187,20 @@ mod tests {
         assert_eq!(snapshot(), State::Searching, "el estado no se pisa");
 
         *slot().lock().unwrap() = State::Idle;
+    }
+
+    #[test]
+    fn t44_only_guild_ids_are_looked_up() {
+        assert!(looks_like_guild_id("114D20B6-6E89-4432-982C-C77B58F57460"));
+        assert!(looks_like_guild_id("114d20b66e894432982cc77b58f57460"));
+        assert!(
+            !looks_like_guild_id("11004"),
+            "un id de equipo no es un id de clan: pedirlo da un error opaco"
+        );
+        assert!(!looks_like_guild_id(""), "ni la cadena vacía");
+        assert!(
+            !looks_like_guild_id("114D20B6-6E89-4432-982C"),
+            "ni medio id"
+        );
     }
 }

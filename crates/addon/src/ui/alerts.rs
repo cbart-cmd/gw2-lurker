@@ -165,7 +165,7 @@ pub fn draw_popup(
 }
 
 fn draw_line(ui: &Ui, line: &AlertLine, language: gw2lurker_core::i18n::Language) {
-    let time = line.at.format("%H:%M:%S").to_string();
+    let time = crate::clock::clock_seconds(line.at);
     let _tint = ui.push_style_color(StyleColor::Text, colour_of(line));
     let text = describe(line, language);
     ui.text(format!("{time}  {text}"));
