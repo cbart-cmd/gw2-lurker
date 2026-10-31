@@ -27,7 +27,7 @@ Esta guía te dice qué hacer tú y cómo trabajar con la IA. Los detalles de qu
 - [ ] Tener una copia de GW2 con Nexus funcionando para probar.
 
 **C. Spikes (los haces tú; no hay atajo)** — guía en `specs/07-spikes.md`
-- [ ] **T-01** addon mínimo en Nexus.
+- [ ] **T-01** addon mínimo en Nexus (incluye: Mumble `world_id` vs id del match, nombre API vs nombre en juego, texturas, `continent_rect`).
 - [ ] **T-02** medir la API (y capturar fixtures con `capture_fixtures`).
 - [ ] **T-02b** tamaño de DLL con distintos clientes HTTP.
 - [ ] **T-25** cómo actualiza Nexus.

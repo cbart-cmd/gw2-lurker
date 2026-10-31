@@ -19,3 +19,5 @@ Requisitos que solo se pueden comprobar con GW2 + Nexus (referenciados por la tr
 | MT-13 | RNF-01 | Medir frame time con widget y mapa abiertos | < 0.5 ms añadido |
 | MT-14 | RF-60/61 | Cambiar estilo Nexus/propio | Solo cambian las ventanas del addon |
 | MT-15 | RF-03d | Primer día tras el reset semanal | Color de equipo correcto, sin avalancha de alertas |
+| MT-16 | RF-03a/g | Elegir mundo y comparar con el panel de WvW del juego | El selector muestra `nombre (id)`; los rivales mostrados coinciden con los del juego |
+| MT-17 | RF-37 | Activar fondo con teselas | El fondo carga sin bloquear el render; se puede desactivar |

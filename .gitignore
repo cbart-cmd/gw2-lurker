@@ -1,23 +1,8 @@
-# Rust build output
-/target/
-**/target/
-
-# Addon build artifacts
-*.dll
-*.pdb
-*.exe
-
-# Local package archives
-*.zip
-
-# OS
-Thumbs.db
-desktop.ini
-.DS_Store
-
-# Editors
+/target
+/dist
+/spike-logs
+.env
+*.corrupt-*
 .idea/
-*.swp
-.vscode/*
-!.vscode/settings.json
-!.vscode/extensions.json
+.vscode/
+*.log

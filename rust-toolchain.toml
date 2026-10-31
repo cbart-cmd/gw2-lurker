@@ -1,0 +1,8 @@
+# Se usa "stable" hasta que el spike T-01 compile con éxito.
+# Entonces: fija aquí la versión exacta que funcionó (p. ej. channel = "1.xx.0")
+# y copia ese número en `rust-version` del workspace, para builds reproducibles.
+[toolchain]
+channel = "stable"
+components = ["rustfmt", "clippy"]
+targets = ["x86_64-pc-windows-msvc"]
+profile = "minimal"
