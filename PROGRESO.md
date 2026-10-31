@@ -13,6 +13,32 @@ Reglas:
 
 ---
 
+## HECHO – 2026-10-31 · «Aviso emergente», todo lo que sigo, último reclamo y teselas a medias (0.22.5)
+
+Tres cosas del informe de las 22:09, con la evidencia del `Nexus.log` y del API.
+
+- **«Ha dejado de recoger quién reclama».** El log dice `sondeo 20: partida Some("1-1"), 44
+  reclamados de 178 objetivos, **0 eventos nuevos**`, y el API confirmó lo mismo: en `1-1` el último
+  `claimed_at` era 21:02 UTC (22:02 local) mientras otras partidas se movían a las 21:09/21:10. O la
+  partida estaba tranquila o el equipo configurado no es el que se juega. Como eso no se puede
+  distinguir desde el widget, ahora **el widget y el latido dicen cuándo fue el último reclamo de la
+  partida** (`Dashboard::last_claim_at`, `diagnostics::last_claim_of`). No se toca la detección: no
+  había nada que detectar.
+- **«Toast» → «aviso emergente».** El ajuste pasa a «Aviso emergente (Nexus) de todo lo que sigo» y
+  su ayuda dice que lo dibuja Nexus encima del juego. Y ya no se limita a fortalezas y castillo:
+  manda `send_alert` para **cualquier** aviso que pase los filtros de tipo y alcance, como el pop-up
+  del addon. `alerts::is_critical` desaparece con su test y entra
+  `rf19d_every_alert_the_player_follows_can_be_interrupted`.
+- **Huecos en el mapa (bug de verdad, encontrado en el log).** Decenas de `tiles: no se pudo cargar
+  la textura`: la descarga escribía directo en el nombre final, así que el render leía JPEG a medias;
+  esas cuatro fallaban y **gastaban el presupuesto de texturas de cada frame**, con lo que el resto
+  del mapa no se cargaba nunca. Arreglo: descarga a `.part` + renombrado, `MIN_TILE_BYTES`, y una
+  tesela que falla se salta 5 s (`TILE_RETRY`) sin repetir el aviso.
+- Refactor: `heartbeat` y `last_claim_of` a `diagnostics.rs` (worker.rs había llegado a 819 líneas).
+- Verificación: 210 tests en verde, `clippy -D warnings` limpio, `cargo fmt --check` limpio, ningún
+  fichero por encima de 800 líneas.
+- **No verificado en el juego.**
+
 ## HECHO – 2026-10-31 · El buscador de clanes y el detalle del mapa (0.22.4)
 
 Los dos bugs que quedaban en `bugs.md`, con captura (`image-2.png`).

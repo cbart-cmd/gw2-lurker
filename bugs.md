@@ -14,4 +14,13 @@ Formato:
 
 Estado: `[ ]` pendiente · `[x]` arreglado en esta tanda (se borra al cerrarla).
 
-Nada pendiente ahora mismo: el buscador de clanes y el detalle del mapa salieron en 0.22.4.
+## [ ] «ha dejado de recoger quién reclama» (2026-10-31 22:09)
+- «Desde hace 5 minutos ha dejado de recoger quién reclama.»
+- Lo que decía la evidencia: el log tenía `sondeo 20: partida Some("1-1"), 44 reclamados de 178
+  objetivos, 0 eventos nuevos`, y el API confirmó que en `1-1` el último `claimed_at` era de las
+  22:02 locales mientras otras partidas se movían a las 22:09/22:10. O la partida estaba tranquila, o
+  el equipo configurado no es en el que se juega.
+- **Pendiente:** con 0.22.5 el widget y el latido del log dicen «Último reclamo: hace N min» (marca
+  del **juego**). Si en el juego reclaman y ese número no baja, el problema es el emparejamiento o el
+  equipo elegido, no la detección: hay que mirar la cabecera (equipo y partida) contra lo que se ve
+  en el juego.

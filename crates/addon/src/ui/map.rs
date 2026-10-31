@@ -306,6 +306,11 @@ const TILES_PER_FRAME: u8 = 4;
 static TILE_BUDGET: std::sync::atomic::AtomicU8 = std::sync::atomic::AtomicU8::new(TILES_PER_FRAME);
 
 /// Texture of one tile, loading it from the disk cache the first time it is needed.
+///
+/// A tile that fails is remembered for [`TILE_RETRY`] so the per-frame budget reaches the rest
+/// instead of burning itself on the same four files: with the download writing straight to the
+/// final name, the render could read a half-written JPEG, and those four failures starved every
+/// other tile of the map (log of 2026-10-31: «no se pudo cargar la textura» in a loop).
 fn tile_texture(x: u32, y: u32) -> Option<nexus::imgui::TextureId> {
     let cache = TILE_TEXTURES.get_or_init(|| std::sync::Mutex::new(BTreeMap::new()));
     if let Some(id) = cache
@@ -318,15 +323,26 @@ fn tile_texture(x: u32, y: u32) -> Option<nexus::imgui::TextureId> {
     if TILE_BUDGET.load(std::sync::atomic::Ordering::Relaxed) == 0 {
         return None;
     }
+    if failed_recently(x, y) {
+        return None;
+    }
     let path = crate::catalog::tile_path(x, y)?;
-    if !path.exists() {
+    // Un fichero de cero bytes es una descarga a medias: no es que falte, es que no se puede leer.
+    let Ok(meta) = std::fs::metadata(&path) else {
+        return None;
+    };
+    if meta.len() < MIN_TILE_BYTES {
+        remember_failure(x, y);
         return None;
     }
     TILE_BUDGET.fetch_sub(1, std::sync::atomic::Ordering::Relaxed);
     let identifier = format!("gw2lurker-tile-{x}-{y}");
     let Some(texture) = nexus::texture::get_texture_or_create_from_file(&identifier, &path) else {
         // Sin esta línea, «el mapa no es real» no se puede distinguir de «las teselas no están».
-        log::warn!("tiles: no se pudo cargar la textura de {path:?}");
+        // Una vez por tesela y reintento: no una línea por frame.
+        if !remember_failure(x, y) {
+            log::warn!("tiles: no se pudo cargar la textura de {path:?}");
+        }
         return None;
     };
     let id = texture.id();
@@ -335,6 +351,34 @@ fn tile_texture(x: u32, y: u32) -> Option<nexus::imgui::TextureId> {
         .unwrap_or_else(|error| error.into_inner())
         .insert((x, y), id);
     Some(id)
+}
+
+/// Smallest file that can be a tile: anything less is a download in progress.
+const MIN_TILE_BYTES: u64 = 1024;
+
+/// How long a tile that failed is left alone before trying again.
+const TILE_RETRY: std::time::Duration = std::time::Duration::from_secs(5);
+
+/// When each tile failed last, so neither the budget nor the log repeats it every frame.
+fn failures() -> &'static std::sync::Mutex<BTreeMap<(u32, u32), std::time::Instant>> {
+    static FAILURES: std::sync::OnceLock<
+        std::sync::Mutex<BTreeMap<(u32, u32), std::time::Instant>>,
+    > = std::sync::OnceLock::new();
+    FAILURES.get_or_init(|| std::sync::Mutex::new(BTreeMap::new()))
+}
+
+fn failed_recently(x: u32, y: u32) -> bool {
+    failures()
+        .lock()
+        .unwrap_or_else(|error| error.into_inner())
+        .get(&(x, y))
+        .is_some_and(|at| at.elapsed() < TILE_RETRY)
+}
+
+/// Marks the tile as failed. Returns `true` when it was already failing (so the log says it once).
+fn remember_failure(x: u32, y: u32) -> bool {
+    let mut map = failures().lock().unwrap_or_else(|error| error.into_inner());
+    map.insert((x, y), std::time::Instant::now()).is_some()
 }
 
 /// Border and name over whatever the background is.

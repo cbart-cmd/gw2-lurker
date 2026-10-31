@@ -1,6 +1,23 @@
 # Changelog
 Formato [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/), versionado [SemVer](https://semver.org/lang/es/).
 
+## [0.22.5] - 2026-10-31
+### Cambiado
+- **«Aviso emergente» en vez de «toast»**: en los ajustes se llama «Aviso emergente (Nexus) de todo
+  lo que sigo», con ayuda al pasar el ratón diciendo que lo dibuja Nexus encima del juego, aunque el
+  widget esté cerrado.
+- **Ese aviso ya no es solo de fortalezas y castillo**: sale cualquier aviso que pase tus filtros de
+  tipo (capturas, reclamaciones, liberaciones) y de alcance, igual que el pop-up del addon.
+### Añadido
+- **«Último reclamo: hace N min»** en el widget, y lo mismo en el latido del log: es la marca del
+  **juego**, no la nuestra, así que distingue «en esta partida no ha reclamado nadie» de «el addon
+  se ha quedado parado» (informe de 2026-10-31).
+### Corregido
+- **El mapa ya no se queda con huecos**: las teselas se escribían directamente en su nombre final y
+  el render podía leer un JPEG a medias; esas cuatro fallaban, gastaban el presupuesto de texturas de
+  cada frame y las demás no llegaban a cargarse nunca. Ahora se descargan a un `.part` y se renombran,
+  una tesela que falla se deja tranquila 5 s y el aviso sale una sola vez por tesela.
+
 ## [0.22.4] - 2026-10-31
 ### Corregido
 - **El buscador de clanes vuelve a funcionar**: el API manda el equipo de cada clan como **cadena**

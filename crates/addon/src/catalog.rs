@@ -240,8 +240,19 @@ pub fn ensure_tiles(maps: &[gw2lurker_core::WvwMap]) {
                         if let Some(dir) = path.parent() {
                             let _ = std::fs::create_dir_all(dir);
                         }
-                        match std::fs::write(&path, &bytes) {
-                            Ok(()) => saved += 1,
+                        // A un nombre temporal y luego renombrar: si se escribe directo, el
+                        // render ve el fichero a medias y la textura falla (log de 2026-10-31,
+                        // «no se pudo cargar la textura»). El `.part` no se confunde con una
+                        // tesela buena porque solo se buscan `.jpg`.
+                        let part = path.with_extension("part");
+                        match std::fs::write(&part, &bytes) {
+                            Ok(()) => match std::fs::rename(&part, &path) {
+                                Ok(()) => saved += 1,
+                                Err(error) => {
+                                    let _ = std::fs::remove_file(&part);
+                                    log::warn!("tiles: no se pudo guardar {path:?} ({error})")
+                                }
+                            },
                             Err(error) => {
                                 log::warn!("tiles: no se pudo guardar {path:?} ({error})")
                             }

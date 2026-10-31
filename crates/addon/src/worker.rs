@@ -8,7 +8,7 @@
 //! once the team is selected it switches to `/wvw/matches/{id}` (~44 KB), which at one poll
 //! every 30 s keeps us well inside the 600 requests/hour budget.
 
-use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Mutex, MutexGuard, OnceLock};
 use std::time::{Duration, Instant};
 
@@ -85,6 +85,12 @@ pub struct Dashboard {
     pub alerts: Vec<Received>,
     /// When the dashboard was last rebuilt.
     pub updated_at: Option<DateTime<Utc>>,
+    /// When the game last saw a claim in this matchup, as the API tells it.
+    ///
+    /// `updated_at` is *our* poll; this is the game's own timestamp. Without it, «no recoge nada»
+    /// cannot be told apart from «en esta partida no ha reclamado nadie» (report of 2026-10-31:
+    /// the API had nothing new for nine minutes while other matchups were moving).
+    pub last_claim_at: Option<DateTime<Utc>>,
 }
 
 impl Dashboard {
@@ -405,30 +411,17 @@ fn poll_once(
         board.history.drain(..excess);
     }
     board.updated_at = Some(now);
+    board.last_claim_at = crate::diagnostics::last_claim_of(&live, match_id.as_deref());
+    let board_last_claim = board.last_claim_at;
     drop(board);
-    heartbeat(
+    crate::diagnostics::heartbeat(
         events.len(),
         claim_count,
         objective_count,
         match_id.as_deref(),
+        board_last_claim,
     );
     Ok(())
-}
-
-/// A line every few polls with what the last one saw.
-///
-/// «No me avisa» has three very different causes and only the log can tell them apart: the poll may
-/// not be running, the differ may see no changes, or the events may arrive and the filter eat them.
-/// One line every ten polls (five minutes at the default) is cheap and answers the first two
-/// (report of 2026-10-31).
-fn heartbeat(events: usize, claims: usize, objectives: usize, match_id: Option<&str>) {
-    static POLLS: AtomicU64 = AtomicU64::new(0);
-    let count = POLLS.fetch_add(1, Ordering::Relaxed) + 1;
-    if count.is_multiple_of(10) {
-        log::info!(
-            "sondeo {count}: partida {match_id:?}, {claims} reclamados de {objectives} objetivos, {events} eventos nuevos"
-        );
-    }
 }
 
 /// Whether the next poll has to fetch every matchup instead of only the player's one.

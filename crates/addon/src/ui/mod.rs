@@ -71,24 +71,29 @@ fn take_lock_toggle() -> bool {
     LOCK_TOGGLE.swap(false, Ordering::Relaxed)
 }
 
-/// Manda el toast de Nexus para cada aviso crítico nuevo (RF-19d).
+/// Manda el aviso emergente de Nexus para cada aviso nuevo que pase los filtros del jugador.
 ///
 /// Nexus solo expone `send_alert(texto)`: no hay título ni sonido en `nexus-rs` 0.12 (comprobado
 /// en su código), así que la parte de sonido de RF-19d queda fuera hasta que la API la ofrezca.
+///
+/// Antes solo salían fortalezas y castillo; el jugador pidió (2026-10-31) que salga **todo lo que
+/// siga**, que es lo que ya enseña el pop-up del addon: los mismos filtros de tipo y de alcance.
 fn toast_critical(ui: &nexus::imgui::Ui) {
     static LAST: AtomicI64 = AtomicI64::new(0);
+    let config = crate::config();
     let alerts = {
         let board = crate::worker::dashboard();
         board.recent_alerts(
-            &crate::config().alerts,
-            &crate::config().followed,
+            &config.alerts,
+            &config.followed,
             crate::context::current_map_role(),
             alerts::MAX_LOGGED,
         )
     };
+    let kinds = config.alert_kinds;
     let since = LAST.load(Ordering::Relaxed);
     let mut newest = since;
-    for line in alerts.iter().filter(|line| alerts::is_critical(line)) {
+    for line in alerts.iter().filter(|line| kinds.shows(line.kind)) {
         let stamp = line.received.timestamp_millis();
         if stamp > since {
             nexus::alert::send_alert(alerts::plain(line));
@@ -521,13 +526,14 @@ fn map_choice() -> std::sync::MutexGuard<'static, MapRole> {
 /// One line with the state of the worker and the configured team (RF-02, RF-46).
 fn draw_health(ui: &nexus::imgui::Ui, config: &mut crate::config::Config, data: &Tabbed) {
     let state = crate::context::snapshot();
-    let (health, match_id, updated, selection) = {
+    let (health, match_id, updated, selection, last_claim_at) = {
         let board = crate::worker::dashboard();
         (
             board.health.clone(),
             board.match_id.clone(),
             board.updated_at,
             board.selection.clone(),
+            board.last_claim_at,
         )
     };
     let team_id = crate::team::selected_in(config);
@@ -577,6 +583,18 @@ fn draw_health(ui: &nexus::imgui::Ui, config: &mut crate::config::Config, data: 
         ui.text_disabled(format!(
             "{summary} · {}",
             i18n::format("Last update {0}", &[&when])
+        ));
+    }
+    // Cuándo vio el juego el último reclamo de esta partida: si eso es viejo, el addon no está
+    // parado, es que aquí no ha reclamado nadie (informe de 2026-10-31).
+    if let Some(at) = last_claim_at {
+        let minutes = chrono::Utc::now()
+            .signed_duration_since(at)
+            .num_minutes()
+            .max(0);
+        ui.text_disabled(i18n::format(
+            "Newest claim {0} min ago",
+            &[&minutes.to_string()],
         ));
     }
 

@@ -373,20 +373,7 @@ fn team_colour(colour: TeamColor) -> [f32; 4] {
     super::theme::team_colour(colour)
 }
 
-/// Whether an alert is worth interrupting for (RF-19d): taking a keep or the castle.
-///
-/// The pop-up already shows everything the player asked for; this is the extra layer for the two
-/// objectives that change a matchup, and it is **off by default**.
-pub fn is_critical(line: &AlertLine) -> bool {
-    use gw2lurker_core::ObjectiveType;
-    matches!(line.kind, AlertKind::Flip | AlertKind::Claim)
-        && matches!(
-            line.objective_kind,
-            ObjectiveType::Keep | ObjectiveType::Castle
-        )
-}
-
-/// La línea en texto plano, para el toast de Nexus.
+/// La línea en texto plano, para el aviso emergente de Nexus.
 pub fn plain(line: &AlertLine) -> String {
     spans(line, i18n::effective())
         .into_iter()
@@ -524,24 +511,23 @@ mod tests {
     }
 
     #[test]
-    fn rf19d_only_keeps_and_castles_interrupt_with_a_toast() {
-        let mut keep = line(AlertKind::Flip, Some(TeamColor::Blue), None);
-        keep.objective_kind = gw2lurker_core::ObjectiveType::Keep;
-        assert!(is_critical(&keep));
-
-        let mut castle = line(AlertKind::Claim, None, Some("YaK"));
-        castle.objective_kind = gw2lurker_core::ObjectiveType::Castle;
-        assert!(is_critical(&castle));
-
-        let mut camp = line(AlertKind::Claim, None, Some("YaK"));
-        camp.objective_kind = gw2lurker_core::ObjectiveType::Camp;
-        assert!(!is_critical(&camp), "un campamento no interrumpe");
-
-        let mut released = line(AlertKind::Unclaim, None, Some("YaK"));
-        released.objective_kind = gw2lurker_core::ObjectiveType::Keep;
+    fn rf19d_every_alert_the_player_follows_can_be_interrupted() {
+        // El pop-up de Nexus salía solo con fortalezas y castillo; el jugador pidió (2026-10-31)
+        // que salga **todo lo que siga**, así que la regla ya no mira el tipo de objetivo: mira
+        // los filtros de tipo de aviso (`AlertKinds`), que es lo que se prueba aquí.
+        let kinds = crate::config::AlertKinds::default();
+        for kind in [AlertKind::Flip, AlertKind::Claim, AlertKind::Unclaim] {
+            let one = line(kind, Some(TeamColor::Blue), Some("YaK"));
+            assert!(kinds.shows(one.kind), "{kind:?} tiene que poder salir");
+        }
+        let muted = crate::config::AlertKinds {
+            claims: false,
+            ..crate::config::AlertKinds::default()
+        };
+        let claim = line(AlertKind::Claim, None, Some("YaK"));
         assert!(
-            !is_critical(&released),
-            "soltar una fortaleza no es crítico"
+            !muted.shows(claim.kind),
+            "si el jugador apaga las reclamaciones, no salen"
         );
     }
 

@@ -392,9 +392,14 @@ fn draw_theme(ui: &Ui, edits: &mut Edits) {
     ui.checkbox(i18n::widget("Show claims"), &mut edits.kinds.claims);
     ui.checkbox(i18n::widget("Show releases"), &mut edits.kinds.unclaims);
     ui.checkbox(
-        i18n::widget("Toast for keeps and castles"),
+        i18n::widget("Nexus pop-up for everything I follow"),
         &mut edits.critical_toast,
     );
+    if ui.is_item_hovered() {
+        ui.tooltip_text(i18n::text(
+            "The one Nexus draws, on top of the game, even with the widget closed.",
+        ));
+    }
 }
 
 /// Which maps and guilds deserve an alert (RF-19a), plus how long the pop-up lasts.
