@@ -13,10 +13,10 @@ Reglas:
 
 ---
 
-## EN CURSO – 2026-10-31 · Siguiente: T-11c (worker) y T-39 (favoritos)
+## EN CURSO – 2026-10-31 · Siguiente: T-31 (i18n) y las vistas del MVP
 
-- Hecho sin necesitar al usuario: caché en disco (T-11b), gate de visibilidad, modelos de las
-  tres vistas y el check de trazabilidad (ver abajo).
+- Hecho sin necesitar al usuario: publicación automatizada (T-34), caché en disco (T-11b),
+  gate de visibilidad, modelos de las tres vistas y el check de trazabilidad (ver abajo).
 - Siguiente sin el juego: T-11c (hilo worker con parada limpia y estado de salud) y favoritos
   (RF-73). Cuidado con RF-32a: identificar garrison/colinas/bahía requiere criterio que aún no
   está verificado.
@@ -25,6 +25,25 @@ Reglas:
 - CI: el job `deny` seguía en curso al cerrar esta entrada; `license-files = []` es la
   primera prueba para las licencias de `nexus`. Si vuelve a fallar, hay que calcular el hash
   real de los ficheros de licencia, no seguir probando variantes.
+
+## HECHO – 2026-10-31 · Publicación automatizada de la DLL (T-34)
+
+- `scripts/release.ps1`: compila, comprueba `MZ` y tamaño (`check_size.sh`), escribe el `.md5`
+  con `UTF8Encoding($false)` (32 bytes exactos, sin BOM ni salto), añade la excepción de LFS a
+  `.gitattributes` del repo compartido, **aborta** si `git cat-file -s :gw2_lurker.dll` no
+  coincide con el tamaño local (puntero LFS) o si `check-attr` no devuelve los cuatro atributos
+  en `unset`, hace commit **solo** de `gw2_lurker.*`, publica la release con `--latest=false`,
+  borra las releases nuestras más allá de la anterior y descarga la URL exacta de `update_link`
+  para comparar bytes y MD5.
+- Opciones: `-DryRun` (compila y valida, no toca lo remoto) y `-VerifyOnly` (solo verifica lo
+  ya publicado, útil tras un aviso de caché).
+- Corregido un fallo propio que esto destapó: la DLL se llamaba `gw2lurker_addon.dll` porque
+  el `[lib]` no tenía `name`. Ahora `crates/addon/Cargo.toml` fija `name = "gw2_lurker"` y el
+  `ci.yml` apunta al nombre nuevo.
+- Verificado: `-DryRun` completo (DLL 1 053 696 bytes, `MZ`, MD5 calculado, tamaño dentro del
+  objetivo). La publicación real y la descarga se comprueban en el mismo comando.
+- Trampa para quien siga: en PowerShell, `"$size:"` dentro de una cadena se parsea como
+  unidad/scope y rompe el fichero; hay que escribir `${size}`.
 
 ## HECHO – 2026-10-31 · Caché en disco de objetivos y guilds (T-11b)
 

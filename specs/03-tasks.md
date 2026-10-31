@@ -79,8 +79,11 @@ tarea indica de qué depende.
    `NexusLink::is_gameplay` con respaldo por `map_type`. (T-12) — RF-02, RF-02a
    - **Parcial (2026-10-31):** la decisión pura está hecha en `core::gate` (6 tests). Falta
      conectar `NexusLink::is_gameplay` y `Context` cuando exista T-12.
-3. **T-34 (M)** Publicar la DLL en `..\gw2addonsreleases` siguiendo `docs/RELEASE.md`
-   (MD5, excepción LFS, tag `gw2-lurker-v*`, retención actual+anterior). (T-27) — RF-53
+3. **T-34 ✔ (2026-10-31)** Publicar la DLL en `..\gw2addonsreleases` siguiendo `docs/RELEASE.md`
+   (MD5, excepción LFS, tag `gw2-lurker-v*`, retención actual+anterior). Automatizado en
+   `scripts/release.ps1` (`-DryRun` / normal / `-VerifyOnly`), que aborta en vez de publicar
+   un puntero LFS, un `.md5` que no mida 32 bytes o una descarga que no coincida. El fichero
+   pasa a llamarse `gw2_lurker.dll` por el `[lib] name` del addon. (T-27) — RF-53
 4. **T-35 (M)** Arrancar el addon dentro del juego con este repo: `export!` real, versión
    visible y traza en `addons/Nexus/Nexus.log`. Es la T-01 ejecutada de verdad. (T-33, T-34)
 5. **T-36 (M)** Vista **"Claims del matchup"**: los cuatro mapas agrupados, con filtros.

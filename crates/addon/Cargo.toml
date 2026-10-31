@@ -9,6 +9,7 @@ repository.workspace = true
 license.workspace = true
 
 [lib]
+name = "gw2_lurker"
 crate-type = ["cdylib"]
 
 [dependencies]

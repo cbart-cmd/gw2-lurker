@@ -28,6 +28,9 @@ no lo usa Nexus.
 
 ## Flujo
 
+Todo esto lo hace `scripts/release.ps1`; los pasos quedan aquí como contrato de lo que el
+script comprueba y como salida manual si el script no se puede usar.
+
 1. Subir la versión en `Cargo.toml` y en `CHANGELOG.md`.
 2. `cargo fmt --all --check`, `cargo clippy --workspace --all-targets -- -D warnings`,
    `cargo test --workspace`, `bash ./scripts/check_loc.sh`.

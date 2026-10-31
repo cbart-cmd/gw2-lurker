@@ -86,8 +86,16 @@ La DLL se distribuye desde **`https://github.com/cbart-cmd/gw2addonsreleases`**,
 - Retención: **release actual + la anterior**; se borra la de dos versiones atrás.
 - Excepción de LFS para nuestra DLL en `.gitattributes` del repo de distribución **antes** de `git add`, o Nexus recibe un puntero de texto en vez de la DLL.
 - Verificar la descarga real (bytes, `MZ`, MD5) desde la URL exacta, no fiarse de un HTTP 200.
+- **Automatizado**: `pwsh -File scripts/release.ps1 -DryRun` (compila y valida sin tocar lo
+  remoto), `pwsh -File scripts/release.ps1` (publica) y `-VerifyOnly` (solo comprueba la URL
+  publicada). No repetir a mano los diez pasos: el script aborta si el blob es un puntero LFS,
+  si el `.md5` no mide 32 bytes o si la descarga no coincide en bytes y MD5.
+- El nombre del fichero sale del `[lib] name` de `crates/addon`: **`gw2_lurker`**, no
+  `gw2lurker_addon`. Si alguien lo cambia, Nexus busca un nombre que ya no existe.
 
-## 9. Progreso y continuidad (`PROGRESO.md`)`PROGRESO.md`, en la raíz, es la bitácora del trabajo. Existe para que **otra IA pueda
+## 9. Progreso y continuidad (`PROGRESO.md`)
+
+`PROGRESO.md`, en la raíz, es la bitácora del trabajo. Existe para que **otra IA pueda
 seguir** si la actual se corta a medias.
 
 - Al empezar una tarea, escribe una entrada `EN CURSO` con el plan (3–5 líneas) y qué RF
