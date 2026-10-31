@@ -117,6 +117,9 @@ pub struct Config {
     pub alerts: gw2lurker_core::AlertFilter,
     /// How long the pop-up stays visible, in seconds; `0` disables it (RF-19a).
     pub popup_secs: f32,
+    /// Whether the pop-up alerts are shown at all (T-42). Separate from `popup_secs` so turning
+    /// them off and on again keeps the duration the player chose.
+    pub popup_enabled: bool,
     /// Language preference.
     pub language: LanguagePreference,
     /// Guilds marked as favourites (RF-73).
@@ -144,6 +147,7 @@ impl Default for Config {
             alert_scope: AlertScope::default(),
             alerts: gw2lurker_core::AlertFilter::default(),
             popup_secs: 2.0,
+            popup_enabled: true,
             language: LanguagePreference::default(),
             followed: FollowList::default(),
             widget_opacity: 0.85,

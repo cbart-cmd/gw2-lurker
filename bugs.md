@@ -94,6 +94,11 @@ Estado: `[ ]` pendiente · `[x]` hecho.
  - El historia de claims se debe borrar cada vez que se reiniicar el juego
  - Lo que se debe guardar es el historial de clanes que se sigue
 
- ## [ ] widget no se parece a bocetos
+ ## [x] widget no se parece a bocetos (2026-10-31)
  - En bocetos una sola ventana tiene pestañas para agrupar todo
  - Falta el boceto de la ventana de avisos pop-up que dura 'x' segundos según se haya seleccionado
+ - **Hecho (0.12.0):** una sola ventana con pestañas **Avisos · Mapa · Clanes · Registro · Ajustes**
+   (la última), como `docs/boceto.html` (ADR-014). Las opciones de Nexus ofrecen **Ver la ventana** y
+   **Avisos emergentes**, y siguen mostrando los ajustes aunque la ventana esté cerrada. El pop-up tiene
+   interruptor propio (`popup_enabled`) además de la duración 0–5 s, y se dibuja aunque el widget esté
+   cerrado. **Pendiente:** mirar en el juego el boceto del pop-up (fade, barra de color, tipografía).

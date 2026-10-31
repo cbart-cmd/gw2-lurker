@@ -1,6 +1,17 @@
 # Changelog
 Formato [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/), versionado [SemVer](https://semver.org/lang/es/).
 
+## [0.12.0] - 2026-10-31
+### Cambiado
+- **Una sola ventana con pestañas**, como el boceto: **Avisos · Mapa · Clanes · Registro** y, al
+  final, **Ajustes**. Desaparecen las cinco ventanas sueltas y su estado por ventana: ahora la
+  ventana se coloca, se bloquea y se opaca una vez.
+- Las **opciones de Nexus** empiezan con **Ver la ventana** y **Avisos emergentes**, y siguen
+  mostrando los ajustes completos: es la vía de vuelta aunque la ventana esté cerrada.
+### Añadido
+- Interruptor de **avisos emergentes** (el pop-up) dentro de la pestaña de ajustes, con su
+  duración de 0 a 5 s. El pop-up se dibuja aunque la ventana esté cerrada.
+
 ## [0.11.3] - 2026-10-31
 ### Corregido
 - Los clanes se veían como un identificador (`9FDB4A86-1588-…`) en vez de su nombre. Ahora se

@@ -67,6 +67,16 @@ pub const TEXT: &[(&str, [&str; COLUMNS])] = &[
         ],
     ),
     ("Alert log", ["Registro de avisos", "Alert log", "Journal des alertes", "Hinweisprotokoll"]),
+    ("Show widget", ["Ver la ventana", "Show widget", "Voir la fenêtre", "Fenster zeigen"]),
+    (
+        "Pop-up alerts",
+        [
+            "Avisos emergentes",
+            "Pop-up alerts",
+            "Alertes surgissantes",
+            "Aufpoppende Hinweise",
+        ],
+    ),
     (
         "Nothing matches the filters",
         [

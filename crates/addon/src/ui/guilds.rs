@@ -40,10 +40,9 @@ fn set_selected(guild: Option<String>) {
     *SELECTED.lock().unwrap_or_else(|error| error.into_inner()) = guild;
 }
 
-/// Draws the window. `history` is the whole session; this filters it by guild.
-pub fn draw(
+/// Body of the *Guilds* tab. `history` is the whole session; this filters it by guild.
+pub fn body(
     ui: &Ui,
-    state: &mut crate::config::WindowState,
     guilds: &[GuildSummary],
     names: &std::collections::BTreeMap<String, String>,
     follow: &FollowList,
@@ -58,10 +57,10 @@ pub fn draw(
             .unwrap_or_else(|| guild.to_owned())
     };
 
-    crate::ui::window::draw(ui, KEY, 4, [430.0, 420.0], state, |ui| {
+    {
         if guilds.is_empty() {
             ui.text_disabled(i18n::text("No claims yet"));
-            return;
+            return None;
         }
 
         ui.text(i18n::text("Ordered by most recent claim"));
@@ -115,7 +114,7 @@ pub fn draw(
         let Some(chosen) = selected() else {
             ui.separator();
             ui.text_disabled(i18n::text("Pick a guild to see its history"));
-            return;
+            return action;
         };
 
         ui.separator();
@@ -123,7 +122,7 @@ pub fn draw(
         let rows = history(&chosen);
         if rows.is_empty() {
             ui.text_disabled(i18n::text("No claims yet"));
-            return;
+            return action;
         }
         let (here, elsewhere) = match current {
             Some(role) => gw2lurker_core::matchup::split_by_map(&rows, role),
@@ -147,7 +146,7 @@ pub fn draw(
         }
         draw_group(ui, "Current map", &here);
         draw_group(ui, "Other maps", &elsewhere);
-    });
+    }
 
     action
 }

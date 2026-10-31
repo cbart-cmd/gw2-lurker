@@ -38,22 +38,33 @@ pub const WIDGET_MINUTES: i64 = 10;
 /// How many lines the pop-up shows at once.
 const MAX_POPUP_LINES: usize = 5;
 
-/// Draws the window. `window_state` comes from `config.json` like every other window.
-pub fn draw(ui: &Ui, window_state: &mut crate::config::WindowState, alerts: &[AlertLine]) -> bool {
-    crate::ui::window::draw(ui, KEY, 2, [360.0, 240.0], window_state, |ui| {
-        ui.text_disabled(i18n::format(
-            "Last {0} minutes; the log window has the rest.",
-            &[&WIDGET_MINUTES.to_string()],
-        ));
-        if alerts.is_empty() {
-            ui.text_disabled(i18n::text("No alerts yet"));
-            return;
-        }
-        let language = i18n::effective();
-        for line in alerts.iter().take(MAX_LINES) {
-            draw_line(ui, line, language);
-        }
-    })
+/// Body of the *Alerts* tab: what just happened, so it is readable during a fight.
+pub fn body(ui: &Ui, alerts: &[AlertLine], now: DateTime<Utc>) {
+    ui.text_disabled(i18n::format(
+        "Last {0} minutes; the log window has the rest.",
+        &[&WIDGET_MINUTES.to_string()],
+    ));
+    let recent = within(alerts, now, WIDGET_MINUTES);
+    if recent.is_empty() {
+        ui.text_disabled(i18n::text("No alerts yet"));
+        return;
+    }
+    let language = i18n::effective();
+    for line in recent.iter().take(MAX_LINES) {
+        draw_line(ui, line, language);
+    }
+}
+
+/// Body of the *Alert log* tab: the whole session, scrolling if needed.
+pub fn log_body(ui: &Ui, alerts: &[AlertLine]) {
+    if alerts.is_empty() {
+        ui.text_disabled(i18n::text("No alerts yet"));
+        return;
+    }
+    let language = i18n::effective();
+    for line in alerts {
+        draw_line(ui, line, language);
+    }
 }
 
 /// The lines still worth a place in the widget: those that arrived in the last `minutes`.
@@ -69,28 +80,6 @@ pub fn within(lines: &[AlertLine], now: DateTime<Utc>, minutes: i64) -> Vec<Aler
 }
 
 /// Draws the expanded log: every alert the worker still remembers, scrolling if needed.
-///
-/// Same data and same lines as [`draw`], without the `MAX_LINES` cut, in a bigger window: during
-/// a fight the compact one is what you glance at, after it the log is what you read.
-pub fn draw_log(
-    ui: &Ui,
-    window_state: &mut crate::config::WindowState,
-    alerts: &[AlertLine],
-) -> bool {
-    crate::ui::window::draw(ui, LOG_KEY, 5, [440.0, 420.0], window_state, |ui| {
-        if alerts.is_empty() {
-            ui.text_disabled(i18n::text("No alerts yet"));
-            return;
-        }
-        let language = i18n::effective();
-        for line in alerts {
-            draw_line(ui, line, language);
-        }
-    })
-}
-
-/// Lines that still deserve a pop-up: the ones received less than `secs` ago.
-///
 /// Pure on purpose (`now` is a parameter): the render callback needs it every frame and the
 /// rule has to be testable without a game. `0` seconds means no pop-up at all.
 pub fn popup_lines(lines: &[AlertLine], now: DateTime<Utc>, secs: f32) -> Vec<AlertLine> {

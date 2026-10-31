@@ -75,6 +75,12 @@ Cada tarea es pequeña y verificable. Orden recomendado; las dependencias se ind
   configuración desde el hilo de entrada. Los ajustes tienen una casilla de click-through por
   ventana y una **ventana de registro de avisos** con la lista completa y scroll. (T-13)
   — RF-14, RF-18
+- **T-42 ✔ (2026-10-31)** Una sola ventana con pestañas, como `docs/boceto.html` (ADR-014):
+  **Avisos · Mapa · Clanes · Registro** y la **última, Ajustes** (equipo, idioma, intervalo,
+  filtros de aviso y clanes seguidos dentro de la propia ventana). Un único `WindowState` para
+  toda la ventana. El **pop-up** se activa y desactiva desde ahí (`popup_enabled` + `popup_secs`)
+  y desde las opciones de Nexus, que además ofrecen **Ver la ventana**; el pop-up se dibuja
+  aunque la ventana esté cerrada. (T-13, T-17) — RF-14, RF-16, RF-19a, RF-46
 - **T-17 ✔ (2026-10-31, parcial)** Contrato de ventana compartido en `addon::ui::window`:
   barra de título propia con `×`, plegado con doble clic, mover/redimensionar solo si no está
   bloqueada, opacidad sobre el fondo, menú contextual (bloquear, opacidad, restablecer) y

@@ -13,6 +13,27 @@ Reglas:
 
 ---
 
+## HECHO – 2026-10-31 · Una sola ventana con pestañas (T-42; 0.12.0)
+
+- **ADR-014**: el addon pasa de cinco ventanas sueltas a **una** con pestañas —Avisos · Mapa ·
+  Clanes · Registro · Ajustes (la última)—, como `docs/boceto.html`. Un solo `WindowState` para
+  toda la ventana; los estados viejos se quedan en `settings.json` sin usar, no se borran.
+- Refactor de las vistas: `alerts::body`/`log_body`, `matchup::body`, `guilds::body` y
+  `settings::body` ya no dibujan cromo; `ui::window` solo envuelve la ventana única. `draw_inline`
+  (opciones de Nexus) pasa a ser «coger el candado y llamar a `body`».
+- **Opciones de Nexus** ganan al principio **Ver la ventana** y **Avisos emergentes**; siguen
+  dibujando los ajustes completos, así que son la salida cuando la ventana está cerrada.
+- **`popup_enabled`** (nuevo, por defecto `true`) separa «enseñar pop-ups» de «cuánto duran»: al
+  apagarlos y encenderlos se conserva la duración. El pop-up se dibuja **fuera** de la ventana,
+  así que funciona con el widget cerrado —que es justo para lo que sirve el interruptor—.
+- Trampa evitada: el cromo y la pestaña de ajustes escriben los mismos campos el mismo frame. El
+  estado se copia y se vuelca **campo a campo**, y el cromo solo gana en los campos que nadie más
+  tocó; si no, mover/bloquear desde ajustes se deshacía cada frame.
+- Verificado: 60 tests en el addon (incluye `t42_the_settings_are_the_last_tab`), 86 en `core`,
+  14 en `api`, 6 en `store`; `fmt` y `clippy -D warnings` limpios; trazabilidad y LOC en verde.
+  **Sin verificar en el juego**: la barra de pestañas real, el tamaño por defecto y que la pestaña
+  de ajustes quepa sin scroll incómodo.
+
 ## HECHO – 2026-10-31 · Los cinco fallos del widget (0.11.3)
 
 - **Regla nueva y permanente en `AGENTS.md`**: `bugs.md` se lee **antes de empezar, después de

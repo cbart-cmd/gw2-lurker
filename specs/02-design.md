@@ -137,7 +137,11 @@ Patrón adoptado tras revisar `../fight_analysis_danger` y `../gw2-rotation-buil
 - Se aplica si el proceso en primer plano es el nuestro (`GetForegroundWindow` + `GetWindowThreadProcessId` frente a `std::process::id()`, igual que en `../fight_analysis_danger`), para no reaccionar mientras se escribe en otra aplicación.
 - Se evalúa **cada frame** y afecta al render, no a lo persistido.
 
-**Contrato de ventana (RF-46)**- `crates/addon/src/ui/window.rs`: un `WindowConfig { visible, position, size, opacity, locked, collapsed }` por ventana (el widget ya usa ese estado en §7b) y una función única que dibuja el cromo: barra de título propia (`.title_bar(false)`), `×` para ocultar, doble clic para plegar, `resizable(true)`, `.bg_alpha(opacity)`, y menú contextual con clic derecho (Bloquear / Opacidad / Restablecer / Ajustes).
+**Contrato de ventana (RF-46)**- `crates/addon/src/ui/window.rs`: un `WindowConfig { visible,
+position, size, opacity, locked, collapsed }` para **la única ventana con pestañas** (ADR-014) y
+una función única que dibuja el cromo: barra de título propia (`.title_bar(false)`), `×` para
+ocultar, doble clic para plegar, `resizable(true)`, `.bg_alpha(opacity)`, y menú contextual con
+clic derecho (Click-through / Opacidad / Restablecer).
 - La posición se impone siempre desde config (la arrastra la barra propia) y solo se relee del ratón cuando la ventana **no** está bloqueada y no se está arrastrando; si no, el guardado pisa el movimiento del frame.
   - *Implementación:* el plegado **no** usa el `collapsed` de imgui (con `title_bar(false)` una ventana plegada no se podría ni volver a abrir); lo controla `WindowState::collapsed` y, plegada, la ventana se autoajusta con `always_auto_resize`.
   - *Implementación:* las ventanas escriben en una copia mutable de la config (`lib::runtime()`, `OnceLock<Mutex<Config>>`) y el fichero se guarda en `unload`, porque el hilo de render no puede hacer E/S (regla 6). El guardado diferido con *debounce* llega con el worker de T-11c.

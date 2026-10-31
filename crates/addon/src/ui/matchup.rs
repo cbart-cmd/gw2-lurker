@@ -69,60 +69,57 @@ pub fn rows_of<'a>(
         .collect()
 }
 
-/// Draws the window. `state` is the per-window UI state of `config.json`.
-pub fn draw(
+/// Body of the *Map* tab. `state` is gone with the window: it lives in the widget now (T-42).
+pub fn body(
     ui: &Ui,
-    state: &mut crate::config::WindowState,
     filters: &mut Filters,
     rows: &[ClaimRow],
     current: Option<MapRole>,
     follow: &gw2lurker_core::FollowList,
     names: &std::collections::BTreeMap<String, String>,
 ) {
-    crate::ui::window::draw(ui, KEY, 3, [430.0, 380.0], state, |ui| {
-        draw_filters(ui, filters);
-        ui.separator();
+    draw_filters(ui, filters);
+    ui.separator();
 
-        if rows.is_empty() {
-            ui.text_disabled(i18n::text("No claims yet"));
-            return;
+    if rows.is_empty() {
+        ui.text_disabled(i18n::text("No claims yet"));
+        return;
+    }
+
+    for role in [
+        MapRole::Center,
+        MapRole::BlueHome,
+        MapRole::GreenHome,
+        MapRole::RedHome,
+    ] {
+        let of_map = rows_of(rows, role, filters, follow);
+        if of_map.is_empty() {
+            continue;
         }
-
-        for role in [
-            MapRole::Center,
-            MapRole::BlueHome,
-            MapRole::GreenHome,
-            MapRole::RedHome,
-        ] {
-            let of_map = rows_of(rows, role, filters, follow);
-            if of_map.is_empty() {
-                continue;
-            }
-            let here = if current == Some(role) {
-                format!(" ({})", i18n::text("you are here"))
-            } else {
-                String::new()
-            };
-            let header = format!(
-                "{} · {}{here}###map{:?}",
-                map_label(role),
-                of_map.len(),
-                role
-            );
-            if nexus::imgui::CollapsingHeader::new(header)
-                .default_open(true)
-                .build(ui)
-            {
-                for row in of_map {
-                    draw_row(ui, row, names);
-                }
+        let here = if current == Some(role) {
+            format!(" ({})", i18n::text("you are here"))
+        } else {
+            String::new()
+        };
+        let header = format!(
+            "{} · {}{here}###map{:?}",
+            map_label(role),
+            of_map.len(),
+            role
+        );
+        if nexus::imgui::CollapsingHeader::new(header)
+            .default_open(true)
+            .build(ui)
+        {
+            for row in of_map {
+                draw_row(ui, row, names);
             }
         }
-        let shown = rows.iter().any(|row| filters.accepts(row, follow));
-        if !shown {
-            ui.text_disabled(i18n::text("Nothing matches the filters"));
-        }
-    });
+    }
+    let shown = rows.iter().any(|row| filters.accepts(row, follow));
+    if !shown {
+        ui.text_disabled(i18n::text("Nothing matches the filters"));
+    }
 }
 
 fn draw_filters(ui: &Ui, filters: &mut Filters) {

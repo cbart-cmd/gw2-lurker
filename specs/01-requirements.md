@@ -222,7 +222,15 @@ La ruta se etiqueta como **inferida** (RF-33): es una reconstrucción, no el rec
 - La lectura del teclado estará en `ffi/` con `// SAFETY` (`GetAsyncKeyState(VK_RCONTROL)`), y solo se aplicará si `UiState::GAME_HAS_FOCUS` o el cursor está sobre una ventana del addon, para no dispararse al escribir en otra aplicación.
 - GWT: *Given* idioma efectivo español, *When* el usuario mantiene Ctrl derecho con GW2 en primer plano, *Then* widget y ventanas pasan a inglés y vuelven al soltar en ≤ 1 frame.
 
-**RF-46 (M)** Todas las ventanas (opciones, mapa, histórico, guilds, log) y el widget compartirán el mismo **contrato de ventana**: cerrar con `×` (oculta, no destruye), plegar/desplegar con doble clic en la cabecera, mover arrastrando la cabecera, redimensionar por el borde y el grip inferior derecho, **bloquear** (impide mover y redimensionar; el widget bloqueado además no captura clics, RF-18) y **opacidad 0–100 %** aplicada al fondo. El estado por ventana (`visible`, `position`, `size`, `opacity`, `locked`, `collapsed`) se guarda en la configuración y se restaura al arrancar.
+**RF-46 (M)** El addon tendrá **una sola ventana**, con pestañas (Avisos, Mapa, Clanes, Registro y
+Ajustes, esta última siempre al final; ADR-014), que compartirá el **contrato de ventana**: cerrar
+con `×` (oculta, no destruye), plegar/desplegar con doble clic en la cabecera, mover arrastrando la
+cabecera, redimensionar por el borde y el grip inferior derecho, **bloquear** (impide mover y
+redimensionar; bloqueada además no captura clics, RF-18) y **opacidad 0–100 %** aplicada al fondo.
+El estado (`visible`, `position`, `size`, `opacity`, `locked`, `collapsed`) se guarda en la
+configuración y se restaura al arrancar.
+- Las opciones de Nexus ofrecen siempre **Ver la ventana** y **Avisos emergentes**, aunque la
+  ventana esté oculta o el overlay no se dibuje fuera de MvM, y dibujan también los ajustes.
 - Menú contextual con **clic derecho** sobre cualquier ventana: *Bloquear posición*, *Opacidad* (slider), *Restablecer posición y tamaño*, *Ajustes…*.
 - GWT: *Given* opacidad 60 % y ventana bloqueada, *When* se reinicia el juego, *Then* aparece en la misma posición, tamaño, opacidad y bloqueada.
 

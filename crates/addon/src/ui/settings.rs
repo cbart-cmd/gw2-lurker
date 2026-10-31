@@ -67,52 +67,17 @@ struct Edits {
     narrowing: Narrowing,
     alerts: AlertFilter,
     popup_secs: f32,
+    popup_enabled: bool,
     follow: FollowList,
-    windows: Vec<WindowEdit>,
+    widget_visible: bool,
+    widget_locked: bool,
 }
 
-/// One row of the *Windows* section: the two switches of one window.
-struct WindowEdit {
-    key: &'static str,
-    visible: bool,
-    locked: bool,
-    /// `true` once the user touched a switch, so the copy is written back.
-    ///
-    /// Copying back unconditionally would undo whatever the window chrome did this very frame,
-    /// starting with the `×` of the settings window itself (bug found while adding this).
-    changed: bool,
-}
-
-/// Visibility and lock of every window, as the switches show them.
-fn window_edits(config: &mut crate::config::Config) -> Vec<WindowEdit> {
-    crate::ui::window_keys()
-        .iter()
-        .map(|key| {
-            let state = config.window(key);
-            WindowEdit {
-                key,
-                visible: state.visible,
-                locked: state.locked,
-                changed: false,
-            }
-        })
-        .collect()
-}
-
-/// Writes back the switches the user actually moved.
-fn apply_windows(config: &mut crate::config::Config, windows: &[WindowEdit]) {
-    for edit in windows.iter().filter(|edit| edit.changed) {
-        let state = config.window(edit.key);
-        state.visible = edit.visible;
-        state.locked = edit.locked;
-    }
-}
-
-/// Draws the window; the per-window UI state comes from `config` like every other window.
+/// Body of the *Settings* tab: the whole form, without window chrome (T-42).
 ///
-/// `candidates` are the teams playing right now, from the worker. An empty list means the
-/// first poll has not finished, and the picker says so instead of pretending.
-pub fn draw(
+/// `candidates` are the teams playing right now, from the worker. An empty list means the first
+/// poll has not finished, and the picker says so instead of pretending.
+pub fn body(
     ui: &Ui,
     config: &mut crate::config::Config,
     candidates: &[Candidate],
@@ -121,6 +86,7 @@ pub fn draw(
     let table = gw2lurker_core::bundled();
     let language = i18n::effective().code();
     let selected = crate::team::selected_in(config);
+    let widget = config.window(crate::ui::WIDGET).clone();
     let mut edits = Edits {
         team_id: selected,
         translation: initial_translation(config, table, selected, language),
@@ -130,26 +96,31 @@ pub fn draw(
         narrowing: initial_narrowing(narrowing(), candidates, selected),
         alerts: config.alerts,
         popup_secs: config.popup_secs,
+        popup_enabled: config.popup_enabled,
         follow: config.followed.clone(),
-        windows: window_edits(config),
+        widget_visible: widget.visible,
+        widget_locked: widget.locked,
     };
     let before = edits.team_id;
-    let mut save_now = false;
 
-    {
-        let state = config.window(KEY);
-        crate::ui::window::draw(ui, KEY, 1, [470.0, 460.0], state, |ui| {
-            save_now = draw_body(ui, table, &mut edits, candidates, guilds);
-        });
-    }
+    let save_now = draw_body(ui, table, &mut edits, candidates, guilds);
+
     remember_translation(config, edits.translation.as_str(), language);
     config.language = edits.language;
     config.alert_scope = edits.scope;
     config.poll_secs = edits.poll_secs.clamp(15, 600) as u32;
     config.alerts = edits.alerts;
     config.popup_secs = edits.popup_secs.clamp(0.0, 5.0);
+    config.popup_enabled = edits.popup_enabled;
     config.followed = edits.follow;
-    apply_windows(config, &edits.windows);
+    // The switches of the widget itself: written only when moved, so the chrome of this window
+    // is not undone every frame (`×`, dragging, lock).
+    if edits.widget_visible != widget.visible {
+        config.window(crate::ui::WIDGET).visible = edits.widget_visible;
+    }
+    if edits.widget_locked != widget.locked {
+        config.window(crate::ui::WIDGET).locked = edits.widget_locked;
+    }
     set_narrowing(edits.narrowing);
 
     if save_now {
@@ -167,41 +138,8 @@ pub fn draw_inline(
     candidates: &[Candidate],
     guilds: &[GuildSummary],
 ) -> Option<TeamChange> {
-    let table = gw2lurker_core::bundled();
-    let language = i18n::effective().code();
     let mut config = crate::runtime();
-    let selected = crate::team::selected_in(&config);
-    let mut edits = Edits {
-        team_id: selected,
-        translation: initial_translation(&config, table, selected, language),
-        language: config.language,
-        poll_secs: config.poll_secs as i32,
-        scope: config.alert_scope,
-        narrowing: initial_narrowing(narrowing(), candidates, selected),
-        alerts: config.alerts,
-        popup_secs: config.popup_secs,
-        follow: config.followed.clone(),
-        windows: window_edits(&mut config),
-    };
-    let before = edits.team_id;
-
-    let save_now = draw_body(ui, table, &mut edits, candidates, guilds);
-
-    remember_translation(&mut config, edits.translation.as_str(), language);
-    config.language = edits.language;
-    config.alert_scope = edits.scope;
-    config.poll_secs = edits.poll_secs.clamp(15, 600) as u32;
-    config.alerts = edits.alerts;
-    config.popup_secs = edits.popup_secs.clamp(0.0, 5.0);
-    config.followed = edits.follow;
-    apply_windows(&mut config, &edits.windows);
-    drop(config);
-    set_narrowing(edits.narrowing);
-
-    if save_now {
-        return Some(TeamChange::SaveNow);
-    }
-    team_change(before, edits.team_id)
+    body(ui, &mut config, candidates, guilds)
 }
 
 fn team_change(before: Option<u32>, now: Option<u32>) -> Option<TeamChange> {
@@ -287,14 +225,12 @@ fn draw_body(
 
     ui.separator();
     ui.text(i18n::text("Windows"));
-    for edit in edits.windows.iter_mut() {
-        let visible = ui.checkbox(i18n::widget(edit.key), &mut edit.visible);
-        ui.same_line();
-        let locked = ui.checkbox(
-            format!("{}###lock_{}", i18n::text("Click-through"), edit.key),
-            &mut edit.locked,
-        );
-        edit.changed |= visible || locked;
+    ui.checkbox(i18n::widget("Show widget"), &mut edits.widget_visible);
+    ui.same_line();
+    ui.checkbox(i18n::widget("Click-through"), &mut edits.widget_locked);
+    let popups = ui.checkbox(i18n::widget("Pop-up alerts"), &mut edits.popup_enabled);
+    if popups && edits.popup_enabled && edits.popup_secs <= 0.0 {
+        edits.popup_secs = 2.0;
     }
     ui.text_disabled(i18n::text(
         "Alt+Shift+L locks or unlocks the overlay so clicks reach the game.",
