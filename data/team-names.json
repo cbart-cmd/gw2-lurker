@@ -1,136 +1,206 @@
 {
-  "note": "Traducciones de nombres de equipo indexadas por el nombre ingles. Las genera scripts/merge_team_names.ps1 desde data/equipos.xlsx; se resuelven por nombre, no por id, porque los nombres rotan cada temporada y los ids no.",
-  "source": "data/equipos.xlsx",
-  "updated_at": "2026-10-31T15:45:28Z",
-  "normalized": [
-    "Modremoth's Canopy -> Mordremoth's Canopy"
-  ],
+  "note": "Traducciones de los nombres de equipo, indexadas por el nombre ingles (los ids rotan cada temporada y los nombres no). Ingles y aleman: gw2mists.com (/en/teams y /de/teams, 2026-10-31). Espanol y frances: data/equipos.xlsx cuando el nombre esta en la hoja; si no, el nombre ingles para que el jugador lo traduzca en los ajustes. Las traducciones propias del jugador (settings.json) mandan siempre.",
+  "source": "https://gw2mists.com/en/teams/eu, https://gw2mists.com/de/teams/eu, https://gw2mists.com/en/teams/na, https://gw2mists.com/de/teams/na, data/equipos.xlsx",
+  "updated_at": "2026-10-31T19:50:00Z",
+  "normalized": true,
   "names": {
-    "Grenth's Door": {
-      "es": "Puerta de Grenth",
-      "fr": "Porte de Grenth",
-      "de": "Grenths Tor",
-      "source": "spreadsheet"
-    },
-    "Melandru's Dome": {
-      "es": "Cúpula de Melandru",
-      "fr": "Dôme de Melandru",
-      "de": "Melandrus Kuppel",
-      "source": "spreadsheet"
-    },
-    "Lyssa's Muse": {
-      "es": "Musa de Lyssa",
-      "fr": "Muse de Lyssa",
-      "de": "Lyssas Muse",
-      "source": "spreadsheet"
-    },
-    "Balthazar's Blight": {
-      "es": "Plaga de Balthazar",
-      "fr": "Fléau de Balthazar",
-      "de": "Balthasars Seuche",
-      "source": "spreadsheet"
-    },
-    "Kormir's Library": {
-      "es": "Biblioteca de Kormir",
-      "fr": "Bibliothèque de Kormir",
-      "de": "Kormirs Bibliothek",
-      "source": "spreadsheet"
-    },
-    "Dwayna's Temple": {
-      "es": "Templo de Dwayna",
-      "fr": "Temple de Dwayna",
-      "de": "Dwaynas Tempel",
-      "source": "spreadsheet"
-    },
     "Abaddon's Prison": {
       "es": "Prisión de Abaddon",
       "fr": "Prison d'Abaddon",
       "de": "Abaddons Gefängnis",
-      "source": "spreadsheet"
+      "source": "gw2mists+spreadsheet"
     },
-    "Mursaat's Sanctuary": {
-      "es": "Santuario Mursaat",
-      "fr": "Sanctuaire mursaat",
-      "de": "Mursaat-Zuflucht",
-      "source": "spreadsheet"
-    },
-    "Jormag's Glacier": {
-      "es": "Glaciar de Jormag",
-      "fr": "Glacier de Jormag",
-      "de": "Jormags Gletscher",
-      "source": "spreadsheet"
-    },
-    "Primordus's Caldera": {
-      "es": "Caldera de Primordus",
-      "fr": "Caldeira de Primordus",
-      "de": "Primordus' Krater",
-      "source": "spreadsheet"
-    },
-    "Kralkatorrik's Eye": {
-      "es": "Ojo de Kralkatorrik",
-      "fr": "Œil de Kralkatorrik",
-      "de": "Kralkatorriks Auge",
-      "source": "spreadsheet"
-    },
-    "Soo-Won's Haven": {
-      "es": "Refugio de Soo-Won",
-      "fr": "Havre de Soo-Won",
-      "de": "Soo-Wons Zuflucht",
-      "source": "spreadsheet"
-    },
-    "Zhaitan's Rest": {
-      "es": "Reposo de Zhaitan",
-      "fr": "Repos de Zhaitan",
-      "de": "Zhaitans Ruh",
-      "source": "spreadsheet"
-    },
-    "Mordremoth's Canopy": {
-      "es": "Dosel de Mordremoth",
-      "fr": "Canopée de Mordremoth",
-      "de": "Mordremoths Blätterdach",
-      "source": "spreadsheet"
+    "Bava Nisos": {
+      "es": "Bava Nisos",
+      "fr": "Bava Nisos",
+      "de": "Bava Nisos",
+      "source": "gw2mists+spreadsheet"
     },
     "Bloodstone Gulch": {
       "es": "Barranco de la Piedra de Sangre",
       "fr": "Ravin de la Pierre de sang",
       "de": "Blutstein-Schlucht",
-      "source": "spreadsheet"
+      "source": "gw2mists+spreadsheet"
     },
-    "Frost Citadel": {
-      "es": "Ciudadela de la Helada",
-      "fr": "Citadelle du Givre",
-      "de": "Frost-Zitadelle",
-      "source": "spreadsheet"
+    "De Molish Post": {
+      "es": "De Molish Post",
+      "fr": "De Molish Post",
+      "de": "De Molish Post",
+      "source": "english-fallback"
+    },
+    "Domain of Anguish": {
+      "es": "Domain of Anguish",
+      "fr": "Domain of Anguish",
+      "de": "Domäne der Pein",
+      "source": "gw2mists+spreadsheet"
+    },
+    "Domain of Torment": {
+      "es": "Domain of Torment",
+      "fr": "Domain of Torment",
+      "de": "Domäne der Qual",
+      "source": "gw2mists+spreadsheet"
+    },
+    "Dragrimmar": {
+      "es": "Dragrimmar",
+      "fr": "Dragrimmar",
+      "de": "Dragrimmar",
+      "source": "gw2mists+spreadsheet"
+    },
+    "Dwayna's Temple": {
+      "es": "Templo de Dwayna",
+      "fr": "Temple de Dwayna",
+      "de": "Dwaynas Tempel",
+      "source": "gw2mists+spreadsheet"
     },
     "Ettin's Back": {
       "es": "Lomo de Ettin",
       "fr": "Dos d'ettin",
-      "de": "Ettin-Rücken",
-      "source": "spreadsheet"
+      "de": "Ettinbuckel",
+      "source": "gw2mists+spreadsheet"
     },
-    "Mirror of Lyssa": {
-      "es": "Espejo de Lyssa",
-      "fr": "Miroir de Lyssa",
-      "de": "Lyssas Spiegel",
-      "source": "spreadsheet"
+    "Fortune's Vale": {
+      "es": "Valle de la Fortuna",
+      "fr": "Vallon de la Fortune",
+      "de": "Glückstal",
+      "source": "gw2mists+spreadsheet"
+    },
+    "Frost Citadel": {
+      "es": "Ciudadela de la Helada",
+      "fr": "Citadelle du Givre",
+      "de": "Frostzitadelle",
+      "source": "gw2mists+spreadsheet"
     },
     "Great House Aviary": {
       "es": "Pajar de la Gran Casa",
       "fr": "Volière de la Grande Maison",
-      "de": "Voliere des Großen Hauses",
-      "source": "spreadsheet"
+      "de": "Vogelhalle des Großen Hauses",
+      "source": "gw2mists+spreadsheet"
+    },
+    "Grekvelnn Burrows": {
+      "es": "Grekvelnn Burrows",
+      "fr": "Grekvelnn Burrows",
+      "de": "Grekvelnn Burrows",
+      "source": "english-fallback"
+    },
+    "Grenth's Door": {
+      "es": "Puerta de Grenth",
+      "fr": "Porte de Grenth",
+      "de": "Grenths Tür",
+      "source": "gw2mists+spreadsheet"
+    },
+    "Gyala Hatchery": {
+      "es": "Gyala Hatchery",
+      "fr": "Gyala Hatchery",
+      "de": "Gyala Hatchery",
+      "source": "english-fallback"
+    },
+    "Hall of Judgment": {
+      "es": "Hall of Judgment",
+      "fr": "Hall of Judgment",
+      "de": "Halle des Urteils",
+      "source": "gw2mists+spreadsheet"
+    },
+    "Kormir's Library": {
+      "es": "Biblioteca de Kormir",
+      "fr": "Bibliothèque de Kormir",
+      "de": "Kormirs Bibliothek",
+      "source": "gw2mists+spreadsheet"
+    },
+    "Lagula's Kraal": {
+      "es": "Lagula's Kraal",
+      "fr": "Lagula's Kraal",
+      "de": "Lagula's Kraal",
+      "source": "english-fallback"
+    },
+    "Lutgardis Conservatory": {
+      "es": "Lutgardis Conservatory",
+      "fr": "Lutgardis Conservatory",
+      "de": "Lutgardis-Konservatorium",
+      "source": "gw2mists+spreadsheet"
+    },
+    "Melandru's Dome": {
+      "es": "Cúpula de Melandru",
+      "fr": "Dôme de Melandru",
+      "de": "Melandrus-Dom",
+      "source": "gw2mists+spreadsheet"
+    },
+    "Mirror of Lyssa": {
+      "es": "Espejo de Lyssa",
+      "fr": "Miroir de Lyssa",
+      "de": "Spiegel der Lyssa",
+      "source": "gw2mists+spreadsheet"
+    },
+    "Mithric Cliffs": {
+      "es": "Mithric Cliffs",
+      "fr": "Mithric Cliffs",
+      "de": "Mithric Cliffs",
+      "source": "english-fallback"
+    },
+    "Moogooloo": {
+      "es": "Moogooloo",
+      "fr": "Moogooloo",
+      "de": "Moogooloo",
+      "source": "gw2mists+spreadsheet"
+    },
+    "Mosswood": {
+      "es": "Mosswood",
+      "fr": "Mosswood",
+      "de": "Mooswald",
+      "source": "gw2mists+spreadsheet"
     },
     "Palawadan": {
       "es": "Palawadan",
       "fr": "Palawadan",
       "de": "Palawadan",
-      "source": "spreadsheet"
+      "source": "gw2mists+spreadsheet"
     },
-    "Fortune's Vale": {
-      "es": "Valle de la Fortuna",
-      "fr": "Vallon de la Fortune",
-      "de": "Tal des Glücks",
-      "source": "spreadsheet"
+    "Rall's Rest": {
+      "es": "Rall's Rest",
+      "fr": "Rall's Rest",
+      "de": "Ralls Rast",
+      "source": "gw2mists+spreadsheet"
+    },
+    "Ruined Cathedral of Blood": {
+      "es": "Ruined Cathedral of Blood",
+      "fr": "Ruined Cathedral of Blood",
+      "de": "Verfallene Kathedrale des Blutes",
+      "source": "gw2mists+spreadsheet"
+    },
+    "Silent Woods": {
+      "es": "Silent Woods",
+      "fr": "Silent Woods",
+      "de": "Stille Wälder",
+      "source": "gw2mists+spreadsheet"
+    },
+    "Skrittsburgh": {
+      "es": "Skrittsburgh",
+      "fr": "Skrittsburgh",
+      "de": "Skrittsburg",
+      "source": "gw2mists+spreadsheet"
+    },
+    "Temple of Febe": {
+      "es": "Temple of Febe",
+      "fr": "Temple of Febe",
+      "de": "Temple of Febe",
+      "source": "english-fallback"
+    },
+    "Throne of Balthazar": {
+      "es": "Throne of Balthazar",
+      "fr": "Throne of Balthazar",
+      "de": "Thron Balthasars",
+      "source": "gw2mists+spreadsheet"
+    },
+    "Tombs of Drascir": {
+      "es": "Tombs of Drascir",
+      "fr": "Tombs of Drascir",
+      "de": "Gräber von Drascir",
+      "source": "gw2mists+spreadsheet"
+    },
+    "Yohlon Haven": {
+      "es": "Yohlon Haven",
+      "fr": "Yohlon Haven",
+      "de": "Zuflucht von Yohlon",
+      "source": "gw2mists+spreadsheet"
     }
   }
 }

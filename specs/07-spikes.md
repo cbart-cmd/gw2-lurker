@@ -295,6 +295,28 @@ Medido descargando imágenes reales con `curl` (una a una, comparando tamaños y
 - Se descargan en el **worker** (`catalog::ensure_tiles`, hilo propio) y el render solo pide texturas
   ya presentes (4 por frame como máximo), con `add_image(..).col([1,1,1,opacidad])` para heredar la
   opacidad de la ventana.
+### Notas de verificación: nombres de equipo desde gw2mists con el navegador (T-45, 2026-10-31)
+
+La API de gw2mists da **403** a `curl` y la web es una SPA, así que `curl` sobre el HTML no ve nada.
+Con el **navegador integrado** (que ejecuta el JavaScript) sí: las cuatro páginas se leen enteras y
+cada tabla trae el nombre, y el ID de la fila da el orden alfabético de cada idioma.
+
+- `https://gw2mists.com/en/teams/eu` → 15 equipos EU; `/de/teams/eu` → los mismos 15 **en alemán**
+  (el orden cambia, así que se emparejan por la fila: alianzas, gremios, jugadores y comandantes).
+- `/en/teams/na` → 12 equipos NA; `/de/teams/na` → los mismos 12 en alemán.
+- La web **solo lista los equipos que están jugando**: nuestra tabla tiene 33 ids (los de
+  `all_worlds`) y la web enseña 27, así que los 6 restantes (Mithric Cliffs, Lagula's Kraal, De
+  Molish Post, Temple of Febe, Gyala Hatchery, Grekvelnn Burrows) se quedan con su nombre inglés.
+- **El alemán de la web no es el del Excel**: `Grenths Tor` → `Grenths Tür`, `Frost-Zitadelle` →
+  `Frostzitadelle`, `Ettin-Rücken` → `Ettinbuckel`, `Voliere des Großen Hauses` → `Vogelhalle des
+  Großen Hauses`. Manda la web, que es lo que el jugador ve en el juego.
+- **La nación coincide con la del API**: `Lutgardis Conservatory` (11011) aparece en la tabla **NA**
+  de gw2mists, igual que en `all_worlds` (`1-1`). Un equipo del otro continente se reconoce por la
+  primera cifra del id (`11xxx` NA, `12xxx` EU).
+- Resultado: `data/team-names.json` se rehace con los 33 nombres (EN de `data/wvw-teams.json`, DE de
+  la web, ES/FR del Excel cuando el nombre está en la hoja y si no el inglés), y el jugador puede
+  pisar cualquiera desde los ajustes (`team_translations`), que siempre gana.
+
 ### Notas de verificación: `/v2/guild/search` (T-44, 2026-10-31)
 
 Medido con `curl` contra la API en vivo, porque el buscador de clanes depende de esto.

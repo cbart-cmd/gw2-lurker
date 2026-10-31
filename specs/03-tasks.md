@@ -105,19 +105,20 @@ Cada tarea es pequeña y verificable. Orden recomendado; las dependencias se ind
     hace que «obligatorio que sea de mi zona» no necesite configuración extra.
   Rendimiento: la búsqueda se lanza a mano (nunca por frame), con resultados acotados y cacheados
   como los nombres de clan (`catalog::resolve_guild_names`). (T-37, T-13) — RF-73, RF-31
-- **T-45** Nombres de equipo decentes. Los que hay ahora («Lutgar», traducciones literales del Excel)
-  están mal y hay que rehacerlos con los **nombres en inglés y alemán de gw2mists**
-  (`/en/teams/eu`, `/de/teams/eu`, `/en/teams/na`, `/de/teams/na`):
-  - Borrar las traducciones actuales de `data/team-names.json` y sustituirlas por las de esas
-    cuatro páginas.
-  - **Respetar siempre lo que el usuario haya escrito** en sus ajustes (`team_translations` del
-    `settings.json`): son suyas y mandan sobre cualquier tabla.
-  - **Español y francés**: si un nombre de la lista actual coincide con el inglés, se conserva esa
-    traducción; los que no se encuentren se dejan **con el nombre en inglés**, para que el usuario
-    los cambie con el campo de traducción de los ajustes.
-  - Ojo con el acceso (comprobado el 2026-10-31): la web es una **SPA de React**, así que el HTML
-    no trae los nombres, y su API (`api.gw2mists.com`) responde **403** sin credenciales/origen.
-    Opciones: encontrar el endpoint real que usa el navegador, o que el usuario pegue la lista
+- **T-45 ✔ (2026-10-31)** Nombres de equipo decentes. `data/team-names.json` se rehace desde las
+  **cuatro páginas de gw2mists** (`/en/teams/eu`, `/de/teams/eu`, `/en/teams/na`, `/de/teams/na`):
+  - El acceso se resolvió con el **navegador integrado** de VS Code, que ejecuta el JavaScript de la
+    SPA; `curl` sigue viendo una página vacía y `api.gw2mists.com` sigue dando 403 a los scripts
+    (ver `07-spikes.md`). Las cuatro tablas se emparejan por fila (alianzas, gremios, jugadores,
+    comandantes) porque el orden cambia con el idioma.
+  - **Inglés**: el de `data/wvw-teams.json` (33 ids de `all_worlds`). **Alemán**: el de la web, que
+    no es el del Excel (`Grenths Tor` → `Grenths Tür`, `Ettin-Rücken` → `Ettinbuckel`…).
+    **Español y francés**: los del Excel cuando el nombre está en la hoja; si no, el inglés, para que
+    el jugador los traduzca en los ajustes. La web solo lista los 27 equipos en juego, así que los 6
+    restantes se quedan en inglés.
+  - Las traducciones propias del jugador (`team_translations`) siguen mandando sobre la tabla.
+  - Tests: `rf44_german_comes_from_gw2mists_and_not_from_the_spreadsheet` y
+    `rf44_the_pool_covers_every_team_in_use`. (T-30) — RF-03f
     (ya lo hizo una vez con un Excel). **Bloqueada por eso.** (T-30) — RF-03f
 - **T-17 ✔ (2026-10-31, parcial)** Contrato de ventana compartido en `addon::ui::window`:
   barra de título propia con `×`, plegado con doble clic, mover/redimensionar solo si no está

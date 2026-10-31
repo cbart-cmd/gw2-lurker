@@ -143,16 +143,16 @@ Estado: `[ ]` pendiente · `[x]` hecho.
 - **Hecho (0.19.0):** `map::detail_line` recibe el mapa de nombres y enseña `[TAG] Nombre`; el id solo
   aparece si la API no lo ha resuelto.
 
-## [ ] nombres de los equipos erróneos (2026-10-31)
+## [x] nombres de los equipos erróneos (2026-10-31)
 - «Los nombres actuales traducidos no son correctos. Busca los nombres en inglés de la web que te
   puse, en alemán de la web que te puse; para español e inglés busca si está en `equipos.xlsx` y si no
   está pon el nombre inglés para español y francés, y ya lo traduciré yo.»
-- Estado (0.19.0): los **ingleses** vienen de gw2mists (`data/wvw-teams.json`, 33 equipos con su id y
-  su nación) y las traducciones de `data/team-names.json` son **exactamente** las 21 filas de
-  `equipos.xlsx` (EN/ES/FR/DE, comprobado celda a celda). Los equipos de la temporada en curso que no
-  están en el Excel se quedan en inglés, que es lo pedido. Falta el **alemán de gw2mists** para los 21
-  equipos que no están en el Excel: la web es una SPA y su API da 403, así que hace falta que el
-  jugador pegue esa lista (T-45).
+- **Hecho (0.20.0):** `data/team-names.json` se rehace leyendo las cuatro páginas de gw2mists con el
+  **navegador integrado** (la SPA se ejecuta, así que los nombres se ven; `curl` y su API no). Alemán
+  de la web (que no es el del Excel: `Grenths Tür`, `Ettinbuckel`, `Vogelhalle des Großen Hauses`),
+  inglés de la tabla de ids, y español/francés del Excel cuando el nombre está en la hoja; el resto en
+  inglés. Tus traducciones propias siguen mandando. Ver `07-spikes.md`.
+
 
 ## [ ] avisos y registro · no recoge bien la información (2026-10-31)
 - «No sale siempre quién ha reclamado»; «desde las 20:22 no recoge nuevos resultados aunque ha habido

@@ -13,6 +13,29 @@ Reglas:
 
 ---
 
+## HECHO – 2026-10-31 · Nombres de equipo desde gw2mists, con el navegador (0.20.0)
+
+- **T-45, desbloqueada**: el jugador tenía razón — el navegador integrado de VS Code ejecuta el
+  JavaScript de la SPA y las cuatro páginas se leen enteras. `curl` sigue viendo una página vacía y
+  `api.gw2mists.com` sigue dando 403 a los scripts, así que lo verificado es **el navegador**
+  (`07-spikes.md`).
+- `data/team-names.json` rehecho con **33 entradas** (una por id de `all_worlds`): inglés de
+  `wvw-teams.json`, **alemán de la web**, español y francés del Excel cuando el nombre inglés está en
+  la hoja y si no el inglés. La web solo lista los **27 equipos en juego**, así que los 6 restantes se
+  quedan en inglés.
+- **El alemán de la web no es el del Excel**, y manda la web porque es lo que se ve en el juego:
+  `Grenths Tor` → `Grenths Tür`, `Frost-Zitadelle` → `Frostzitadelle`, `Ettin-Rücken` → `Ettinbuckel`,
+  `Voliere des Großen Hauses` → `Vogelhalle des Großen Hauses`, `Skrittsburgh` → `Skrittsburg`.
+- Emparejado por fila (alianzas, gremios, jugadores, comandantes) porque el orden de la tabla cambia
+  con el idioma; comprobado que `Lutgardis Conservatory` (11011) sale en la tabla **NA**, igual que en
+  la API (`1-1`).
+- Las traducciones del jugador (`team_translations`) siguen mandando: la tabla es solo el valor por
+  defecto.
+- Tests nuevos: `rf44_german_comes_from_gw2mists_and_not_from_the_spreadsheet` y
+  `rf44_the_pool_covers_every_team_in_use` (falla si un equipo en uso se queda sin entrada).
+- Verificación: 200 tests en verde (84 addon · 15 api · 95 core · 6 store), `clippy -D warnings`
+  limpio.
+
 ## HECHO – 2026-10-31 · Avisos legibles, ruta al clicar un clan y hover con nombre (0.19.0)
 
 - **Formato del aviso** (lo pidió el jugador): la línea se compone de trozos con color propio

@@ -1,6 +1,15 @@
 # Changelog
 Formato [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/), versionado [SemVer](https://semver.org/lang/es/).
 
+## [0.20.0] - 2026-10-31
+### Añadido
+- **Nombres de equipo de verdad (T-45)**: `data/team-names.json` se rehace con las cuatro páginas de
+  **gw2mists**. El **alemán** es el de la web, que no es el del Excel (`Grenths Tür`, `Ettinbuckel`,
+  `Vogelhalle des Großen Hauses`, `Lutgardis-Konservatorium`…), el **inglés** el de la tabla de ids y
+  el **español y francés** los del Excel cuando el nombre está en la hoja; los que no, se quedan en
+  inglés para que los traduzcas tú en los ajustes. Tus traducciones propias siguen mandando.
+- La web solo lista los 27 equipos que están jugando; los 6 restantes se quedan en inglés.
+
 ## [0.19.0] - 2026-10-31
 ### Añadido
 - **Clicar un clan enseña su ruta**: una línea de aviso o un clan de *Clanes seguidos* se puede

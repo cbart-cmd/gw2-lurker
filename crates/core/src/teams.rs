@@ -232,7 +232,6 @@ mod tests {
         // 12010 is `Grenth's Door`; the spreadsheet translates that name, not that id.
         let table = bundled();
         assert_eq!(table.name_in("es", 12010), Some("Puerta de Grenth"));
-        assert_eq!(table.name_in("de", 12010), Some("Grenths Tor"));
         assert_eq!(table.label_in("fr", 12010), "Porte de Grenth (12010)");
 
         // 12014 matches the spreadsheet too.
@@ -247,20 +246,43 @@ mod tests {
     }
 
     #[test]
-    fn rf44_the_translation_pool_survives_a_seasonal_renaming() {
-        // The pool is keyed by name, so a name that is not in use today is still translated
-        // and will be found if that name comes back next season.
-        let pool = translations();
-        let old = pool
-            .get("Zhaitan's Rest")
-            .expect("nombre de una temporada anterior");
-        assert_eq!(old.get("es"), Some("Reposo de Zhaitan"));
+    fn rf44_german_comes_from_gw2mists_and_not_from_the_spreadsheet() {
+        // El jugador pidió (2026-10-31) los nombres en alemán de gw2mists: el Excel decía
+        // «Grenths Tor» y la web dice «Grenths Tür», que es lo que se ve en el juego.
+        let table = bundled();
+        assert_eq!(table.name_in("de", 12010), Some("Grenths Tür"));
+        assert_eq!(
+            table.name_in("de", 12014),
+            Some("Vogelhalle des Großen Hauses")
+        );
+        assert_eq!(table.name_in("de", 11011), Some("Lutgardis-Konservatorium"));
+        assert_eq!(
+            table.name_in("de", 12001),
+            Some("Skrittsburg"),
+            "cada equipo en uso tiene su nombre en alemán"
+        );
+    }
 
-        let counts = pool.len();
-        assert!(counts >= 20, "el Excel trae 21 filas: {counts}");
-        assert!(pool
-            .values()
-            .all(|entry| entry.source.as_deref() == Some("spreadsheet")));
+    #[test]
+    fn rf44_the_pool_covers_every_team_in_use() {
+        // La tabla se rehízo con las cuatro páginas de gw2mists (2026-10-31): un idioma que
+        // falte cae al inglés, pero ningún equipo en uso se queda sin entrada.
+        let table = bundled();
+        let pool = translations();
+        for team in table.sorted() {
+            assert!(
+                pool.contains_key(&team.name),
+                "falta la entrada de «{}»",
+                team.name
+            );
+        }
+        assert!(
+            table
+                .sorted()
+                .iter()
+                .all(|team| table.name_in("de", team.id).is_some()),
+            "todos los equipos saben decir su nombre en alemán"
+        );
     }
 
     #[test]
