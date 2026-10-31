@@ -9,7 +9,7 @@ repository.workspace = true
 license.workspace = true
 
 [dependencies]
-gw2lurker-core = { path = "../core", version = "0.8.0" }
+gw2lurker-core = { path = "../core", version = "0.8.1" }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 

@@ -1,6 +1,12 @@
 # Changelog
 Formato [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/), versionado [SemVer](https://semver.org/lang/es/).
 
+## [0.8.1] - 2026-10-31
+### Corregido
+- El desplegable **Región** del selector de equipo salía vacío hasta que llegaba el primer
+  sondeo. Ahora EU y NA están siempre, con cuántos equipos tiene cada una.
+- La ventana de ajustes nace más alta para que quepan los nuevos filtros de avisos.
+
 ## [0.8.0] - 2026-10-31
 ### Añadido
 - **Selector de avisos**: qué mapas te avisan (Eternos, Alpino azul, Alpino verde, Desierto rojo),

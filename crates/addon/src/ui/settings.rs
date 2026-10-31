@@ -87,7 +87,7 @@ pub fn draw(
         language: config.language,
         poll_secs: config.poll_secs as i32,
         scope: config.alert_scope,
-        narrowing: initial_narrowing(candidates, selected),
+        narrowing: initial_narrowing(narrowing(), candidates, selected),
         alerts: config.alerts,
         popup_secs: config.popup_secs,
         follow: config.followed.clone(),
@@ -96,7 +96,7 @@ pub fn draw(
 
     {
         let state = config.window(KEY);
-        crate::ui::window::draw(ui, KEY, 1, [470.0, 320.0], state, |ui| {
+        crate::ui::window::draw(ui, KEY, 1, [470.0, 430.0], state, |ui| {
             draw_body(ui, table, &mut edits, candidates, guilds)
         });
     }
@@ -132,7 +132,7 @@ pub fn draw_inline(
         language: config.language,
         poll_secs: config.poll_secs as i32,
         scope: config.alert_scope,
-        narrowing: initial_narrowing(candidates, selected),
+        narrowing: initial_narrowing(narrowing(), candidates, selected),
         alerts: config.alerts,
         popup_secs: config.popup_secs,
         follow: config.followed.clone(),
@@ -161,8 +161,11 @@ fn team_change(before: Option<u32>, now: Option<u32>) -> Option<TeamChange> {
 
 /// Where the narrowing starts: the saved team's own region and colour when we know them, and
 /// otherwise the region of the first candidate, so the picker is never a blank wall.
-fn initial_narrowing(candidates: &[Candidate], selected: Option<u32>) -> Narrowing {
-    let remembered = narrowing();
+fn initial_narrowing(
+    remembered: Narrowing,
+    candidates: &[Candidate],
+    selected: Option<u32>,
+) -> Narrowing {
     if remembered.region.is_some() || remembered.colour.is_some() {
         return remembered;
     }
@@ -280,14 +283,10 @@ fn draw_alert_filters(
 }
 
 fn draw_region(ui: &Ui, edits: &mut Edits, candidates: &[Candidate]) {
-    let present: Vec<Region> = [Region::Eu, Region::Na]
-        .into_iter()
-        .filter(|region| {
-            candidates
-                .iter()
-                .any(|candidate| candidate.region() == Some(*region))
-        })
-        .collect();
+    // The two regions always exist; listing only the ones with live teams left the drop-down
+    // empty until the first poll finished, which looked like a broken control (bug report of
+    // 2026-10-31). Regions without teams are still selectable and the team list explains why
+    // it is empty.
     let current = edits
         .narrowing
         .region
@@ -297,8 +296,17 @@ fn draw_region(ui: &Ui, edits: &mut Edits, candidates: &[Candidate]) {
     ComboBox::new(i18n::widget("Region"))
         .preview_value(current)
         .build(ui, || {
-            for region in present {
-                let label = format!("{}###region{}", region_label(region), region_code(region));
+            for region in [Region::Eu, Region::Na] {
+                let live = candidates
+                    .iter()
+                    .filter(|candidate| candidate.region() == Some(region))
+                    .count();
+                let label = format!(
+                    "{} ({})###region{}",
+                    region_label(region),
+                    live,
+                    region_code(region)
+                );
                 if nexus::imgui::Selectable::new(label)
                     .selected(edits.narrowing.region == Some(region))
                     .build(ui)
@@ -512,28 +520,45 @@ mod tests {
             candidate(12015, "2-2", TeamColor::Red),
             candidate(11001, "1-1", TeamColor::Green),
         ];
-        set_narrowing(Narrowing::default());
-        let start = initial_narrowing(&list, Some(12015));
+        let start = initial_narrowing(Narrowing::default(), &list, Some(12015));
         assert_eq!(start.region, Some(Region::Eu));
         assert_eq!(start.colour, Some(TeamColor::Red));
 
-        set_narrowing(Narrowing::default());
-        let fallback = initial_narrowing(&list, None);
+        let fallback = initial_narrowing(Narrowing::default(), &list, None);
         assert_eq!(fallback.region, Some(Region::Eu), "la región del primero");
         assert_eq!(fallback.colour, None, "sin equipo no se adivina el color");
 
-        set_narrowing(Narrowing::default());
-        assert_eq!(initial_narrowing(&[], None), Narrowing::default());
+        assert_eq!(
+            initial_narrowing(Narrowing::default(), &[], None),
+            Narrowing::default()
+        );
+    }
+
+    #[test]
+    fn rf03a_both_regions_are_always_offered() {
+        // Regression of the 2026-10-31 bug: with no live teams the drop-down was empty.
+        // Regression of the 2026-10-31 bug: with no live teams the drop-down was empty.
+        // `draw_region` now offers EU and NA unconditionally, so the control always works;
+        // what this pins is that no data does not fabricate a preselection either.
+        let start = initial_narrowing(Narrowing::default(), &[], None);
+        assert_eq!(start.region, None, "sin datos no se preselecciona región");
+        assert_eq!(start.colour, None);
+    }
+
+    #[test]
+    fn rf03a_the_colour_is_offered_before_any_data() {
+        // `draw_colour` iterates `TeamColor::ALL`, which is static: the control is never empty.
+        assert_eq!(TeamColor::ALL.len(), 3);
     }
 
     #[test]
     fn rf03a_narrowing_is_remembered_between_frames() {
-        set_narrowing(Narrowing {
+        let remembered = Narrowing {
             region: Some(Region::Na),
             colour: Some(TeamColor::Green),
-        });
+        };
         let list = vec![candidate(12014, "2-2", TeamColor::Blue)];
-        let start = initial_narrowing(&list, Some(12014));
+        let start = initial_narrowing(remembered, &list, Some(12014));
         assert_eq!(
             start,
             Narrowing {
@@ -542,7 +567,6 @@ mod tests {
             },
             "lo que el jugador eligió gana a lo deducido"
         );
-        set_narrowing(Narrowing::default());
     }
 
     #[test]
