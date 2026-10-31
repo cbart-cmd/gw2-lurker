@@ -21,6 +21,13 @@ pub struct TeamEntry {
     pub name: String,
     #[serde(default)]
     pub nation: String,
+    /// Names curated for other languages, keyed by two-letter code (`es`, `fr`, `de`).
+    ///
+    /// The API does not translate team names (`/v2/wvw/teams` is 404) and the game keeps them
+    /// in client strings we cannot read, so any translation here is typed by a human and has
+    /// to be preserved when the table is regenerated.
+    #[serde(default)]
+    pub names: std::collections::BTreeMap<String, String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
@@ -57,6 +64,24 @@ impl TeamTable {
     /// How the UI shows a team: `Name (id)`, or `(id)` when the name is unknown (RF-03a).
     pub fn label(&self, id: u32) -> String {
         match self.name(id) {
+            Some(name) => format!("{name} ({id})"),
+            None => format!("({id})"),
+        }
+    }
+
+    /// Name of the team in a language, falling back to the curated English name.
+    pub fn name_in(&self, language: &str, id: u32) -> Option<&str> {
+        let entry = self.teams.get(&id)?;
+        entry
+            .names
+            .get(language)
+            .map(String::as_str)
+            .or(Some(entry.name.as_str()))
+    }
+
+    /// `nombre (id)` in the requested language (RF-44), same fallback as [`Self::name_in`].
+    pub fn label_in(&self, language: &str, id: u32) -> String {
+        match self.name_in(language, id) {
             Some(name) => format!("{name} ({id})"),
             None => format!("({id})"),
         }
@@ -115,6 +140,25 @@ mod tests {
         let table = bundled();
         assert_eq!(table.label(12014), "Great House Aviary (12014)");
         assert_eq!(table.label(12099), "(12099)");
+    }
+
+    #[test]
+    fn rf44_translated_team_names_fall_back_to_english() {
+        let json = r#"{ "teams": [
+            { "id": 12014, "name": "Great House Aviary", "nation": "EU", "names": { "es": "Bosquemugoso" } },
+            { "id": 11001, "name": "Moogooloo", "nation": "NA" }
+        ] }"#;
+        let table = TeamTable::parse(json).unwrap();
+
+        assert_eq!(table.name_in("es", 12014), Some("Bosquemugoso"));
+        assert_eq!(table.label_in("es", 12014), "Bosquemugoso (12014)");
+        assert_eq!(
+            table.name_in("de", 12014),
+            Some("Great House Aviary"),
+            "sin traducción alemana se usa el nombre inglés"
+        );
+        assert_eq!(table.label_in("fr", 11001), "Moogooloo (11001)");
+        assert_eq!(table.label_in("es", 99999), "(99999)");
     }
 
     #[test]

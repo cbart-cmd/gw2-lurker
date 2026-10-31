@@ -192,6 +192,17 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "00d174d5400e5e8fd687ad1049e2f578285fa914201b1af7e8b112a4546bd826"
 
 [[package]]
+name = "evtc"
+version = "0.17.0"
+source = "git+https://github.com/zerthox/arcdps-rs#ce03be90d9ad486ae962928882f2f5045b1e9e85"
+dependencies = [
+ "bitflags 2.13.2",
+ "memoffset",
+ "num_enum",
+ "windows-core",
+]
+
+[[package]]
 name = "find-msvc-tools"
 version = "0.1.15"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -386,6 +397,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "cf8baf1c55e62ffcace7a9f06f4bd9cd3f0c4beb022d3b367256b91b87513d98"
 
 [[package]]
+name = "memoffset"
+version = "0.9.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "488016bfae457b036d996092f6cb448677611ce4449e970ceaf42695203f218a"
+dependencies = [
+ "autocfg",
+]
+
+[[package]]
 name = "nexus"
 version = "0.12.0"
 source = "git+https://github.com/zerthox/nexus-rs?tag=0.12.0#8682c50b4340e29d1d7495253728cae7b381cd63"
@@ -394,6 +414,7 @@ dependencies = [
  "bitfields",
  "bitflags 2.13.2",
  "env_filter 2.0.0",
+ "evtc",
  "gw2_mumble",
  "log",
  "nexus_codegen",

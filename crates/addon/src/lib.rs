@@ -7,6 +7,8 @@
 
 #![cfg_attr(test, allow(clippy::unwrap_used, clippy::expect_used))]
 
+#[allow(dead_code)] // used by the team picker (T-30)
+mod arc_team;
 mod config;
 mod context;
 mod ffi;
@@ -117,6 +119,7 @@ fn load() {
     );
 
     lang::subscribe();
+    arc_team::subscribe();
     let _ = WRITER.set(Mutex::new(Some(writer::Writer::start())));
     ui::register();
 }

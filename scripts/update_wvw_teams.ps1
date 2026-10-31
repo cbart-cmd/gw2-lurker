@@ -34,7 +34,7 @@ $curated = Get-Json $Source $headers
 $names = @{}
 foreach ($team in $curated) {
     if ($team.id -and $team.name) {
-        $names[[int]$team.id] = [pscustomobject]@{
+        $names[[int]$team.id] = [ordered]@{
             id     = [int]$team.id
             name   = [string]$team.name
             nation = [string]$team.nation
@@ -60,6 +60,12 @@ if (Test-Path $OutFile) {
     foreach ($team in $old.teams) { $previous[[int]$team.id] = $team }
     foreach ($id in $previous.Keys) {
         if (-not $names.ContainsKey($id)) { $names[$id] = $previous[$id] }
+    }
+    # Translations are typed by a human (the API does not translate team names): never lose
+    # them when regenerating, and never invent them either.
+    foreach ($id in @($names.Keys)) {
+        $kept = $previous[$id].names
+        if ($kept) { $names[$id].names = $kept }
     }
 }
 

@@ -144,6 +144,16 @@ Regla: si un resultado contradice la spec, no se "arregla" el código; se abre u
   - Nexus descarga a `<NexusDLL>.update` y conserva `<NexusDLL>.old` (`Nexus/Index/Index.cpp`, rutas `EPath::NexusDLL_Update` / `NexusDLL_Old`) ⇒ indicio de intercambio de fichero con respaldo. Falta ver si hace lo mismo con addons de terceros.
 - Método de detección viable: `pendiente`. Candidatos a probar en el spike: comparar fecha/tamaño de `<juego>/addons/<nombre>/*.dll` al arrancar, y confirmar si el `.old` aparece para el addon.
 
+### Notas de verificación: nombres de equipo traducidos y color propio (2026-10-31)
+
+Todo comprobado con peticiones reales y con el código de los vecinos.
+
+- **gw2mists no tiene traducciones de equipo**: `https://api.gw2mists.com/worlds/alliance` (200 con cabeceras de navegador; **403** sin `Referer`/`Origin`/`User-Agent`) devuelve las 33 entradas con `{id, name, nation, population, players, guilds, alliances, commanders}` y el nombre **solo en inglés**; `?lang=es` y `?locale=es` devuelven `"Moogooloo"` igual. `https://gw2mists.com/api/...` sirve el HTML del SPA, no JSON.
+- **La API oficial no traduce equipos**: `/v2/wvw/teams` y `/v2/wvw/teams?lang=es` → **404**. `/v2/wvw/objectives/38-17?lang=es` → `"Zanja de Mendon"`, o sea que la traducción existe para objetivos pero no para equipos. Los nombres localizados de equipo (`Bosquemugoso`…) viven en los textos del cliente, que no son accesibles.
+- Conclusión: `data/wvw-teams.json` mantiene `names: {es, fr, de}` **curadas a mano** y `scripts/update_wvw_teams.ps1` las **preserva** al regenerar (probado con `-DryRun`: 33 equipos, mismas entradas).
+- **Cómo sabe el color `../fight_analysis_danger`**: no lo lee del juego, lo saca de **arcDPS**. `evtc::agent::realtime::Agent` lleva `is_self: u32` y `team: u16`, y Nexus expone `EV_ARCDPS_SELF_JOIN` con un `AgentUpdate` que también trae `team` (se dispara en cada carga de mapa y se puede repetir con `EV_REPLAY_ARCDPS_SELF_JOIN`). Su enum tiene `Team::Own` documentado como *"identified allied team in live events without a verified color mapping"*: identifica **tu** agente, pero no afirma el color.
+- Por eso en este addon el `team` de arcdps se guarda como **etiqueta opaca** (`arc_team::Calibration`), no como color: sirve para detectar que estás en un equipo distinto del guardado (otra cuenta o sorteo mensual) y para calibrar cuando el jugador elige equipo. Cero dependencias nuevas: la feature `arc` de `nexus-rs` ya trae el evento.
+
 ### Notas de verificación: de dónde saca Nexus el idioma (2026-10-31)
 
 Comprobado `[src]` en `nexus-rs` 0.12.0, en el crate `unofficial_extras` de `arcdps-rs` y en la instalación real (`C:\Program Files\Guild Wars 2\addons\Nexus`).

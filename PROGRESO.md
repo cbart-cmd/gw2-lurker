@@ -34,6 +34,25 @@ Reglas:
   bueno un HTTP 200. Se reintenta con `-VerifyOnly` pasados unos minutos; no se cambia la URL
   ni la versión para taparlo.
 
+## HECHO – 2026-10-31 · Nombres traducidos, herramienta idempotente y etiqueta de equipo de arcdps
+
+- Pregunta del usuario: «saca las traducciones de gw2mists». Medido: gw2mists **solo tiene
+  inglés** (`?lang=es`/`?locale=es` siguen devolviendo `Moogooloo`) y la API oficial responde
+  404 en `/v2/wvw/teams`, así que no hay fuente automática. Se deja la estructura
+  `names: {es, fr, de}` en `data/wvw-teams.json` para curación humana y
+  `scripts/update_wvw_teams.ps1` ahora **preserva** esas traducciones (probado con `-DryRun`,
+  33 equipos). `core::TeamTable::label_in("es", id)` cae al inglés si falta.
+- Pregunta: «fight_analysis_danger sí sabe qué color soy». Comprobado: no lo lee del juego, lo
+  saca de **arcDPS** (`Agent::is_self` + `Agent::team`; Nexus lo sirve como
+  `EV_ARCDPS_SELF_JOIN`). Su propio enum etiqueta el caso vivo como `Team::Own`
+  (*"without a verified color mapping"*).
+- Implementado aquí `addon::arc_team`: se suscribe a `SELF_JOIN` y guarda el `team` de arcdps
+  como **etiqueta opaca**, con `Calibration` para aprender el color cuando el jugador elige
+  equipo y para detectar que está en otro equipo (alt o sorteo mensual). Sin dependencias
+  nuevas: feature `arc` de `nexus-rs`.
+- Verificado: `clippy -D warnings` limpio; 26 tests en el addon (3 nuevos), 70 en `core`
+  (incluye `rf44_translated_team_names_fall_back_to_english`).
+
 ## HECHO – 2026-10-31 · Selector de equipo en dos pasos y memoria por personaje
 
 - `core::select` (69 tests en `core`, todos con datos reales de `/v2/wvw/matches?ids=all`):
