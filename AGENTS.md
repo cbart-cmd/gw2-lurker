@@ -86,3 +86,17 @@ La DLL se distribuye desde **`https://github.com/cbart-cmd/gw2addonsreleases`**,
 - Retención: **release actual + la anterior**; se borra la de dos versiones atrás.
 - Excepción de LFS para nuestra DLL en `.gitattributes` del repo de distribución **antes** de `git add`, o Nexus recibe un puntero de texto en vez de la DLL.
 - Verificar la descarga real (bytes, `MZ`, MD5) desde la URL exacta, no fiarse de un HTTP 200.
+
+## 9. Progreso y continuidad (`PROGRESO.md`)
+
+`PROGRESO.md`, en la raíz, es la bitácora del trabajo. Existe para que **otra IA pueda
+seguir** si la actual se corta a medias.
+
+- Al empezar una tarea, escribe una entrada `EN CURSO` con el plan (3–5 líneas) y qué RF
+  cubre **antes** de tocar código.
+- Mientras trabajas, actualízala con hallazgos, decisiones y callejones sin salida: si un
+  experimento falla, eso también se apunta.
+- Al cerrar, pasa la entrada a `HECHO` con los commits y lo que no se pudo verificar.
+- Lo más reciente arriba. No se borran entradas; si algo se revierte, se documenta.
+- Mantén al día las secciones **Trampas ya conocidas** y **Bloqueos**: son lo primero que
+  debe leer quien retome el trabajo.
