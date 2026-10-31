@@ -1,6 +1,18 @@
 # Changelog
 Formato [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/), versionado [SemVer](https://semver.org/lang/es/).
 
+## [0.16.0] - 2026-10-31
+### Añadido
+- **Mapa real (T-29)**: las teselas oficiales de `tiles.guildwars2.com` a zoom 5 (~20 imágenes para
+  los cuatro mapas) descargadas por el worker a `<addon>/tiles/` y dibujadas **con la opacidad de
+  la ventana**. Las que faltan se van rellenando solas, sin bloquear el render. Interruptor
+  **Mapa real** en los ajustes; apagado, vuelve el tablero esquemático.
+- **Rango temporal de la ruta (T-16)**: *Última hora*, *Últimas 2 horas* o *Toda la sesión*.
+- **Probar pop-up** en los ajustes y pop-up sin marco, arrastrable y con posición guardada.
+### Corregido
+- El pop-up no caducaba nunca (el instante de recepción se recalculaba cada frame).
+- El aviso empieza por el mapa.
+
 ## [0.15.0] - 2026-10-31
 ### Corregido
 - **El pop-up ya se va solo**: el instante de recepción se recalculaba en cada frame, así que

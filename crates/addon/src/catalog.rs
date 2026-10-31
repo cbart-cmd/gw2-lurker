@@ -107,6 +107,78 @@ pub fn objectives_for(api: &Api<WinHttpTransport>) -> Result<Vec<ObjectiveInfo>,
     Ok(guard.1.clone())
 }
 
+/// Directory of the map tiles inside the addon's folder.
+pub fn tiles_dir() -> Option<std::path::PathBuf> {
+    Some(crate::config::addon_dir().ok()?.join("tiles"))
+}
+
+/// File of one tile. The name has every coordinate so a cache can be inspected by hand.
+pub fn tile_path(x: u32, y: u32) -> Option<std::path::PathBuf> {
+    Some(tiles_dir()?.join(format!(
+        "1-1-{}-{x}-{y}.jpg",
+        gw2lurker_core::project::TILE_ZOOM
+    )))
+}
+
+/// URL of one tile on the official tile server.
+pub fn tile_url(x: u32, y: u32) -> String {
+    format!(
+        "https://tiles.guildwars2.com/1/1/{}/{x}/{y}.jpg",
+        gw2lurker_core::project::TILE_ZOOM
+    )
+}
+
+/// Downloads the tiles of the four maps that are not in the cache yet, on its own thread.
+///
+/// Once per session. The render callback must never touch the network (rule 6), so the window
+/// only reads the files afterwards; whatever is still missing simply is not drawn yet.
+pub fn ensure_tiles(maps: &[gw2lurker_core::WvwMap]) {
+    static STARTED: OnceLock<()> = OnceLock::new();
+    let mut jobs = Vec::new();
+    for map in maps {
+        let frame = gw2lurker_core::Frame::of(map);
+        for (x, y) in gw2lurker_core::project::tiles_of(&frame, gw2lurker_core::project::TILE_ZOOM)
+        {
+            let Some(path) = tile_path(x, y) else {
+                return;
+            };
+            if !path.exists() {
+                jobs.push((path, tile_url(x, y)));
+            }
+        }
+    }
+    if jobs.is_empty() || STARTED.set(()).is_err() {
+        return;
+    }
+
+    let spawned = std::thread::Builder::new()
+        .name("gw2lurker-tiles".to_owned())
+        .spawn(move || {
+            let transport = WinHttpTransport::default();
+            let mut saved = 0;
+            for (path, url) in jobs {
+                match gw2lurker_api::Transport::get(&transport, &url) {
+                    Ok(bytes) => {
+                        if let Some(dir) = path.parent() {
+                            let _ = std::fs::create_dir_all(dir);
+                        }
+                        match std::fs::write(&path, &bytes) {
+                            Ok(()) => saved += 1,
+                            Err(error) => {
+                                log::warn!("tiles: no se pudo guardar {path:?} ({error})")
+                            }
+                        }
+                    }
+                    Err(error) => log::warn!("tiles: {url} ({error})"),
+                }
+            }
+            log::info!("tiles: {saved} teselas del mapa en caché");
+        });
+    if spawned.is_err() {
+        log::warn!("tiles: no se pudo lanzar la descarga");
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

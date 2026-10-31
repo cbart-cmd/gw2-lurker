@@ -126,6 +126,9 @@ pub struct Config {
     /// Whether the pop-up alerts are shown at all (T-42). Separate from `popup_secs` so turning
     /// them off and on again keeps the duration the player chose.
     pub popup_enabled: bool,
+    /// Draw the real map tiles behind the objectives (T-29). On by default since the player asked
+    /// for it (2026-10-31); RF-37 said off, and the switch is still there.
+    pub map_tiles: bool,
     /// Text the player wrote for a guild, per guild id (T-43).
     ///
     /// Guild names are not translated by the game, so the only translations that can exist are
@@ -162,6 +165,7 @@ impl Default for Config {
             alerts: gw2lurker_core::AlertFilter::default(),
             popup_secs: 2.0,
             popup_enabled: true,
+            map_tiles: true,
             guild_labels: BTreeMap::new(),
             popup_pos: None,
             language: LanguagePreference::default(),

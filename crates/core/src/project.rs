@@ -62,6 +62,50 @@ pub fn project(frame: &Frame, coord: [f64; 2], min: [f32; 2], size: [f32; 2]) ->
     Some(to_screen(normalised, min, size))
 }
 
+/// Zoom level used for the real map: the highest the tile server answers (verified 2026-10-31).
+pub const TILE_ZOOM: u32 = 5;
+
+/// Continent units covered by one tile at `zoom`.
+///
+/// The tile server is an image pyramid of nine levels: at zoom 8 a tile covers 256 continent units
+/// and at zoom 0 it covers the whole continent. At [`TILE_ZOOM`] a borderland is two or three
+/// tiles across, which is what makes drawing the real map cheap: about twenty small images for
+/// the four maps.
+pub fn units_per_tile(zoom: u32) -> f64 {
+    256.0 * 2f64.powi(8 - zoom as i32)
+}
+
+/// Continent box of one tile: `[min_x, min_y, max_x, max_y]`.
+pub fn tile_box(x: u32, y: u32, zoom: u32) -> [f64; 4] {
+    let step = units_per_tile(zoom);
+    let x0 = f64::from(x) * step;
+    let y0 = f64::from(y) * step;
+    [x0, y0, x0 + step, y0 + step]
+}
+
+/// Tiles that cover a map.
+///
+/// Empty when the box is degenerate, so the caller can treat it as "no background" instead of
+/// asking for tile 0,0 of the whole continent.
+pub fn tiles_of(frame: &Frame, zoom: u32) -> Vec<(u32, u32)> {
+    if !frame.is_usable() {
+        return Vec::new();
+    }
+    let step = units_per_tile(zoom);
+    let first_x = (frame.x[0] / step).floor().max(0.0) as u32;
+    let first_y = (frame.y[0] / step).floor().max(0.0) as u32;
+    let last_x = (frame.x[1] / step).floor().max(0.0) as u32;
+    let last_y = (frame.y[1] / step).floor().max(0.0) as u32;
+
+    let mut tiles = Vec::new();
+    for x in first_x..=last_x {
+        for y in first_y..=last_y {
+            tiles.push((x, y));
+        }
+    }
+    tiles
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -132,6 +176,43 @@ mod tests {
             None,
             "NaN no puede colarse en imgui"
         );
+    }
+
+    #[test]
+    fn rf30_the_tile_grid_covers_the_whole_map() {
+        let frame = frame_of(38);
+        let tiles = tiles_of(&frame, TILE_ZOOM);
+
+        assert!(!tiles.is_empty());
+        let step = units_per_tile(TILE_ZOOM);
+        assert_eq!(step, 2048.0, "zoom 5 son 2048 unidades por tesela");
+
+        // Cada esquina del mapa cae dentro de alguna de las teselas elegidas.
+        for corner_x in [frame.x[0], frame.x[1]] {
+            for corner_y in [frame.y[0], frame.y[1]] {
+                assert!(
+                    tiles.iter().any(|(x, y)| {
+                        let [x0, y0, x1, y1] = tile_box(*x, *y, TILE_ZOOM);
+                        corner_x >= x0 && corner_x <= x1 && corner_y >= y0 && corner_y <= y1
+                    }),
+                    "la esquina {corner_x},{corner_y} se queda sin tesela"
+                );
+            }
+        }
+        assert!(
+            tiles.len() <= 9,
+            "un mapa son dos o tres teselas por lado, no {}",
+            tiles.len()
+        );
+    }
+
+    #[test]
+    fn rf30_a_degenerate_box_asks_for_no_tiles() {
+        let flat = Frame {
+            x: [10.0, 10.0],
+            y: [0.0, 5.0],
+        };
+        assert!(tiles_of(&flat, TILE_ZOOM).is_empty());
     }
 
     #[test]

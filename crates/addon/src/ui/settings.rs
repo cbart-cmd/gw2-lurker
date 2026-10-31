@@ -71,6 +71,7 @@ struct Edits {
     widget_visible: bool,
     widget_locked: bool,
     widget_click_through: bool,
+    map_tiles: bool,
 }
 
 /// Body of the *Settings* tab: the whole form, without window chrome (T-42).
@@ -101,6 +102,7 @@ pub fn body(
         widget_visible: widget.visible,
         widget_locked: widget.locked,
         widget_click_through: widget.click_through,
+        map_tiles: config.map_tiles,
     };
     let before = edits.team_id;
 
@@ -113,6 +115,7 @@ pub fn body(
     config.alerts = edits.alerts;
     config.popup_secs = edits.popup_secs.clamp(0.0, 5.0);
     config.popup_enabled = edits.popup_enabled;
+    config.map_tiles = edits.map_tiles;
     config.followed = edits.follow;
     // The switches of the widget itself: written only when moved, so the chrome of this window
     // is not undone every frame (`×`, dragging, lock).
@@ -252,6 +255,7 @@ fn draw_body(
     if popups && edits.popup_enabled && edits.popup_secs <= 0.0 {
         edits.popup_secs = 2.0;
     }
+    ui.checkbox(i18n::widget("Real map"), &mut edits.map_tiles);
     ui.text_disabled(i18n::format(
         "Click-through keeps the mouse for the game. Shortcut: {0}, rebindable in Nexus.",
         &[crate::ui::LOCK_SHORTCUT],

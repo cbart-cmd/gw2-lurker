@@ -492,6 +492,7 @@ fn poll_once(
     let candidates = select::candidates(&live);
     let guild_names = resolve_guild_names(api, &guilds);
     let maps = maps_for(api);
+    crate::catalog::ensure_tiles(&maps);
     let map_roles = match_id
         .as_deref()
         .and_then(|id| live.iter().find(|entry| entry.id == id))

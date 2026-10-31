@@ -115,9 +115,10 @@ Cada tarea es pequeña y verificable. Orden recomendado; las dependencias se ind
   - **Español y francés**: si un nombre de la lista actual coincide con el inglés, se conserva esa
     traducción; los que no se encuentren se dejan **con el nombre en inglés**, para que el usuario
     los cambie con el campo de traducción de los ajustes.
-  - Ojo con el acceso: gw2mists responde **403 sin cabeceras de navegador** (verificado en
-    `07-spikes.md`), así que la descarga necesita `User-Agent`/`Accept` de navegador y hay que
-    comprobar la forma del HTML antes de escribir el parser. (T-30) — RF-03f
+  - Ojo con el acceso (comprobado el 2026-10-31): la web es una **SPA de React**, así que el HTML
+    no trae los nombres, y su API (`api.gw2mists.com`) responde **403** sin credenciales/origen.
+    Opciones: encontrar el endpoint real que usa el navegador, o que el usuario pegue la lista
+    (ya lo hizo una vez con un Excel). **Bloqueada por eso.** (T-30) — RF-03f
 - **T-17 ✔ (2026-10-31, parcial)** Contrato de ventana compartido en `addon::ui::window`:
   barra de título propia con `×`, plegado con doble clic, mover/redimensionar solo si no está
   bloqueada, opacidad sobre el fondo, menú contextual (bloquear, opacidad, restablecer) y
@@ -150,7 +151,12 @@ Cada tarea es pequeña y verificable. Orden recomendado; las dependencias se ind
   encima de la ventana (`lib::safe_mode`, aviso permanente durante la sesión). El registro de la
   sesión ya toleraba líneas corruptas (`adr003_corrupt_line_is_skipped_and_counted`). (T-10, T-12)
   — RF-51, RNF-06
-- **T-29 (S)** `map::background` y `map::icons`: fondo opcional con teselas oficiales e iconos de objetivo del campo `marker`, con caché en disco y sin empaquetar imágenes (ADR-011). Desactivado por defecto. *Hecho:* el mapa se ve igual con el fondo apagado. (T-14) — RF-37, RF-38
+- **T-29 ✔ (2026-10-31, parcial)** Fondo con las **teselas oficiales**: `tiles.guildwars2.com` a zoom 5 (2048 unidades por tesela; 2–3 teselas por lado y mapa, ~20 para los cuatro), descargadas por el worker a `<addon>/tiles/` y dibujadas con `add_image` heredando la **opacidad de la ventana**. Las que aún no están en disco no se dibujan y se van rellenando. Interruptor **Mapa real** en los ajustes. Los iconos van en T-46. (T-14) — RF-37, RF-38
+
+- **T-46** Iconos del mapa como en el juego: dentro del círculo de color, el dibujo del **campamento**
+  y de la **torre** que pasó el usuario (2026-10-31); el de la **fortaleza** no se pudo capturar
+  porque el marcador de reclamado lo tapa en el livemap de gw2mists. Sustituyen a las formas
+  geométricas actuales manteniendo forma+color accesibles. (T-29) — RF-30, RF-31, RF-38
 
 ## Fase 4b – Actualización y fallo seguro
 

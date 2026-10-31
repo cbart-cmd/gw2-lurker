@@ -308,6 +308,8 @@ fn draw_tabs(
                             maps: data.maps,
                             follow: data.follow,
                             guild_names: data.names,
+                            opacity: config.window(WIDGET).opacity,
+                            real_map: config.map_tiles,
                             history: &history,
                         },
                         &mut map_choice(),

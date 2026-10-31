@@ -13,6 +13,25 @@ Reglas:
 
 ---
 
+## HECHO – 2026-10-31 · Mapa real con teselas, rango de la ruta y pop-up arreglado (0.16.0)
+
+- **T-29 (parcial)**: verificado que `tiles.guildwars2.com` llega hasta **zoom 5** (zoom 6 y 7 dan
+  404) y que a ese nivel una tesela son **2048 unidades de continente**: un mapa son 2–3 teselas
+  por lado, ~20 en total para los cuatro. `core::project::{units_per_tile, tile_box, tiles_of}` es
+  puro y tiene dos tests (cobertura de esquinas y «degenerado = ninguna»).
+  - El **worker** descarga las que falten a `<addon>/tiles/` en su propio hilo (`ensure_tiles`), así
+    que el render nunca toca la red.
+  - El **render** pide 4 teselas por frame como máximo (`get_texture_or_create_from_file`) y dibuja
+    con `add_image(..).col([1,1,1,opacity])`: el mapa **hereda la opacidad** de la ventana, que es
+    lo que pidió el usuario.
+  - Interruptor **Mapa real** (`Config::map_tiles`, por defecto **sí**): si se apaga vuelve el
+    tablero con rejilla. RF-37 decía «desactivado por defecto»; se cambia porque el usuario lo pidió
+    así (2026-10-31).
+- **T-16 (más cerca)**: selector de **rango** de la ruta (última hora / 2 horas / toda la sesión).
+  El trazo discontinuo para `late`/`gap` queda sin objeto: los `late` ya no entran en el historial
+  desde 0.12.1, y los `gap` no son filas. El tooltip es el hover del mapa.
+- Backlog nuevo: **T-46** (iconos del mapa como en el juego, con las capturas de campamento y torre;
+  falta el de fortaleza) y **T-45** anotada como bloqueada: gw2mists es una SPA y su API da 403.
 ## HECHO – 2026-10-31 · Pop-ups que se van, mapa con fondo y selector de clanes nuevo (0.15.0)
 
 - **Pop-up que no se iba**: `alert_line` ponía `received = Utc::now()` **cada vez que se formateaba**

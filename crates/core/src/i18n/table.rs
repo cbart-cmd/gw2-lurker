@@ -100,6 +100,11 @@ pub const TEXT: &[(&str, [&str; COLUMNS])] = &[
         ],
     ),
     ("Search", ["Buscar", "Search", "Chercher", "Suchen"]),
+    ("Range", ["Rango", "Range", "Plage", "Zeitraum"]),
+    ("Last hour", ["Última hora", "Last hour", "Dernière heure", "Letzte Stunde"]),
+    ("Last 2 hours", ["Últimas 2 horas", "Last 2 hours", "2 dernières heures", "Letzte 2 Stunden"]),
+    ("All session", ["Toda la sesión", "All session", "Toute la session", "Gesamte Sitzung"]),
+    ("Real map", ["Mapa real", "Real map", "Carte réelle", "Echte Karte"]),
     (
         "Part of the name, one word",
         [

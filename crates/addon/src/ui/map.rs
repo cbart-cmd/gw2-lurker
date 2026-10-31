@@ -11,6 +11,7 @@ use std::collections::BTreeMap;
 
 use gw2lurker_core::matchup::ClaimRow;
 use gw2lurker_core::model::{MapRole, ObjectiveInfo, ObjectiveType, TeamColor, WvwMap};
+use gw2lurker_core::project::{tile_box, tiles_of, TILE_ZOOM};
 use gw2lurker_core::{project, FollowList, Frame};
 use nexus::imgui::{ComboBox, Selectable, StyleColor, Ui};
 
@@ -42,6 +43,10 @@ pub struct View<'a> {
     pub follow: &'a FollowList,
     /// Guild id → `[TAG] Nombre`, to label the objectives of the followed guilds (RF-31).
     pub guild_names: &'a BTreeMap<String, String>,
+    /// Opacity of the window, which the real map inherits (T-29).
+    pub opacity: f32,
+    /// Draw the real tiles instead of the schematic board (T-29).
+    pub real_map: bool,
     /// What the guild chosen in the *Guilds* tab claimed this session, for the route (T-16).
     pub history: &'a [ClaimRow],
 }
@@ -56,6 +61,8 @@ pub fn body(ui: &Ui, view: &View<'_>, role: &mut MapRole, here: Option<MapRole>)
         maps,
         follow,
         guild_names,
+        opacity,
+        real_map,
         history,
     } = *view;
 
@@ -101,7 +108,12 @@ pub fn body(ui: &Ui, view: &View<'_>, role: &mut MapRole, here: Option<MapRole>)
     // (reported and confirmed in `Nexus.log`, 2026-10-31).
     let size = [width, MAP_HEIGHT];
     let list = ui.get_window_draw_list();
-    draw_background(&list, origin, size, &frame, map_label(*role));
+    if real_map {
+        draw_tiles(&list, &frame, origin, size, opacity);
+        draw_frame(&list, origin, size, map_label(*role));
+    } else {
+        draw_background(&list, origin, size, &frame, map_label(*role));
+    }
 
     // One pass to know where every objective lands: the drawing and the hover check need the
     // same points, and asking `get_window_draw_list` twice per frame is a panic (see above).
@@ -152,7 +164,20 @@ pub fn body(ui: &Ui, view: &View<'_>, role: &mut MapRole, here: Option<MapRole>)
         }
     }
 
-    draw_route(&list, &frame, origin, size, map.id, names, history);
+    let since =
+        range_choice(ui).map(|minutes| chrono::Utc::now() - chrono::Duration::minutes(minutes));
+    draw_route(
+        &list,
+        &RouteCanvas {
+            frame: &frame,
+            origin,
+            size,
+        },
+        map.id,
+        names,
+        history,
+        since,
+    );
 
     match hovered.and_then(|index| drawn.get(index)) {
         Some((_, objective, row)) => {
@@ -162,8 +187,89 @@ pub fn body(ui: &Ui, view: &View<'_>, role: &mut MapRole, here: Option<MapRole>)
     }
 }
 
+/// The real map: the official tiles, drawn one by one with the opacity of the window (T-29).
+///
+/// A tile that is not on disk yet is simply skipped: the download runs in the worker thread and
+/// the next frame will have it. Nothing blocks the render callback.
+fn draw_tiles(
+    list: &nexus::imgui::DrawListMut<'_>,
+    frame: &Frame,
+    origin: [f32; 2],
+    size: [f32; 2],
+    opacity: f32,
+) {
+    for (x, y) in tiles_of(frame, TILE_ZOOM) {
+        let Some(texture) = tile_texture(x, y) else {
+            continue;
+        };
+        let [x0, y0, x1, y1] = tile_box(x, y, TILE_ZOOM);
+        let (Some(a), Some(b)) = (
+            project(frame, [x0, y0], origin, size),
+            project(frame, [x1, y1], origin, size),
+        ) else {
+            continue;
+        };
+        // `project` ya invierte la Y: la esquina "mínima" en pantalla es la de arriba.
+        let p_min = [a[0].min(b[0]), a[1].min(b[1])];
+        let p_max = [a[0].max(b[0]), a[1].max(b[1])];
+        list.add_image(texture, p_min, p_max)
+            .col([1.0, 1.0, 1.0, opacity])
+            .build();
+    }
+}
+
+/// Loaded tiles, by coordinates. They never change, so the session keeps them.
+static TILE_TEXTURES: std::sync::OnceLock<
+    std::sync::Mutex<BTreeMap<(u32, u32), nexus::imgui::TextureId>>,
+> = std::sync::OnceLock::new();
+
+/// Texture of one tile, loading it from the disk cache the first time it is needed.
+///
+/// Loads at most a few per frame: the first time the tab is opened the map fills in over a couple
+/// of frames instead of stalling the game.
+fn tile_texture(x: u32, y: u32) -> Option<nexus::imgui::TextureId> {
+    static LOADED_THIS_FRAME: std::sync::atomic::AtomicU8 = std::sync::atomic::AtomicU8::new(0);
+    let cache = TILE_TEXTURES.get_or_init(|| std::sync::Mutex::new(BTreeMap::new()));
+    if let Some(id) = cache
+        .lock()
+        .unwrap_or_else(|error| error.into_inner())
+        .get(&(x, y))
+    {
+        return Some(*id);
+    }
+    if LOADED_THIS_FRAME.load(std::sync::atomic::Ordering::Relaxed) >= 4 {
+        return None;
+    }
+    let path = crate::catalog::tile_path(x, y)?;
+    if !path.exists() {
+        return None;
+    }
+    LOADED_THIS_FRAME.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+    let identifier = format!("gw2lurker-tile-{x}-{y}");
+    let texture = nexus::texture::get_texture_or_create_from_file(&identifier, &path)?;
+    let id = texture.id();
+    cache
+        .lock()
+        .unwrap_or_else(|error| error.into_inner())
+        .insert((x, y), id);
+    Some(id)
+}
+
+/// Border and name over whatever the background is.
+fn draw_frame(list: &nexus::imgui::DrawListMut<'_>, origin: [f32; 2], size: [f32; 2], name: &str) {
+    let corner = [origin[0] + size[0], origin[1] + size[1]];
+    list.add_rect(origin, corner, [0.0, 0.0, 0.0, 0.75])
+        .thickness(1.0)
+        .build();
+    list.add_text(
+        [origin[0] + 6.0, origin[1] + 4.0],
+        [1.0, 1.0, 1.0, 0.9],
+        name,
+    );
+}
+
 /// Dark board with a grid and the map name: no textures (ADR-002), but the objectives are not
-/// floating on nothing either (report of 2026-10-31). Real tiles are T-29.
+/// floating on nothing either (report of 2026-10-31). The real map is [`draw_tiles`].
 fn draw_background(
     list: &nexus::imgui::DrawListMut<'_>,
     origin: [f32; 2],
@@ -203,6 +309,45 @@ fn draw_background(
         [0.75, 0.78, 0.82, 1.0],
         name,
     );
+}
+
+/// Time window of the route, in minutes; `None` is the whole session (T-16).
+///
+/// Session state: it is a way of looking at the session, not a setting.
+fn range_choice(ui: &Ui) -> Option<i64> {
+    static CHOICE: std::sync::OnceLock<std::sync::Mutex<u8>> = std::sync::OnceLock::new();
+    const OPTIONS: [(u8, Option<i64>, &str); 3] = [
+        (1, Some(60), "Last hour"),
+        (2, Some(120), "Last 2 hours"),
+        (0, None, "All session"),
+    ];
+
+    let slot = CHOICE.get_or_init(|| std::sync::Mutex::new(0));
+    let mut chosen = *slot.lock().unwrap_or_else(|error| error.into_inner());
+    let current = OPTIONS
+        .iter()
+        .find(|(value, ..)| *value == chosen)
+        .map(|(_, _, label)| i18n::text(label))
+        .unwrap_or_else(|| i18n::text("All session"));
+
+    ComboBox::new(i18n::widget("Range"))
+        .preview_value(current)
+        .build(ui, || {
+            for (value, _, label) in OPTIONS {
+                if Selectable::new(i18n::text(label))
+                    .selected(chosen == value)
+                    .build(ui)
+                {
+                    chosen = value;
+                }
+            }
+        });
+    *slot.lock().unwrap_or_else(|error| error.into_inner()) = chosen;
+
+    OPTIONS
+        .iter()
+        .find(|(value, ..)| *value == chosen)
+        .and_then(|(_, minutes, _)| *minutes)
 }
 
 /// `[TAG] Nombre` → `TAG`, which is what fits next to a ring.
@@ -278,18 +423,33 @@ fn detail_line(
 ///
 /// The route is **inferred** from the claims (ADR-005): the caption that says so is drawn by the
 /// guilds tab, next to the same data.
-fn draw_route(
-    list: &nexus::imgui::DrawListMut<'_>,
-    frame: &Frame,
+/// Where the route is drawn: the projection box plus the rectangle on screen.
+struct RouteCanvas<'a> {
+    frame: &'a Frame,
     origin: [f32; 2],
     size: [f32; 2],
+}
+
+fn draw_route(
+    list: &nexus::imgui::DrawListMut<'_>,
+    canvas: &RouteCanvas<'_>,
     map_id: u32,
     names: &[ObjectiveInfo],
     history: &[ClaimRow],
+    since: Option<chrono::DateTime<chrono::Utc>>,
 ) {
+    let frame = canvas.frame;
+    let origin = canvas.origin;
+    let size = canvas.size;
     let mut steps: Vec<([f32; 2], Option<chrono::DateTime<chrono::Utc>>)> = history
         .iter()
         .filter(|row| row.map_id == map_id)
+        // Rango temporal (T-16): lo que quede fuera de la ventana no se dibuja.
+        .filter(|row| match (since, row.claimed_at) {
+            (Some(since), Some(at)) => at >= since,
+            (Some(_), None) => false,
+            (None, _) => true,
+        })
         .filter_map(|row| {
             let objective = names.iter().find(|known| known.id == row.objective_id)?;
             let coord = objective.coord?;
