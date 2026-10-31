@@ -486,7 +486,7 @@ fn map_choice() -> std::sync::MutexGuard<'static, MapRole> {
 /// One line with the state of the worker and the configured team (RF-02, RF-46).
 fn draw_health(ui: &nexus::imgui::Ui, config: &mut crate::config::Config, data: &Tabbed) {
     let state = crate::context::snapshot();
-    let (health, match_id, updated, selection, last_claim_at, candidates) = {
+    let (health, match_id, updated, selection, last_claim_at, candidates, played_team) = {
         let board = crate::worker::dashboard();
         (
             board.health.clone(),
@@ -495,6 +495,7 @@ fn draw_health(ui: &nexus::imgui::Ui, config: &mut crate::config::Config, data: 
             board.selection.clone(),
             board.last_claim_at,
             board.candidates.clone(),
+            board.played_team,
         )
     };
     let team_id = crate::team::selected_in(config);
@@ -536,6 +537,19 @@ fn draw_health(ui: &nexus::imgui::Ui, config: &mut crate::config::Config, data: 
             .collect();
         if !teams.is_empty() {
             ui.text_wrapped(teams.join("   "));
+        }
+    }
+    // Si el juego dice que juegas con otro equipo, decirlo: es la causa de todos los «no salen
+    // avisos» hasta ahora (informe de 2026-10-31).
+    if let (Some(played), Some(configured)) = (played_team, team_id) {
+        if played != configured {
+            let played_name = crate::team::display_name(config, language, played);
+            let configured_name = crate::team::display_name(config, language, configured);
+            let _tint = ui.push_style_color(nexus::imgui::StyleColor::Text, [1.0, 0.6, 0.2, 1.0]);
+            ui.text_wrapped(i18n::format(
+                "The game says you play with {0}, but the addon watches {1}: change the team in Settings.",
+                &[&played_name, &configured_name],
+            ));
         }
     }
     // A saved team that no longer plays leaves the addon watching a matchup that is not the

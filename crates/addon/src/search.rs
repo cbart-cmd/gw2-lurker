@@ -36,6 +36,8 @@ pub struct Hit {
     pub label: String,
     /// Team it plays for right now, when the map of the region knows it.
     pub team: Option<u32>,
+    /// Whether it plays for the team the player picked (the rest are shown after these).
+    pub matches_team: bool,
 }
 
 /// What the window draws while the thread works.
@@ -113,16 +115,15 @@ fn run(region: Region, team: Option<u32>, text: &str) -> Result<Vec<Hit>, String
             continue;
         }
         let of_team = teams.get(&id).copied();
-        // With a team chosen, only that team: that is what the selector means. Without one, the
-        // whole region, which is what "Team (any)" says.
-        if team.is_some_and(|wanted| of_team != Some(wanted)) {
-            continue;
-        }
+        // El equipo elegido **no descarta** resultados: solo ordena. Descartándolos, buscar un
+        // clan propio con el equipo por defecto decía «no existe» (informe de 2026-10-31).
+        let matches_team = team.is_none_or(|wanted| of_team == Some(wanted));
         match api.guild(&id) {
             Ok(info) => hits.push(Hit {
                 id,
                 label: crate::catalog::guild_label(&info),
                 team: of_team,
+                matches_team,
             }),
             Err(error) => log::warn!("search: sin nombre de {id} ({error})"),
         }
@@ -130,6 +131,8 @@ fn run(region: Region, team: Option<u32>, text: &str) -> Result<Vec<Hit>, String
             break;
         }
     }
+    // Los del equipo elegido primero: el jugador está buscando el suyo.
+    hits.sort_by_key(|hit| !hit.matches_team);
     log::info!(
         "search: {} resultados para {ctx} con equipo {team:?}",
         hits.len()

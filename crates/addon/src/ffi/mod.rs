@@ -56,6 +56,36 @@ pub fn identity_name(identity: &str) -> Option<String> {
     (!name.is_empty()).then(|| name.to_owned())
 }
 
+/// What the game itself says about where the player fights: `(shard_id, team colour)`.
+///
+/// `shard_id` used to be the home world and the new teams reuse the same field; `team_color_id`
+/// is Mumble's own team colour (1 red, 2 green, 3 blue). Both are only used to **warn** when the
+/// team saved in the settings does not look like the one being played, which is the cause behind
+/// every «no salen avisos» so far (report of 2026-10-31).
+///
+/// UNVERIFIED(T-19): the exact meaning of `shard_id` in WvW has not been seen in game yet; the
+/// worker logs it so the next session settles it.
+pub fn mumble_where() -> Option<(u32, Option<gw2lurker_core::TeamColor>)> {
+    let link = get_mumble_link()?;
+    let shard = link.read_shard_id();
+    let identity = link.read_identity_string().to_string_lossy().into_owned();
+    Some((shard, identity_team_colour(&identity)))
+}
+
+/// Team colour out of the `identity` JSON. Pure, so it can be tested.
+pub fn identity_team_colour(identity: &str) -> Option<gw2lurker_core::TeamColor> {
+    use gw2lurker_core::TeamColor;
+    let start = identity.find("\"team_color_id\":")? + "\"team_color_id\":".len();
+    let rest = identity.get(start..)?;
+    let digits: String = rest.chars().take_while(char::is_ascii_digit).collect();
+    match digits.parse().ok()? {
+        1 => Some(TeamColor::Red),
+        2 => Some(TeamColor::Green),
+        3 => Some(TeamColor::Blue),
+        _ => None,
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -72,5 +102,19 @@ mod tests {
         assert_eq!(identity_name(""), None);
         assert_eq!(identity_name(r#"{"profession":6}"#), None);
         assert_eq!(identity_name(r#"{"name":""}"#), None);
+    }
+
+    #[test]
+    fn rf03a_the_team_colour_comes_out_of_the_identity_json() {
+        use gw2lurker_core::TeamColor;
+        let red = r#"{"name":"Jhoin","team_color_id":1,"commander":false}"#;
+        let green = r#"{"name":"Jhoin","team_color_id":2}"#;
+        let blue = r#"{"name":"Jhoin","team_color_id":3}"#;
+        assert_eq!(identity_team_colour(red), Some(TeamColor::Red));
+        assert_eq!(identity_team_colour(green), Some(TeamColor::Green));
+        assert_eq!(identity_team_colour(blue), Some(TeamColor::Blue));
+        // Fuera de WvW el juego manda 0 y eso no es un color de equipo.
+        assert_eq!(identity_team_colour(r#"{"team_color_id":0}"#), None);
+        assert_eq!(identity_team_colour(""), None);
     }
 }

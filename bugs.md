@@ -1,26 +1,55 @@
 # Bugs
 
-Bandeja de entrada de fallos. **Aquí solo se queda lo que falta**: cuando un bug está arreglado se
-borra de este fichero. El qué se cambió y en qué versión sale queda en `PROGRESO.md` y, si se ve, en
-`CHANGELOG.md`.
+Bandeja de entrada de fallos. **No se borra**: cada bug se queda con su marca. `[x]` cuando creo que
+está arreglado, con la versión en la que sale el arreglo, para que el jugador pueda comprobarlo y
+tacharlo del todo si quiere.
 
 Formato:
 
 ```
-## [ ] Título corto (fecha en que se reporta)
+## [x] Título corto (fecha en que se reporta)
 - Qué pasa, cómo se reproduce, qué se esperaba.
-- **Pendiente:** qué falta para cerrarlo (una prueba en el juego, un log, una decisión).
+- **Hecho (x.y.z):** qué se cambió y dónde.
+- **Pendiente:** qué falta (si falta algo).
 ```
 
-Estado: `[ ]` pendiente · `[x]` arreglado en esta tanda (se borra al cerrarla).
+Estado: `[ ]` pendiente · `[x]` arreglado según el addon (a falta de que el jugador lo confirme).
 
 ## [ ] «ha dejado de recoger quién reclama» (2026-10-31 22:09)
-- «Desde hace 5 minutos ha dejado de recoger quién reclama.»
-- Lo que decía la evidencia: el log tenía `sondeo 20: partida Some("1-1"), 44 reclamados de 178
-  objetivos, 0 eventos nuevos`, y el API confirmó que en `1-1` el último `claimed_at` era de las
-  22:02 locales mientras otras partidas se movían a las 22:09/22:10. O la partida estaba tranquila, o
-  el equipo configurado no es en el que se juega.
-- **Pendiente:** con 0.22.5 el widget y el latido del log dicen «Último reclamo: hace N min» (marca
-  del **juego**). Si en el juego reclaman y ese número no baja, el problema es el emparejamiento o el
-  equipo elegido, no la detección: hay que mirar la cabecera (equipo y partida) contra lo que se ve
-  en el juego.
+version 0.22.6. 22:25 en mapa rojo he reclamado hacienda de bahuer con YaK que estaba ya capturado sin reclamar.  3 minutos dpesues aun no ha salido ningun aviso. YaK es un clan que sigo (yo mismo)
+![alt text](image.png)
+![alt text](image-1.png)
+MINUTOS MAS tarde se reclama otro campa pro otro clan, y tampoco sale aunque tengo seleccionado ver avisos de lo que pase en mi mapa
+![alt text](image-2.png)
+![alt text](image-3.png)
+- Lo que dice la evidencia del API (2026-10-31, 22:36): en la partida que miraba el addon (`1-1`) el
+  **último reclamo era de las 22:02** y durante media hora no hubo **ninguno**, mientras otras
+  partidas sí se movían. Es decir: o hay un problema de equipo/partida, o la API no refleja lo que se
+  ve en el juego.
+- **Hecho (0.22.8):** el addon ahora dice **de dónde cree que eres** y **con quién dice el juego que
+  juegas**: `donde: mumble shard …, color …, equipo configurado …, mumble dice …` en el log, y un
+  aviso en naranja en la cabecera cuando el equipo guardado no es el que el juego te da. El
+  `shard_id` de Mumble no está verificado en WvW (T-19): esta línea es lo que lo resuelve.
+- **Pendiente:** que el jugador mire la cabecera la próxima vez y compare con su panel de WvW.
+
+## [x] no puiedo eliminar clanes (2026-10-31 22:35)
+version 0.22.6. pulsar "x" al lado de un clan no lo borra. deberia preguntar si estas seguro, y eliminarlo de clanes que sigues
+- **Hecho (0.22.8):** la confirmación se ve: el clan se sustituye por
+  «¿Quitar a *nombre* de los clanes que sigues?» y debajo **Sí, quítalo** / **No, seguir
+  siguiéndolo**. Antes la pregunta y los botones iban en la misma línea y los botones se salían por
+  la derecha.
+
+## [x] click thoufgh no hace nada (2026-10-31 22:35)
+version 0.22.6. bnoton derecho click trghough no activa. actvarlo desde los ajustes si lo marca pero sigue sin hacer nada
+- **Hecho (0.22.8):** regresión de 0.22.0. `no_inputs` de la ventana no lo hereda la ventana hija
+  donde vive el cuerpo, así que el cuerpo seguía comiéndose los clics aunque la marca estuviera
+  puesta. Ahora la hija se crea también con `no_inputs` cuando el click-through está activo.
+
+## [x] bujscador de clanes no funciopna (2026-10-31 22:35)
+ejemplo, pongo europa y busco yak ,. mi clan, y dice uqe no existe. si hay varios devveria mostrar todos para elegir. he buiscado otros clanes y no encuentra
+![alt text](image-4.png)
+- **Hecho (0.22.8):** dos causas. (1) El equipo elegido **descartaba** los resultados: buscar tu clan
+  con otro equipo seleccionado decía «no existe». Ahora se enseñan todos los de la región con su
+  equipo, los del equipo elegido primero. (2) `/v2/guild/search` busca por el **principio de una
+  palabra del nombre**, no por el tag: buscar «yak» no encuentra *Dolyak Sanctuary* (comprobado con
+  el API: devuelve otro clan). El mensaje de «no hay resultados» lo explica.

@@ -1,6 +1,21 @@
 # Changelog
 Formato [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/), versionado [SemVer](https://semver.org/lang/es/).
 
+## [0.22.8] - 2026-10-31
+### Corregido
+- **Click-through vuelve a funcionar**: la ventana hija del cuerpo no heredaba `no_inputs`, así que
+  seguía capturando los clics aunque el ajuste estuviera activo.
+- **Dejar de seguir un clan se puede confirmar**: la pregunta y sus dos botones (`Sí, quítalo` /
+  `No, seguir siguiéndolo`) van en líneas separadas; en una sola se salían por la derecha.
+- **El buscador de clanes enseña todo lo de la región**: el equipo elegido ya no descarta resultados
+  (solo los ordena), y el mensaje de «no hay resultados» explica que la API busca por el principio de
+  una palabra del nombre, no por el tag.
+### Añadido
+- **Aviso de equipo equivocado**: el addon compara el equipo guardado con lo que el juego publica por
+  Mumble (`shard_id` y `team_color_id`) y, si no coinciden, lo dice en naranja en la cabecera y en el
+  log (`donde: mumble shard …, color …`). Es la causa que ha roto los avisos todas las veces.
+  El significado de `shard_id` en WvW queda por confirmar en el juego (T-19).
+
 ## [0.22.7] - 2026-10-31
 ### Cambiado
 - **Fuera el aviso de Nexus**: el addon ya solo tiene **dos** cosas, el widget y el **aviso

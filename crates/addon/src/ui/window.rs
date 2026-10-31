@@ -148,12 +148,18 @@ pub fn draw(
             let height = (avail[1] - spacing).max(MIN_BODY_HEIGHT);
             let width = avail[0].max(1.0);
             let body_id = format!("###gw2lurker_body_{key}");
-            ChildWindow::new(body_id.as_str())
+            let mut child = ChildWindow::new(body_id.as_str())
                 .size([width, height])
                 .scrollable(true)
                 .draw_background(false)
-                .border(false)
-                .build(ui, || body(ui));
+                .border(false);
+            // `no_inputs` en la ventana **no** lo hereda la hija: sin esto, con click-through
+            // activado el cuerpo seguía comiéndose los clics (informe de 2026-10-31, «lo marco y
+            // sigue sin hacer nada»).
+            if state.click_through {
+                child = child.no_inputs();
+            }
+            child.build(ui, || body(ui));
         }
     });
 

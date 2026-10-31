@@ -121,3 +121,40 @@ pub fn heartbeat(
         );
     }
 }
+
+/// Says, once per change, where the game says the player is and which team the addon watches.
+///
+/// The `shard_id` is logged raw on purpose: its meaning in WvW is still unverified (T-19), and
+/// this line is what settles it. The colour is Mumble's `team_color_id`, which is trustworthy.
+pub fn log_where(configured: Option<u32>, match_id: Option<&str>, live: &[Match]) {
+    /// (equipo configurado, shard de Mumble, color de Mumble)
+    type Key = (Option<u32>, Option<u32>, Option<u32>);
+    static LAST: Mutex<Option<Key>> = Mutex::new(None);
+
+    let Some((shard, colour)) = crate::ffi::mumble_where() else {
+        return;
+    };
+    let played = live
+        .iter()
+        .find(|entry| Some(entry.id.as_str()) == match_id)
+        .and_then(|entry| entry.team_of_shard(shard));
+    let key = (configured, Some(shard), colour.map(|c| c as u32));
+    {
+        let mut last = LAST.lock().unwrap_or_else(|error| error.into_inner());
+        if last.as_ref() == Some(&key) {
+            return;
+        }
+        *last = Some(key);
+    }
+    let watched = configured
+        .and_then(|team| {
+            live.iter()
+                .find(|entry| Some(entry.id.as_str()) == match_id)
+                .map(|entry| (team, entry.color_of(team)))
+        })
+        .map(|(team, colour)| format!("{team} ({colour:?})"))
+        .unwrap_or_else(|| "ninguno".to_owned());
+    log::info!(
+        "donde: mumble shard {shard}, color {colour:?}; equipo configurado {watched}; mumble dice {played:?}"
+    );
+}

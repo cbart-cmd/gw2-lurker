@@ -194,6 +194,25 @@ impl Match {
             .find(|color| self.all_worlds.get(*color).contains(&team_id))
     }
 
+    /// Team the game is putting a given Mumble `shard_id` in, with the **new-style** id of that
+    /// colour (`11xxx`/`12xxx`).
+    ///
+    /// `all_worlds` mixes the old world ids with the new team ids, so the shard may be either.
+    /// This is only used to *warn* the player when the team in the settings is not the one the
+    /// game says they are in, which is what has broken every alert so far (2026-10-31).
+    ///
+    /// UNVERIFIED(T-19): the meaning of `shard_id` in WvW has not been confirmed in game.
+    pub fn team_of_shard(&self, shard: u32) -> Option<(TeamColor, u32)> {
+        let color = self.color_of(shard)?;
+        let worlds = self.all_worlds.get(color);
+        let team = worlds
+            .iter()
+            .copied()
+            .find(|id| (11_000..13_000).contains(id))
+            .unwrap_or(shard);
+        Some((color, team))
+    }
+
     /// The two rival colours, in match order (RF-03g).
     pub fn others(&self, me: TeamColor) -> [TeamColor; 2] {
         match me {

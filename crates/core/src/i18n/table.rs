@@ -363,6 +363,41 @@ pub const TEXT: &[(&str, [&str; COLUMNS])] = &[
         ],
     ),
     (
+        "The game says you play with {0}, but the addon watches {1}: change the team in Settings.",
+        [
+            "El juego dice que juegas con {0}, pero el addon mira {1}: cambia el equipo en Ajustes.",
+            "The game says you play with {0}, but the addon watches {1}: change the team in Settings.",
+            "Le jeu dit que vous jouez avec {0}, mais l'addon surveille {1} : changez d'équipe dans les réglages.",
+            "Das Spiel sagt, du spielst mit {0}, das Addon beobachtet aber {1}: Team in den Einstellungen ändern.",
+        ],
+    ),
+    (
+        "No guild matches. The API searches the start of one word of the name, not the tag: try «dolyak» instead of «dak».",
+        [
+            "Ningún clan coincide. El API busca por el principio de una palabra del nombre, no por el tag: prueba «dolyak» en vez de «dak».",
+            "No guild matches. The API searches the start of one word of the name, not the tag: try «dolyak» instead of «dak».",
+            "Aucune guilde ne correspond. L'API cherche le début d'un mot du nom, pas le tag : essayez « dolyak » au lieu de « dak ».",
+            "Keine Gilde passt. Die API sucht den Anfang eines Wortes im Namen, nicht den Tag: versuche «Dolyak» statt «Dak».",
+        ],
+    ),
+    (
+        "Remove {0} from the guilds you follow?",
+        [
+            "¿Quitar a {0} de los clanes que sigues?",
+            "Remove {0} from the guilds you follow?",
+            "Retirer {0} des guildes suivies ?",
+            "{0} aus den gefolgten Gilden entfernen?",
+        ],
+    ),
+    (
+        "Yes, remove it",
+        ["Sí, quítalo", "Yes, remove it", "Oui, retirer", "Ja, entfernen"],
+    ),
+    (
+        "Keep following",
+        ["No, seguir siguiéndolo", "Keep following", "Non, continuer", "Nein, weiter folgen"],
+    ),
+    (
         "Stop following {0}?",
         [
             "¿Quitar {0} de los que sigues?",

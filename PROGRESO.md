@@ -13,6 +13,37 @@ Reglas:
 
 ---
 
+## HECHO – 2026-10-31 · Cuatro bugs de la 0.22.6 y el aviso de equipo equivocado (0.22.8)
+
+Del informe de las 22:35, con el API y el log como evidencia.
+
+- **Click-through no hacía nada (regresión mía de 0.22.0).** `Window::no_inputs()` no lo hereda la
+  `ChildWindow` donde vive el cuerpo desde que el cuerpo está en una hija: el cuerpo seguía
+  capturando el ratón aunque el ajuste estuviera marcado. Ahora la hija se crea con `no_inputs`.
+- **El `×` de dejar de seguir no se podía confirmar.** La pregunta y los dos botones iban en la misma
+  línea y los botones se salían por la derecha de la ventana. Ahora la pregunta va en una línea
+  (`text_wrapped`) y los botones en la siguiente, con textos explícitos.
+- **Buscador de clanes.** Dos causas medidas: (1) el equipo elegido **descartaba** los resultados,
+  así que buscar el clan propio con otro equipo decía «no existe»; ahora se enseña todo lo de la
+  región con su equipo y los del equipo elegido primero (`Hit::matches_team`). (2)
+  `/v2/guild/search?name=yak` devuelve **otro** clan: el API busca por el principio de una palabra
+  del nombre, no por el tag, así que *Dolyak Sanctuary* no sale con «yak». El mensaje lo explica.
+- **«Ha dejado de recoger quién reclama»: sigue abierto, pero con evidencia nueva.** El API decía que
+  en `1-1` no había habido **ningún** reclamo entre las 22:02 y las 22:36, mientras otras partidas
+  se movían. Como no se puede distinguir «partida tranquila» de «estoy en otra partida», se añade:
+  - `diagnostics::log_where`: una línea por cambio con `mumble shard`, `color`, equipo configurado y
+    el equipo que el juego dice (`Match::team_of_shard`).
+  - `Dashboard::played_team` y un aviso en naranja en la cabecera cuando no coinciden.
+  - `ffi::mumble_where` + `ffi::identity_team_colour` (puro y con test: 1/2/3 = rojo/verde/azul).
+  - **UNVERIFIED(T-19)**: el significado de `shard_id` en WvW no está confirmado en el juego; la
+    línea del log es justo lo que lo resuelve, y `team_of_shard` cae al id nuevo del color.
+- Convención nueva a petición del jugador: **no se borran los bugs**, se marcan `[x]` con la versión
+  (AGENTS.md §9 reescrito; `bugs.md` mantiene los cuatro con su estado).
+- Verificación: 212 tests en verde (91 addon · 16 api · 99 core · 6 store), `clippy -D warnings` y
+  `cargo fmt --check` limpios, ningún fichero por encima de 800 líneas.
+- **No verificado en el juego**: click-through, la confirmación del `×`, el buscador y el aviso de
+  equipo.
+
 ## HECHO – 2026-10-31 · Solo dos ventanas: fuera el aviso de Nexus (0.22.7)
 
 - El jugador lo dejó claro: «hay dos ventanas, el widget y la ventana de arriba de avisos; no hay

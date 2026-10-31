@@ -85,6 +85,11 @@ pub struct Dashboard {
     pub alerts: Vec<Received>,
     /// When the dashboard was last rebuilt.
     pub updated_at: Option<DateTime<Utc>>,
+    /// Team the **game** says the player is on, from Mumble, when it can be told apart (T-19).
+    ///
+    /// If this differs from the configured team, the addon is watching a matchup the player is
+    /// not in, which is what has made every alert look broken (report of 2026-10-31).
+    pub played_team: Option<u32>,
     /// When the game last saw a claim in this matchup, as the API tells it.
     ///
     /// `updated_at` is *our* poll; this is the game's own timestamp. Without it, «no recoge nada»
@@ -376,6 +381,7 @@ fn poll_once(
     let world_names = crate::catalog::world_names(api);
     let maps = maps_for(api);
     crate::diagnostics::log_watched_matchup(&selection, match_id.as_deref(), &live, &events);
+    crate::diagnostics::log_where(team_id, match_id.as_deref(), &live);
     crate::catalog::ensure_tiles(&maps);
     let map_roles = match_id
         .as_deref()
@@ -412,6 +418,12 @@ fn poll_once(
     }
     board.updated_at = Some(now);
     board.last_claim_at = crate::diagnostics::last_claim_of(&live, match_id.as_deref());
+    board.played_team = crate::ffi::mumble_where().and_then(|(shard, _)| {
+        live.iter()
+            .find(|entry| Some(entry.id.as_str()) == match_id.as_deref())
+            .and_then(|entry| entry.team_of_shard(shard))
+            .map(|(_, team)| team)
+    });
     let board_last_claim = board.last_claim_at;
     drop(board);
     crate::diagnostics::heartbeat(

@@ -92,17 +92,22 @@ pub fn followed_section(
     let mut pending = pending_remove();
     for guild in follow.clone().iter() {
         if pending.as_deref() == Some(guild) {
-            let question = i18n::format("Stop following {0}?", &[&label(names, guild)]);
-            ui.text(question);
-            ui.same_line();
-            if ui.small_button(i18n::widget("Yes")) {
+            // La pregunta va en su propia línea y los botones en la siguiente: en una sola línea
+            // los botones se salían por la derecha y no se podía confirmar (informe de
+            // 2026-10-31, «pulsar x no lo borra»).
+            ui.text_wrapped(i18n::format(
+                "Remove {0} from the guilds you follow?",
+                &[&label(names, guild)],
+            ));
+            if ui.small_button(i18n::widget("Yes, remove it")) {
                 remove = Some(guild.to_owned());
                 *pending = None;
             }
             ui.same_line();
-            if ui.small_button(i18n::widget("No")) {
+            if ui.small_button(i18n::widget("Keep following")) {
                 *pending = None;
             }
+            ui.separator();
             continue;
         }
         // Se puede clicar: el jugador quiere ver la ruta de ese clan (petición de 2026-10-31).
@@ -285,19 +290,30 @@ fn search_block(ui: &Ui, follow: &mut FollowList, candidates: &[Candidate], my_t
         }
         crate::search::State::Done(hits) => {
             if hits.is_empty() {
-                ui.text_disabled(i18n::text("No guild matches."));
+                // El API busca por el **principio de una palabra del nombre**, así que un tag
+                // («YaK») no encuentra nada por mucho que exista (comprobado 2026-10-31).
+                ui.text_wrapped(i18n::text(
+                    "No guild matches. The API searches the start of one word of the name, not the tag: try «dolyak» instead of «dak».",
+                ));
                 return;
             }
             let mut add = None;
             for hit in &hits {
-                // Con «Team (any)» el equipo del resultado importa: dice si es del emparejamiento
-                // del jugador antes de seguir el clan.
+                // Se enseñan todos los de la región, con su equipo: el que no es del equipo elegido
+                // sale igual, porque descartarlo hacía que un clan propio «no existiera» (informe
+                // de 2026-10-31). Los del equipo elegido van primero.
                 let text = match hit.team {
-                    Some(team) if chosen.is_none() => {
-                        format!("{}  ·  {}###hit{}", hit.label, team_label(team), hit.id)
-                    }
-                    _ => format!("{}###hit{}", hit.label, hit.id),
+                    Some(team) => format!("{}  ·  {}###hit{}", hit.label, team_label(team), hit.id),
+                    None => format!("{}  ·  ?###hit{}", hit.label, hit.id),
                 };
+                if !hit.matches_team {
+                    let _dim = ui
+                        .push_style_color(nexus::imgui::StyleColor::Text, [0.65, 0.65, 0.65, 1.0]);
+                    if Selectable::new(text).build(ui) {
+                        add = Some(hit.id.clone());
+                    }
+                    continue;
+                }
                 if Selectable::new(text).build(ui) {
                     add = Some(hit.id.clone());
                 }
