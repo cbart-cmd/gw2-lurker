@@ -57,6 +57,20 @@ fn region_slot() -> std::sync::MutexGuard<'static, Option<Region>> {
         .unwrap_or_else(|error| error.into_inner())
 }
 
+/// Guild waiting for a *yes* before it stops being followed.
+///
+/// The `×` removes a followed guild and there is no undo, so it asks first, in the same row: a
+/// modal for two buttons is heavier than the action (report of 2026-10-31).
+static PENDING_REMOVE: std::sync::OnceLock<std::sync::Mutex<Option<String>>> =
+    std::sync::OnceLock::new();
+
+fn pending_remove() -> std::sync::MutexGuard<'static, Option<String>> {
+    PENDING_REMOVE
+        .get_or_init(|| std::sync::Mutex::new(None))
+        .lock()
+        .unwrap_or_else(|error| error.into_inner())
+}
+
 /// The guilds the player follows, with a `×` to stop following each one.
 ///
 /// It lives in the *Guilds* tab and not in the settings: following a guild is something you
@@ -75,16 +89,32 @@ pub fn followed_section(
     }
     let mut remove = None;
     let mut chosen = None;
+    let mut pending = pending_remove();
     for guild in follow.clone().iter() {
+        if pending.as_deref() == Some(guild) {
+            let question = i18n::format("Stop following {0}?", &[&label(names, guild)]);
+            ui.text(question);
+            ui.same_line();
+            if ui.small_button(i18n::widget("Yes")) {
+                remove = Some(guild.to_owned());
+                *pending = None;
+            }
+            ui.same_line();
+            if ui.small_button(i18n::widget("No")) {
+                *pending = None;
+            }
+            continue;
+        }
         // Se puede clicar: el jugador quiere ver la ruta de ese clan (petición de 2026-10-31).
         if Selectable::new(format!("{}###followed{guild}", label(names, guild))).build(ui) {
             chosen = Some(guild.to_owned());
         }
         ui.same_line();
         if ui.small_button(format!("×###unfollow{guild}")) {
-            remove = Some(guild.to_owned());
+            *pending = Some(guild.to_owned());
         }
     }
+    drop(pending);
     if let Some(guild) = remove {
         follow.remove(&guild);
     }

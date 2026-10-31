@@ -368,6 +368,23 @@ pub const TEXT: &[(&str, [&str; COLUMNS])] = &[
         ],
     ),
     (
+        "Stop following {0}?",
+        [
+            "¿Quitar {0} de los que sigues?",
+            "Stop following {0}?",
+            "Ne plus suivre {0} ?",
+            "{0} nicht mehr folgen?",
+        ],
+    ),
+    (
+        "Yes",
+        ["Sí", "Yes", "Oui", "Ja"],
+    ),
+    (
+        "No",
+        ["No", "No", "Non", "Nein"],
+    ),
+    (
         "Nothing matches the filters",        [
             "Nada cumple los filtros",
             "Nothing matches the filters",

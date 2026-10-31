@@ -1,6 +1,12 @@
 # Changelog
 Formato [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/), versionado [SemVer](https://semver.org/lang/es/).
 
+## [0.22.1] - 2026-10-31
+### Corregido
+- **Dejar de seguir un clan pide confirmación**: el `×` de «Clanes seguidos» pregunta en la misma
+  fila («¿Quitar *nombre* de los que sigues?» · Sí / No) antes de quitarlo, porque no hay deshacer
+  (petición del jugador).
+
 ## [0.22.0] - 2026-10-31
 ### Corregido
 - **El mapa ya no está del revés**: la proyección invertía la Y, así que el norte salía abajo y las

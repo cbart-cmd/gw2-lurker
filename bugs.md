@@ -23,12 +23,6 @@ Estado: `[ ]` pendiente · `[x]` arreglado en esta tanda (se borra al cerrarla).
   `sondeo N: partida …, N reclamados de M objetivos, K eventos nuevos`, y cada evento una línea
   `evento: …`. Con esas líneas de `Nexus.log` se cierra o se ataca el «desde las 20:22 no recoge nada».
 
-## [ ] clanes · el `×` de dejar de seguir no pide confirmación (2026-10-31)
-- «El botón × debería ser para eliminar clanes favoritos. Debería decir “¿quieres eliminar el clan
-  xxxx de los que sigues?” y confirmar.»
-- **Pendiente:** una confirmación antes de dejar de seguir. Necesita decisión de diseño: ventana modal
-  propia o confirmación en la misma línea (dos botones, «sí» / «no»).
-
 ## [ ] buscador de clanes · `invalid type string 12008` (2026-10-31)
 - Al buscar un clan saltó `invalid type string 12008`; `12008` es un **id de equipo** (`12xxx` = EU),
   no un id de clan.

@@ -13,6 +13,16 @@ Reglas:
 
 ---
 
+## HECHO – 2026-10-31 · Dejar de seguir un clan pide confirmación (0.22.1)
+
+- El `×` de «Clanes seguidos» quitaba el clan sin vuelta atrás. Ahora el `×` **arma** la fila y la
+  pregunta se hace en el mismo sitio («¿Quitar *nombre* de los que sigues?» con **Sí** / **No**),
+  en vez de un modal de dos botones para una acción de una fila. El estado vive en `PENDING_REMOVE`
+  (una sola fila pendiente a la vez, que es lo que se ve).
+- Claves nuevas en la tabla i18n: `Stop following {0}?`, `Yes`, `No` (es/en/fr/de).
+- Verificación: 207 tests en verde, `clippy -D warnings` limpio, `cargo fmt --check` limpio.
+- **No verificado en el juego.**
+
 ## HECHO – 2026-10-31 · Tema, avisos configurables, toast crítico, reproducción y banner (0.22.0)
 
 Todas las tareas que quedaban sin depender del jugador ni de terceros.
