@@ -7,12 +7,14 @@
 
 pub mod diff;
 pub mod gate;
+pub mod matchup;
 pub mod model;
 pub mod resolver;
 pub mod teams;
 
 pub use diff::{BaselineReason, DiffConfig, Differ, Event, Snapshot};
 pub use gate::{evaluate, GameState, Gate, Hidden};
+pub use matchup::{by_map, claims, rank_guilds, split_by_map, ClaimRow, GuildSummary};
 pub use model::{
     MapRole, Match, MatchMap, MatchObjective, ObjectiveInfo, ObjectiveType, Region, TeamColor,
     TeamScores, WvwMap, HIGH_VALUE_TICK,

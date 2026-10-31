@@ -11,7 +11,7 @@ Cada tarea es pequeña y verificable. Orden recomendado; las dependencias se ind
 
 - **T-03 ✔ (2026-10-31)** Workspace Rust con `rustfmt.toml`, `[workspace.lints]` y `rust-version`. *Hecho:* `cargo fmt --check`, `clippy -D warnings` y `cargo test` verdes en un workspace vacío. Nota: no existe `tooling/` en el repo; la configuración se creó a mano (`rustfmt.toml`, `rust-toolchain.toml`, `deny.toml` ya estaban). `license` sigue sin decidir: **bloquea `cargo deny` en T-03a**.
 - **T-03a ✔ (2026-10-31)** CI en `.github/workflows/ci.yml`: `cargo fmt --check`, `clippy -D warnings`, `cargo test`, `check_loc.sh`, `cargo deny` + `cargo audit`, build release `x86_64-pc-windows-msvc` y `check_size.sh`. *Pendiente por depender de otras tareas:* test de humo PE/export (T-27) y check de trazabilidad RF → tests (T-03b). Verificado que `check_loc.sh` falla con un fichero de 801 líneas.
-- **T-03b** Check de trazabilidad RF → tests y `manual-tests.md`. (T-03a)
+- **T-03b ✔ (2026-10-31)** Check de trazabilidad RF → tests y `manual-tests.md`: `scripts/check_traceability.sh`, en CI. Falla si un test cita un requisito inexistente; informa de los que aún no tienen prueba; `--strict` falla por cobertura para usarlo antes de publicar. (T-03a)
 - **T-02b** Spike de tamaño: medir DLL mínima con 2–3 opciones de cliente HTTP/TLS y fijar presupuesto real (ADR-008). (T-01)
 - **T-24** Revisión de bocetos `05-wireframes.md` y cierre de sus 3 pendientes.
 
@@ -85,8 +85,13 @@ tarea indica de qué depende.
    visible y traza en `addons/Nexus/Nexus.log`. Es la T-01 ejecutada de verdad. (T-33, T-34)
 5. **T-36 (M)** Vista **"Claims del matchup"**: los cuatro mapas agrupados, con filtros.
    (T-11, T-15) — RF-70
+   - **Parcial (2026-10-31):** `core::matchup` (`claims`, `by_map`, `with_kinds`) hecho y
+     probado con los 41 claims reales. Falta la ventana imgui.
 6. **T-37 (M)** Lista de guilds con claim ordenada por el más reciente. (T-36) — RF-71
+   - **Parcial (2026-10-31):** `core::matchup::rank_guilds` hecho, con desempate estable
+     (más claims y luego id) para que la lista no baile entre polls.
 7. **T-38 (M)** Historial por guild separando el mapa actual de los demás. (T-16, T-37) — RF-72
+   - **Parcial (2026-10-31):** `split_by_map` y `guild_timeline` hechos y probados.
 8. **T-39 (M)** Favoritos (seguir/dejar de seguir) con persistencia. (T-37) — RF-73
 9. **T-40 (C)** Ruta virtual con origen inferido (garrison → colinas/bahía → respawn).
    (T-38) — RF-32a

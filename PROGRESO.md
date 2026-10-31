@@ -13,12 +13,25 @@ Reglas:
 
 ---
 
-## EN CURSO – 2026-10-31 · Siguiente: conectar el gate (T-12) y claims del matchup (T-36)
+## EN CURSO – 2026-10-31 · Siguiente: T-39 (favoritos) y esperar el juego para T-12
 
-- `core::gate` hecho (T-33 parcial). Lo que falta es leer `NexusLink::is_gameplay` y
-  `Context` desde el addon, y eso llega con T-12.
+- Hecho sin necesitar al usuario: gate de visibilidad, modelos de las tres vistas y el check
+  de trazabilidad (ver abajo).
+- Siguiente sin el juego: favoritos (RF-73) y el origen inferido de la ruta (RF-32a, cuidado:
+  identificar garrison/colinas/bahía requiere criterio que aún no está verificado).
+- **Requiere GW2**: T-12 (leer `NexusLink`/`Context`), T-35, T-01, T-02b, T-25.
 - Decidido: **sí** a la feature `rtapi` (RF-44); su coste en DLL se mide en T-02b.
-- Siguiente pieza útil sin el juego: T-36 (vista de claims de los cuatro mapas).
+
+## HECHO – 2026-10-31 · Vistas de claims y trazabilidad (T-36/37/38 parcial, T-03b)
+
+- `core::matchup`: `claims()` (41 filas reales), `by_map()` en orden fijo, `with_kinds()`
+  para los filtros, `rank_guilds()` por claim más reciente con desempate estable,
+  `split_by_map()` y `guild_timeline()`. 7 tests.
+- `scripts/check_traceability.sh`: 83 requisitos, 20 con test, 18 con prueba manual, 53 sin
+  cubrir. Falla si un test cita un RF inexistente (probado con `rf999`), informa de los no
+  cubiertos y `--strict` falla por cobertura. Añadido a la CI.
+- Trampa: los comodines de la matriz (`RF-03*`) se colaban como requisito; ahora se filtran.
+- 44 tests en verde.
 
 ## HECHO – 2026-10-31 · Bocetos HTML (T-32)
 

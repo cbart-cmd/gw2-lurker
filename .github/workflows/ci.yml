@@ -40,6 +40,10 @@ jobs:
       - name: check_loc.sh
         run: bash ./scripts/check_loc.sh
 
+      # T-03b: un test no puede citar un requisito que no existe.
+      - name: check_traceability.sh
+        run: bash ./scripts/check_traceability.sh
+
   supply-chain:
     name: deny · audit
     runs-on: ubuntu-latest
