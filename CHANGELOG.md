@@ -1,6 +1,15 @@
 # Changelog
 Formato [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/), versionado [SemVer](https://semver.org/lang/es/).
 
+## [0.9.1] - 2026-10-31
+### Corregido
+- El selector de equipo ya no muestra «EU (0)» / «NA (0)» sin datos: la lista de equipos se
+  pide también con los ajustes abiertos fuera de Mundo contra Mundo, y el número solo aparece
+  cuando se conoce.
+### Cambiado
+- Quitada la dependencia del RealTime API de Nexus, que no se usaba (el idioma llega por
+  Unofficial Extras).
+
 ## [0.9.0] - 2026-10-31
 ### Añadido
 - **Claims del matchup**: ventana con los cuatro mapas de tu emparejamiento, cada objetivo

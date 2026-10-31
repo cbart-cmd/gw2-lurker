@@ -4,7 +4,6 @@
 //! job. This module only decides **which** language applies and adds the right-Ctrl override.
 
 use gw2lurker_core::i18n::{self, Language};
-use nexus::rtapi::RealTimeApi;
 
 use crate::config::LanguagePreference;
 
@@ -22,13 +21,13 @@ pub fn active() -> Language {
 
 /// Saved preference unless it is *Auto*, then the best source available, then English.
 ///
-/// Order (RF-44): game language from RealTime API → game language from Unofficial Extras →
-/// language Nexus is using → Windows display language → English.
+/// Order (RF-44): game language from Unofficial Extras → language Nexus is using → Windows
+/// display language → English. The RealTime API feature of `nexus-rs` was dropped on
+/// 2026-10-31: Extras already reports the real client language, so RTAPI only added size.
 pub fn effective() -> Language {
     resolve(
         crate::config().language,
         [
-            game_language(),
             crate::lang::from_extras(),
             crate::lang::from_nexus_settings(),
             Language::from_windows_language(crate::ffi::keys::os_primary_language()),
@@ -37,7 +36,7 @@ pub fn effective() -> Language {
 }
 
 /// Precedence between the saved preference and the sources, most reliable first.
-fn resolve(preference: LanguagePreference, sources: [Option<Language>; 4]) -> Language {
+fn resolve(preference: LanguagePreference, sources: [Option<Language>; 3]) -> Language {
     match preference {
         LanguagePreference::Auto => sources.into_iter().flatten().next().unwrap_or(Language::En),
         LanguagePreference::Es => Language::Es,
@@ -50,17 +49,6 @@ fn resolve(preference: LanguagePreference, sources: [Option<Language>; 4]) -> La
 /// `true` while right Ctrl is held and the game is the foreground window.
 pub fn english_override() -> bool {
     crate::ffi::keys::right_ctrl_down() && crate::ffi::keys::game_has_focus()
-}
-
-/// Game language as reported by Nexus RTAPI.
-///
-/// `None` when the RealTime API addon is not installed or has not published data yet, which
-/// is not an error: the caller falls back to English.
-fn game_language() -> Option<Language> {
-    let api = RealTimeApi::get()?;
-    let game = api.read_game()?;
-    let code = u32::from(game.language.ok()?);
-    Language::from_game_code(code)
 }
 
 /// Translated text for the language in force.
@@ -103,15 +91,7 @@ mod tests {
         assert_eq!(
             resolve(
                 LanguagePreference::Auto,
-                [Some(Language::Fr), Some(Language::Es), None, None]
-            ),
-            Language::Fr,
-            "RTAPI gana a Extras"
-        );
-        assert_eq!(
-            resolve(
-                LanguagePreference::Auto,
-                [None, Some(Language::De), Some(Language::Es), None]
+                [Some(Language::De), Some(Language::Es), None]
             ),
             Language::De,
             "Extras (idioma real del juego) gana a lo que tenga Nexus"
@@ -119,33 +99,25 @@ mod tests {
         assert_eq!(
             resolve(
                 LanguagePreference::Auto,
-                [None, None, Some(Language::Es), Some(Language::En)]
+                [None, Some(Language::Es), Some(Language::En)]
             ),
             Language::Es,
             "Nexus gana al idioma de Windows"
         );
         assert_eq!(
-            resolve(
-                LanguagePreference::Auto,
-                [None, None, None, Some(Language::Es)]
-            ),
+            resolve(LanguagePreference::Auto, [None, None, Some(Language::Es)]),
             Language::Es,
             "y Windows es el último recurso antes de inglés"
         );
         assert_eq!(
-            resolve(LanguagePreference::Auto, [None, None, None, None]),
+            resolve(LanguagePreference::Auto, [None, None, None]),
             Language::En
         );
     }
 
     #[test]
     fn rf44_explicit_preference_beats_everything() {
-        let all = [
-            Some(Language::Fr),
-            Some(Language::Es),
-            Some(Language::De),
-            Some(Language::En),
-        ];
+        let all = [Some(Language::Fr), Some(Language::Es), Some(Language::De)];
         assert_eq!(resolve(LanguagePreference::De, all), Language::De);
         assert_eq!(resolve(LanguagePreference::Es, all), Language::Es);
     }

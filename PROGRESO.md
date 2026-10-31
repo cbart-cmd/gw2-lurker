@@ -34,6 +34,24 @@ Reglas:
   bueno un HTTP 200. Se reintenta con `-VerifyOnly` pasados unos minutos; no se cambia la URL
   ni la versión para taparlo.
 
+## HECHO – 2026-10-31 · Fuera RTAPI, y `bugs.md` como bandeja obligatoria (0.9.1)
+
+- **`rtapi` eliminado** de las features de `nexus-rs` y todo su código (`i18n::game_language`).
+  El idioma real del juego llega por Unofficial Extras, así que RTAPI era un respaldo que nunca
+  se usaba. Aviso honesto: **no adelgazó la DLL** (1 547 776 → 1 548 288 bytes; la variación es
+  de disposición del código con LTO). El problema de tamaño sigue abierto y habrá que atacarlo
+  de otra forma (subir el objetivo o recortar de verdad).
+- **Bug del usuario**: el selector de equipo mostraba «EU (0)» / «NA (0)» y ningún equipo.
+  Causa real: el worker solo pedía matchups **dentro de WvW**, así que con los ajustes abiertos
+  fuera de un mapa no había equipos; y el contador se pintaba aunque no hubiera datos.
+  Arreglado: `worker::set_teams_needed` (lo activa el render mientras los ajustes están
+  disponibles) refresca la lista cada 10 min sin sondear el matchup, y el `(0)` solo aparece
+  cuando hay datos.
+- **Nuevo flujo obligatorio**: `bugs.md` es la bandeja de fallos del usuario; se lee al empezar y
+  al terminar, **no se borra** y cada entrada se marca `[x]` con la versión. Escrito en
+  `AGENTS.md` §9 y en la lectura obligatoria §1.
+- Verificado: `clippy -D warnings` limpio, 50 tests en el addon, 80 en `core`.
+
 ## HECHO – 2026-10-31 · Limpieza y vista de claims del matchup (T-36, 0.9.0)
 
 **Limpieza**

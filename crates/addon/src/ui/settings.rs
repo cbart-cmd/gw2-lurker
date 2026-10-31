@@ -205,6 +205,9 @@ fn draw_body(
     if candidates.is_empty() {
         ui.text_wrapped(i18n::text("Pick region and colour, then your team"));
         ui.text_disabled(i18n::text("No data yet"));
+        ui.text_disabled(i18n::text(
+            "The list of teams arrives with the first poll; wait a few seconds.",
+        ));
         ui.separator();
     }
 
@@ -297,16 +300,21 @@ fn draw_region(ui: &Ui, edits: &mut Edits, candidates: &[Candidate]) {
         .preview_value(current)
         .build(ui, || {
             for region in [Region::Eu, Region::Na] {
-                let live = candidates
-                    .iter()
-                    .filter(|candidate| candidate.region() == Some(region))
-                    .count();
-                let label = format!(
-                    "{} ({})###region{}",
-                    region_label(region),
-                    live,
-                    region_code(region)
-                );
+                let label = if candidates.is_empty() {
+                    // No data yet: a bare "(0)" looks like a bug, so say nothing rather than
+                    // lie about how many teams there are (bug of 2026-10-31).
+                    format!("{}###region{}", region_label(region), region_code(region))
+                } else {
+                    let live = candidates
+                        .iter()
+                        .filter(|candidate| candidate.region() == Some(region))
+                        .count();
+                    format!(
+                        "{} ({live})###region{}",
+                        region_label(region),
+                        region_code(region)
+                    )
+                };
                 if nexus::imgui::Selectable::new(label)
                     .selected(edits.narrowing.region == Some(region))
                     .build(ui)

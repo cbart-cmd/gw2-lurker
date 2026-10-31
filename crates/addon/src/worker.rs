@@ -10,7 +10,7 @@
 
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Mutex, MutexGuard, OnceLock};
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use chrono::{DateTime, Utc};
 use gw2lurker_api::Api;
@@ -30,6 +30,9 @@ const MAX_BACKOFF: Duration = Duration::from_secs(300);
 
 /// Whether the worker may use the network (set from the render callback's gate).
 static MAY_POLL: AtomicBool = AtomicBool::new(false);
+/// Set while the team picker is on screen: the list of live teams is needed even when polling
+/// is not allowed (outside WvW), so the drop-down is never empty (bug of 2026-10-31).
+static NEEDS_TEAMS: AtomicBool = AtomicBool::new(false);
 /// Set on unload so the thread leaves its loop.
 static STOP: AtomicBool = AtomicBool::new(false);
 
@@ -224,6 +227,12 @@ pub fn set_may_poll(allowed: bool) {
     MAY_POLL.store(allowed, Ordering::Relaxed);
 }
 
+/// Tells the worker the team picker is on screen, so it fetches the list of live teams even
+/// when polling is not allowed (the settings window also opens outside WvW).
+pub fn set_teams_needed(needed: bool) {
+    NEEDS_TEAMS.store(needed, Ordering::Relaxed);
+}
+
 /// Starts the worker. Idempotent: a second call does nothing.
 pub fn start() {
     static STARTED: OnceLock<()> = OnceLock::new();
@@ -245,11 +254,21 @@ pub fn stop() {
 fn run() {
     let api = Api::new(WinHttpTransport::default());
     let mut differ = Differ::new(gw2lurker_core::DiffConfig::default());
+    let mut teams_at: Option<Instant> = None;
     let mut store = open_store();
     let mut backoff_ms: u64 = 0;
 
     while !STOP.load(Ordering::Relaxed) {
         if !MAY_POLL.load(Ordering::Relaxed) {
+            // Outside WvW, only the team list is worth fetching, and rarely: it changes at
+            // reset, not every half minute.
+            if NEEDS_TEAMS.load(Ordering::Relaxed) && teams_stale(&mut teams_at) {
+                match api.matches_all() {
+                    Ok(live) => publish_teams(&live, crate::team::selected()),
+                    Err(error) => log::warn!("worker: sin lista de equipos ({error})"),
+                }
+                teams_at = Some(Instant::now());
+            }
             sleep(Duration::from_millis(500));
             continue;
         }
@@ -275,6 +294,27 @@ fn run() {
     }
 
     log::info!("worker: detenido");
+}
+
+/// How long the team list fetched outside WvW stays valid. Teams only change at reset.
+const TEAMS_TTL: Duration = Duration::from_secs(600);
+
+fn teams_stale(last: &mut Option<Instant>) -> bool {
+    match *last {
+        Some(at) => at.elapsed() >= TEAMS_TTL,
+        None => true,
+    }
+}
+
+/// Fills the dashboard with the teams of the live matches, and nothing else.
+fn publish_teams(live: &[Match], selected: Option<u32>) {
+    let mut board = dashboard();
+    board.candidates = select::candidates(live);
+    board.selection = select::evaluate(selected, live);
+    board.match_id = match &board.selection {
+        Selection::Confirmed { match_id, .. } => Some(match_id.clone()),
+        _ => None,
+    };
 }
 
 fn started_degraded(health: &Health) -> DateTime<Utc> {

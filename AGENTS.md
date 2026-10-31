@@ -4,6 +4,7 @@ Proyecto: addon de Nexus (Guild Wars 2) en Rust para Mundo contra Mundo. Avisa d
 
 ## 1. Lectura obligatoria, en este orden
 
+0. `bugs.md` (**siempre**, al empezar y al terminar: ver §9).
 1. `specs/00-constitution.md` – reglas no negociables.
 2. `specs/04-engineering-standards.md` – estilo, límites y CI.
 3. `specs/03-tasks.md` – localiza **la única tarea** que te han pedido.
@@ -102,8 +103,23 @@ La DLL se distribuye desde **`https://github.com/cbart-cmd/gw2addonsreleases`**,
 - La escritura de `settings.json` vive en su propio hilo (`addon::writer`); el render solo
   llama a `persist_if_changed()`, que está limitado a dos guardados por segundo.
 
-## 9. Progreso y continuidad (`PROGRESO.md`)
+## 9. `bugs.md`: la bandeja de fallos del usuario
 
+`bugs.md`, en la raíz, es donde el usuario apunta fallos en una línea, sin formato.
+
+- **Al empezar y al terminar cada tanda de trabajo, léelo.** Es obligatorio, no opcional.
+- **No borres el fichero nunca.** Ni vaciarlo ni recrearlo: es el histórico.
+- Arregla cada entrada pendiente, ponla en el formato de la cabecera (qué pasa, causa, arreglo)
+  y cámbiala a `## [x]` con la **versión** en la que sale el arreglo, dentro de
+  `**Hecho (x.y.z):** qué se cambió y dónde`.
+- Si un bug no se puede reproducir o necesita al usuario (p. ej. hay que probarlo en el juego),
+  déjalo en `[ ]` y añade una línea `- **Pendiente:** …` explicando qué falta.
+- Si el usuario reporta algo que ya está arreglado, márcalo y di en la respuesta en qué versión
+  salió; no lo borres.
+- Un bug arreglado también se apunta en `PROGRESO.md` (una línea) y, si es visible, en
+  `CHANGELOG.md`.
+
+## 10. Progreso y continuidad (`PROGRESO.md`)
 `PROGRESO.md`, en la raíz, es la bitácora del trabajo. Existe para que **otra IA pueda
 seguir** si la actual se corta a medias.
 
@@ -116,7 +132,7 @@ seguir** si la actual se corta a medias.
 - Mantén al día las secciones **Trampas ya conocidas** y **Bloqueos**: son lo primero que
   debe leer quien retome el trabajo.
 
-## 10. Tests: reglas que ya nos han costado un fallo
+## 11. Tests: reglas que ya nos han costado un fallo
 
 Cada punto de esta lista sale de un fallo real de este proyecto, no de una buena intención.
 
@@ -159,7 +175,7 @@ Cada punto de esta lista sale de un fallo real de este proyecto, no de una buena
     `./scripts/check_loc.sh` y `./scripts/check_traceability.sh`; y si el cambio toca red o el
     juego, además la prueba `--ignored` correspondiente.
 
-## 11. CI: lanzar y seguir
+## 12. CI: lanzar y seguir
 
 - Después de `git push`, **no se espera al pipeline**. Se anuncia ("CI lanzada; puede
   fallar algo") y se continúa con la siguiente tarea.

@@ -337,6 +337,15 @@ pub const TEXT: &[(&str, [&str; COLUMNS])] = &[
         ],
     ),
     ("Unknown map", ["Mapa desconocido", "Unknown map", "Carte inconnue", "Unbekannte Karte"]),
+    (
+        "The list of teams arrives with the first poll; wait a few seconds.",
+        [
+            "La lista de equipos llega con el primer sondeo; espera unos segundos.",
+            "The list of teams arrives with the first poll; wait a few seconds.",
+            "La liste des équipes arrive au premier sondage ; patientez quelques secondes.",
+            "Die Teamliste kommt mit der ersten Abfrage; warte ein paar Sekunden.",
+        ],
+    ),
     ("you are here", ["estás aquí", "you are here", "vous êtes ici", "du bist hier"]),
     ("High value only", ["Solo alto valor", "High value only", "Haute valeur seulement", "Nur hoher Wert"]),
     ("Camps", ["Campamentos", "Camps", "Camps", "Lager"]),

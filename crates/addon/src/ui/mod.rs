@@ -30,6 +30,11 @@ pub fn register() {
                 draw_matchup(ui);
                 draw_alerts(ui);
             }
+            // The team picker needs the list of live teams even outside WvW, where polling is
+            // off: without this the drop-down was empty (bug of 2026-10-31).
+            crate::worker::set_teams_needed(
+                gate.settings_available() || crate::config().debug_show_everywhere,
+            );
             if gate.settings_available() || crate::config().debug_show_everywhere {
                 // Candidates and guilds come from the worker and are copied out before
                 // touching the configuration: two mutexes are involved and the dashboard lock
