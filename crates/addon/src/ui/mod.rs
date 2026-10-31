@@ -111,7 +111,7 @@ pub fn register() {
         },
     )
     .revert_on_unload();
-    log::info!("atajo registrado: {LOCK_SHORTCUT} ({LOCK_KEYBIND})");
+    log::info!("atajo registrado: {LOCK_SHORTCUT} ({LOCK_KEYBIND}); Nexus dirá qué queda guardado");
 
     register_render(
         RenderType::Render,
@@ -616,8 +616,8 @@ fn draw_health(ui: &nexus::imgui::Ui, config: &mut crate::config::Config, data: 
     if config.window(WIDGET).click_through {
         let _tint = ui.push_style_color(nexus::imgui::StyleColor::Text, [1.0, 0.75, 0.3, 1.0]);
         ui.text_wrapped(i18n::format(
-            "Click-through is on: right-click here or press {0} to use the mouse again.",
-            &[LOCK_SHORTCUT],
+            "Click-through is on: right-click here to use the mouse again (Nexus has {0} for the same).",
+            &[crate::keybinds::shortcut()],
         ));
     }
 

@@ -70,7 +70,6 @@ struct Edits {
     follow: FollowList,
     widget_visible: bool,
     widget_locked: bool,
-    widget_click_through: bool,
     map_tiles: bool,
     theme: crate::config::Theme,
     background: crate::config::WidgetBackground,
@@ -109,7 +108,6 @@ pub fn body(
         follow: config.followed.clone(),
         widget_visible: widget.visible,
         widget_locked: widget.locked,
-        widget_click_through: widget.click_through,
         map_tiles: config.map_tiles,
         theme: config.theme,
         background: config.widget_background,
@@ -145,9 +143,7 @@ pub fn body(
     if edits.widget_locked != widget.locked {
         config.window(crate::ui::WIDGET).locked = edits.widget_locked;
     }
-    if edits.widget_click_through != widget.click_through {
-        config.window(crate::ui::WIDGET).click_through = edits.widget_click_through;
-    }
+
     set_narrowing(edits.narrowing);
 
     if save_now {
@@ -214,7 +210,7 @@ fn initial_narrowing(
 /// are really drawn, in the current language.
 /// Lo más largo que puede durar cada aviso del pop-up (segundos). Se pidió poder llegar a 20
 /// porque, de uno en uno, cinco se quedaban cortos (informe de 2026-10-31).
-const POPUP_MAX_SECS: f32 = 20.0;
+const POPUP_MAX_SECS: f32 = crate::config::POPUP_SECS_MAX;
 
 /// Lo que dura cada aviso del pop-up cuando se activa (segundos).
 const POPUP_DEFAULT_SECS: f32 = 5.0;
@@ -297,10 +293,11 @@ fn draw_body(
     ui.checkbox(i18n::widget("Show widget"), &mut edits.widget_visible);
     ui.same_line();
     ui.checkbox(i18n::widget("Lock position"), &mut edits.widget_locked);
-    ui.checkbox(
-        i18n::widget("Click-through"),
-        &mut edits.widget_click_through,
-    );
+    // El click-through se pone con el **clic derecho** sobre el widget (petición del jugador,
+    // 2026-11-01): tenerlo también aquí era la forma de quedarse sin ratón sin saber por qué.
+    ui.text_disabled(i18n::text(
+        "Click-through is turned on from the right-click menu, on the widget itself.",
+    ));
     let popups = ui.checkbox(i18n::widget("Pop-up alerts"), &mut edits.popup_enabled);
     ui.same_line();
     if ui.button(i18n::widget("Test pop-up")) {
@@ -312,8 +309,8 @@ fn draw_body(
     ui.checkbox(i18n::widget("Real map"), &mut edits.map_tiles);
     draw_theme(ui, edits);
     ui.text_disabled(i18n::format(
-        "Click-through keeps the mouse for the game. The shortcut {0} brings the window back, and it can be rebound in Nexus.",
-        &[crate::ui::LOCK_SHORTCUT],
+        "Click-through keeps the mouse for the game. Right-click on the widget to use the mouse again; the Nexus shortcut for {0} does the same.",
+        &[crate::keybinds::shortcut()],
     ));
 
     ui.separator();

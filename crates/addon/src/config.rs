@@ -96,7 +96,6 @@ impl WindowState {
     }
 }
 
-/// Everything the addon remembers between runs.
 /// Fastest poll the addon allows, in seconds.
 ///
 /// The player asked for the cadence of gw2mists (2026-10-31): **5 s**, which is affordable
@@ -108,6 +107,13 @@ pub const POLL_SECS_MIN: u32 = 5;
 
 /// Interval used when the player has not chosen one.
 pub const POLL_SECS_DEFAULT: u32 = 5;
+
+/// Longest a pop-up may stay on screen, in seconds (RF-19a).
+///
+/// It is the same limit the settings slider offers: the sanitiser used to clamp to **5 s** while
+/// the slider went to 20, so any duration above five seconds was written back as five on the next
+/// save and the player saw it «lost» after restarting (report of 2026-11-01).
+pub const POPUP_SECS_MAX: f32 = 20.0;
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(default)]
@@ -318,7 +324,7 @@ impl Config {
     fn sanitize(&mut self) {
         self.poll_secs = self.poll_secs.clamp(POLL_SECS_MIN, 600);
         self.popup_secs = if self.popup_secs.is_finite() {
-            self.popup_secs.clamp(0.0, 5.0)
+            self.popup_secs.clamp(0.0, POPUP_SECS_MAX)
         } else {
             Config::default().popup_secs
         };
@@ -515,7 +521,22 @@ mod tests {
             ..Config::default()
         };
         c.sanitize();
-        assert_eq!(c.popup_secs, 5.0, "como mucho 5 s");
+        // El tope tiene que ser el mismo que el del control de Ajustes: con 5 s aquí y 20 en la
+        // interfaz, cualquier valor por encima de cinco se guardaba como cinco y el jugador lo
+        // veía «perdido» tras reiniciar (informe del 2026-11-01).
+        assert_eq!(
+            c.popup_secs, POPUP_SECS_MAX,
+            "como mucho lo que ofrece el control"
+        );
+        let mut c = Config {
+            popup_secs: 12.0,
+            ..Config::default()
+        };
+        c.sanitize();
+        assert_eq!(
+            c.popup_secs, 12.0,
+            "12 s se guarda tal cual: no se pierde al reiniciar"
+        );
         let mut c = Config {
             popup_secs: -1.0,
             ..Config::default()

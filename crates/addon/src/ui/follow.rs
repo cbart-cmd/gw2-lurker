@@ -21,38 +21,26 @@ use std::collections::BTreeMap;
 use chrono::{DateTime, Utc};
 use gw2lurker_core::model::Region;
 use gw2lurker_core::{Candidate, FollowList, MAX_FOLLOWED};
-use nexus::imgui::{ComboBox, InputText, Selectable, Ui};
+use nexus::imgui::{InputText, Selectable, Ui};
 
 use crate::i18n;
+
+/// How many rows a local search shows.
+///
+/// Más que los ocho del API: la caché es instantánea y gratuita, y con nombres parecidos
+/// («die …») el jugador quiere ver varios.
+const MAX_SEARCH_ROWS: usize = 12;
 
 /// How many guilds the *Claimed since the addon started* shortcut offers.
 const MAX_SESSION_ROWS: usize = 10;
 
-/// What the player typed in the search box and for which team. Session state on purpose: it is
-/// a tool, not a setting.
+/// What the player typed in the search box. Session state on purpose: it is a tool, not a
+/// setting.
 static SEARCH_TEXT: std::sync::OnceLock<std::sync::Mutex<String>> = std::sync::OnceLock::new();
-static SEARCH_TEAM: std::sync::OnceLock<std::sync::Mutex<Option<u32>>> = std::sync::OnceLock::new();
-static SEARCH_REGION: std::sync::OnceLock<std::sync::Mutex<Option<Region>>> =
-    std::sync::OnceLock::new();
 
 fn text_slot() -> std::sync::MutexGuard<'static, String> {
     SEARCH_TEXT
         .get_or_init(|| std::sync::Mutex::new(String::new()))
-        .lock()
-        .unwrap_or_else(|error| error.into_inner())
-}
-
-fn team_slot() -> std::sync::MutexGuard<'static, Option<u32>> {
-    SEARCH_TEAM
-        .get_or_init(|| std::sync::Mutex::new(None))
-        .lock()
-        .unwrap_or_else(|error| error.into_inner())
-}
-
-/// Region the player last picked in the search. Starts as their own, which is the useful default.
-fn region_slot() -> std::sync::MutexGuard<'static, Option<Region>> {
-    SEARCH_REGION
-        .get_or_init(|| std::sync::Mutex::new(None))
         .lock()
         .unwrap_or_else(|error| error.into_inner())
 }
@@ -177,25 +165,12 @@ pub fn add_section(
     }
     session_block(ui, follow, session, names);
     ui.separator();
-    search_block(ui, follow, candidates, my_team, names);
+    search_block(ui, follow, candidates, my_team);
 }
 
 /// `[TAG] Nombre` when it is known, the raw id otherwise.
 fn label(names: &BTreeMap<String, String>, id: &str) -> String {
     names.get(id).cloned().unwrap_or_else(|| id.to_owned())
-}
-
-/// Whether a followed guild matches what the player typed, by name (tag included) or by id.
-///
-/// Unlike the API this is a plain substring, on purpose: it has to find **their** guild while the
-/// API is returning a different one with a similar name.
-fn matches_text(label: Option<&str>, id: &str, needle: &str) -> bool {
-    let needle = needle.trim().to_lowercase();
-    if needle.is_empty() {
-        return false;
-    }
-    label.unwrap_or_default().to_lowercase().contains(&needle)
-        || id.to_lowercase().starts_with(&needle)
 }
 
 /// Guilds that claimed something during this session: one click and they are followed.
@@ -232,117 +207,67 @@ fn session_block(
     }
 }
 
-/// Search by team and name. The team is mandatory and only lists teams of the player's region.
-fn search_block(
-    ui: &Ui,
-    follow: &mut FollowList,
-    candidates: &[Candidate],
-    my_team: Option<u32>,
-    names: &BTreeMap<String, String>,
-) {
-    // The list of live teams is fetched by the worker while this is on screen: inside WvW it is
-    // only fetched when asked for, and nobody was asking (bug of 2026-10-31).
+/// Buscador de clanes: **caché local primero** —subcadena, instantánea, sin red— y el API como
+/// extra para lo que aún no esté en la caché.
+///
+/// `/v2/guild/search?name=` devuelve **un solo** clan y solo cuando el texto empieza su nombre
+/// (medido el 2026-11-01: «die» → *Die*, no *Die Garde* ni las demás), así que la búsqueda de
+/// verdad es la local, sobre los nombres que el addon ya conoce (`guild-names.json`, que también
+/// puede rellenar `scripts/guild-search.ps1 -BuildIndex`).
+fn search_block(ui: &Ui, follow: &mut FollowList, candidates: &[Candidate], my_team: Option<u32>) {
+    // La lista de equipos vivos se pide mientras esto está en pantalla (el selector la usa).
     crate::worker::set_teams_needed(true);
 
     ui.text(i18n::text("Search a guild"));
 
-    // **Region first**: a guild only matters if it plays in the half of the world the player cares
-    // about, and that is what the search really needs. It starts as the player's own and can be
-    // changed, because everybody has friends on the other side (report of 2026-10-31).
-    let mine = region_of(candidates, my_team);
-    let mut region = region_slot().or(mine).unwrap_or(Region::Eu);
-    let preview = region_label(region).to_owned();
-    ComboBox::new(i18n::widget("Region"))
-        .preview_value(preview)
-        .build(ui, || {
-            for option in [Region::Eu, Region::Na] {
-                if Selectable::new(region_label(option))
-                    .selected(region == option)
-                    .build(ui)
-                {
-                    region = option;
-                }
-            }
-        });
-    *region_slot() = Some(region);
-
     let mut text = text_slot();
     let mut go = InputText::new(ui, "###gw2lurker_search", &mut text)
-        .hint(i18n::text("Part of the name, one word"))
+        .hint(i18n::text("Part of the name"))
         .enter_returns_true(true)
         .build();
     if ui.is_item_hovered() {
         ui.tooltip_text(i18n::text(
-            "The API searches one word by prefix: «Raven», not «avenous».",
+            "Searches the guilds the addon already knows, plus one hit from the API.",
         ));
     }
     go |= ui.is_item_deactivated_after_edit();
     ui.same_line();
     go |= ui.button(i18n::widget("Search"));
 
-    // Optional: with no team the search covers the whole region, which is what the player wants
-    // when they only remember part of the name.
-    let teams: Vec<&Candidate> = candidates
-        .iter()
-        .filter(|candidate| candidate.region() == Some(region))
-        .collect();
-    let mut chosen = *team_slot();
-    if chosen.is_some_and(|team| !teams.iter().any(|c| c.team_id == team)) {
-        chosen = None;
+    let needle = text.trim().to_owned();
+    if go && !needle.is_empty() {
+        // El API solo necesita la región del jugador; el equipo ya no descarta nada.
+        let region = region_of(candidates, my_team).unwrap_or(Region::Eu);
+        crate::search::start(region, None, needle.clone());
     }
-    if teams.is_empty() {
-        ui.text_disabled(i18n::text("The list of teams arrives with the next poll."));
-    } else {
-        let any = i18n::text("Team (any)").to_owned();
-        let preview = match chosen {
-            Some(team) => team_label(team),
-            None => any.clone(),
-        };
-        ComboBox::new(i18n::widget("Team (any)"))
-            .preview_value(preview)
-            .build(ui, || {
-                if Selectable::new(any).selected(chosen.is_none()).build(ui) {
-                    chosen = None;
-                }
-                for candidate in &teams {
-                    let text = team_label(candidate.team_id);
-                    if Selectable::new(text)
-                        .selected(chosen == Some(candidate.team_id))
-                        .build(ui)
-                    {
-                        chosen = Some(candidate.team_id);
-                    }
-                }
-            });
-    }
-    *team_slot() = chosen;
-
-    if go && !text.trim().is_empty() {
-        crate::search::start(region, chosen, text.trim().to_owned());
-    }
-    // Los clanes que ya sigue se buscan aquí, sin red y sin API. Es lo que faltaba: en EU,
-    // «dolyak» devuelve otro clan (**DYAK · Dolyak**) y no el suyo (**YaK · Dolyak Sanctuary**),
-    // así que la ventana decía «no existe» sobre un clan que el jugador ya seguía (informe de
-    // 2026-10-31).
-    let already: Vec<String> = {
-        let needle = text.trim().to_owned();
-        follow
-            .iter()
-            .filter(|guild| matches_text(names.get(*guild).map(String::as_str), guild, &needle))
-            .map(|guild| label(names, guild))
-            .collect()
-    };
     drop(text);
-    if !already.is_empty() {
-        for name in &already {
-            ui.text(i18n::format("{0} · you already follow it", &[name]));
+
+    // Caché local: al teclear ya hay resultados, sin gastar una petición.
+    let known = crate::names::search(&needle, MAX_SEARCH_ROWS);
+    let mut add = None;
+    for (id, label) in &known {
+        let star = if follow.contains(id) { "★ " } else { "" };
+        if Selectable::new(format!("{star}{label}###known{id}")).build(ui) {
+            add = Some(id.clone());
         }
-        ui.separator();
+    }
+    if let Some(guild) = add {
+        follow.add(&guild);
+        return;
+    }
+    let cached = crate::names::all().len();
+    if !needle.is_empty() {
+        ui.text_disabled(i18n::format(
+            "{0} guilds in the cache",
+            &[&cached.to_string()],
+        ));
     }
 
     match crate::search::snapshot() {
         crate::search::State::Idle => {
-            ui.text_disabled(i18n::text("Type part of the name and search."));
+            ui.text_disabled(i18n::text(
+                "Type part of the name; the list updates as you type.",
+            ));
         }
         crate::search::State::Searching => {
             ui.text_disabled(i18n::text("Searching…"));
@@ -351,28 +276,12 @@ fn search_block(
             ui.text_disabled(i18n::format("Search failed: {0}", &[&error]));
         }
         crate::search::State::Done(hits) => {
-            if hits.is_empty() {
-                if !already.is_empty() {
-                    // El clan está arriba, ya seguido: decirlo en vez de «no existe».
-                    ui.text_disabled(i18n::text(
-                        "The API has nothing else by that name; the guild you already follow is above.",
-                    ));
-                    return;
-                }
-                // El API busca por el **principio de una palabra del nombre**, así que un tag
-                // («YaK») no encuentra nada por mucho que exista (comprobado 2026-10-31).
-                ui.text_wrapped(i18n::text(
-                    "No guild matches. The API searches the start of one word of the name, not the tag: try «dolyak» instead of «dak».",
-                ));
-                return;
-            }
             let mut add = None;
-            for hit in &hits {
-                // Se enseñan todos los de la región, con su equipo: el que no es del equipo elegido
-                // sale igual, porque descartarlo hacía que un clan propio «no existiera» (informe
-                // de 2026-10-31). Los del equipo elegido van primero.
-                // La estrella marca lo que ya se sigue: el API devuelve **otro** clan con un
-                // nombre parecido y sin la marca no hay forma de saber cuál es cuál.
+            for hit in hits
+                .iter()
+                .filter(|hit| crate::names::get(&hit.id).is_none())
+            {
+                // Los que ya salieron de la caché no se repiten; la estrella marca lo que sigues.
                 let star = if follow.contains(&hit.id) { "★ " } else { "" };
                 let text = match hit.team {
                     Some(team) => format!(
@@ -381,26 +290,28 @@ fn search_block(
                         team_label(team),
                         hit.id
                     ),
-                    None => format!("{star}{}  ·  ?###hit{}", hit.label, hit.id),
+                    None => format!("{star}{}###hit{}", hit.label, hit.id),
                 };
-                if !hit.matches_team {
-                    let _dim = ui
-                        .push_style_color(nexus::imgui::StyleColor::Text, [0.65, 0.65, 0.65, 1.0]);
-                    if Selectable::new(text).build(ui) {
-                        add = Some(hit.id.clone());
-                    }
-                    continue;
-                }
                 if Selectable::new(text).build(ui) {
                     add = Some(hit.id.clone());
                 }
             }
             if let Some(guild) = add {
                 follow.add(&guild);
+                return;
+            }
+            if hits.is_empty() && known.is_empty() && needle.len() >= 2 {
+                // El API devuelve **uno** y solo por el principio del nombre; la caché es la que
+                // busca de verdad, así que se dice qué hay y cómo llenarla.
+                ui.text_wrapped(i18n::format(
+                    "Nothing matches in the cache ({0} guilds). The API returns one guild at most, and only when the text starts its name.",
+                    &[&cached.to_string()],
+                ));
             }
         }
     }
 }
+
 /// Name of a team as the player knows it: their own translation first, then the bundled name from
 /// `data/wvw-teams.json`, and the id in brackets to disambiguate.
 ///
@@ -411,14 +322,6 @@ fn team_label(team: u32) -> String {
     let language = i18n::effective().code();
     let name = crate::team::display_name(config, language, team);
     format!("{name} ({team})")
-}
-
-/// `EU` / `NA` as the player thinks of them.
-fn region_label(region: Region) -> &'static str {
-    match region {
-        Region::Eu => "EU",
-        Region::Na => "NA",
-    }
 }
 
 /// Region of the configured team, for the search thread.
@@ -472,19 +375,18 @@ mod tests {
     fn t44_the_guilds_you_follow_are_found_whatever_the_api_answers() {
         // El caso real del 2026-10-31: en EU, `/v2/guild/search?name=dolyak` devuelve
         // **DYAK · Dolyak**, no **YaK · Dolyak Sanctuary**, que es el clan del jugador y el que
-        // sigue. Buscando en la lista de seguidos, «dolyak» y «yak» lo encuentran.
+        // sigue. La búsqueda local (subcadena, `crate::names`) sí lo encuentra.
         let yak = "[YaK] Dolyak Sanctuary";
-        assert!(matches_text(Some(yak), "6C45F3C8", "dolyak"));
-        assert!(matches_text(Some(yak), "6C45F3C8", "YAK"));
-        assert!(matches_text(Some(yak), "6C45F3C8", " dolyak "));
-        assert!(matches_text(None, "6C45F3C8", "6c45"), "también por id");
+        assert!(crate::names::matches_text(yak, "6C45F3C8", "dolyak"));
+        assert!(crate::names::matches_text(yak, "6C45F3C8", "YAK"));
+        assert!(crate::names::matches_text(yak, "6C45F3C8", " dolyak "));
         assert!(
-            !matches_text(Some(yak), "6C45F3C8", "waifu"),
-            "lo que no coincide no se cuela"
+            crate::names::matches_text(yak, "6C45F3C8", "6c45"),
+            "también por id"
         );
         assert!(
-            !matches_text(Some(yak), "6C45F3C8", "  "),
-            "sin texto no se enseña la lista entera"
+            !crate::names::matches_text(yak, "6C45F3C8", "waifu"),
+            "lo que no coincide no se cuela"
         );
     }
 }

@@ -52,7 +52,13 @@ pub fn resolve_guild_names(
     followed: &gw2lurker_core::FollowList,
 ) -> std::collections::BTreeMap<String, String> {
     static CACHE: OnceLock<Mutex<GuildNameCache>> = OnceLock::new();
-    let cache = CACHE.get_or_init(|| Mutex::new(GuildNameCache::default()));
+    // Se arranca con la caché persistente: los nombres guardados no se piden otra vez.
+    let cache = CACHE.get_or_init(|| {
+        Mutex::new(GuildNameCache {
+            known: crate::names::all(),
+            failed: Default::default(),
+        })
+    });
     let mut cache = cache.lock().unwrap_or_else(|error| error.into_inner());
 
     // The followed guilds first: they are the ones the player sees by name in the settings and
@@ -81,7 +87,14 @@ pub fn resolve_guild_names(
             }
         }
     }
-    cache.known.clone()
+    // La caché de sesión se vuelca en la persistente: un nombre pedido una vez no se vuelve a
+    // pedir nunca (los nombres de clan no cambian). El worker la guarda cuando crece.
+    if crate::names::merge(&cache.known) {
+        if let Err(error) = crate::names::save() {
+            log::warn!("no se pudo guardar la caché de nombres de clan ({error})");
+        }
+    }
+    crate::names::all()
 }
 /// Names of the old servers, fetched once per session.
 ///

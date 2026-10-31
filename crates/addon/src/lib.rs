@@ -17,7 +17,9 @@ mod detect;
 mod diagnostics;
 mod ffi;
 mod i18n;
+mod keybinds;
 mod lang;
+mod names;
 mod net;
 mod search;
 mod team;
@@ -195,6 +197,8 @@ fn load() {
     );
 
     log::info!("WvW Lurker: {}", arc_team::describe());
+    keybinds::remember_shortcut();
+    names::load();
     lang::subscribe();
     arc_team::subscribe();
     let _ = WRITER.set(Mutex::new(Some(writer::Writer::start())));

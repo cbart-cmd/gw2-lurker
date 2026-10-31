@@ -469,4 +469,71 @@ pub const TEXT: &[(&str, [&str; COLUMNS])] = &[
             "Ein Schalter für «nur meine»: die Kartenfelder oben zählen nicht mehr.",
         ],
     ),
+    (
+        "Click-through is on: right-click here to use the mouse again (Nexus has {0} for the same).",
+        [
+            "Click-through activo: clic derecho aquí para volver a usar el ratón (en Nexus está {0} para lo mismo).",
+            "Click-through is on: right-click here to use the mouse again (Nexus has {0} for the same).",
+            "Clics traversants actifs : clic droit ici pour réutiliser la souris (Nexus a {0} pour la même chose).",
+            "Klickdurchlässig: Rechtsklick hier, um die Maus wieder zu nutzen (Nexus hat {0} dafür).",
+        ],
+    ),
+    (
+        "Click-through is turned on from the right-click menu, on the widget itself.",
+        [
+            "El click-through se activa con el clic derecho sobre el widget.",
+            "Click-through is turned on from the right-click menu, on the widget itself.",
+            "Les clics traversants s'activent par clic droit sur le widget.",
+            "Klickdurchlässig wird per Rechtsklick auf dem Widget aktiviert.",
+        ],
+    ),
+    (
+        "Click-through keeps the mouse for the game. Right-click on the widget to use the mouse again; the Nexus shortcut for {0} does the same.",
+        [
+            "El click-through deja el ratón al juego. Clic derecho sobre el widget para recuperarlo; el atajo de Nexus para {0} hace lo mismo.",
+            "Click-through keeps the mouse for the game. Right-click on the widget to use the mouse again; the Nexus shortcut for {0} does the same.",
+            "Les clics traversants laissent la souris au jeu. Clic droit sur le widget pour la récupérer ; le raccourci Nexus pour {0} fait pareil.",
+            "Klickdurchlässig lässt die Maus im Spiel. Rechtsklick aufs Widget holt sie zurück; der Nexus-Shortcut für {0} tut dasselbe.",
+        ],
+    ),
+    (
+        "Part of the name",
+        ["Parte del nombre", "Part of the name", "Une partie du nom", "Ein Teil des Namens"],
+    ),
+    (
+        "Searches the guilds the addon already knows, plus one hit from the API.",
+        [
+            "Busca entre los clanes que el addon ya conoce, y añade una coincidencia del API.",
+            "Searches the guilds the addon already knows, plus one hit from the API.",
+            "Cherche parmi les guildes déjà connues, plus un résultat de l'API.",
+            "Sucht unter den bereits bekannten Gilden, plus ein Treffer der API.",
+        ],
+    ),
+    (
+        "{0} guilds in the cache",
+        [
+            "{0} clanes en la caché",
+            "{0} guilds in the cache",
+            "{0} guildes en cache",
+            "{0} Gilden im Cache",
+        ],
+    ),
+    (
+        "Type part of the name; the list updates as you type.",
+        [
+            "Escribe parte del nombre; la lista sale mientras escribes.",
+            "Type part of the name; the list updates as you type.",
+            "Tapez une partie du nom ; la liste se met à jour en direct.",
+            "Tippe einen Teil des Namens; die Liste erscheint sofort.",
+        ],
+    ),
+    (
+        "Nothing matches in the cache ({0} guilds). The API returns one guild at most, and only when the text starts its name.",
+        [
+            "Nada coincide en la caché ({0} clanes). El API devuelve como mucho un clan, y solo si el texto empieza su nombre.",
+            "Nothing matches in the cache ({0} guilds). The API returns one guild at most, and only when the text starts its name.",
+            "Rien ne correspond en cache ({0} guildes). L'API renvoie une guilde au plus, et seulement si le texte commence son nom.",
+            "Nichts im Cache ({0} Gilden). Die API liefert höchstens eine Gilde, und nur wenn der Text ihren Namen beginnt.",
+        ],
+    ),
 ];

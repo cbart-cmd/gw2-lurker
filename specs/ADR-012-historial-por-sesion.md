@@ -1,6 +1,6 @@
 # ADR-012 – Historial por sesión: se descarta al arrancar
 
-- **Estado:** Aceptado (decisión del usuario, 2026-10-31). **Modifica** ADR-003 (formato) y sustituye la política de retención de RF-24 y RNF-03.
+- **Estado:** Aceptado (decisión del usuario, 2026-10-31). **Actualizado el 2026-11-01:** el historial ya no se escribe en disco en absoluto (ADR-015); sigue siendo de la sesión y vive en memoria. **Modifica** ADR-003 (formato) y sustituye la política de retención de RF-24 y RNF-03.
 - **Contexto:** el usuario quiere que cada vez que se abre el juego el seguimiento empiece de cero. Con el juego cerrado no se observa nada, así que un historial persistente acumula rutas llenas de huecos que aparentan continuidad sin tenerla. Al arrancar, el baseline puede reconstruir el estado **actual** completo (todos los claims vigentes con su `claimed_at` real), que es lo que hace falta para empezar a seguir.
 - **Decisión:**
   1. El historial de eventos es **de la sesión**. Al cargar el addon se descarta el historial de la sesión anterior y se crea uno nuevo con el formato de ADR-003 (`history/<fecha-sesión>.jsonl`).

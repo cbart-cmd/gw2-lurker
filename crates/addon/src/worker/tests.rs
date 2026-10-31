@@ -257,36 +257,6 @@ fn t51_clicking_a_guild_knows_its_last_map() {
 }
 
 #[test]
-fn rf73_only_the_followed_guilds_go_to_disk() {
-    let mut follow = gw2lurker_core::FollowList::new();
-    follow.add("1DB147F0");
-
-    let claim = |guild: &str, late: bool| Event::Claim {
-        objective: "38-20".to_owned(),
-        guild: guild.to_owned(),
-        at: Utc::now(),
-        late,
-    };
-
-    assert!(keeps_in_the_store(&claim("1DB147F0", false), &follow));
-    assert!(
-        !keeps_in_the_store(&claim("OTRO", false), &follow),
-        "los claims de clanes que no sigues no se guardan"
-    );
-    assert!(
-        !keeps_in_the_store(&claim("1DB147F0", true), &follow),
-        "lo que ya estaba al arrancar no es historial de esta sesión"
-    );
-    assert!(!keeps_in_the_store(
-        &Event::Gap {
-            from: Utc::now(),
-            to: Utc::now(),
-        },
-        &follow
-    ));
-}
-
-#[test]
 fn rf19_alerts_are_bounded_and_skip_baselines() {
     let mut board = Dashboard::default();
     board.push_alert(Event::Baseline {

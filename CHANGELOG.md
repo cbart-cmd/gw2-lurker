@@ -1,6 +1,31 @@
 # Changelog
 Formato [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/), versionado [SemVer](https://semver.org/lang/es/).
 
+## [0.24.0] - 2026-11-01
+### Añadido
+- **Buscador de clanes que busca de verdad.** El API (`/v2/guild/search`) devuelve **un solo**
+  clan y solo cuando el texto empieza su nombre, así que «DIE» encontraba *Die* y ninguna más.
+  Ahora el addon busca por **subcadena** en su propia caché de nombres (`guild-names.json`), que
+  se rellena sola con lo que va viendo y se puede llenar de golpe con
+  `scripts/guild-search.ps1 -BuildIndex`. El API queda como extra. Sin región ni equipo que
+  filtrar: escribes y la lista sale.
+- **Los nombres de los clanes se guardan para siempre.** Se piden una vez y no se vuelven a pedir
+  (no cambian). Fuera de WvW —el Bastión del Armisticio— ya no hay ids de 36 caracteres: era
+  justo el sitio donde nada sondeaba y la lista salía sin nombres.
+### Corregido
+- **Los segundos del aviso emergente se guardaban como 5.** El control de Ajustes ofrecía hasta
+  20 s pero el saneado del fichero recortaba a 5, así que cualquier valor mayor aparecía como 5
+  tras reiniciar. Ahora el tope es el mismo en los dos sitios (20 s).
+- **El atajo del click-through ya no es un literal.** El addon lee `addons/Nexus/InputBinds.json`
+  y enseña la combinación que Nexus tiene **guardada** (Nexus no expone un lector de atajos a los
+  addons). Si no se puede leer, dice el identificador `GW2LURKER_CLICK_THROUGH` en vez de inventar.
+- **Click-through**: se activa con el **clic derecho** sobre el widget; la casilla de
+  Ajustes → Ventanas desaparece (era la forma de quedarse sin ratón sin saber por qué).
+### Eliminado
+- **El historial en disco (`history/session-000.jsonl`) y toda su maquinaria** (`crates/store`).
+  Nadie lo leía: la UI usa el historial en memoria y ADR-012 borra el fichero al arrancar, así que
+  solo era un registro de depuración que se tiraba. Se borra el fichero que hubiera.
+
 ## [0.23.2] - 2026-10-31
 ### Cambiado
 - **Los nueve emparejamientos se piden una vez al entrar**, no cada cuarto de hora. Hasta ahora el

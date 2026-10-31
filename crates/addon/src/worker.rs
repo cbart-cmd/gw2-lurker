@@ -18,13 +18,12 @@ use gw2lurker_core::diff::{Differ, Event};
 use gw2lurker_core::matchup::{self, ClaimRow, GuildSummary};
 use gw2lurker_core::model::{MapRole, Match, ObjectiveInfo};
 use gw2lurker_core::select::{self, Selection};
-use gw2lurker_store::{Record, SessionStore};
 
 pub use crate::alerts::{AlertKind, AlertLine, Received};
 use crate::catalog::{maps_for, objectives_for, resolve_guild_names};
 use crate::net::WinHttpTransport;
 
-/// Claims kept in memory for the guild history of the session (RF-72); the store has all.
+/// Claims kept in memory for the guild history of the session (RF-72).
 const MAX_HISTORY: usize = 2000;
 
 /// How often a failing API is retried at most, on top of the configured interval.
@@ -217,6 +216,10 @@ fn teams_needed() -> bool {
 pub fn start() {
     static STARTED: OnceLock<()> = OnceLock::new();
     STARTED.get_or_init(|| {
+        // Los nombres de clan ya están en disco: que la ventana los tenga desde el primer
+        // fotograma, también en el Bastión del Armisticio, donde no se sondea nada (informe del
+        // jugador, 2026-11-01).
+        dashboard().guild_names = crate::names::all();
         let spawn = std::thread::Builder::new()
             .name("gw2lurker-worker".to_owned())
             .spawn(run);
@@ -235,7 +238,7 @@ fn run() {
     let api = Api::new(WinHttpTransport::default());
     let mut differ = Differ::new(gw2lurker_core::DiffConfig::default());
     let mut teams_at: Option<Instant> = None;
-    let mut store = open_store();
+    let mut names_at: Option<Instant> = None;
     let mut backoff_ms: u64 = 0;
 
     while !STOP.load(Ordering::Relaxed) {
@@ -249,11 +252,19 @@ fn run() {
                 }
                 teams_at = Some(Instant::now());
             }
+            // Y los nombres de los clanes que sigue, por si alguno se añadió aquí: la lista de
+            // seguidos tiene que enseñar el nombre, no el id (informe del jugador, 2026-11-01).
+            if names_stale(&mut names_at) {
+                let followed = crate::runtime().followed.clone();
+                let names = resolve_guild_names(&api, &[], &followed);
+                dashboard().guild_names = names;
+                names_at = Some(Instant::now());
+            }
             sleep(Duration::from_millis(500));
             continue;
         }
 
-        match poll_once(&api, &mut differ, store.as_mut()) {
+        match poll_once(&api, &mut differ) {
             Ok(()) => backoff_ms = 0,
             Err(error) => {
                 backoff_ms = next_backoff(backoff_ms);
@@ -282,6 +293,16 @@ const TEAMS_TTL: Duration = Duration::from_secs(600);
 fn teams_stale(last: &mut Option<Instant>) -> bool {
     match *last {
         Some(at) => at.elapsed() >= TEAMS_TTL,
+        None => true,
+    }
+}
+
+/// How long the guild names resolved outside WvW stay fresh (names do not change).
+const NAMES_TTL: Duration = Duration::from_secs(600);
+
+fn names_stale(last: &mut Option<Instant>) -> bool {
+    match *last {
+        Some(at) => at.elapsed() >= NAMES_TTL,
         None => true,
     }
 }
@@ -324,22 +345,7 @@ fn sleep(total: Duration) {
     }
 }
 
-fn open_store() -> Option<SessionStore> {
-    let dir = crate::config::addon_dir().ok()?;
-    match SessionStore::open(dir, "session") {
-        Ok(store) => Some(store),
-        Err(error) => {
-            log::warn!("worker: sin histórico ({error})");
-            None
-        }
-    }
-}
-
-fn poll_once(
-    api: &Api<WinHttpTransport>,
-    differ: &mut Differ,
-    store: Option<&mut SessionStore>,
-) -> Result<(), String> {
+fn poll_once(api: &Api<WinHttpTransport>, differ: &mut Differ) -> Result<(), String> {
     let saved = crate::team::selected();
     // El personaje manda: la lista por personaje es de RF-03a, así que un alt con otro equipo
     // tiene que revalidar (una sola vez) al entrar.
@@ -377,8 +383,7 @@ fn poll_once(
         _ => live.first().map(|entry| entry.id.clone()),
     };
 
-    // Diff and store first: writing to the history file must not happen with the dashboard
-    // locked, or the render callback would wait on disk I/O.
+    // Diff first: the dashboard lock must not be taken while building the history.
     let mut events = Vec::new();
     let mut claims = Vec::new();
     let mut guilds = Vec::new();
@@ -400,22 +405,6 @@ fn poll_once(
             .iter()
             .filter_map(|event| history_row(event, entry, &names, &roles_of_match))
             .collect();
-        if let Some(store) = store {
-            // La lista que manda es la de la ventana, no la del arranque: un clan que el jugador
-            // acaba de dejar de seguir no puede seguir escribiéndose en disco.
-            let followed = crate::runtime().followed.clone();
-            for event in &events {
-                // On disk only the followed guilds: the rest of the claims are the state of the
-                // matchup, which the API returns anyway (bug of 2026-10-31).
-                if !keeps_in_the_store(event, &followed) {
-                    continue;
-                }
-                let record = Record::new(Utc::now(), entry.id.clone(), event.clone());
-                if let Err(error) = store.append(&record) {
-                    log::warn!("worker: no se pudo guardar el evento ({error})");
-                }
-            }
-        }
     }
 
     let now = Utc::now();
@@ -589,17 +578,6 @@ fn fetch_by_team(api: &Api<WinHttpTransport>, polled: Option<u32>) -> Result<Vec
             Err(_) => api.matches_all().map_err(|error| error.to_string()),
         },
         None => api.matches_all().map_err(|error| error.to_string()),
-    }
-}
-
-/// Whether an event is worth writing to disk: only what a followed guild did.
-///
-/// The claims of the rest of the matchup are the current state, and the API returns them on
-/// every poll; keeping them on disk made the history look like it never restarted.
-fn keeps_in_the_store(event: &Event, follow: &gw2lurker_core::FollowList) -> bool {
-    match event {
-        Event::Claim { guild, late, .. } => !*late && follow.contains(guild),
-        _ => false,
     }
 }
 

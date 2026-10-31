@@ -13,6 +13,29 @@ Reglas:
 
 ---
 
+## HECHO – 2026-11-01 · Fuera el historial en disco, nombres de clan de verdad y buscador con caché (0.24.0)
+
+- Seis peticiones del jugador, todas con causa medida:
+  1. **Fuera `crates/store`**: el `session-000.jsonl` no lo leía nadie (la UI usa el historial en
+     memoria y ADR-012 borra el fichero al arrancar). Se borra el crate, el volcado del worker y
+     el fichero que hubiera.
+  2. **Nombres de clan siempre, y para siempre**: `names.rs` + `guild-names.json`. Se pidió «en el
+     Bastión salen ids»: allí no se sondea nada y los nombres solo venían del sondeo. Ahora la
+     caché se carga al arrancar, se publica en el dashboard y se rellena también sin WvW.
+  3. **Segundos del pop-up**: el saneado recortaba a 5 s y el control ofrecía 20 → se guardaba 5.
+     Mismo tope en los dos sitios (`POPUP_SECS_MAX`).
+  4. **El atajo ya no es un literal**: `keybinds.rs` lee `Nexus/InputBinds.json` (Nexus no expone
+     lector de atajos). El fichero real tenía `Ctrl+Shift+Code 39`, no la «L» que decía el texto.
+  5. **Click-through**: fuera la casilla de Ajustes → Ventanas; queda el clic derecho.
+  6. **Buscador**: `/v2/guild/search` devuelve **un** clan y solo por el principio del nombre
+     (medido: `die` → *Die*; `a new` → *A New*). La búsqueda real es por subcadena sobre
+     `guild-names.json`; el API solo añade una coincidencia. `scripts/guild-search.ps1` permite
+     buscar y construir el índice sin abrir el juego.
+- Verificación: 225 tests, clippy/fmt limpios, sin ficheros >800 líneas. Índice EU+NA construido
+  con el script (~10 000 nombres, ~30 KB de JSON por región).
+- **Trampa nueva:** el índice hay que construirlo con el script (o esperar a que el addon vaya
+  viendo clanes); el API **no** permite listar «todos los que contienen X».
+
 ## HECHO – 2026-10-31 · Live map de verdad: 5 s, ruta desde el primer minuto y avisos «solo los míos» (0.23.1)
 
 - El jugador pidió lo que hace gw2mists: lista de favoritos, seguimiento de sus reclamos mientras no
