@@ -537,12 +537,12 @@ fn history_row(
         return None;
     }
     let info = names.iter().find(|known| &known.id == objective);
-    let owner = entry
+    let found = entry
         .maps
         .iter()
         .flat_map(|map| map.objectives.iter())
-        .find(|candidate| &candidate.id == objective)
-        .and_then(|candidate| candidate.owner);
+        .find(|candidate| &candidate.id == objective);
+    let owner = found.and_then(|candidate| candidate.owner);
 
     Some(ClaimRow {
         map_id,
@@ -553,6 +553,7 @@ fn history_row(
         owner,
         guild: guild.clone(),
         claimed_at: Some(*at),
+        points_tick: found.map_or(0, |candidate| candidate.points_tick),
     })
 }
 

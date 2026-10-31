@@ -1,6 +1,12 @@
 # Changelog
 Formato [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/), versionado [SemVer](https://semver.org/lang/es/).
 
+## [0.13.2] - 2026-10-31
+### Corregido
+- **«Alto valor» ahora sale del dato, no del tipo**: `ClaimRow` guarda el `points_tick` del
+  snapshot, así que una torre totalmente mejorada (tick 8) cuenta como alto valor y un campamento
+  no. Antes se decidía solo por tipo y las torres mejoradas se quedaban fuera (RF-30b).
+
 ## [0.13.1] - 2026-10-31
 ### Añadido
 - **Ruta numerada sobre el mapa** (T-16): al elegir un clan en la pestaña Clanes, el mapa dibuja

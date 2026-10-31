@@ -113,6 +113,7 @@ mod tests {
             owner: Some(TeamColor::Blue),
             guild: "YaK".to_owned(),
             claimed_at: Some(Utc.with_ymd_and_hms(2026, 10, 31, 12, minute, 0).unwrap()),
+            points_tick: 2,
         }
     }
 

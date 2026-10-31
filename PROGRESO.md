@@ -13,6 +13,17 @@ Reglas:
 
 ---
 
+## HECHO – 2026-10-31 · «Alto valor» por dato y no por tipo (0.13.2)
+
+- `ClaimRow` gana `points_tick`, copiado del objetivo del snapshot en `matchup::claims` y en
+  `history_row`, e `is_high_value()` pasa a ser `points_tick >= HIGH_VALUE_TICK` (8). Antes era
+  «es Keep o Castle», que dejaba fuera las torres mejoradas y metía una fortaleza recién capturada.
+- Valores reales del match `2-2` (fixture): campamento 2; torre 4, 6 u 8; fortaleza 8, 12, 16 o
+  20; castillo 12; ruinas, mercenarios y spawns 0. El umbral de 8 marca 17 objetivos y deja fuera
+  los 24 campamentos, como dice RF-30b.
+- Test nuevo `rf30b_high_value_is_the_tick_of_this_snapshot_not_the_kind`, y el fixture de
+  `ui::matchup` pasa a usar los ticks reales por tipo.
+
 ## HECHO – 2026-10-31 · Ruta numerada sobre el mapa (T-16 parcial; 0.13.1)
 
 - `ui::map` gana `View` (filas, objetivos, mapas, clanes seguidos e historial) y `draw_route`:

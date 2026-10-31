@@ -259,4 +259,7 @@ Medido contra la API en vivo (`/v2/maps?ids=38,95,96,1099` y `/v2/wvw/objectives
   genéricos), así que omitirlos (RF-30) no es un caso raro. Eternos trae 28, de ellos 22 con
   coordenada. Tipos: 42 campamentos, 39 torres, 24 fortalezas, 1 castillo, 30 ruinas, 24 spawns,
   9 genéricos, 6 recursos, 3 mercenarios.
+- **`points_tick` real por tipo** (match `2-2`): campamento **2**; torre **4, 6 u 8**; fortaleza
+  **8, 12, 16 o 20**; castillo **12**; ruinas, mercenarios y spawns **0**. Con el umbral 8 de
+  RF-30b quedan marcados 17 objetivos y ningún campamento.
 - `/v2/maps` con los cuatro ids son ~2 KB: se piden una vez por sesión.

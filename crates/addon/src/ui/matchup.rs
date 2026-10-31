@@ -187,6 +187,14 @@ mod tests {
             owner: Some(TeamColor::Blue),
             guild: "1DB147F0".to_owned(),
             claimed_at: Some(Utc.with_ymd_and_hms(2026, 10, 31, 12, 0, 0).unwrap()),
+            // Valores reales del match `2-2` (fixture): el campamento no llega al umbral, el
+            // castillo sí, y una torre mejorada también.
+            points_tick: match kind {
+                ObjectiveType::Castle => 12,
+                ObjectiveType::Keep => 16,
+                ObjectiveType::Tower => 4,
+                _ => 0,
+            },
         }
     }
 
@@ -223,6 +231,30 @@ mod tests {
             rows_of(&rows, MapRole::Center, &filters, &followed()).is_empty(),
             "sin clanes seguidos no hay nada que enseñar"
         );
+    }
+
+    #[test]
+    fn rf30b_high_value_is_the_tick_of_this_snapshot_not_the_kind() {
+        let filters = Filters {
+            high_value_only: true,
+            ..Filters::all_kinds()
+        };
+
+        assert!(
+            !filters.accepts(&row(ObjectiveType::Tower, MapRole::Center), &followed()),
+            "una torre sin mejorar (tick 4) no es de alto valor"
+        );
+
+        let upgraded = ClaimRow {
+            points_tick: 8,
+            ..row(ObjectiveType::Tower, MapRole::Center)
+        };
+        assert!(
+            filters.accepts(&upgraded, &followed()),
+            "una torre totalmente mejorada (tick 8) sí lo es: el criterio es el dato"
+        );
+        assert!(filters.accepts(&row(ObjectiveType::Keep, MapRole::Center), &followed()));
+        assert!(!filters.accepts(&row(ObjectiveType::Camp, MapRole::Center), &followed()));
     }
 
     #[test]

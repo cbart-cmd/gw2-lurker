@@ -29,13 +29,18 @@ pub struct ClaimRow {
     pub guild: String,
     /// Claim time reported by the API; `None` if the payload had no `claimed_at`.
     pub claimed_at: Option<DateTime<Utc>>,
+    /// `points_tick` of the objective in this snapshot (RF-30b).
+    ///
+    /// It is what decides "high value": a fully upgraded tower is worth as much as a keep, so the
+    /// list cannot be hard-coded by kind.
+    pub points_tick: u32,
 }
 
 impl ClaimRow {
-    /// Highest `points_tick` seen for this objective is not stored here; kind is enough
-    /// for filtering, scoring lives in `MatchObjective`.
+    /// Whether the objective scores enough to be marked (RF-30b, threshold in
+    /// [`crate::model::HIGH_VALUE_TICK`]).
     pub fn is_high_value(&self) -> bool {
-        matches!(self.kind, ObjectiveType::Castle | ObjectiveType::Keep)
+        self.points_tick >= crate::model::HIGH_VALUE_TICK
     }
 }
 
@@ -60,6 +65,7 @@ pub fn claims(m: &Match, names: &[ObjectiveInfo]) -> Vec<ClaimRow> {
                     owner: o.owner,
                     guild: guild.clone(),
                     claimed_at: o.claimed_at,
+                    points_tick: o.points_tick,
                 })
             })
         })
@@ -272,6 +278,7 @@ mod tests {
             owner: Some(TeamColor::Red),
             guild: guild.to_string(),
             claimed_at: Some(now),
+            points_tick: 2,
         };
 
         let a = rank_guilds(&[row("bbb"), row("aaa")]);
