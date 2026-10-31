@@ -140,14 +140,20 @@ mod tests {
 
     #[test]
     fn rf03f_the_players_translation_wins_over_the_bundled_one() {
+        // El nombre automático no se fija aquí a propósito: sale de `data/team-names.json`, y el
+        // jugador puede traducirlo cuando quiera (petición de 2026-10-31). Lo que se prueba es el
+        // mecanismo: sin nombre propio manda la tabla, con nombre propio manda el suyo, y vaciarlo
+        // vuelve a la tabla.
         let mut config = Config::default();
+        let automatic = automatic_name("es", 12014);
+        assert!(!automatic.trim().is_empty(), "12014 sin nombre en español");
         assert_eq!(
             display_name(&config, "es", 12014),
-            "Pajar de la Gran Casa",
+            automatic,
             "sin traducción propia se usa la de la tabla"
         );
 
-        config.set_custom_name(12014, "es", "Bosquemugoso", "Pajar de la Gran Casa");
+        config.set_custom_name(12014, "es", "Bosquemugoso", &automatic);
         assert_eq!(display_name(&config, "es", 12014), "Bosquemugoso");
         assert_eq!(
             display_name(&config, "en", 12014),
@@ -155,10 +161,10 @@ mod tests {
             "la traducción es por idioma: en inglés no se cuela el nombre español"
         );
 
-        config.set_custom_name(12014, "es", "  ", "Pajar de la Gran Casa");
+        config.set_custom_name(12014, "es", "  ", &automatic);
         assert_eq!(
             display_name(&config, "es", 12014),
-            "Pajar de la Gran Casa",
+            automatic,
             "vaciar el campo vuelve al automático"
         );
     }

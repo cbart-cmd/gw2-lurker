@@ -25,8 +25,14 @@ pub const LOG_KEY: &str = "Alert log";
 /// Translation key of the pop-up: separate window, separate id, state never saved.
 const POPUP_KEY: &str = "Alerts (pop-up)";
 
-/// How many lines fit in the window without scrolling forever.
+/// How many lines fit in the window without scrolling forever; the player can ask for fewer
+/// (RF-19c).
 const MAX_LINES: usize = 25;
+
+/// Whether the player wants this kind of alert at all (RF-19c).
+fn keeps(kind: AlertKind) -> bool {
+    crate::config().alert_kinds.shows(kind)
+}
 
 /// How long an alert stays in the compact widget, in minutes.
 ///
@@ -59,12 +65,17 @@ pub fn body(ui: &Ui, alerts: &[AlertLine], now: DateTime<Utc>) -> Option<String>
         "Last {0} minutes; the log window has the rest.",
         &[&WIDGET_MINUTES.to_string()],
     ));
-    let recent = within(alerts, now, WIDGET_MINUTES);
+    let recent: Vec<AlertLine> = within(alerts, now, WIDGET_MINUTES)
+        .into_iter()
+        .filter(|line| keeps(line.kind))
+        .take(crate::config().max_lines.clamp(1, MAX_LINES))
+        .collect();
     if recent.is_empty() {
         ui.text_disabled(i18n::text("No alerts yet"));
         return None;
     }
-    draw_lines(ui, &recent.iter().take(MAX_LINES).collect::<Vec<_>>())
+    let borrowed: Vec<&AlertLine> = recent.iter().collect();
+    draw_lines(ui, &borrowed)
 }
 
 /// Body of the *Alert log* tab: the whole session, scrolling if needed.
@@ -77,7 +88,11 @@ pub fn log_body(ui: &Ui, alerts: &[AlertLine]) -> Option<String> {
         ui.text_disabled(i18n::text("No alerts yet"));
         return None;
     }
-    let all: Vec<&AlertLine> = alerts.iter().take(MAX_LOGGED).collect();
+    let all: Vec<&AlertLine> = alerts
+        .iter()
+        .filter(|line| keeps(line.kind))
+        .take(MAX_LOGGED)
+        .collect();
     let mut chosen = None;
     let mut clipper = ListClipper::new(all.len() as i32).begin(ui);
     while clipper.step() {
@@ -301,13 +316,33 @@ fn map_piece(
     }
 }
 
-/// Colour of a team, readable on a dark background.
+/// Color de equipo, el mismo que en el mapa y en el historial (RF-62).
 fn team_colour(colour: TeamColor) -> [f32; 4] {
-    match colour {
-        TeamColor::Red => [1.0, 0.5, 0.45, 1.0],
-        TeamColor::Green => [0.6, 0.95, 0.6, 1.0],
-        TeamColor::Blue => [0.52, 0.75, 1.0, 1.0],
-    }
+    super::theme::team_colour(colour)
+}
+
+/// Whether an alert is worth interrupting for (RF-19d): taking a keep or the castle.
+///
+/// The pop-up already shows everything the player asked for; this is the extra layer for the two
+/// objectives that change a matchup, and it is **off by default**.
+pub fn is_critical(line: &AlertLine) -> bool {
+    use gw2lurker_core::ObjectiveType;
+    matches!(line.kind, AlertKind::Flip | AlertKind::Claim)
+        && matches!(
+            line.objective_kind,
+            ObjectiveType::Keep | ObjectiveType::Castle
+        )
+}
+
+/// La línea en texto plano, para el toast de Nexus.
+pub fn plain(line: &AlertLine) -> String {
+    spans(line, i18n::effective())
+        .into_iter()
+        .map(|(text, _)| text)
+        .collect::<Vec<_>>()
+        .join("")
+        .trim()
+        .to_owned()
 }
 
 fn colour_label(colour: TeamColor, language: gw2lurker_core::i18n::Language) -> &'static str {
@@ -399,6 +434,28 @@ mod tests {
             .into_iter()
             .map(|(text, _)| text)
             .collect()
+    }
+
+    #[test]
+    fn rf19d_only_keeps_and_castles_interrupt_with_a_toast() {
+        let mut keep = line(AlertKind::Flip, Some(TeamColor::Blue), None);
+        keep.objective_kind = gw2lurker_core::ObjectiveType::Keep;
+        assert!(is_critical(&keep));
+
+        let mut castle = line(AlertKind::Claim, None, Some("YaK"));
+        castle.objective_kind = gw2lurker_core::ObjectiveType::Castle;
+        assert!(is_critical(&castle));
+
+        let mut camp = line(AlertKind::Claim, None, Some("YaK"));
+        camp.objective_kind = gw2lurker_core::ObjectiveType::Camp;
+        assert!(!is_critical(&camp), "un campamento no interrumpe");
+
+        let mut released = line(AlertKind::Unclaim, None, Some("YaK"));
+        released.objective_kind = gw2lurker_core::ObjectiveType::Keep;
+        assert!(
+            !is_critical(&released),
+            "soltar una fortaleza no es crítico"
+        );
     }
 
     #[test]

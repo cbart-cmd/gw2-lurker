@@ -112,14 +112,16 @@ La DLL se distribuye desde **`https://github.com/cbart-cmd/gw2addonsreleases`**,
 - **Léelo antes de empezar, después de cada paso y al terminar la tanda.** "Cada paso" es cada
   test en verde, cada arreglo aplicado, cada versión compilada: se vuelve a abrir el fichero por
   si el usuario ha apuntado algo nuevo mientras trabajabas. Es obligatorio, no opcional.
-- **No borres el fichero nunca.** Ni vaciarlo ni recrearlo: es el histórico.
-- Arregla cada entrada pendiente, ponla en el formato de la cabecera (qué pasa, causa, arreglo)
-  y cámbiala a `## [x]` con la **versión** en la que sale el arreglo, dentro de
-  `**Hecho (x.y.z):** qué se cambió y dónde`.
+- **Solo se queda lo pendiente.** Cuando un bug está arreglado y la versión sale, **se borra su
+  entrada** de `bugs.md` (petición del usuario, 2026-10-31): el qué se cambió vive en `PROGRESO.md`
+  y, si se ve, en `CHANGELOG.md`, que es donde se busca el histórico. Nunca se vacía el fichero
+  entero ni se recrea: la cabecera y lo pendiente se quedan.
+- Arregla cada entrada pendiente y, al cerrarla, bórrala. Si el arreglo aún no ha salido en una
+  versión, déjala en `[ ]` con `- **Pendiente:** …`.
 - Si un bug no se puede reproducir o necesita al usuario (p. ej. hay que probarlo en el juego),
   déjalo en `[ ]` y añade una línea `- **Pendiente:** …` explicando qué falta.
-- Si el usuario reporta algo que ya está arreglado, márcalo y di en la respuesta en qué versión
-  salió; no lo borres.
+- Si el usuario reporta algo que ya está arreglado, dilo en la respuesta con la versión en la que
+  salió; no hay nada que apuntar.
 - Un bug arreglado también se apunta en `PROGRESO.md` (una línea) y, si es visible, en
   `CHANGELOG.md`.
 

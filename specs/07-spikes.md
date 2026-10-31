@@ -329,3 +329,20 @@ Medido con `curl` contra la API en vivo, porque el buscador de clanes depende de
   término.
 - `/v2/wvw/guilds/:region` sigue siendo la forma de saber de qué equipo es cada clan: 282 644 bytes
   para EU, así que se cachea por región.
+### Notas de verificación: orientación de las coordenadas y del mapa real (2026-10-31)
+
+Medido porque el jugador avisó de que «se ven 3 trozos: norte, centro, sur; el norte y el sur están
+intercambiados» (el mapa llevaba al revés desde la calibración de teselas de 0.16.1).
+
+- **El continente crece hacia el SUR.** En `/v2/continents/1/floors/1` los `label_coord` son
+  `Ruins of Orr` y≈42112, `Kryta` y≈30080, `Janthir` y≈16252 y `Cantha` y≈101100. Orr está al sur de
+  Kryta y Cantha más al sur todavía, así que **más Y = más al sur**. `continent_rect` va de la esquina
+  noroeste a la sureste, igual que la pirámide de teselas (la fila 0 es el norte del continente).
+- **Comprobado dibujando el mapa**: se bajan las 16 teselas de Eternos (`2/1/5/{x}/{y}.jpg`, columnas
+  8–11, filas 12–15) y se pegan en orden de fila creciente. El resultado es Eternos **al derecho**, y
+  cada objetivo de `/v2/wvw/objectives` cae sobre su estructura: *Stonemist Castle* en el castillo del
+  centro, *Overlook* en la fortaleza del norte (y≈13656), *Lowlands* y *Valley* en las esquinas del sur
+  (y≈15130), *Speldan Clearcut*, *Mendon's Gap* y *Veloka Slope* en el borde norte.
+- Consecuencia para el código: `project::to_screen` **no debe invertir la Y**. Continente e imgui
+  crecen hacia abajo, así que la proyección es escala y desplazamiento. Invertirla dejaba el norte
+  abajo y cada fila de teselas en el sitio de otra.

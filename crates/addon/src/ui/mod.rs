@@ -10,11 +10,12 @@ mod icons;
 mod map;
 mod matchup;
 mod settings;
+mod theme;
 mod window;
 
 use nexus::gui::{register_render, render, RenderType};
 
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicI64, Ordering};
 
 use crate::i18n;
 
@@ -64,6 +65,36 @@ fn on_lock_keybind(_identifier: &str, is_release: bool) {
 
 fn take_lock_toggle() -> bool {
     LOCK_TOGGLE.swap(false, Ordering::Relaxed)
+}
+
+/// Manda el toast de Nexus para cada aviso crítico nuevo (RF-19d).
+///
+/// Nexus solo expone `send_alert(texto)`: no hay título ni sonido en `nexus-rs` 0.12 (comprobado
+/// en su código), así que la parte de sonido de RF-19d queda fuera hasta que la API la ofrezca.
+fn toast_critical(ui: &nexus::imgui::Ui) {
+    static LAST: AtomicI64 = AtomicI64::new(0);
+    let alerts = {
+        let board = crate::worker::dashboard();
+        board.recent_alerts(
+            &crate::config().alerts,
+            &crate::config().followed,
+            crate::context::current_map_role(),
+            alerts::MAX_LOGGED,
+        )
+    };
+    let since = LAST.load(Ordering::Relaxed);
+    let mut newest = since;
+    for line in alerts.iter().filter(|line| alerts::is_critical(line)) {
+        let stamp = line.received.timestamp_millis();
+        if stamp > since {
+            nexus::alert::send_alert(alerts::plain(line));
+            newest = newest.max(stamp);
+        }
+    }
+    if newest != since {
+        LAST.store(newest, Ordering::Relaxed);
+    }
+    let _ = ui;
 }
 
 /// Brings the window back: shown, not click-through, and not collapsed.
@@ -163,6 +194,11 @@ pub fn register() {
                 // overlay alive and leaves the reason in the log (RNF-06). Clicking the *Map* tab
                 // crashed the game once (reported 2026-10-31).
                 guard("widget", || draw_widget(ui));
+            }
+            // RF-19d: el toast de Nexus para lo crítico, si el jugador lo pidió. Va fuera del
+            // dibujo del widget para que también salte con la ventana cerrada.
+            if crate::config().critical_toast {
+                guard("toast", || toast_critical(ui));
             }
             // The team picker needs the list of live teams even outside WvW, where polling is
             // off: without this the drop-down was empty (bug of 2026-10-31).
@@ -542,6 +578,19 @@ fn draw_health(ui: &nexus::imgui::Ui, config: &mut crate::config::Config, data: 
         ));
     }
 
+    // RF-50: Nexus deja la DLL nueva en disco y pide reiniciar; mientras tanto hay que decirlo, o
+    // el jugador sigue viendo la versión vieja sin saber por qué.
+    if let Some(path) = crate::stale_dll() {
+        let _tint = ui.push_style_color(nexus::imgui::StyleColor::Text, [1.0, 0.75, 0.3, 1.0]);
+        ui.text_wrapped(i18n::format(
+            "Updated to a newer version (running {0}): restart the game to apply it.",
+            &[crate::loaded_version()],
+        ));
+        if ui.is_item_hovered() {
+            ui.tooltip_text(path);
+        }
+    }
+
     // El Bastión del Armisticio: se dibuja pero no hay partida que mirar, y conviene decirlo en
     // vez de enseñar pestañas vacías sin explicación (petición de 2026-10-31).
     let gate = crate::context::gate();
@@ -565,7 +614,7 @@ fn region_of_matchup(match_id: &str) -> &'static str {
 }
 
 /// When the *Test pop-up* button of the settings wants a fake alert on screen (milliseconds).
-static TEST_POPUP_UNTIL: std::sync::atomic::AtomicI64 = std::sync::atomic::AtomicI64::new(0);
+static TEST_POPUP_UNTIL: AtomicI64 = AtomicI64::new(0);
 
 /// Shows a fake pop-up for a few seconds, so it can be placed without waiting for a capture.
 pub fn start_test_popup() {
@@ -598,6 +647,8 @@ fn draw_popup(
     }
 
     let mut showing = alerts::popup_lines(alerts, now, secs);
+    // RF-19c: el pop-up enseña los mismos tipos que el widget.
+    showing.retain(|line| crate::config().alert_kinds.shows(line.kind));
     if let Some(test) = test_popup_line(now) {
         showing.insert(0, test);
     }

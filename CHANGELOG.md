@@ -1,6 +1,31 @@
 # Changelog
 Formato [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/), versionado [SemVer](https://semver.org/lang/es/).
 
+## [0.22.0] - 2026-10-31
+### Corregido
+- **El mapa ya no está del revés**: la proyección invertía la Y, así que el norte salía abajo y las
+  teselas reales se colocaban en la fila de otra (eso era lo de «se ven 3 trozos, el norte y el sur
+  intercambiados»). Medido contra `/v2/continents/1/floors/1` y comprobado dibujando las 16 teselas de
+  Eternos, con cada objetivo sobre su estructura. Ver `07-spikes.md`.
+- **La cabecera del widget no se va al hacer scroll**: el cuerpo se dibuja en su propia ventana con
+  barra, así que el `×` y el menú del clic derecho (bloquear, click-through, opacidad) están siempre a
+  mano aunque la pestaña de Ajustes sea larga.
+### Añadido
+- **Estilo de las ventanas (T-28)**: se puede elegir entre **heredar el de Nexus** (por defecto) o el
+  **tema oscuro del addon**, que se aplica solo a nuestras ventanas. El fondo del widget puede ser
+  oscuro semitransparente o **transparente**. Los colores de equipo salen ahora de un único sitio, así
+  que son los mismos en el widget, el mapa y el historial.
+- **Tamaño del texto y líneas del widget (RF-19c)**: escala de 0,8× a 1,6×, cuántas líneas enseña el
+  widget y qué tipos de aviso se muestran (capturas, reclamaciones y liberaciones).
+- **Aviso por toast para lo crítico (RF-19d)**: fortalezas y castillo pueden saltar también en el
+  toast de Nexus. **Desactivado por defecto.** El sonido opcional no se puede: `nexus-rs` 0.12 no
+  expone ninguna API de audio (comprobado en su código).
+- **Reproducción de la ruta (RF-36)**: play/pausa y progreso en la pestaña Mapa; parada, la ruta se
+  dibuja entera.
+- **«Salto a <mapa>» (RF-35)**: cuando la ruta de un clan cruza de mapa, el texto lo dice.
+- **Aviso de versión nueva (RF-50)**: si Nexus deja otra DLL en disco, el widget lo dice en naranja y
+  pide reiniciar, con la ruta del fichero al pasar el ratón.
+
 ## [0.21.0] - 2026-10-31
 ### Corregido
 - **La ventana se mueve y el `×` cierra**: en 0.18.0 la barra de título se había vuelto un botón

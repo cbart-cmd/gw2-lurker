@@ -168,12 +168,7 @@ pub fn body(
             ui.text(format!(
                 "{} → {}",
                 i18n::text(route_reason(route.origin)),
-                route
-                    .steps
-                    .iter()
-                    .map(|step| step.name.as_str())
-                    .collect::<Vec<_>>()
-                    .join(" → ")
+                route_steps(&route, &rows, i18n::effective())
             ));
         }
         draw_group(ui, "Current map", &here);
@@ -195,11 +190,55 @@ fn draw_group(ui: &Ui, heading: &'static str, rows: &[gw2lurker_core::matchup::C
     }
 }
 
+/// La ruta en texto, con un **«salto a <mapa>»** cuando los pasos cambian de mapa (RF-35).
+///
+/// La ruta se construye por mapa, así que el salto no está en los pasos: se deduce de los claims,
+/// que sí llevan el mapa en el id del objetivo.
+fn route_steps(
+    route: &gw2lurker_core::Route,
+    rows: &[gw2lurker_core::matchup::ClaimRow],
+    language: gw2lurker_core::i18n::Language,
+) -> String {
+    let mut parts: Vec<String> = Vec::new();
+    let mut map: Option<MapRole> = None;
+    for step in &route.steps {
+        let step_map = rows
+            .iter()
+            .find(|row| row.objective_id == step.objective_id)
+            .map(|row| row.map_role);
+        if let Some(role) = step_map {
+            if map.is_some_and(|previous| previous != role) {
+                parts.push(gw2lurker_core::i18n::f(
+                    language,
+                    "jump to {0}",
+                    &[map_label_in(role, language)],
+                ));
+            }
+            map = Some(role);
+        }
+        parts.push(step.name.clone());
+    }
+    parts.join(" → ")
+}
+
 fn route_reason(origin: gw2lurker_core::RouteOrigin) -> &'static str {
     match origin {
         gw2lurker_core::RouteOrigin::Garrison => "from their keep",
         gw2lurker_core::RouteOrigin::SideKeep => "from their side keep",
         gw2lurker_core::RouteOrigin::Spawn => "from the spawn point",
+    }
+}
+
+/// Nombre del mapa en el idioma que se pase: las pruebas no pueden leer el idioma activo, porque
+/// eso pasa por la API de Nexus y revienta fuera del juego.
+fn map_label_in(role: MapRole, language: gw2lurker_core::i18n::Language) -> &'static str {
+    use gw2lurker_core::i18n::t;
+    match role {
+        MapRole::Center => t(language, "Eternals"),
+        MapRole::BlueHome => t(language, "Blue alpine"),
+        MapRole::GreenHome => t(language, "Green alpine"),
+        MapRole::RedHome => t(language, "Red desert"),
+        MapRole::Unknown => t(language, "Unknown map"),
     }
 }
 
@@ -216,6 +255,50 @@ fn map_label(role: MapRole) -> &'static str {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn rf35_a_route_that_crosses_maps_says_jump_to() {
+        // Tres pasos, el último en otro mapa: entre el segundo y el tercero tiene que aparecer el
+        // salto (RF-35).
+        let row = |objective_id: &str, role: MapRole| gw2lurker_core::matchup::ClaimRow {
+            map_id: 38,
+            map_role: role,
+            objective_id: objective_id.to_owned(),
+            name: None,
+            kind: gw2lurker_core::ObjectiveType::Tower,
+            owner: None,
+            guild: "AAAA".to_owned(),
+            claimed_at: None,
+            points_tick: 0,
+        };
+        let rows = vec![
+            row("38-10", MapRole::Center),
+            row("38-20", MapRole::Center),
+            row("96-30", MapRole::BlueHome),
+        ];
+        let step = |id: &str| gw2lurker_core::route::Step {
+            name: id.to_owned(),
+            objective_id: id.to_owned(),
+            at: None,
+        };
+        let route = gw2lurker_core::Route {
+            origin: gw2lurker_core::RouteOrigin::Spawn,
+            steps: vec![step("38-10"), step("38-20"), step("96-30")],
+        };
+
+        let text = route_steps(&route, &rows, gw2lurker_core::i18n::Language::Es);
+        assert_eq!(text.matches("38-10").count(), 1, "{text}");
+        assert!(
+            text.contains("salto a"),
+            "el cambio de mapa se anuncia: {text}"
+        );
+        let jump = text.find("salto a").expect("hay salto");
+        assert!(
+            jump > text.find("38-20").expect("paso 2")
+                && jump < text.find("96-30").expect("paso 3"),
+            "el salto va entre los dos pasos: {text}"
+        );
+    }
 
     #[test]
     fn rf72_the_selection_survives_a_frame_and_can_be_cleared() {

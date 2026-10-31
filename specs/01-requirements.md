@@ -191,6 +191,7 @@ La ruta se etiqueta como **inferida** (RF-33): es una reconstrucción, no el rec
 **RF-30b (M)** El mapa marcará los objetivos de **alto valor** con un contorno doble, además de la forma y el color. El criterio es **de datos, no una lista cableada ni el tipo**: alto valor = `points_tick` ≥ 8. Medido en el match `2-2`: las 12 fortalezas y el castillo siempre lo superan, y **4 de 24 torres** también porque están totalmente mejoradas (tick 8); ningún campamento (tick 2) ni Ruinas/Mercenarios/Spawn (tick 0). Un cambio de puntuación en la API se refleja sin tocar código.
 - GWT: *Given* el match `2-2`, *When* se aplica el umbral, *Then* se marcan **17** objetivos (12 fortalezas, el castillo y 4 torres mejoradas) y ninguno de los 24 campamentos.
 - GWT: *Given* un snapshot, *When* se abre la vista, *Then* cada objetivo aparece en su posición relativa con el color de su dueño.
+- GWT: *Given* las coordenadas del API, *When* se proyectan, *Then* el **norte queda arriba**: `continent_rect` y la pirámide de teselas crecen hacia el sur (medido en `/v2/continents/1/floors/1`: Orr, al sur de Kryta, tiene más Y), así que la proyección no invierte la Y. Un mapa del revés pone cada fila de teselas en el sitio de otra (fallo de 2026-10-31).
 
 **RF-31 (M)** Capa de claims: marca visualmente los objetivos reclamados por guilds seguidas (anillo/etiqueta con tag de guild).
 

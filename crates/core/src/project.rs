@@ -34,7 +34,13 @@ impl Frame {
         self.x[1] > self.x[0] && self.y[1] > self.y[0]
     }
 
-    /// Continent coordinates → `0..1` in both axes, with **Y up** as the API draws it.
+    /// Continent coordinates → `0..1` in both axes, with **Y down**: the minimum is the north
+    /// edge.
+    ///
+    /// Measured, not assumed (2026-10-31): in `/v2/continents/1/floors/1` the Ruins of Orr sit at
+    /// `y ≈ 42112` and Kryta at `y ≈ 30080`, and Orr is **south** of Kryta; Cantha, further south
+    /// still, is at `y ≈ 101100`. So a bigger Y is further south, exactly like the tile pyramid,
+    /// whose row 0 is the top of the continent.
     ///
     /// `None` when the box is degenerate or the coordinate is not a number: an objective must
     /// never end up silently in a corner.
@@ -48,11 +54,15 @@ impl Frame {
     }
 }
 
-/// `0..1` (Y up) → pixels inside a rectangle (Y down), which is how imgui thinks.
+/// `0..1` (Y down, north first) → pixels inside a rectangle (Y down), which is how imgui thinks.
+///
+/// The axes point the same way, so this is a scale and an offset with **no flip**: continent Y and
+/// imgui Y both grow towards the south. Flipping it put the north of the map at the bottom and left
+/// the real map in three strips with north and south swapped (report of 2026-10-31).
 pub fn to_screen(normalised: [f32; 2], min: [f32; 2], size: [f32; 2]) -> [f32; 2] {
     [
         min[0] + normalised[0] * size[0],
-        min[1] + (1.0 - normalised[1]) * size[1],
+        min[1] + normalised[1] * size[1],
     ]
 }
 
@@ -149,11 +159,46 @@ mod tests {
             x: [0.0, 100.0],
             y: [0.0, 100.0],
         };
-        let north = project(&frame, [50.0, 100.0], [10.0, 20.0], [200.0, 100.0]).unwrap();
-        let south = project(&frame, [50.0, 0.0], [10.0, 20.0], [200.0, 100.0]).unwrap();
+        // Continent Y grows southwards, so the north edge is the **minimum** Y.
+        let north = project(&frame, [50.0, 0.0], [10.0, 20.0], [200.0, 100.0]).unwrap();
+        let south = project(&frame, [50.0, 100.0], [10.0, 20.0], [200.0, 100.0]).unwrap();
 
         assert_eq!(north, [110.0, 20.0], "el norte va arriba: y mínima");
         assert_eq!(south, [110.0, 120.0], "el sur va abajo");
+    }
+
+    #[test]
+    fn rf30_the_real_orientation_matches_the_continent_data() {
+        // Evidencia: en `/v2/continents/1/floors/1`, Orr (sur de Kryta) tiene más Y que Kryta y
+        // Cantha, más al sur todavía, mucho más. Así que el objetivo con menos Y es el del norte y
+        // tiene que dibujarse **por encima** del de más Y. Si el mapa se invirtiera, el jugador
+        // vería el norte abajo (informe de 2026-10-31).
+        let frame = frame_of(38);
+        let objectives: Vec<ObjectiveInfo> = serde_json::from_str(OBJECTIVES).unwrap();
+        let mut highest: Option<(f64, [f32; 2])> = None;
+        let mut lowest: Option<(f64, [f32; 2])> = None;
+        for objective in &objectives {
+            if objective.map_id != 38 {
+                continue;
+            }
+            let Some(coord) = objective.coord else {
+                continue;
+            };
+            let point = project(&frame, [coord[0], coord[1]], [0.0; 2], [100.0, 100.0]).unwrap();
+            if highest.is_none_or(|(y, _)| coord[1] < y) {
+                highest = Some((coord[1], point));
+            }
+            if lowest.is_none_or(|(y, _)| coord[1] > y) {
+                lowest = Some((coord[1], point));
+            }
+        }
+        let (_, north) = highest.expect("Eternos tiene objetivos");
+        let (_, south) = lowest.expect("Eternos tiene objetivos");
+
+        assert!(
+            north[1] < south[1],
+            "el objetivo del norte ({north:?}) tiene que ir por encima del del sur ({south:?})"
+        );
     }
 
     #[test]

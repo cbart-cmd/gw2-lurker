@@ -137,6 +137,117 @@ pub const TEXT: &[(&str, [&str; COLUMNS])] = &[
         ],
     ),
     (
+        "Updated to a newer version (running {0}): restart the game to apply it.",
+        [
+            "Hay una versión más nueva en disco (estás con la {0}): reinicia el juego para aplicarla.",
+            "Updated to a newer version (running {0}): restart the game to apply it.",
+            "Une version plus récente est sur le disque ({0} en cours) : relancez le jeu.",
+            "Eine neuere Version liegt auf der Platte (läuft: {0}): Spiel neu starten.",
+        ],
+    ),
+    (
+        "Window style",
+        [
+            "Estilo de ventanas",
+            "Window style",
+            "Style des fenêtres",
+            "Fensterstil",
+        ],
+    ),
+    (
+        "Inherited from Nexus",
+        [
+            "Heredado de Nexus",
+            "Inherited from Nexus",
+            "Hérité de Nexus",
+            "Von Nexus übernommen",
+        ],
+    ),
+    (
+        "Addon's own dark theme",
+        [
+            "Tema oscuro del addon",
+            "Addon's own dark theme",
+            "Thème sombre de l'addon",
+            "Eigenes dunkles Thema",
+        ],
+    ),
+    ("Background", ["Fondo", "Background", "Fond", "Hintergrund"]),
+    (
+        "Dark, semi-transparent",
+        [
+            "Oscuro, semitransparente",
+            "Dark, semi-transparent",
+            "Sombre, semi-transparent",
+            "Dunkel, halbtransparent",
+        ],
+    ),
+    (
+        "Transparent",
+        ["Transparente", "Transparent", "Transparent", "Transparent"],
+    ),
+    (
+        "Text size",
+        ["Tamaño del texto", "Text size", "Taille du texte", "Textgröße"],
+    ),
+    (
+        "Lines in the widget",
+        [
+            "Líneas en el widget",
+            "Lines in the widget",
+            "Lignes dans le widget",
+            "Zeilen im Widget",
+        ],
+    ),
+    (
+        "Show captures",
+        [
+            "Mostrar capturas",
+            "Show captures",
+            "Afficher les captures",
+            "Eroberungen zeigen",
+        ],
+    ),
+    (
+        "Show claims",
+        [
+            "Mostrar reclamaciones",
+            "Show claims",
+            "Afficher les revendications",
+            "Beanspruchungen zeigen",
+        ],
+    ),
+    (
+        "Show releases",
+        [
+            "Mostrar liberaciones",
+            "Show releases",
+            "Afficher les libérations",
+            "Freigaben zeigen",
+        ],
+    ),
+    ("Play route", ["Reproducir ruta", "Play route", "Lire la route", "Route abspielen"]),
+    ("Pause route", ["Pausar ruta", "Pause route", "Mettre en pause", "Route pausieren"]),
+    ("Whole route", ["Ruta completa", "Whole route", "Route entière", "Ganze Route"]),
+    (
+        "Toast for keeps and castles",
+        [
+            "Aviso por toast de fortalezas y castillo",
+            "Toast for keeps and castles",
+            "Notification pour forts et château",
+            "Hinweis für Festungen und Schloss",
+        ],
+    ),
+    (
+        "jump to {0}",
+        [
+            "salto a {0}",
+            "jump to {0}",
+            "saut vers {0}",
+            "Sprung nach {0}",
+        ],
+    ),
+    (
         "Following guilds lives in the Guilds tab, next to the match you are looking at.",
         [
             "Seguir clanes está en la pestaña Clanes, al lado de la partida que estás mirando.",

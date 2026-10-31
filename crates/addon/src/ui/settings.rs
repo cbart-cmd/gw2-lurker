@@ -13,7 +13,7 @@ use std::sync::Mutex;
 
 use gw2lurker_core::model::{Region, TeamColor};
 use gw2lurker_core::{select, AlertFilter, Candidate, FollowList, TeamTable};
-use nexus::imgui::{ComboBox, Slider, StyleColor, Ui};
+use nexus::imgui::{ComboBox, Selectable, Slider, StyleColor, Ui};
 
 use crate::config::{AlertScope, LanguagePreference};
 use crate::i18n;
@@ -72,6 +72,12 @@ struct Edits {
     widget_locked: bool,
     widget_click_through: bool,
     map_tiles: bool,
+    theme: crate::config::Theme,
+    background: crate::config::WidgetBackground,
+    font_scale: f32,
+    max_lines: i32,
+    kinds: crate::config::AlertKinds,
+    critical_toast: bool,
 }
 
 /// Body of the *Settings* tab: the whole form, without window chrome (T-42).
@@ -103,6 +109,12 @@ pub fn body(
         widget_locked: widget.locked,
         widget_click_through: widget.click_through,
         map_tiles: config.map_tiles,
+        theme: config.theme,
+        background: config.widget_background,
+        font_scale: config.font_scale,
+        max_lines: config.max_lines as i32,
+        kinds: config.alert_kinds,
+        critical_toast: config.critical_toast,
     };
     let before = edits.team_id;
 
@@ -116,6 +128,12 @@ pub fn body(
     config.popup_secs = edits.popup_secs.clamp(0.0, 5.0);
     config.popup_enabled = edits.popup_enabled;
     config.map_tiles = edits.map_tiles;
+    config.theme = edits.theme;
+    config.widget_background = edits.background;
+    config.font_scale = edits.font_scale.clamp(0.8, 1.6);
+    config.max_lines = edits.max_lines.clamp(1, 50) as usize;
+    config.alert_kinds = edits.kinds;
+    config.critical_toast = edits.critical_toast;
     config.followed = edits.follow;
     // The switches of the widget itself: written only when moved, so the chrome of this window
     // is not undone every frame (`×`, dragging, lock).
@@ -283,6 +301,7 @@ fn draw_body(
         edits.popup_secs = 2.0;
     }
     ui.checkbox(i18n::widget("Real map"), &mut edits.map_tiles);
+    draw_theme(ui, edits);
     ui.text_disabled(i18n::format(
         "Click-through keeps the mouse for the game. The shortcut {0} brings the window back, and it can be rebound in Nexus.",
         &[crate::ui::LOCK_SHORTCUT],
@@ -300,6 +319,75 @@ fn draw_body(
         ));
     }
     saved
+}
+
+/// Estilo y tamaño del texto de las ventanas, y qué se enseña en el widget (RF-19c, RF-60 a RF-63).
+fn draw_theme(ui: &Ui, edits: &mut Edits) {
+    ui.separator();
+    let style = match edits.theme {
+        crate::config::Theme::Inherited => i18n::text("Inherited from Nexus").to_owned(),
+        crate::config::Theme::Own => i18n::text("Addon's own dark theme").to_owned(),
+    };
+    ComboBox::new(i18n::widget("Window style"))
+        .preview_value(style)
+        .build(ui, || {
+            for (option, label) in [
+                (
+                    crate::config::Theme::Inherited,
+                    i18n::text("Inherited from Nexus"),
+                ),
+                (
+                    crate::config::Theme::Own,
+                    i18n::text("Addon's own dark theme"),
+                ),
+            ] {
+                if Selectable::new(label)
+                    .selected(edits.theme == option)
+                    .build(ui)
+                {
+                    edits.theme = option;
+                }
+            }
+        });
+
+    let background = match edits.background {
+        crate::config::WidgetBackground::Dark => i18n::text("Dark, semi-transparent").to_owned(),
+        crate::config::WidgetBackground::Transparent => i18n::text("Transparent").to_owned(),
+    };
+    ComboBox::new(i18n::widget("Background"))
+        .preview_value(background)
+        .build(ui, || {
+            for (option, label) in [
+                (
+                    crate::config::WidgetBackground::Dark,
+                    i18n::text("Dark, semi-transparent"),
+                ),
+                (
+                    crate::config::WidgetBackground::Transparent,
+                    i18n::text("Transparent"),
+                ),
+            ] {
+                if Selectable::new(label)
+                    .selected(edits.background == option)
+                    .build(ui)
+                {
+                    edits.background = option;
+                }
+            }
+        });
+
+    Slider::new(i18n::widget("Text size"), 0.8, 1.6)
+        .display_format("%.1f×")
+        .build(ui, &mut edits.font_scale);
+    ui.input_int(i18n::widget("Lines in the widget"), &mut edits.max_lines)
+        .build();
+    ui.checkbox(i18n::widget("Show captures"), &mut edits.kinds.flips);
+    ui.checkbox(i18n::widget("Show claims"), &mut edits.kinds.claims);
+    ui.checkbox(i18n::widget("Show releases"), &mut edits.kinds.unclaims);
+    ui.checkbox(
+        i18n::widget("Toast for keeps and castles"),
+        &mut edits.critical_toast,
+    );
 }
 
 /// Which maps and guilds deserve an alert (RF-19a), plus how long the pop-up lasts.
@@ -361,7 +449,7 @@ fn draw_region(ui: &Ui, edits: &mut Edits, candidates: &[Candidate]) {
                         region_code(region)
                     )
                 };
-                if nexus::imgui::Selectable::new(label)
+                if Selectable::new(label)
                     .selected(edits.narrowing.region == Some(region))
                     .build(ui)
                 {
@@ -384,7 +472,7 @@ fn draw_colour(ui: &Ui, edits: &mut Edits) {
             for colour in TeamColor::ALL {
                 let _tint = ui.push_style_color(StyleColor::Text, colour_rgba(colour));
                 let label = format!("{}###colour{:?}", colour_label(colour), colour);
-                if nexus::imgui::Selectable::new(label)
+                if Selectable::new(label)
                     .selected(edits.narrowing.colour == Some(colour))
                     .build(ui)
                 {
@@ -417,7 +505,7 @@ fn draw_team(
         .preview_value(current)
         .height(nexus::imgui::ComboBoxHeight::Large)
         .build(ui, || {
-            if nexus::imgui::Selectable::new(i18n::widget("No team configured yet"))
+            if Selectable::new(i18n::widget("No team configured yet"))
                 .selected(edits.team_id.is_none())
                 .build(ui)
             {
@@ -439,7 +527,7 @@ fn draw_team(
                     candidate.team_id
                 );
                 let _tint = ui.push_style_color(StyleColor::Text, colour_rgba(candidate.color));
-                if nexus::imgui::Selectable::new(label)
+                if Selectable::new(label)
                     .selected(edits.team_id == Some(candidate.team_id))
                     .build(ui)
                 {
@@ -518,7 +606,7 @@ fn draw_language(ui: &Ui, edits: &mut Edits) {
                 (LanguagePreference::De, "de", "German"),
             ] {
                 let label = format!("{}###lang{id}", i18n::text(key));
-                if nexus::imgui::Selectable::new(label)
+                if Selectable::new(label)
                     .selected(edits.language == preference)
                     .build(ui)
                 {
@@ -541,7 +629,7 @@ fn draw_scope(ui: &Ui, edits: &mut Edits) {
                 (AlertScope::AllMaps, "All maps of the matchup"),
             ] {
                 let label = format!("{}###scope{key}", i18n::text(key));
-                if nexus::imgui::Selectable::new(label)
+                if Selectable::new(label)
                     .selected(edits.scope == scope)
                     .build(ui)
                 {
@@ -583,126 +671,4 @@ fn colour_rgba(colour: TeamColor) -> [f32; 4] {
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-
-    fn candidate(team_id: u32, match_id: &str, color: TeamColor) -> Candidate {
-        Candidate {
-            team_id,
-            match_id: match_id.to_owned(),
-            color,
-            worlds: Vec::new(),
-        }
-    }
-
-    #[test]
-    fn rf03a_narrowing_starts_at_the_saved_team() {
-        let list = vec![
-            candidate(12014, "2-2", TeamColor::Blue),
-            candidate(12015, "2-2", TeamColor::Red),
-            candidate(11001, "1-1", TeamColor::Green),
-        ];
-        let start = initial_narrowing(Narrowing::default(), &list, Some(12015));
-        assert_eq!(start.region, Some(Region::Eu));
-        assert_eq!(start.colour, Some(TeamColor::Red));
-
-        let fallback = initial_narrowing(Narrowing::default(), &list, None);
-        assert_eq!(fallback.region, Some(Region::Eu), "la región del primero");
-        assert_eq!(fallback.colour, None, "sin equipo no se adivina el color");
-
-        assert_eq!(
-            initial_narrowing(Narrowing::default(), &[], None),
-            Narrowing::default()
-        );
-    }
-
-    #[test]
-    fn rf03a_both_regions_are_always_offered() {
-        // Regression of the 2026-10-31 bug: with no live teams the drop-down was empty.
-        // Regression of the 2026-10-31 bug: with no live teams the drop-down was empty.
-        // `draw_region` now offers EU and NA unconditionally, so the control always works;
-        // what this pins is that no data does not fabricate a preselection either.
-        let start = initial_narrowing(Narrowing::default(), &[], None);
-        assert_eq!(start.region, None, "sin datos no se preselecciona región");
-        assert_eq!(start.colour, None);
-    }
-
-    #[test]
-    fn rf03a_the_colour_is_offered_before_any_data() {
-        // `draw_colour` iterates `TeamColor::ALL`, which is static: the control is never empty.
-        assert_eq!(TeamColor::ALL.len(), 3);
-    }
-
-    #[test]
-    fn rf03a_narrowing_is_remembered_between_frames() {
-        let remembered = Narrowing {
-            region: Some(Region::Na),
-            colour: Some(TeamColor::Green),
-        };
-        let list = vec![candidate(12014, "2-2", TeamColor::Blue)];
-        let start = initial_narrowing(remembered, &list, Some(12014));
-        assert_eq!(
-            start,
-            Narrowing {
-                region: Some(Region::Na),
-                colour: Some(TeamColor::Green)
-            },
-            "lo que el jugador eligió gana a lo deducido"
-        );
-    }
-
-    #[test]
-    fn rf03f_the_field_starts_with_the_automatic_translation() {
-        let table = gw2lurker_core::bundled();
-        let empty = crate::config::Config::default();
-
-        // Without Mumble there is no character, so the roster cannot match; the automatic
-        // name is what the field shows for a chosen team.
-        assert_eq!(
-            initial_translation(&empty, table, Some(12014), "es"),
-            "Pajar de la Gran Casa"
-        );
-        assert_eq!(initial_translation(&empty, table, None, "es"), "");
-
-        let mut custom = crate::config::Config::default();
-        custom.set_custom_name(12014, "es", "Bosquemugoso", "Pajar de la Gran Casa");
-        assert_eq!(
-            initial_translation(&custom, table, Some(12014), "es"),
-            "Bosquemugoso",
-            "lo guardado gana al nombre de la tabla"
-        );
-    }
-
-    #[test]
-    fn rf03a_three_steps_bring_the_list_down_to_a_handful() {
-        let mut list = Vec::new();
-        for index in 1..=5 {
-            list.push(candidate(
-                12000 + index,
-                &format!("2-{index}"),
-                TeamColor::Blue,
-            ));
-            list.push(candidate(
-                12100 + index,
-                &format!("2-{index}"),
-                TeamColor::Red,
-            ));
-            list.push(candidate(
-                11000 + index,
-                &format!("1-{index}"),
-                TeamColor::Blue,
-            ));
-        }
-        assert_eq!(list.len(), 15, "lo que vería el jugador sin filtrar");
-
-        let eu_blue = select::of_region_and_color(&list, Region::Eu, TeamColor::Blue);
-        assert_eq!(eu_blue.len(), 5, "un equipo azul por matchup de EU");
-
-        let na_blue = select::of_region_and_color(&list, Region::Na, TeamColor::Blue);
-        assert_eq!(na_blue.len(), 5);
-        assert!(
-            select::of_region_and_color(&list, Region::Na, TeamColor::Red).is_empty(),
-            "y se avisa en vez de mostrar una lista vacía sin explicación"
-        );
-    }
-}
+mod tests;

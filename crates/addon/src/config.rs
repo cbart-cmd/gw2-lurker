@@ -151,6 +151,73 @@ pub struct Config {
     pub roster: gw2lurker_core::Roster,
     /// Draws the overlay outside WvW too. Diagnostic only: `false` in normal use (RF-01).
     pub debug_show_everywhere: bool,
+    /// Ventanas con el estilo de Nexus o con el tema propio del addon (RF-60, RF-61).
+    pub theme: Theme,
+    /// Fondo del widget: semitransparente oscuro o transparente del todo (RF-63).
+    pub widget_background: WidgetBackground,
+    /// Escala del texto de las ventanas del addon, 0.8–1.6 (RF-19c).
+    pub font_scale: f32,
+    /// Cuántas líneas enseña el widget de avisos (RF-19c). El registro tiene su propio tope.
+    pub max_lines: usize,
+    /// Qué tipos de aviso se enseñan en el widget y en el pop-up (RF-19c).
+    pub alert_kinds: AlertKinds,
+    /// Toast de Nexus para lo critico (fortalezas y castillo), desactivado por defecto (RF-19d).
+    pub critical_toast: bool,
+}
+
+/// Estilo de las ventanas del addon (RF-60, RF-61).
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum Theme {
+    /// Hereda el estilo que aplica Nexus: es lo que el jugador ya ve en el resto del juego.
+    #[default]
+    Inherited,
+    /// Tema oscuro propio, aplicado **solo** a las ventanas del addon (RF-61).
+    Own,
+}
+
+/// Fondo del widget (RF-63).
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum WidgetBackground {
+    /// Semitransparente oscuro: se lee sobre cualquier cosa.
+    #[default]
+    Dark,
+    /// Transparente: solo el texto. La opacidad sigue mandando.
+    Transparent,
+}
+
+/// Qué se enseña en el widget y en el pop-up (RF-19c).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(default)]
+pub struct AlertKinds {
+    /// Capturas y cambios de dueño.
+    pub flips: bool,
+    /// Reclamaciones de clanes.
+    pub claims: bool,
+    /// Objetivos que se quedan sin clan.
+    pub unclaims: bool,
+}
+
+impl Default for AlertKinds {
+    fn default() -> Self {
+        Self {
+            flips: true,
+            claims: true,
+            unclaims: true,
+        }
+    }
+}
+
+impl AlertKinds {
+    /// Whether a line of this kind is shown (RF-19c).
+    pub fn shows(&self, kind: crate::worker::AlertKind) -> bool {
+        match kind {
+            crate::worker::AlertKind::Flip => self.flips,
+            crate::worker::AlertKind::Claim => self.claims,
+            crate::worker::AlertKind::Unclaim => self.unclaims,
+        }
+    }
 }
 
 impl Default for Config {
@@ -175,6 +242,12 @@ impl Default for Config {
             windows: BTreeMap::new(),
             roster: gw2lurker_core::Roster::default(),
             debug_show_everywhere: false,
+            theme: Theme::default(),
+            widget_background: WidgetBackground::default(),
+            font_scale: 1.0,
+            max_lines: 5,
+            alert_kinds: AlertKinds::default(),
+            critical_toast: false,
         }
     }
 }

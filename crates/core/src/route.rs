@@ -55,6 +55,26 @@ pub struct Route {
     pub steps: Vec<Step>,
 }
 
+/// Cuántos pasos de la ruta se han «reproducido» con una fracción `progress` de 0 a 1 (RF-36).
+///
+/// Al menos uno desde el principio: una ruta sin su primer punto no dice de dónde sale.
+pub fn visible_steps(steps: usize, progress: f32) -> usize {
+    if steps == 0 {
+        return 0;
+    }
+    let clamped = progress.clamp(0.0, 1.0);
+    let count = (clamped * steps as f32).ceil() as usize;
+    count.clamp(1, steps)
+}
+
+/// Fracción de la ruta reproducida tras `elapsed` segundos de una reproducción de `seconds`.
+pub fn progress(elapsed: f32, seconds: f32) -> f32 {
+    if seconds <= 0.0 || !seconds.is_finite() {
+        return 1.0;
+    }
+    (elapsed / seconds).clamp(0.0, 1.0)
+}
+
 /// Builds the route of a guild on one map from its claims there.
 ///
 /// Claims already ordered by time (`guild_timeline` does that). The origin is **not** repeated
@@ -170,5 +190,31 @@ mod tests {
         assert!(!Origin::Garrison.reason().is_empty());
         assert!(!Origin::SideKeep.reason().is_empty());
         assert!(!Origin::Spawn.reason().is_empty());
+    }
+
+    #[test]
+    fn rf36_playback_shows_the_steps_it_has_reached() {
+        assert_eq!(visible_steps(0, 0.5), 0, "sin ruta no hay nada que enseñar");
+        assert_eq!(visible_steps(4, 0.0), 1, "al empezar ya está el origen");
+        assert_eq!(visible_steps(4, 0.5), 2, "a mitad de camino, dos pasos");
+        assert_eq!(visible_steps(4, 1.0), 4, "al final, todos");
+        assert_eq!(
+            visible_steps(4, 2.0),
+            4,
+            "una fracción imposible no se sale de la ruta"
+        );
+    }
+
+    #[test]
+    fn rf36_progress_goes_from_zero_to_one() {
+        assert_eq!(progress(0.0, 10.0), 0.0);
+        assert_eq!(progress(5.0, 10.0), 0.5);
+        assert_eq!(progress(20.0, 10.0), 1.0, "no pasa del final");
+        assert_eq!(
+            progress(5.0, 0.0),
+            1.0,
+            "sin duración (o con basura) la ruta está entera"
+        );
+        assert_eq!(progress(5.0, f32::NAN), 1.0);
     }
 }

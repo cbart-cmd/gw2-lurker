@@ -114,6 +114,60 @@ pub fn persist_if_changed() {
     gate.1 = Some(Instant::now());
 }
 
+/// The DLL on disk is not the one running: Nexus left a new one for the next start (RF-50).
+static STALE_DLL: OnceLock<Option<String>> = OnceLock::new();
+
+/// Version loaded in this session, from the crate metadata.
+pub fn loaded_version() -> &'static str {
+    env!("CARGO_PKG_VERSION")
+}
+
+/// Size and modification time of our own DLL, taken at load.
+static LOADED_DLL: OnceLock<Option<(u64, std::time::SystemTime)>> = OnceLock::new();
+
+/// Path of the DLL Nexus put on disk: `<juego>/addons/gw2_lurker.dll`.
+///
+/// It is the file Nexus replaces when an update is published, and the one named in its log line
+/// `Update available for …` (RF-50).
+fn own_dll_path() -> Option<std::path::PathBuf> {
+    let addons = nexus::paths::get_game_dir().ok()?.join("addons");
+    let path = addons.join("gw2_lurker.dll");
+    path.exists().then_some(path)
+}
+
+/// Remembers the DLL as it was at load, so a later change can be noticed (RF-50).
+fn remember_loaded_dll() {
+    let fingerprint = own_dll_path().and_then(|path| {
+        let meta = std::fs::metadata(&path).ok()?;
+        Some((meta.len(), meta.modified().ok()?))
+    });
+    let _ = LOADED_DLL.set(fingerprint);
+}
+
+/// Whether the file on disk changed since this session started, and its new size.
+///
+/// Nexus replaces the DLL file and asks for a restart; hot-loading is disabled on purpose
+/// (ADR-007). The check is cheap (one `metadata` call) and only runs from the render callback
+/// every few seconds.
+pub fn stale_dll() -> Option<String> {
+    let known = STALE_DLL.get_or_init(|| {
+        let path = own_dll_path()?;
+        let before = (*LOADED_DLL.get()?)?;
+        let meta = std::fs::metadata(&path).ok()?;
+        let now = (meta.len(), meta.modified().ok()?);
+        if now == before {
+            return None;
+        }
+        log::info!(
+            "actualizado en disco: la DLL ha cambiado ({} -> {} bytes); hace falta reiniciar",
+            before.0,
+            now.0
+        );
+        Some(path.display().to_string())
+    });
+    known.clone()
+}
+
 fn load() {
     let (config, report) = config::load();
     if let Some(error) = report.clone() {
@@ -123,6 +177,7 @@ fn load() {
     // back to defaults looks like the addon forgot everything.
     let _ = SAFE_MODE.set(report);
     let _ = CONFIG.set(config);
+    remember_loaded_dll();
 
     match config::config_path() {
         Ok(path) => log::info!("WvW Lurker: ajustes en {}", path.display()),

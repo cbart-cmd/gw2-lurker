@@ -234,12 +234,11 @@ mod tests {
         assert_eq!(table.name_in("es", 12010), Some("Puerta de Grenth"));
         assert_eq!(table.label_in("fr", 12010), "Porte de Grenth (12010)");
 
-        // 12014 matches the spreadsheet too.
-        assert_eq!(
-            table.name_in("es", 12014),
-            Some("Pajar de la Gran Casa"),
-            "traduccion literal del Excel; el nombre oficial en el juego es otro"
-        );
+        // 12014 tiene nombre en español, pero **cuál** es cosa del jugador: puede traducirlo en
+        // cualquier momento desde la tabla (`data/team-names.json`) y el addon respeta lo suyo
+        // (petición de 2026-10-31). Aquí solo se fija que lo hay y que no está vacío.
+        let aviary = table.name_in("es", 12014).expect("siempre hay nombre");
+        assert!(!aviary.trim().is_empty(), "12014 sin nombre en español");
 
         // Un equipo que no está en el Excel nunca se queda vacío: o el inglés o lo que el jugador
         // haya escrito en la tabla. El nombre exacto no se fija aquí a propósito, porque el

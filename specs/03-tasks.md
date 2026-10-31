@@ -2,18 +2,18 @@
 
 Cada tarea es pequeña y verificable. Orden recomendado; las dependencias se indican entre paréntesis.
 
-## Estado a 2026-10-31 (0.21.0)
+## Estado a 2026-10-31 (0.22.0)
 
 Lo que **queda vivo**, con por qué:
 
 | Tarea | Qué falta | Necesita |
 |---|---|---|
 | **T-19** | Checklist manual en el juego: widget bloqueado sin capturar clics, activar/desactivar por mapa, reset semanal, API 503, clan con tag raro | El jugador |
-| **T-21 (S)** | RF-11, RF-15, RF-19b, RF-19c, RF-35: atajo e icono de Quick Access | Programa |
-| **T-22 (C)** | RF-19d, RF-36: reproducción animada de la ruta | Programa |
+| **T-21 (S)** | RF-11 y RF-15 (avisos de bajada de yaks/upgrades y capturas informativas) y el acceso rapido con atajo propio; RF-19b, RF-19c y RF-35 hechos en 0.19-0.22 | Programa |
+| **T-22 (C)** | RF-19d y RF-36 hechos en 0.22; queda el sonido opcional, que nexus-rs 0.12 no puede (sin API de audio) | API de Nexus |
 | **T-24** | Cerrar los 3 pendientes de `05-wireframes.md` | Decisión de diseño |
-| **T-25 (parcial)** | El banner de «hay versión nueva» dentro del addon (el aviso lo da Nexus) | Programa |
-| **T-28** | Módulo `theme`: heredar el estilo de Nexus y colores de equipo fijos | Programa |
+| **T-25 ✔ (2026-10-31)** | Banner de version nueva hecho en 0.22 (RF-50) | - |
+| **T-28 ✔ (2026-10-31)** | Modulo ui::theme hecho en 0.22 (RF-60 a RF-63) | - |
 | **T-41 (S)** | Terminología fr/de con hablantes nativos | Nativos |
 
 Todo lo demás está hecho y con test; las que llevan `✔` citan en su línea el fichero o el test que
@@ -218,9 +218,9 @@ lo demuestra. El estado fino, con fechas y versiones, está en `PROGRESO.md`.
 - **T-18 ✔ (2026-10-31)** Medición de frame time con mapa abierto. *Hecho:* < 0.5 ms (RNF-01).
 - **T-19** Checklist manual en el juego: widget bloqueado sin capturar clics, activar/desactivar por mapa, reset semanal, sin red, API 503, guild con claims reales.
 - **T-20 ✔ (2026-10-31, parcial)** README, CHANGELOG, `docs/` de usuario, instalación, limitaciones conocidas (RNF-05), empaquetado de la DLL.
-- **T-28** Módulo `theme`: herencia del estilo de Nexus, tema propio opcional aplicado solo a ventanas del addon (stack de estilo push/pop), colores de equipo fijos y fondo del widget configurable. (T-13, T-17) — RF-60..63
-- **T-21 (S)** RF-11, RF-15, RF-19b, RF-19c, RF-35, atajo/icono de Quick Access.
-- **T-22 (C)** RF-19d, RF-36, reproducción animada de la ruta.
+- **T-28 ✔ (2026-10-31)** Módulo `theme`: herencia del estilo de Nexus, tema propio opcional aplicado solo a ventanas del addon (stack de estilo push/pop), colores de equipo fijos y fondo del widget configurable. (T-13, T-17) — RF-60..63
+- **T-21 (S) ✔ (2026-10-31, parcial)** RF-11, RF-15, RF-19b, RF-19c, RF-35, atajo/icono de Quick Access.
+- **T-22 (C) ✔ (2026-10-31, parcial)** RF-19d, RF-36, reproducción animada de la ruta.
 
 ## Fase 6 – MVP de validación (backlog priorizado)
 

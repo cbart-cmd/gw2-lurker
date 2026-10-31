@@ -166,6 +166,12 @@ pub fn body(ui: &Ui, view: &View<'_>, role: &mut MapRole, here: Option<MapRole>)
 
     let since =
         range_choice(ui).map(|minutes| chrono::Utc::now() - chrono::Duration::minutes(minutes));
+    // Reproducción animada de la ruta (RF-36): play/pausa y una barra de progreso. Sin reproducir
+    // se dibuja la ruta entera, que es lo que se quiere casi siempre.
+    let played = playback_control(
+        ui,
+        history.iter().filter(|row| row.map_id == map.id).count(),
+    );
     draw_route(
         &list,
         &RouteCanvas {
@@ -177,6 +183,7 @@ pub fn body(ui: &Ui, view: &View<'_>, role: &mut MapRole, here: Option<MapRole>)
         names,
         history,
         since,
+        played,
     );
 
     match hovered.and_then(|index| drawn.get(index)) {
@@ -213,7 +220,8 @@ fn draw_tiles(
         ) else {
             continue;
         };
-        // `project` ya invierte la Y: la esquina "mínima" en pantalla es la de arriba.
+        // Las dos esquinas se proyectan igual: continente e imgui crecen hacia el sur, así que no
+        // hay que invertir nada y la imagen de la tesela se coloca con su norte arriba.
         let p_min = [a[0].min(b[0]), a[1].min(b[1])];
         let p_max = [a[0].max(b[0]), a[1].max(b[1])];
         list.add_image(texture, p_min, p_max)
@@ -453,6 +461,7 @@ fn draw_route(
     names: &[ObjectiveInfo],
     history: &[ClaimRow],
     since: Option<chrono::DateTime<chrono::Utc>>,
+    played: Option<usize>,
 ) {
     let frame = canvas.frame;
     let origin = canvas.origin;
@@ -478,6 +487,10 @@ fn draw_route(
     }
     // `history` llega en orden de llegada; el dibujo va en orden temporal (RF-32).
     steps.sort_by_key(|(_, at)| *at);
+    // Reproducción animada (RF-36): solo los pasos ya «reproducidos».
+    if let Some(played) = played {
+        steps.truncate(played.clamp(1, steps.len()));
+    }
 
     for pair in steps.windows(2) {
         list.add_line(pair[0].0, pair[1].0, [1.0, 0.75, 0.3, 0.8])
@@ -506,6 +519,49 @@ fn draw_route(
         list.add_circle(*last, 12.0, [1.0, 0.4, 0.2, 1.0])
             .thickness(2.0)
             .build();
+    }
+}
+
+/// Cuánto dura una reproducción completa de la ruta, en segundos (RF-36).
+const PLAYBACK_SECS: f32 = 12.0;
+
+/// Estado de la reproducción: desde cuándo corre, o `None` si está parada (RF-36).
+static PLAYBACK: std::sync::OnceLock<std::sync::Mutex<Option<std::time::Instant>>> =
+    std::sync::OnceLock::new();
+
+/// Play/pausa de la ruta y cuántos pasos hay que dibujar, `None` para dibujarla entera.
+fn playback_control(ui: &Ui, steps: usize) -> Option<usize> {
+    if steps < 2 {
+        return None;
+    }
+    let slot = PLAYBACK.get_or_init(|| std::sync::Mutex::new(None));
+    let mut started = *slot.lock().unwrap_or_else(|error| error.into_inner());
+    let playing = started.is_some();
+    let label = if playing {
+        i18n::widget("Pause route")
+    } else {
+        i18n::widget("Play route")
+    };
+    if ui.button(label) {
+        started = if playing {
+            None
+        } else {
+            Some(std::time::Instant::now())
+        };
+        *slot.lock().unwrap_or_else(|error| error.into_inner()) = started;
+    }
+    ui.same_line();
+    match started {
+        None => {
+            ui.text_disabled(i18n::text("Whole route"));
+            None
+        }
+        Some(at) => {
+            let fraction =
+                gw2lurker_core::route::progress(at.elapsed().as_secs_f32(), PLAYBACK_SECS);
+            ui.text_disabled(format!("{:.0} %", fraction * 100.0));
+            Some(gw2lurker_core::route::visible_steps(steps, fraction))
+        }
     }
 }
 
@@ -585,12 +641,9 @@ fn draw_objective(
     }
 }
 
+/// Los colores de equipo salen del mismo sitio en todo el addon (RF-62).
 fn colour_rgba(colour: TeamColor) -> [f32; 4] {
-    match colour {
-        TeamColor::Red => [0.92, 0.35, 0.35, 1.0],
-        TeamColor::Green => [0.42, 0.82, 0.45, 1.0],
-        TeamColor::Blue => [0.42, 0.62, 0.95, 1.0],
-    }
+    super::theme::team_colour(colour)
 }
 
 fn map_label(role: MapRole) -> &'static str {

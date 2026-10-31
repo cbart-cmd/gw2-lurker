@@ -15,13 +15,17 @@
 //!   (`NO_INPUTS`), so during a fight every click goes to the game. The way back is the
 //!   shortcut or the Nexus options (RF-18).
 
-use nexus::imgui::{Condition, MenuItem, MouseButton, Slider, Ui, Window};
+use nexus::imgui::{
+    ChildWindow, Condition, MenuItem, MouseButton, Slider, Ui, Window, WindowHoveredFlags,
+};
 
 use crate::config::WindowState;
 use crate::i18n;
 
 /// Smallest window the user can shrink.
 const MIN_SIZE: [f32; 2] = [180.0, 90.0];
+/// Smallest body region, so a window shrunk to nothing still has somewhere to draw.
+const MIN_BODY_HEIGHT: f32 = 24.0;
 /// Width reserved for the close button.
 const CLOSE_WIDTH: f32 = 24.0;
 
@@ -63,7 +67,7 @@ pub fn draw(
         .size(size, Condition::FirstUseEver)
         .position(position, Condition::FirstUseEver)
         .size_constraints(MIN_SIZE, [4096.0, 4096.0])
-        .bg_alpha(state.opacity);
+        .bg_alpha(bg_alpha(state.opacity));
     if state.collapsed {
         window = window.always_auto_resize(true);
     }
@@ -72,6 +76,12 @@ pub fn draw(
     }
 
     window.build(ui, || {
+        // RF-60/RF-61: estilo heredado de Nexus (nada) o el tema propio, **solo** dentro de esta
+        // ventana.
+        let _style = super::theme::apply(ui, crate::config().theme);
+        if crate::config().font_scale > 0.0 {
+            ui.set_window_font_scale(crate::config().font_scale.clamp(0.8, 1.6));
+        }
         let start = ui.cursor_pos();
         let width = ui.content_region_avail()[0];
         // El botón de cerrar va **primero** y solo después el título: con una barra invisible a
@@ -98,7 +108,12 @@ pub fn draw(
             }
         }
 
-        if ui.is_window_hovered() && ui.is_mouse_clicked(MouseButton::Right) {
+        // Con el cuerpo dentro de una ventana hija, `is_window_hovered()` a secas diría que no
+        // mientras el ratón está sobre el cuerpo, que es casi todo el widget: hay que pedir
+        // `CHILD_WINDOWS` o el menú del clic derecho solo abriría en el borde.
+        if ui.is_window_hovered_with_flags(WindowHoveredFlags::CHILD_WINDOWS)
+            && ui.is_mouse_clicked(MouseButton::Right)
+        {
             ui.open_popup(&menu_id);
         }
         if let Some(_menu) = ui.begin_popup(&menu_id) {
@@ -125,7 +140,20 @@ pub fn draw(
 
         if !state.collapsed {
             ui.separator();
-            body(ui);
+            // El cuerpo va en una ventana hija con su propia barra: si scrollease la ventana
+            // entera, una pestaña larga (Ajustes) se llevaba la cabecera fuera y el `×` y el menú
+            // del clic derecho dejaban de estar a mano (informe de 2026-10-31).
+            let spacing = ui.clone_style().item_spacing[1];
+            let avail = ui.content_region_avail();
+            let height = (avail[1] - spacing).max(MIN_BODY_HEIGHT);
+            let width = avail[0].max(1.0);
+            let body_id = format!("###gw2lurker_body_{key}");
+            ChildWindow::new(body_id.as_str())
+                .size([width, height])
+                .scrollable(true)
+                .draw_background(false)
+                .border(false)
+                .build(ui, || body(ui));
         }
     });
 
@@ -147,6 +175,17 @@ fn clamp_size(size: [f32; 2]) -> [f32; 2] {
         size[0].clamp(MIN_SIZE[0], 4096.0),
         size[1].clamp(MIN_SIZE[1], 4096.0),
     ]
+}
+
+/// Opacidad del fondo de la ventana según el ajuste (RF-63).
+///
+/// El fondo transparente deja solo el texto: la opacidad de la ventana sigue mandando, así que se
+/// puede tener «sin fondo» y aun así atenuado.
+fn bg_alpha(opacity: f32) -> f32 {
+    match crate::config().widget_background {
+        crate::config::WidgetBackground::Dark => opacity.clamp(0.0, 1.0),
+        crate::config::WidgetBackground::Transparent => 0.0,
+    }
 }
 
 /// Whether a point falls inside a window drawn at `position` with that `size`.

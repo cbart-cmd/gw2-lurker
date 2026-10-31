@@ -13,6 +13,62 @@ Reglas:
 
 ---
 
+## HECHO – 2026-10-31 · Tema, avisos configurables, toast crítico, reproducción y banner (0.22.0)
+
+Todas las tareas que quedaban sin depender del jugador ni de terceros.
+
+- **T-28 · `ui::theme` (RF-60 a RF-63)**: `Config::theme` (`Inherited` por defecto, `Own`), aplicado
+  con la pila de estilo de imgui **solo dentro de nuestras ventanas** (los `push` devuelven un token
+  que saca lo empujado al caer: en esta versión no hay `pop_style_color`, y llevar la cuenta a mano
+  dejaba la pila descuadrada). `Config::widget_background` (`Dark`/`Transparent`, RF-63) y los colores
+  de equipo en **un solo sitio** (`theme::team_colour`), usados por widget, mapa e historial (RF-62).
+  Dos tests: colores distintos y tabla de estilo sin duplicados.
+- **RF-19c**: `font_scale` (0,8–1,6, aplicado con `set_window_font_scale`), `max_lines` y `alert_kinds`
+  (capturas/reclamaciones/liberaciones) filtran el widget, el registro y el pop-up.
+- **RF-19d**: `critical_toast` (desactivado por defecto) manda `nexus::alert::send_alert` para
+  fortalezas y castillo (`alerts::is_critical`, con test). **El sonido no se puede**: `nexus-rs` 0.12
+  no expone ninguna API de audio.
+- **RF-36**: `route::progress` y `route::visible_steps` (puros, con tests) y play/pausa en la pestaña
+  Mapa; `draw_route` recorta los pasos ya «reproducidos».
+- **RF-35**: `guilds::route_steps` inserta «salto a <mapa>» cuando la ruta cruza de mapa, emparejando
+  los pasos por `objective_id`. Test `rf35_a_route_that_crosses_maps_says_jump_to` (por eso el helper
+  recibe el idioma: leer el activo pasa por la API de Nexus y revienta fuera del juego).
+- **RF-50 · banner de versión nueva**: al cargar se apunta tamaño y fecha de
+  `<juego>/addons/gw2_lurker.dll`; si cambian, el widget lo dice en naranja con la ruta al pasar el
+  ratón. Advertí de que la versión nueva **no** se puede leer del fichero (la DLL no lleva recurso de
+  versión), así que el aviso nombra la que está corriendo.
+- Verificación: 206 tests en verde (88 addon · 15 api · 97 core · 6 store), `clippy -D warnings`
+  limpio, ningún fichero por encima de 800 líneas.
+
+### Añadido después, en la misma 0.22.0 (ronda del 2026-10-31, «borra los bugs resueltos»)
+
+- **El mapa estaba del revés (bug de verdad, no solo de teselas).** `project::to_screen` invertía la
+  Y «porque el API dibuja con Y arriba», y eso era una suposición, no un dato. Medido:
+  `/v2/continents/1/floors/1` da `Orr y≈42112`, `Kryta y≈30080`, `Janthir y≈16252`,
+  `Cantha y≈101100`, y Orr está al **sur** de Kryta, así que **más Y = más al sur**. Comprobado
+  bajando las 16 teselas de Eternos y pegándolas en orden de fila: el mapa sale al derecho y cada
+  objetivo cae sobre su estructura (*Stonemist Castle* en el castillo central, *Overlook* en el norte,
+  *Lowlands*/*Valley* en las esquinas del sur). Con la inversión, el norte salía abajo y cada fila de
+  teselas en el sitio de otra: eso era el «se ven 3 trozos, el norte y el sur intercambiados». Ahora la
+  proyección es escala y desplazamiento, sin espejo, con el invariante fijado en el test
+  `rf30_the_real_orientation_matches_the_continent_data`. Detalle en `07-spikes.md`.
+- **La cabecera del widget no se va con el scroll.** El cuerpo se dibuja en un `ChildWindow` con barra
+  propia y tamaño = lo que queda de ventana, así que la pestaña de Ajustes scrollea dentro y el `×` y
+  el menú del clic derecho siguen donde estaban. Ojo: con el cuerpo en una ventana hija,
+  `ui.is_window_hovered()` a secas deja de ser cierto sobre el cuerpo, así que el menú del clic derecho
+  pasa a `is_window_hovered_with_flags(CHILD_WINDOWS)`; sin eso solo abriría en el borde.
+- **Tests de nombres de equipo que se rompían al traducirlos.** Tres tests fijaban el español del
+  Excel (`Pajar de la Gran Casa`); el jugador lo cambió a `Gran Aviario` en `data/team-names.json` y
+  los tests se cayeron. Ahora comprueban el **mecanismo** (la tabla manda si no hay nombre propio, el
+  nombre propio gana, vaciar vuelve a la tabla) tomando el texto del fichero, sin fijarlo.
+- **`bugs.md` se limpia.** A petición del jugador, los bugs arreglados **se borran** del fichero (el
+  histórico vive en esta bitácora y en `CHANGELOG.md`); quedan solo cuatro pendientes y §9 de
+  `AGENTS.md` ya lo dice así.
+- Verificación: 207 tests en verde (88 addon · 15 api · 98 core · 6 store), `clippy -D warnings`
+  limpio, `cargo fmt --check` limpio, ningún fichero por encima de 800 líneas.
+- **No verificado**: nada de esto se ha visto dentro del juego todavía (orientación del mapa, scroll de
+  la cabecera, menú del clic derecho sobre el cuerpo).
+
 ## HECHO – 2026-10-31 · La ventana vuelve a moverse, el registro va ligero y el equipo se reconoce (0.21.0)
 
 - **La ventana no se movía y el `×` plegaba**: regresión de 0.18.0. La barra de título se había
