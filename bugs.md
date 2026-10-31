@@ -34,6 +34,11 @@ cuando pasa un rato de varios munutos, no recoge información de quien reclama. 
   (con la detección cacheada un cuarto de hora, miraba otra partida 14 de cada 15 minutos). Y el
   equipo del personaje se guarda con su nombre: con «Guild Wars 2» como clave, el equipo se
   buscaba bajo una entrada que no era el personaje.
+- **Causa encontrada (2026-11-01, 0.24.1):** la partida se queda **congelada en la API de ArenaNet**.
+  Medido con `curl`: `1-1` devolvió 20 minutos la misma copia, puntos incluidos, mientras las otras
+  ocho se movían. El addon sondeaba cada 5,2 s. Ahora el widget lo avisa en naranja a partir de 5
+  minutos (`ArenaNet's API has not published any change…`), así que «no pasa nada» deja de parecer
+  «el addon está parado». Ver la entrada «deja de registrar eventos a los ~11 minutos».
 - **Pendiente:** los `sondeo N: … último reclamo hace X min` del log dicen que entre las 22:02 y las
   23:04 la API de esa partida no publicó **ningún** reclamo y luego llegaron todos de golpe. Si con
   la 0.22.10 vuelve a pararse a los 10 minutos, esas líneas (cada 10 sondeos) dicen si el addon

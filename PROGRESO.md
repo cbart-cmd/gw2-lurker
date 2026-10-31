@@ -13,6 +13,23 @@ Reglas:
 
 ---
 
+## HECHO – 2026-11-01 · La causa de «deja de registrar eventos»: la API congela la partida (0.24.1)
+
+- El jugador reapuntó los «~10 minutos» y aportó captura (`image-6.png`): a las 00:15 la cabecera
+  decía «última actualización 00:15:20» y «último reclamo hace 7 min», estando en alpino azul con el
+  equipo Invernadero de Lutgardis. Es decir: el addon **no** estaba parado.
+- **Medido con `curl`, al margen del addon:** la partida `1-1` devolvía la misma copia durante
+  al menos 20 minutos —reclamo más nuevo 23:07:58 UTC y **puntos congelados**
+  (`67568/52264/35741` en cuatro consultas separadas)— mientras `2-3`, `1-2`, `1-3` y `1-4`
+  avanzaban (23:20–23:25). Ni CDN (mismo resultado con `?cb=`) ni WinHTTP: es el backend de
+  ArenaNet. Comprobado también que el equipo `11011` solo está en `1-1` y que el clan `DDK`
+  (`ACBC90A5`) no aparece en ninguna de las nueve, porque su partida es esa y su copia está vieja.
+- Arreglo posible: `core::matchup::digest` (huella de puntos + objetivos), `payload_digest` y
+  `payload_since` en el Dashboard, y aviso naranja a partir de 5 minutos con los minutos y el
+  intervalo. Así «no pasa nada» no se confunde con «el addon está parado».
+- **Ojo:** `bugs.md` se había quedado sin las entradas anteriores al añadir las de la 0.24.0 (fallo
+  mío al reescribir el fichero con PowerShell). Restauradas desde el commit `349bbef`.
+- Verificación: 226 tests, clippy/fmt limpios, 0.24.1 publicada (MD5 `92ec8b87…`) e instalada.
 ## HECHO – 2026-11-01 · Fuera el historial en disco, nombres de clan de verdad y buscador con caché (0.24.0)
 
 - Seis peticiones del jugador, todas con causa medida:
