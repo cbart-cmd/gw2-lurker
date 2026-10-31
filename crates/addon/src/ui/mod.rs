@@ -244,6 +244,15 @@ fn draw_tabs(
 
     let mut change = None;
 
+    // RF-51: a broken settings file says so, in red, above everything else.
+    if let Some(report) = crate::safe_mode() {
+        let _tint = ui.push_style_color(nexus::imgui::StyleColor::Text, [1.0, 0.45, 0.45, 1.0]);
+        ui.text_wrapped(i18n::format(
+            "Settings could not be read ({0}); running with defaults.",
+            &[&report],
+        ));
+    }
+
     // The status of the worker, above the tabs: it is what tells a bug from a quiet matchup.
     draw_health(ui, config, data);
     ui.separator();

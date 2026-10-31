@@ -108,6 +108,11 @@ Cada tarea es pequeña y verificable. Orden recomendado; las dependencias se ind
   — RF-31, RF-23
 - **T-16** Vista Histórico: ruta simulada numerada, flechas, selector de rango, banner de "inferida", estilo para `late`/`gap`, tooltip. (T-15) — RF-32, RF-33, RF-34
 
+- **T-26 ✔ (2026-10-31)** Modo seguro: un `settings.json` ilegible se renombra a
+  `settings.json.corrupt-<fecha>`, el addon sigue con los valores por defecto y **lo dice en rojo**
+  encima de la ventana (`lib::safe_mode`, aviso permanente durante la sesión). El registro de la
+  sesión ya toleraba líneas corruptas (`adr003_corrupt_line_is_skipped_and_counted`). (T-10, T-12)
+  — RF-51, RNF-06
 - **T-29 (S)** `map::background` y `map::icons`: fondo opcional con teselas oficiales e iconos de objetivo del campo `marker`, con caché en disco y sin empaquetar imágenes (ADR-011). Desactivado por defecto. *Hecho:* el mapa se ve igual con el fondo apagado. (T-14) — RF-37, RF-38
 
 ## Fase 4b – Actualización y fallo seguro

@@ -47,6 +47,17 @@ static RUNTIME: OnceLock<Mutex<config::Config>> = OnceLock::new();
 /// Background writer for `settings.json`. `Option` so `unload` can take it and join.
 static WRITER: OnceLock<Mutex<Option<writer::Writer>>> = OnceLock::new();
 
+/// Why the configuration could not be read, if it could not (RF-51).
+///
+/// Kept for the whole session: the notice has to stay visible until the player closes the game,
+/// because that is when the file gets rewritten and the problem stops being obvious.
+static SAFE_MODE: OnceLock<Option<String>> = OnceLock::new();
+
+/// The load report, `Some` when the addon is running on defaults after a broken file (RF-51).
+pub fn safe_mode() -> Option<String> {
+    SAFE_MODE.get().cloned().flatten()
+}
+
 /// Editable configuration used by the UI.
 ///
 /// Copies the loaded config on first use, so the render callback never blocks on file I/O
@@ -101,9 +112,12 @@ pub fn persist_if_changed() {
 
 fn load() {
     let (config, report) = config::load();
-    if let Some(error) = report {
+    if let Some(error) = report.clone() {
         log::warn!("config: {error}");
     }
+    // RF-51: a broken file is not only logged, it is shown. A settings file that silently went
+    // back to defaults looks like the addon forgot everything.
+    let _ = SAFE_MODE.set(report);
     let _ = CONFIG.set(config);
 
     match config::config_path() {

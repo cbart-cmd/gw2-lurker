@@ -78,8 +78,16 @@ pub const TEXT: &[(&str, [&str; COLUMNS])] = &[
         ],
     ),
     (
-        "Nothing matches the filters",
+        "Settings could not be read ({0}); running with defaults.",
         [
+            "No se pudo leer la configuración ({0}); se usan los valores por defecto.",
+            "Settings could not be read ({0}); running with defaults.",
+            "Impossible de lire la configuration ({0}) ; valeurs par défaut utilisées.",
+            "Die Einstellungen konnten nicht gelesen werden ({0}); es gelten die Vorgaben.",
+        ],
+    ),
+    (
+        "Nothing matches the filters",        [
             "Nada cumple los filtros",
             "Nothing matches the filters",
             "Rien ne correspond aux filtres",

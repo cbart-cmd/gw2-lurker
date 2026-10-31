@@ -13,6 +13,15 @@ Reglas:
 
 ---
 
+## HECHO – 2026-10-31 · Aviso de configuración dañada (T-26; 0.14.0)
+
+- `config::load` ya renombraba el fichero ilegible y devolvía un informe, pero ese informe solo iba
+  al registro. Ahora `lib::safe_mode` lo guarda para la sesión y `ui::draw_tabs` lo pinta en rojo
+  encima de todo (RF-51): volver a los valores por defecto en silencio parece que el addon olvidó
+  la configuración.
+- La verificación de 0.13.2 en la CDN de `raw/main` terminó en verde al reintentar (bytes y MD5
+  coinciden); la trampa de siempre, no un fallo de la publicación.
+
 ## HECHO – 2026-10-31 · «Alto valor» por dato y no por tipo (0.13.2)
 
 - `ClaimRow` gana `points_tick`, copiado del objetivo del snapshot en `matchup::claims` y en

@@ -1,6 +1,12 @@
 # Changelog
 Formato [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/), versionado [SemVer](https://semver.org/lang/es/).
 
+## [0.14.0] - 2026-10-31
+### Añadido
+- **Aviso de configuración dañada** (T-26, RF-51): si `settings.json` no se puede leer, el addon
+  arranca con los valores por defecto y ahora lo dice en rojo encima de la ventana, en vez de
+  dejarlo solo en el registro. El fichero dañado se conserva como `settings.json.corrupt-<fecha>`.
+
 ## [0.13.2] - 2026-10-31
 ### Corregido
 - **«Alto valor» ahora sale del dato, no del tipo**: `ClaimRow` guarda el `points_tick` del
