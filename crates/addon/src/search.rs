@@ -34,6 +34,8 @@ pub struct Hit {
     pub id: String,
     /// `[TAG] Nombre`.
     pub label: String,
+    /// Team it plays for right now, when the map of the region knows it.
+    pub team: Option<u32>,
 }
 
 /// What the window draws while the thread works.
@@ -61,7 +63,11 @@ pub fn snapshot() -> State {
 }
 
 /// Starts a search on its own thread. Returns `false` if one is already running.
-pub fn start(region: Region, team: u32, text: String) -> bool {
+///
+/// `team` is **optional**: the region is what the search needs to look in the right half of the
+/// world, and asking for a team as well left the button doing nothing whenever the list of live
+/// teams had not arrived (bug of 2026-10-31).
+pub fn start(region: Region, team: Option<u32>, text: String) -> bool {
     {
         let mut state = slot().lock().unwrap_or_else(|error| error.into_inner());
         if matches!(*state, State::Searching) {
@@ -89,21 +95,24 @@ pub fn start(region: Region, team: u32, text: String) -> bool {
     true
 }
 
-fn run(region: Region, team: u32, text: &str) -> Result<Vec<Hit>, String> {
+fn run(region: Region, team: Option<u32>, text: &str) -> Result<Vec<Hit>, String> {
     let api = Api::new(WinHttpTransport::default());
     let ids = api.guild_search(text).map_err(|error| error.to_string())?;
     let teams = teams_of(region, &api)?;
 
     let mut hits = Vec::new();
     for id in ids.into_iter().take(MAX_LOOKUPS) {
-        // Only the team asked for: that is the whole point of the team selector.
-        if teams.get(&id) != Some(&team) {
+        let of_team = teams.get(&id).copied();
+        // With a team chosen, only that team: that is what the selector means. Without one, the
+        // whole region, which is what "Team (any)" says.
+        if team.is_some_and(|wanted| of_team != Some(wanted)) {
             continue;
         }
         match api.guild(&id) {
             Ok(info) => hits.push(Hit {
                 id,
                 label: crate::catalog::guild_label(&info),
+                team: of_team,
             }),
             Err(error) => log::debug!("search: sin nombre de {id} ({error})"),
         }
@@ -112,8 +121,9 @@ fn run(region: Region, team: u32, text: &str) -> Result<Vec<Hit>, String> {
         }
     }
     log::info!(
-        "search: {} resultados para «{text}» en el equipo {team}",
-        hits.len()
+        "search: {} resultados para «{text}» en {:?} con equipo {team:?}",
+        hits.len(),
+        region
     );
     Ok(hits)
 }
@@ -146,7 +156,7 @@ mod tests {
     fn t44_a_search_is_not_started_on_top_of_another() {
         *slot().lock().unwrap() = State::Searching;
 
-        assert!(!start(Region::Eu, 12014, "lord".to_owned()));
+        assert!(!start(Region::Eu, Some(12014), "lord".to_owned()));
         assert_eq!(snapshot(), State::Searching, "el estado no se pisa");
 
         *slot().lock().unwrap() = State::Idle;

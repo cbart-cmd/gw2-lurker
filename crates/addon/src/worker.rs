@@ -16,15 +16,14 @@ use chrono::{DateTime, Utc};
 use gw2lurker_api::Api;
 use gw2lurker_core::diff::{Differ, Event};
 use gw2lurker_core::matchup::{self, ClaimRow, GuildSummary};
-use gw2lurker_core::model::{MapRole, Match, ObjectiveInfo, TeamColor};
+use gw2lurker_core::model::{MapRole, Match, ObjectiveInfo};
 use gw2lurker_core::select::{self, Selection};
 use gw2lurker_store::{Record, SessionStore};
 
+pub use crate::alerts::{AlertKind, AlertLine, Received};
 use crate::catalog::{maps_for, objectives_for, resolve_guild_names};
 use crate::net::WinHttpTransport;
 
-/// Rounds of alerts kept for the widget (RF-19); the store keeps everything else.
-const MAX_ALERTS: usize = 50;
 /// Claims kept in memory for the guild history of the session (RF-72); the store has all.
 const MAX_HISTORY: usize = 2000;
 
@@ -87,127 +86,6 @@ pub struct Dashboard {
 }
 
 impl Dashboard {
-    fn push_alert(&mut self, event: Event) {
-        if !matches!(event, Event::Baseline { .. } | Event::Gap { .. }) {
-            self.alerts.push(Received {
-                event,
-                received: Utc::now(),
-            });
-            if self.alerts.len() > MAX_ALERTS {
-                let excess = self.alerts.len() - MAX_ALERTS;
-                self.alerts.drain(..excess);
-            }
-        }
-    }
-
-    /// Recent events as ready-to-draw lines, **newest first** (RF-19), already filtered.
-    ///
-    /// The objective ids are resolved here so the render callback never searches the table,
-    /// and the result is owned so the dashboard lock is not held while drawing. `filter`,
-    /// `follow` and `current` decide which ones the player asked for (RF-19a).
-    pub fn recent_alerts(
-        &self,
-        filter: &gw2lurker_core::AlertFilter,
-        follow: &gw2lurker_core::FollowList,
-        current: Option<MapRole>,
-        limit: usize,
-    ) -> Vec<AlertLine> {
-        self.alerts
-            .iter()
-            .rev()
-            .filter_map(|received| self.alert_line(&received.event, received.received))
-            // What was already claimed when the addon started is not news: showing it made the
-            // widget look like it never forgot anything (bug of 2026-10-31). The exception is a
-            // followed guild, which is followed precisely to hear about it (RF-21, RF-25).
-            .filter(|line| {
-                !line.late
-                    || line
-                        .guild
-                        .as_deref()
-                        .is_some_and(|guild| follow.contains(guild))
-            })
-            .filter(|line| filter.notify(line.map_role, line.guild.as_deref(), follow, current))
-            .take(limit)
-            .collect()
-    }
-
-    fn alert_line(&self, event: &Event, received: DateTime<Utc>) -> Option<AlertLine> {
-        let name = |id: &str| {
-            self.objective_name(id)
-                .map(str::to_owned)
-                .unwrap_or_else(|| id.to_owned())
-        };
-        // Objective ids are `"<map id>-<n>"`, and `map_roles` maps that id to the matchup role
-        // the alert filter talks about.
-        let role = |id: &str| {
-            id.split_once('-')
-                .and_then(|(map, _)| map.parse::<u32>().ok())
-                .map(|map_id| {
-                    self.map_roles
-                        .get(&map_id)
-                        .copied()
-                        .unwrap_or_else(|| MapRole::from_map_id(map_id))
-                })
-                .unwrap_or(MapRole::Unknown)
-        };
-        match event {
-            Event::Flip {
-                objective,
-                from,
-                to,
-                at,
-            } => Some(AlertLine {
-                at: *at,
-                received,
-                map_role: role(objective),
-                objective_kind: self.objective_kind(objective),
-                kind: AlertKind::Flip,
-                objective: name(objective),
-                guild: None,
-                guild_name: None,
-                from: *from,
-                to: *to,
-                late: false,
-            }),
-            Event::Claim {
-                objective,
-                guild,
-                at,
-                late,
-            } => Some(AlertLine {
-                at: *at,
-                received,
-                map_role: role(objective),
-                objective_kind: self.objective_kind(objective),
-                kind: AlertKind::Claim,
-                objective: name(objective),
-                guild: Some(guild.clone()),
-                guild_name: self.guild_names.get(guild).cloned(),
-                from: None,
-                to: None,
-                late: *late,
-            }),
-            Event::Unclaim {
-                objective,
-                guild,
-                at,
-            } => Some(AlertLine {
-                at: *at,
-                received,
-                map_role: role(objective),
-                objective_kind: self.objective_kind(objective),
-                kind: AlertKind::Unclaim,
-                objective: name(objective),
-                guild: Some(guild.clone()),
-                guild_name: self.guild_names.get(guild).cloned(),
-                from: None,
-                to: None,
-                late: false,
-            }),
-            Event::Baseline { .. } | Event::Gap { .. } | Event::MatchChanged { .. } => None,
-        }
-    }
-
     /// Claims of one guild during the session, in the order they happened (RF-72).
     pub fn guild_history(&self, guild: &str) -> Vec<ClaimRow> {
         matchup::guild_timeline(&self.history, guild)
@@ -245,51 +123,12 @@ impl Dashboard {
     }
 
     /// Kind of an objective, for the drawing of the alert lines (T-47).
-    fn objective_kind(&self, id: &str) -> gw2lurker_core::ObjectiveType {
+    pub(crate) fn objective_kind(&self, id: &str) -> gw2lurker_core::ObjectiveType {
         self.names
             .iter()
             .find(|objective| objective.id == id)
             .map_or(gw2lurker_core::ObjectiveType::Unknown, |known| known.kind)
     }
-}
-
-/// What happened, for the alert widget.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum AlertKind {
-    Flip,
-    Claim,
-    Unclaim,
-}
-
-/// One line of the alert widget.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct AlertLine {
-    /// When the game says it happened.
-    pub at: DateTime<Utc>,
-    /// When this addon learnt about it; the pop-up timer runs from here (RF-19a).
-    pub received: DateTime<Utc>,
-    /// Map of the matchup the objective belongs to, for the alert filter.
-    pub map_role: MapRole,
-    /// Camp, tower, keep or castle: the drawing that goes ahead of the line (T-47).
-    pub objective_kind: gw2lurker_core::ObjectiveType,
-    pub kind: AlertKind,
-    pub objective: String,
-    pub guild: Option<String>,
-    /// `[TAG] Nombre` of [`Self::guild`] when it is known (RF-20). `guild` stays the raw id
-    /// because that is what following a guild compares against.
-    pub guild_name: Option<String>,
-    pub from: Option<TeamColor>,
-    pub to: Option<TeamColor>,
-    /// Discovered at a baseline instead of seen live (RF-25).
-    pub late: bool,
-}
-
-/// An event and the instant this addon learnt about it.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct Received {
-    pub event: Event,
-    /// When the poll that found it finished; the pop-up timer runs from here (RF-19a).
-    pub received: DateTime<Utc>,
 }
 
 static DASHBOARD: OnceLock<Mutex<Dashboard>> = OnceLock::new();
@@ -503,8 +342,10 @@ fn poll_once(
 
     let now = Utc::now();
     let candidates = select::candidates(&live);
-    let guild_names = resolve_guild_names(api, &guilds);
+    let followed = crate::config().followed.clone();
+    let guild_names = resolve_guild_names(api, &guilds, &followed);
     let maps = maps_for(api);
+    log_watched_matchup(&selection, match_id.as_deref(), &live, &events);
     crate::catalog::ensure_tiles(&maps);
     let map_roles = match_id
         .as_deref()
@@ -538,6 +379,67 @@ fn poll_once(
     }
     board.updated_at = Some(now);
     Ok(())
+}
+
+/// Says which matchup is being watched, and what came out of the poll.
+///
+/// This is the line that answers "why did nothing alert me": if the id starts with `1-` the
+/// addon is watching North America and the player is probably in Europe (reported 2026-10-31,
+/// the team picked was `11011`, which the API plays in `1-1`). Only logged when it changes, plus
+/// every detected event, because both are rare.
+fn log_watched_matchup(
+    selection: &Selection,
+    match_id: Option<&str>,
+    live: &[Match],
+    events: &[Event],
+) {
+    static LAST: Mutex<Option<String>> = Mutex::new(None);
+    let region = match_id
+        .and_then(|id| id.split_once('-'))
+        .map(|(region, _)| region);
+    let region = match region {
+        Some("1") => "NA",
+        Some("2") => "EU",
+        _ => "?",
+    };
+    let line = format!(
+        "{} ({region}) · {:?} · {} emparejamientos",
+        match_id.unwrap_or("-"),
+        selection,
+        live.len()
+    );
+    let mut last = LAST.lock().unwrap_or_else(|error| error.into_inner());
+    if last.as_deref() != Some(line.as_str()) {
+        log::info!("worker: vigilando {line}");
+        *last = Some(line);
+    }
+    drop(last);
+
+    for event in events {
+        match event {
+            Event::Claim {
+                objective,
+                guild,
+                late,
+                ..
+            } => log::info!("evento: Claim {objective} de {guild} (late: {late})"),
+            Event::Flip {
+                objective,
+                to: from,
+                ..
+            } => log::info!("evento: Flip {objective} -> {from:?}"),
+            Event::Unclaim {
+                objective, guild, ..
+            } => {
+                log::info!("evento: Unclaim {objective} de {guild}")
+            }
+            Event::Baseline { reason } => log::info!("evento: Baseline ({reason:?})"),
+            Event::Gap { .. } => log::info!("evento: Gap (nos hemos perdido un tramo)"),
+            Event::MatchChanged { old, new } => {
+                log::info!("evento: MatchChanged {old} -> {new}")
+            }
+        }
+    }
 }
 
 /// Whether the next poll has to fetch every matchup instead of only the player's one.
@@ -625,6 +527,7 @@ fn current_match<'a>(live: &'a [Match], id: Option<&str>) -> Option<&'a Match> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::alerts::MAX_ALERTS;
 
     /// Full data path against the live API: WinHTTP + parse + the core view models.
     /// Ignored by default because CI must not depend on the network.
@@ -769,5 +672,53 @@ mod tests {
             });
         }
         assert_eq!(board.alerts.len(), MAX_ALERTS);
+    }
+
+    #[test]
+    fn rf38_an_alert_says_which_kind_of_objective_it_is_about() {
+        // T-47: la línea lleva el dibujo del objetivo, así que el tipo tiene que llegar hasta
+        // ella. `names` es la tabla de objetivos de `/v2/wvw/objectives`.
+        let mut board = Dashboard {
+            names: vec![ObjectiveInfo {
+                id: "38-20".to_owned(),
+                name: "Zanja de Mendon".to_owned(),
+                kind: gw2lurker_core::ObjectiveType::Tower,
+                map_id: 38,
+                coord: None,
+                label_coord: None,
+                marker: None,
+            }],
+            ..Dashboard::default()
+        };
+        board.push_alert(Event::Claim {
+            objective: "38-20".to_owned(),
+            guild: "1DB147F0".to_owned(),
+            at: Utc::now(),
+            late: false,
+        });
+        board.push_alert(Event::Claim {
+            objective: "38-99".to_owned(),
+            guild: "1DB147F0".to_owned(),
+            at: Utc::now(),
+            late: false,
+        });
+
+        let follow = gw2lurker_core::FollowList::new();
+        let lines = board.recent_alerts(&gw2lurker_core::AlertFilter::default(), &follow, None, 50);
+        assert_eq!(lines.len(), 2);
+        let known = lines
+            .iter()
+            .find(|line| line.objective == "Zanja de Mendon")
+            .expect("el objetivo se nombra");
+        assert_eq!(known.objective_kind, gw2lurker_core::ObjectiveType::Tower);
+        let unknown = lines
+            .iter()
+            .find(|line| line.objective == "38-99")
+            .expect("un objetivo que no está en la tabla se enseña por su id");
+        assert_eq!(
+            unknown.objective_kind,
+            gw2lurker_core::ObjectiveType::Unknown,
+            "sin datos no se inventa un tipo"
+        );
     }
 }

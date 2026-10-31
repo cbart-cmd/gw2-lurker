@@ -186,6 +186,41 @@ fn initial_narrowing(
     }
 }
 
+/// Everything the label of a control can say, so the control never eats the label.
+///
+/// imgui puts the label to the **right** of the widget and clips it at the window edge: with a
+/// 470 px window and a label column taken from the wrong string, «Intervalo de sondeo» was cut
+/// to «INTERVALO DE SON…» (report of 2026-10-31). The column is measured over the labels that
+/// are really drawn, in the current language.
+const LABELS: &[&str] = &[
+    "Region",
+    "Colour",
+    "Team",
+    "Translation",
+    "Language",
+    "Poll interval",
+    "Alert scope",
+    "Pop-up seconds",
+    "Show widget",
+    "Lock position",
+    "Click-through",
+    "Pop-up alerts",
+    "Test pop-up",
+    "Real map",
+    "Save",
+    "Search",
+    "Team (any)",
+];
+
+/// Width of the widest label of the form, in the current language, plus a margin.
+fn label_column(ui: &Ui) -> f32 {
+    LABELS
+        .iter()
+        .map(|key| ui.calc_text_size(i18n::text(key))[0])
+        .fold(0.0_f32, f32::max)
+        + 20.0
+}
+
 fn draw_body(
     ui: &Ui,
     table: &TeamTable,
@@ -195,10 +230,9 @@ fn draw_body(
 ) -> bool {
     // imgui puts the label to the right of the widget: cap the widget so the translated labels
     // of a narrow window are not cut off, whatever the language.
-    let longest = i18n::text("No live teams for that region and colour");
-    let label_width = ui.calc_text_size(longest)[0] + 16.0;
+    let label_width = label_column(ui);
     let available = ui.content_region_avail()[0];
-    let _item_width = ui.push_item_width((available - label_width).max(120.0));
+    let _item_width = ui.push_item_width((available - label_width).max(90.0));
 
     if candidates.is_empty() {
         ui.text_wrapped(i18n::text("Pick region and colour, then your team"));

@@ -1,6 +1,26 @@
 # Changelog
 Formato [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/), versionado [SemVer](https://semver.org/lang/es/).
 
+## [0.17.1] - 2026-10-31
+### Corregido
+- **Los clanes seguidos ya dicen su nombre**: se pedían a la API solo los clanes que habían reclamado
+  algo en el emparejamiento, así que un clan seguido sin reclamos se quedaba como id crudo en los
+  ajustes y en la lista de añadir.
+- **Los rótulos de los ajustes ya no se cortan**: la columna de los controles se calculaba con una
+  frase larga y no con los rótulos reales, así que «Intervalo de sondeo» acababa en
+  «INTERVALO DE SON…».
+- **El buscador de clanes funciona**: la región es lo único obligatorio (el equipo pasa a ser un
+  filtro opcional), el bloque pide la lista de equipos mientras está en pantalla y, si aún no ha
+  llegado, lo dice en vez de no responder. El campo de texto va antes del botón.
+- **Las pestañas ya no se pierden**: la barra usa desplazamiento, así que con la ventana estrecha
+  aparecen las flechas para llegar a las últimas.
+- **Se ve qué emparejamiento se está vigilando**: la cabecera dice la región («Matchup 1-1 · NA») y
+  avisa en naranja si el equipo guardado ya no juega. El registro escribe una línea por evento
+  detectado y otra cuando cambia el emparejamiento, que es lo que faltaba para saber si un aviso no
+  llega o si llega y se filtra.
+- **El mapa real ya no puede dibujar océano**: el nombre del fichero de cada tesela lleva el
+  continente (`2-1-…`) y las teselas de versiones anteriores se borran al arrancar.
+
 ## [0.17.0] - 2026-10-31
 ### Añadido
 - **Iconos del mapa como en el juego (T-46)**: cada objetivo es un **círculo del color del equipo con el

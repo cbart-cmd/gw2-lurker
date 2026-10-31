@@ -91,14 +91,42 @@ pub const TEXT: &[(&str, [&str; COLUMNS])] = &[
     ),
     ("None yet", ["Ninguno todavía", "None yet", "Aucun pour l'instant", "Noch keiner"]),
     (
-        "Search a guild by team",
+        "Search a guild",
         [
-            "Buscar un clan por equipo",
-            "Search a guild by team",
-            "Chercher une guilde par équipe",
-            "Gilde nach Team suchen",
+            "Buscar un clan",
+            "Search a guild",
+            "Chercher une guilde",
+            "Gilde suchen",
         ],
     ),
+    (
+        "The saved team ({0}) is not playing right now: pick it again in Settings.",
+        [
+            "El equipo guardado ({0}) no está jugando ahora mismo: vuelve a elegirlo en Ajustes.",
+            "The saved team ({0}) is not playing right now: pick it again in Settings.",
+            "L'équipe enregistrée ({0}) ne joue pas en ce moment : choisissez-la à nouveau dans les réglages.",
+            "Das gespeicherte Team ({0}) spielt gerade nicht: wähle es in den Einstellungen neu.",
+        ],
+    ),
+    (
+        "Pick your team first: the search needs to know your region.",
+        [
+            "Elige tu equipo primero: la búsqueda necesita saber tu región.",
+            "Pick your team first: the search needs to know your region.",
+            "Choisissez d'abord votre équipe : la recherche a besoin de votre région.",
+            "Wähle zuerst dein Team: die Suche braucht deine Region.",
+        ],
+    ),
+    (
+        "The list of teams arrives with the next poll.",
+        [
+            "La lista de equipos llega con el próximo sondeo.",
+            "The list of teams arrives with the next poll.",
+            "La liste des équipes arrive à la prochaine interrogation.",
+            "Die Teamliste kommt mit der nächsten Abfrage.",
+        ],
+    ),
+    ("Team (any)", ["Equipo (cualquiera)", "Team (any)", "Équipe (toutes)", "Team (beliebig)"]),
     ("Search", ["Buscar", "Search", "Chercher", "Suchen"]),
     ("Range", ["Rango", "Range", "Plage", "Zeitraum"]),
     ("Last hour", ["Última hora", "Last hour", "Dernière heure", "Letzte Stunde"]),
@@ -124,12 +152,12 @@ pub const TEXT: &[(&str, [&str; COLUMNS])] = &[
         ],
     ),
     (
-        "Pick a team, type a word and search.",
+        "Type part of the name and search.",
         [
-            "Elige un equipo, escribe una palabra y busca.",
-            "Pick a team, type a word and search.",
-            "Choisissez une équipe, un mot, puis cherchez.",
-            "Team wählen, ein Wort eingeben und suchen.",
+            "Escribe parte del nombre y busca.",
+            "Type part of the name and search.",
+            "Saisissez une partie du nom et cherchez.",
+            "Teil des Namens eingeben und suchen.",
         ],
     ),
     ("Searching…", ["Buscando…", "Searching…", "Recherche…", "Suche läuft…"]),
@@ -138,12 +166,12 @@ pub const TEXT: &[(&str, [&str; COLUMNS])] = &[
         ["La búsqueda falló: {0}", "Search failed: {0}", "Échec de la recherche : {0}", "Suche fehlgeschlagen: {0}"],
     ),
     (
-        "No guild of that team matches.",
+        "No guild matches.",
         [
-            "Ningún clan de ese equipo coincide.",
-            "No guild of that team matches.",
-            "Aucune guilde de cette équipe ne correspond.",
-            "Keine Gilde dieses Teams passt.",
+            "Ningún clan coincide.",
+            "No guild matches.",
+            "Aucune guilde ne correspond.",
+            "Keine Gilde passt.",
         ],
     ),    (
         "Point at an objective to see who holds it",

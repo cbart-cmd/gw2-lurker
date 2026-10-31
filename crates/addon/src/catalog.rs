@@ -44,28 +44,35 @@ pub fn guild_label(info: &gw2lurker_api::GuildInfo) -> String {
 pub fn resolve_guild_names(
     api: &Api<WinHttpTransport>,
     guilds: &[GuildSummary],
+    followed: &gw2lurker_core::FollowList,
 ) -> std::collections::BTreeMap<String, String> {
     static CACHE: OnceLock<Mutex<GuildNameCache>> = OnceLock::new();
     let cache = CACHE.get_or_init(|| Mutex::new(GuildNameCache::default()));
     let mut cache = cache.lock().unwrap_or_else(|error| error.into_inner());
 
+    // The followed guilds first: they are the ones the player sees by name in the settings and
+    // in the alerts, and they were being left as raw ids because only the guilds that had
+    // claimed something in the matchup were looked up (bug of 2026-10-31).
+    let ids = followed
+        .iter()
+        .chain(guilds.iter().map(|summary| summary.guild.as_str()));
+
     let mut budget = GUILD_LOOKUPS_PER_POLL;
-    for summary in guilds {
+    for id in ids {
         if budget == 0 {
             break;
         }
-        let id = &summary.guild;
         if cache.known.contains_key(id) || cache.failed.contains(id) {
             continue;
         }
         budget -= 1;
         match api.guild(id) {
             Ok(info) => {
-                cache.known.insert(id.clone(), guild_label(&info));
+                cache.known.insert(id.to_owned(), guild_label(&info));
             }
             Err(error) => {
                 log::debug!("worker: sin nombre de clan {id} ({error})");
-                cache.failed.insert(id.clone());
+                cache.failed.insert(id.to_owned());
             }
         }
     }
@@ -112,10 +119,18 @@ pub fn tiles_dir() -> Option<std::path::PathBuf> {
     Some(crate::config::addon_dir().ok()?.join("tiles"))
 }
 
-/// File of one tile. The name has every coordinate so a cache can be inspected by hand.
+/// Continent and floor of the WvW maps on the tile server.
+///
+/// The borderlands and Eternal Battlegrounds live in **continent 2, floor 1**; continent 1
+/// answers an ocean tile for any coordinate, which fails silently (measured 2026-10-31).
+const TILE_CONTINENT: &str = "2";
+const TILE_FLOOR: &str = "1";
+
+/// File of one tile. The name has every coordinate so a cache can be inspected by hand, and the
+/// continent is in it too: a tile of another continent is not the same tile.
 pub fn tile_path(x: u32, y: u32) -> Option<std::path::PathBuf> {
     Some(tiles_dir()?.join(format!(
-        "1-1-{}-{x}-{y}.jpg",
+        "{TILE_CONTINENT}-{TILE_FLOOR}-{}-{x}-{y}.jpg",
         gw2lurker_core::project::TILE_ZOOM
     )))
 }
@@ -123,11 +138,38 @@ pub fn tile_path(x: u32, y: u32) -> Option<std::path::PathBuf> {
 /// URL of one tile on the official tile server.
 pub fn tile_url(x: u32, y: u32) -> String {
     format!(
-        // Continente 2, piso 1: es donde viven los mapas de MvM (calibrado con teselas reales,
-        // 2026-10-31; el continente 1 devuelve océano para cualquier coordenada).
-        "https://tiles.guildwars2.com/2/1/{}/{x}/{y}.jpg",
+        "https://tiles.guildwars2.com/{TILE_CONTINENT}/{TILE_FLOOR}/{}/{x}/{y}.jpg",
         gw2lurker_core::project::TILE_ZOOM
     )
+}
+
+/// Deletes tiles saved by older versions, whose names did not carry the continent.
+///
+/// They were the ocean tiles of continent 1: leaving them there wastes a megabyte and, worse,
+/// any name collision would draw the wrong sea again.
+fn forget_stale_tiles(keep_prefix: &str) {
+    let Some(dir) = tiles_dir() else {
+        return;
+    };
+    let Ok(entries) = std::fs::read_dir(&dir) else {
+        return;
+    };
+    let mut removed = 0;
+    for entry in entries.flatten() {
+        let name = entry.file_name();
+        let Some(name) = name.to_str() else {
+            continue;
+        };
+        if name.ends_with(".jpg")
+            && !name.starts_with(keep_prefix)
+            && std::fs::remove_file(entry.path()).is_ok()
+        {
+            removed += 1;
+        }
+    }
+    if removed > 0 {
+        log::info!("tiles: {removed} teselas de una version anterior borradas");
+    }
 }
 
 /// Downloads the tiles of the four maps that are not in the cache yet, on its own thread.
@@ -136,6 +178,11 @@ pub fn tile_url(x: u32, y: u32) -> String {
 /// only reads the files afterwards; whatever is still missing simply is not drawn yet.
 pub fn ensure_tiles(maps: &[gw2lurker_core::WvwMap]) {
     static STARTED: OnceLock<()> = OnceLock::new();
+    if STARTED.set(()).is_err() {
+        return;
+    }
+    forget_stale_tiles(&format!("{TILE_CONTINENT}-{TILE_FLOOR}-"));
+
     let mut jobs = Vec::new();
     for map in maps {
         let frame = gw2lurker_core::Frame::of(map);
@@ -149,7 +196,8 @@ pub fn ensure_tiles(maps: &[gw2lurker_core::WvwMap]) {
             }
         }
     }
-    if jobs.is_empty() || STARTED.set(()).is_err() {
+    if jobs.is_empty() {
+        log::info!("tiles: las del mapa ya estaban en caché");
         return;
     }
 

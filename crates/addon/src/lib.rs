@@ -7,6 +7,7 @@
 
 #![cfg_attr(test, allow(clippy::unwrap_used, clippy::expect_used))]
 
+mod alerts;
 mod arc_team;
 mod catalog;
 mod config;

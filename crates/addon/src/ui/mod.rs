@@ -276,7 +276,7 @@ fn draw_tabs(
     filters: &mut matchup::Filters,
     data: &Tabbed,
 ) -> Option<settings::TeamChange> {
-    use nexus::imgui::{TabBar, TabItem};
+    use nexus::imgui::{TabBar, TabBarFlags, TabItem};
 
     let mut change = None;
 
@@ -293,7 +293,13 @@ fn draw_tabs(
     draw_health(ui, config, data);
     ui.separator();
 
-    if let Some(_bar) = TabBar::new("###gw2lurker_tabs").begin(ui) {
+    // Scroll instead of shrinking: with six tabs in a narrow window imgui used to squeeze them
+    // until the last ones were unreachable. With the scroll policy it draws the little arrows in
+    // the bar, which is the «...» that was asked for (report of 2026-10-31).
+    if let Some(_bar) = TabBar::new("###gw2lurker_tabs")
+        .flags(TabBarFlags::FITTING_POLICY_SCROLL)
+        .begin(ui)
+    {
         for (index, key) in TABS.iter().enumerate() {
             TabItem::new(i18n::widget(key)).build(ui, || match index {
                 0 => alerts::body(ui, data.alerts, data.now),
@@ -374,12 +380,13 @@ fn map_choice() -> std::sync::MutexGuard<'static, gw2lurker_core::MapRole> {
 /// One line with the state of the worker and the configured team (RF-02, RF-46).
 fn draw_health(ui: &nexus::imgui::Ui, config: &mut crate::config::Config, data: &Tabbed) {
     let state = crate::context::snapshot();
-    let (health, match_id, updated) = {
+    let (health, match_id, updated, selection) = {
         let board = crate::worker::dashboard();
         (
             board.health.clone(),
             board.match_id.clone(),
             board.updated_at,
+            board.selection.clone(),
         )
     };
     let team_id = crate::team::selected_in(config);
@@ -392,8 +399,21 @@ fn draw_health(ui: &nexus::imgui::Ui, config: &mut crate::config::Config, data: 
         Some(label) => ui.text(i18n::format("Team {0}", &[&label])),
         None => ui.text(i18n::text("No team configured yet")),
     }
+    // The region goes in the line on purpose: a team of the other region is watched through a
+    // matchup that has nothing to do with the player, and then nothing ever alerts (report of
+    // 2026-10-31, the saved team played NA while the player was in an EU borderland).
     if let Some(id) = &match_id {
-        ui.text_disabled(i18n::format("Matchup {0}", &[id]));
+        let label = format!("{id} · {}", region_of_matchup(id));
+        ui.text_disabled(i18n::format("Matchup {0}", &[&label]));
+    }
+    // A saved team that no longer plays leaves the addon watching a matchup that is not the
+    // player's: saying it out loud is the difference between "no funciona" and "elige equipo".
+    if let gw2lurker_core::select::Selection::Stale { previous } = selection {
+        let _tint = ui.push_style_color(nexus::imgui::StyleColor::Text, [1.0, 0.75, 0.3, 1.0]);
+        ui.text_wrapped(i18n::format(
+            "The saved team ({0}) is not playing right now: pick it again in Settings.",
+            &[&previous.to_string()],
+        ));
     }
     let summary = match &health {
         crate::worker::Health::Idle => i18n::text("No data yet").to_owned(),
@@ -419,6 +439,18 @@ fn draw_health(ui: &nexus::imgui::Ui, config: &mut crate::config::Config, data: 
         ui.text_wrapped(i18n::text(
             "Click-through is on: Alt+Shift+L or the Nexus options to use the mouse.",
         ));
+    }
+}
+
+/// Region of a matchup id: `1-x` is North America and `2-x` is Europe.
+///
+/// It is in the widget on purpose: a team of the wrong region makes the addon watch a matchup
+/// that has nothing to do with the player, and then no alert ever fires (bug of 2026-10-31).
+fn region_of_matchup(match_id: &str) -> &'static str {
+    match match_id.split_once('-').map(|(region, _)| region) {
+        Some("1") => "NA",
+        Some("2") => "EU",
+        _ => "?",
     }
 }
 

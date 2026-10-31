@@ -123,36 +123,25 @@ fn session_block(
 
 /// Search by team and name. The team is mandatory and only lists teams of the player's region.
 fn search_block(ui: &Ui, follow: &mut FollowList, candidates: &[Candidate], my_team: Option<u32>) {
-    ui.text(i18n::text("Search a guild by team"));
-    let region = region_of(candidates, my_team);
+    // The list of live teams is fetched by the worker while this is on screen: inside WvW it is
+    // only fetched when asked for, and nobody was asking (bug of 2026-10-31).
+    crate::worker::set_teams_needed(true);
 
-    let teams: Vec<&Candidate> = candidates
-        .iter()
-        .filter(|candidate| region.is_none() || candidate.region() == region)
-        .collect();
-
-    let mut chosen = *team_slot();
-    let preview = chosen
-        .map(|team| team_label(candidates, team))
-        .unwrap_or_else(|| i18n::text("Team").to_owned());
-    ComboBox::new(i18n::widget("Team"))
-        .preview_value(preview)
-        .build(ui, || {
-            for candidate in &teams {
-                let text = team_label(candidates, candidate.team_id);
-                if Selectable::new(text)
-                    .selected(chosen == Some(candidate.team_id))
-                    .build(ui)
-                {
-                    chosen = Some(candidate.team_id);
-                }
-            }
-        });
+    ui.text(i18n::text("Search a guild"));
+    // The **region** is the mandatory half, not the team: it is what the player always knows
+    // (their own) and the search only needs it to look in the right half of the world.
+    let Some(region) = region_of(candidates, my_team) else {
+        ui.text_disabled(i18n::text(
+            "Pick your team first: the search needs to know your region.",
+        ));
+        if candidates.is_empty() {
+            ui.text_disabled(i18n::text("The list of teams arrives with the next poll."));
+        }
+        return;
+    };
 
     let mut text = text_slot();
-    let mut go = ui.button(i18n::widget("Search"));
-    ui.same_line();
-    InputText::new(ui, "###gw2lurker_search", &mut text)
+    let mut go = InputText::new(ui, "###gw2lurker_search", &mut text)
         .hint(i18n::text("Part of the name, one word"))
         .enter_returns_true(true)
         .build();
@@ -162,19 +151,54 @@ fn search_block(ui: &Ui, follow: &mut FollowList, candidates: &[Candidate], my_t
         ));
     }
     go |= ui.is_item_deactivated_after_edit();
+    ui.same_line();
+    go |= ui.button(i18n::widget("Search"));
 
-    let ready = chosen.is_some() && !text.trim().is_empty();
-    if go && ready {
-        if let (Some(team), Some(region)) = (chosen, region) {
-            crate::search::start(region, team, text.trim().to_owned());
-        }
+    // Optional: with no team the search covers the whole region, which is what the player wants
+    // when they only remember part of the name.
+    let teams: Vec<&Candidate> = candidates
+        .iter()
+        .filter(|candidate| candidate.region() == Some(region))
+        .collect();
+    let mut chosen = *team_slot();
+    if chosen.is_some_and(|team| !teams.iter().any(|c| c.team_id == team)) {
+        chosen = None;
+    }
+    if teams.is_empty() {
+        ui.text_disabled(i18n::text("The list of teams arrives with the next poll."));
+    } else {
+        let any = i18n::text("Team (any)").to_owned();
+        let preview = match chosen {
+            Some(team) => team_label(candidates, team),
+            None => any.clone(),
+        };
+        ComboBox::new(i18n::widget("Team (any)"))
+            .preview_value(preview)
+            .build(ui, || {
+                if Selectable::new(any).selected(chosen.is_none()).build(ui) {
+                    chosen = None;
+                }
+                for candidate in &teams {
+                    let text = team_label(candidates, candidate.team_id);
+                    if Selectable::new(text)
+                        .selected(chosen == Some(candidate.team_id))
+                        .build(ui)
+                    {
+                        chosen = Some(candidate.team_id);
+                    }
+                }
+            });
     }
     *team_slot() = chosen;
+
+    if go && !text.trim().is_empty() {
+        crate::search::start(region, chosen, text.trim().to_owned());
+    }
     drop(text);
 
     match crate::search::snapshot() {
         crate::search::State::Idle => {
-            ui.text_disabled(i18n::text("Pick a team, type a word and search."));
+            ui.text_disabled(i18n::text("Type part of the name and search."));
         }
         crate::search::State::Searching => {
             ui.text_disabled(i18n::text("Searching…"));
@@ -184,12 +208,19 @@ fn search_block(ui: &Ui, follow: &mut FollowList, candidates: &[Candidate], my_t
         }
         crate::search::State::Done(hits) => {
             if hits.is_empty() {
-                ui.text_disabled(i18n::text("No guild of that team matches."));
+                ui.text_disabled(i18n::text("No guild matches."));
                 return;
             }
             let mut add = None;
             for hit in &hits {
-                let text = format!("{}###hit{}", hit.label, hit.id);
+                // Con «Team (any)» el equipo del resultado importa: dice si es del
+                // emparejamiento del jugador antes de seguir el clan.
+                let text = match hit.team {
+                    Some(team) if chosen.is_none() => {
+                        format!("{}  ·  {team}###hit{}", hit.label, hit.id)
+                    }
+                    _ => format!("{}###hit{}", hit.label, hit.id),
+                };
                 if Selectable::new(text).build(ui) {
                     add = Some(hit.id.clone());
                 }
@@ -200,7 +231,6 @@ fn search_block(ui: &Ui, follow: &mut FollowList, candidates: &[Candidate], my_t
         }
     }
 }
-
 /// Name of a team as the player knows it (their own translation), with the id to disambiguate.
 fn team_label(_candidates: &[Candidate], team: u32) -> String {
     let name = crate::config()
@@ -221,4 +251,41 @@ pub fn region_of(candidates: &[Candidate], team: Option<u32>) -> Option<Region> 
             .find(|candidate| candidate.team_id == team)
             .and_then(Candidate::region)
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use gw2lurker_core::model::TeamColor;
+
+    fn candidate(team_id: u32, match_id: &str) -> Candidate {
+        Candidate {
+            team_id,
+            match_id: match_id.to_owned(),
+            color: TeamColor::Blue,
+        }
+    }
+
+    #[test]
+    fn t44_the_search_region_is_the_one_of_the_players_team() {
+        // 11011 juega en un emparejamiento 1-x (NA) y 12014 en uno 2-x (EU): comprobado contra
+        // `/v2/wvw/matches?ids=all` (2026-10-31). El buscador solo mira la región del jugador.
+        let teams = vec![candidate(11011, "1-1"), candidate(12014, "2-2")];
+        assert_eq!(region_of(&teams, Some(11011)), Some(Region::Na));
+        assert_eq!(region_of(&teams, Some(12014)), Some(Region::Eu));
+    }
+
+    #[test]
+    fn t44_without_a_team_there_is_no_region_and_the_ui_says_so() {
+        // Sin equipo no se busca a ciegas: la ventana pide elegirlo en vez de no hacer nada
+        // (bug de 2026-10-31, el botón de buscar se quedaba mudo).
+        let teams = vec![candidate(11011, "1-1")];
+        assert_eq!(region_of(&teams, None), None);
+        assert_eq!(
+            region_of(&teams, Some(99999)),
+            None,
+            "un equipo que ya no juega no da región"
+        );
+        assert_eq!(region_of(&[], Some(11011)), None);
+    }
 }

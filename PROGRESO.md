@@ -13,6 +13,35 @@ Reglas:
 
 ---
 
+## HECHO – 2026-10-31 · Los cinco fallos del widget (0.17.1)
+
+Leídos de `bugs.md` y diagnosticados con el `Nexus.log` y el `settings.json` reales.
+
+- **Clanes seguidos sin nombre**: `resolve_guild_names` solo pedía `/v2/guild/:id` para los clanes
+  que habían reclamado algo en el emparejamiento, así que los seguidos que aún no habían reclamado se
+  quedaban como id. Ahora se piden **primero los seguidos**.
+- **Rótulos cortados en los ajustes**: el ancho reservado a los rótulos se calculaba con una frase
+  larga (un aviso) en lugar de con los rótulos que se dibujan, así que el control se comía la
+  ventana. `label_column` mide la lista real de rótulos en el idioma activo.
+- **Buscador de clanes mudo**: exigía equipo *y* región, y los dos salían de la lista de equipos
+  vivos; con la lista vacía el desplegable no tenía nada y el botón no hacía nada. Además, dentro de
+  WvW esa lista solo se pide si alguien la pide y este bloque no lo hacía. Ahora la **región** (la
+  del equipo del jugador) es lo único obligatorio, el equipo es un filtro opcional que muestra el de
+  cada resultado, el bloque pide la lista al worker y el campo de texto va antes del botón.
+- **Pestañas escondidas**: `FITTING_POLICY_SCROLL` en la barra, que es el «…» que se pedía.
+- **«Avisos no funciona»**: el log dice que se vigilaba el emparejamiento **`1-1` (NA)** con el equipo
+  `11011` («Lutgardis Conservatory», NA). Si el jugador está en EU, sus capturas son de otro
+  emparejamiento y no hay nada que avisar. Se añade lo que faltaba para verlo: la cabecera enseña la
+  **región** del emparejamiento, avisa en naranja si el equipo guardado ya no juega, y el worker
+  escribe `worker: vigilando …` al cambiar de emparejamiento y `evento: …` por cada evento. Queda
+  pendiente de que el jugador vuelva a elegir equipo y mire esas líneas.
+- **Teselas**: el nombre del fichero no llevaba el continente, así que una caché de otra versión
+  podía reutilizarse; ahora es `2-1-{zoom}-{x}-{y}.jpg` en fichero y URL, y las viejas se borran.
+- Para no pasar de 800 líneas, las líneas de aviso (`AlertKind`, `AlertLine`, `Received`,
+  `push_alert`, `recent_alerts`, `alert_line`) se mudan a `crates/addon/src/alerts.rs`.
+- Verificación: 190 tests en verde (76 addon · 15 api · 93 core · 6 store), `clippy -D warnings`
+  limpio, ningún fichero por encima de 800 líneas.
+
 ## HECHO – 2026-10-31 · Iconos del juego en el mapa y en los avisos (0.17.0)
 
 - **T-46**: los objetivos del mapa ya no son formas geométricas: son el **círculo del color del equipo
