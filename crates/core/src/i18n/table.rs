@@ -234,24 +234,6 @@ pub const TEXT: &[(&str, [&str; COLUMNS])] = &[
     ("Pause route", ["Pausar ruta", "Pause route", "Mettre en pause", "Route pausieren"]),
     ("Whole route", ["Ruta completa", "Whole route", "Route entière", "Ganze Route"]),
     (
-        "Nexus pop-up for everything I follow",
-        [
-            "Aviso emergente (Nexus) de todo lo que sigo",
-            "Nexus pop-up for everything I follow",
-            "Notification (Nexus) de tout ce que je suis",
-            "Hinweis (Nexus) für alles, dem ich folge",
-        ],
-    ),
-    (
-        "The one Nexus draws, on top of the game, even with the widget closed.",
-        [
-            "El que dibuja Nexus, encima del juego, aunque el widget esté cerrado.",
-            "The one Nexus draws, on top of the game, even with the widget closed.",
-            "Celui que dessine Nexus, par-dessus le jeu, même widget fermé.",
-            "Der, den Nexus über dem Spiel zeichnet, auch bei geschlossenem Widget.",
-        ],
-    ),
-    (
         "jump to {0}",
         [
             "salto a {0}",

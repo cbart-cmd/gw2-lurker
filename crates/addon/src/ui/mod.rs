@@ -16,7 +16,7 @@ mod window;
 
 use nexus::gui::{register_render, render, RenderType};
 
-use std::sync::atomic::{AtomicBool, AtomicI64, Ordering};
+use std::sync::atomic::{AtomicBool, Ordering};
 
 use crate::i18n;
 use gw2lurker_core::model::{MapRole, TeamColor};
@@ -69,41 +69,6 @@ fn on_lock_keybind(_identifier: &str, is_release: bool) {
 
 fn take_lock_toggle() -> bool {
     LOCK_TOGGLE.swap(false, Ordering::Relaxed)
-}
-
-/// Manda el aviso emergente de Nexus para cada aviso nuevo que pase los filtros del jugador.
-///
-/// Nexus solo expone `send_alert(texto)`: no hay título ni sonido en `nexus-rs` 0.12 (comprobado
-/// en su código), así que la parte de sonido de RF-19d queda fuera hasta que la API la ofrezca.
-///
-/// Antes solo salían fortalezas y castillo; el jugador pidió (2026-10-31) que salga **todo lo que
-/// siga**, que es lo que ya enseña el pop-up del addon: los mismos filtros de tipo y de alcance.
-fn toast_critical(ui: &nexus::imgui::Ui) {
-    static LAST: AtomicI64 = AtomicI64::new(0);
-    let config = crate::config();
-    let alerts = {
-        let board = crate::worker::dashboard();
-        board.recent_alerts(
-            &config.alerts,
-            &config.followed,
-            crate::context::current_map_role(),
-            alerts::MAX_LOGGED,
-        )
-    };
-    let kinds = config.alert_kinds;
-    let since = LAST.load(Ordering::Relaxed);
-    let mut newest = since;
-    for line in alerts.iter().filter(|line| kinds.shows(line.kind)) {
-        let stamp = line.received.timestamp_millis();
-        if stamp > since {
-            nexus::alert::send_alert(alerts::plain(line));
-            newest = newest.max(stamp);
-        }
-    }
-    if newest != since {
-        LAST.store(newest, Ordering::Relaxed);
-    }
-    let _ = ui;
 }
 
 /// Brings the window back: shown, not click-through, and not collapsed.
@@ -203,11 +168,6 @@ pub fn register() {
                 // overlay alive and leaves the reason in the log (RNF-06). Clicking the *Map* tab
                 // crashed the game once (reported 2026-10-31).
                 guard("widget", || draw_widget(ui));
-            }
-            // RF-19d: el toast de Nexus para lo crítico, si el jugador lo pidió. Va fuera del
-            // dibujo del widget para que también salte con la ventana cerrada.
-            if crate::config().critical_toast {
-                guard("toast", || toast_critical(ui));
             }
             // The team picker needs the list of live teams even outside WvW, where polling is
             // off: without this the drop-down was empty (bug of 2026-10-31).

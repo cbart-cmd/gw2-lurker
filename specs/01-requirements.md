@@ -120,7 +120,10 @@ El click-through se alterna desde la configuración, desde las opciones de Nexus
 
 **RF-19c (S)** El usuario podrá configurar opacidad, tamaño de fuente, máximo de líneas visibles (por defecto 5) y qué tipos de alerta se muestran en el widget.
 
-**RF-19d (C)** Toast emergente adicional y sonido opcional para alertas críticas, desactivados por defecto salvo el sonido ya cubierto por RF-13.
+**RF-19d (C)** El **aviso emergente** (la ventana de arriba, la que dibuja el addon) muestra cualquier alerta que pase los filtros del jugador —tipo de aviso y alcance—, de una en una y durante los segundos que se configuren (0–20). No se usa el sistema de avisos de Nexus: `nexus-rs` 0.12 solo expone `send_alert(texto)`, sin título ni sonido, y duplicaba esta ventana (decisión de 2026-10-31 tras la confusión del jugador entre «toast» y «aviso emergente»).
+- GWT: *Given* dos reclamaciones seguidas, *When* llegan en el mismo sondeo, *Then* el pop-up enseña primero la más antigua y la siguiente cuando pasa su tiempo, nunca las dos a la vez.
+- GWT: *Given* una reclamación de un clan que no se sigue con «Guilds I follow» activo, *When* se detecta, *Then* no sale en el aviso emergente.
+- **El sonido sigue fuera**: no hay API de audio en `nexus-rs` 0.12 (comprobado en su código).
 
 ## C. Objetivo 2 – Seguimiento de guilds enemigas
 

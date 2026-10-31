@@ -161,8 +161,6 @@ pub struct Config {
     pub max_lines: usize,
     /// Qué tipos de aviso se enseñan en el widget y en el pop-up (RF-19c).
     pub alert_kinds: AlertKinds,
-    /// Toast de Nexus para lo critico (fortalezas y castillo), desactivado por defecto (RF-19d).
-    pub critical_toast: bool,
 }
 
 /// Estilo de las ventanas del addon (RF-60, RF-61).
@@ -247,7 +245,6 @@ impl Default for Config {
             font_scale: 1.0,
             max_lines: 5,
             alert_kinds: AlertKinds::default(),
-            critical_toast: false,
         }
     }
 }

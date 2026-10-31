@@ -1,6 +1,14 @@
 # Changelog
 Formato [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/), versionado [SemVer](https://semver.org/lang/es/).
 
+## [0.22.7] - 2026-10-31
+### Cambiado
+- **Fuera el aviso de Nexus**: el addon ya solo tiene **dos** cosas, el widget y el **aviso
+  emergente** (la ventana de arriba). Tenía además un tercer mecanismo que pedía a Nexus que pintara
+  su propio aviso; nunca se vio y solo servía para confundir, así que desaparece con su casilla.
+- El aviso emergente ya enseñaba todo lo que sigues (tipo de aviso y alcance) y sigue igual: de uno
+  en uno, con los segundos que pongas (0–20).
+
 ## [0.22.6] - 2026-10-31
 ### Cambiado
 - **Se acabaron los códigos en la cabecera**: donde decía `EMPAREJAMIENTO 1-1 · NA` ahora pone

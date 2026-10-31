@@ -13,6 +13,21 @@ Reglas:
 
 ---
 
+## HECHO – 2026-10-31 · Solo dos ventanas: fuera el aviso de Nexus (0.22.7)
+
+- El jugador lo dejó claro: «hay dos ventanas, el widget y la ventana de arriba de avisos; no hay
+  avisos de Nexus». Yo estaba explicando un **tercer** mecanismo (`nexus::alert::send_alert`, RF-19d
+  original) que existía en el código, estaba apagado por defecto y nunca se vio. Un mecanismo que no
+  se ve y que hay que explicar es ruido: se elimina.
+- Se van `Config::critical_toast`, su casilla, `ui::toast_critical`, `alerts::plain` y las dos claves
+  de la tabla que lo explicaban. `settings.json` sigue cargando: el campo es `#[serde(default)]` y
+  una clave de más no molesta.
+- `specs/01-requirements.md` RF-19d se reescribe: el aviso emergente es el nuestro, enseña lo que
+  pase los filtros, de uno en uno, 0–20 s cada uno, y **no** se usa el sistema de avisos de Nexus.
+  El sonido sigue fuera: `nexus-rs` 0.12 no tiene API de audio.
+- Verificación: 211 tests en verde, `clippy -D warnings` y `cargo fmt --check` limpios, ningún
+  fichero por encima de 800 líneas.
+
 ## HECHO – 2026-10-31 · Nada de «1-1» en la interfaz (0.22.6)
 
 - El jugador lo había pedido cinco veces y tenía razón: `1-1` es un identificador del API y no

@@ -77,7 +77,6 @@ struct Edits {
     font_scale: f32,
     max_lines: i32,
     kinds: crate::config::AlertKinds,
-    critical_toast: bool,
 }
 
 /// Body of the *Settings* tab: the whole form, without window chrome (T-42).
@@ -114,7 +113,6 @@ pub fn body(
         font_scale: config.font_scale,
         max_lines: config.max_lines as i32,
         kinds: config.alert_kinds,
-        critical_toast: config.critical_toast,
     };
     let before = edits.team_id;
 
@@ -133,7 +131,6 @@ pub fn body(
     config.font_scale = edits.font_scale.clamp(0.8, 1.6);
     config.max_lines = edits.max_lines.clamp(1, 50) as usize;
     config.alert_kinds = edits.kinds;
-    config.critical_toast = edits.critical_toast;
     config.followed = edits.follow;
     // The switches of the widget itself: written only when moved, so the chrome of this window
     // is not undone every frame (`×`, dragging, lock).
@@ -391,15 +388,6 @@ fn draw_theme(ui: &Ui, edits: &mut Edits) {
     ui.checkbox(i18n::widget("Show captures"), &mut edits.kinds.flips);
     ui.checkbox(i18n::widget("Show claims"), &mut edits.kinds.claims);
     ui.checkbox(i18n::widget("Show releases"), &mut edits.kinds.unclaims);
-    ui.checkbox(
-        i18n::widget("Nexus pop-up for everything I follow"),
-        &mut edits.critical_toast,
-    );
-    if ui.is_item_hovered() {
-        ui.tooltip_text(i18n::text(
-            "The one Nexus draws, on top of the game, even with the widget closed.",
-        ));
-    }
 }
 
 /// Which maps and guilds deserve an alert (RF-19a), plus how long the pop-up lasts.

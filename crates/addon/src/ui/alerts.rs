@@ -373,17 +373,6 @@ fn team_colour(colour: TeamColor) -> [f32; 4] {
     super::theme::team_colour(colour)
 }
 
-/// La línea en texto plano, para el aviso emergente de Nexus.
-pub fn plain(line: &AlertLine) -> String {
-    spans(line, i18n::effective())
-        .into_iter()
-        .map(|(text, _)| text)
-        .collect::<Vec<_>>()
-        .join("")
-        .trim()
-        .to_owned()
-}
-
 fn colour_label(colour: TeamColor, language: gw2lurker_core::i18n::Language) -> &'static str {
     use gw2lurker_core::i18n::t;
     match colour {
