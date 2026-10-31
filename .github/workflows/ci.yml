@@ -53,9 +53,13 @@ jobs:
         with:
           command: check
 
-      - uses: rustsec/audit-check@v2
+      # `cargo-audit` viene precompilado: compilarlo aquí costaba ~5 min por ejecución.
+      - uses: taiki-e/install-action@v2
         with:
-          token: ${{ secrets.GITHUB_TOKEN }}
+          tool: cargo-audit
+
+      - name: cargo audit
+        run: cargo audit
 
   build-windows:
     name: release msvc · tamaño
