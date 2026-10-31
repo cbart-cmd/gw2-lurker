@@ -104,6 +104,7 @@ if (-not (Test-Path $Dest)) {
 }
 if ($DryRun) {
     Write-Host 'DryRun: no se copia nada.' -ForegroundColor Yellow
+    Write-Host "Ajustes (Documentos): $([Environment]::GetFolderPath('MyDocuments'))\Guild Wars 2\addons\gw2_lurker\settings.json"
     return
 }
 if (Get-Process -Name 'Gw2-64' -ErrorAction SilentlyContinue) {
@@ -135,5 +136,6 @@ if ($copiedMd5 -ne $md5) {
 }
 
 Write-Host "Copiado: $($copied.FullName) ($($copied.Length) bytes, MD5 $copiedMd5, $($copied.LastWriteTime))" -ForegroundColor Green
-Write-Host "Ajustes del addon en: $(Join-Path $Dest 'gw2_lurker\settings.json')"
+$documents = [Environment]::GetFolderPath('MyDocuments')
+Write-Host "Ajustes del addon en: $documents\Guild Wars 2\addons\gw2_lurker\settings.json"
 Write-Host "Abre GW2 y entra en Mundo contra Mundo. El log esta en $(Join-Path $Dest 'Nexus\Nexus.log')"

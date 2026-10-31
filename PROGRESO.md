@@ -34,6 +34,26 @@ Reglas:
   bueno un HTTP 200. Se reintenta con `-VerifyOnly` pasados unos minutos; no se cambia la URL
   ni la versión para taparlo.
 
+## HECHO – 2026-10-31 · Ajustes en Documentos (como los vecinos) y nombre de personaje
+
+- `addon::ffi::paths::documents()`: `SHGetKnownFolderPath(FOLDERID_Documents)` + `CoTaskMemFree`
+  por `extern` (sin el crate `windows`), porque Documentos está redirigido a OneDrive y leer el
+  registro daría otra ruta. Comprobado en esta máquina con un test que exige que la carpeta
+  exista.
+- Los ajustes pasan a `<Documentos>\Guild Wars 2\addons\gw2_lurker\settings.json`, igual que
+  `timers_wvw` y `gw2_builds_wvw`. Ventaja añadida: escribir ahí **no necesita administrador**,
+  al contrario que `Program Files`. Si Documentos no se pudiera resolver, se cae a la carpeta de
+  Nexus para no perder los ajustes.
+- Migración automática una sola vez desde la carpeta antigua (`settings.json` o `config.json`),
+  sin borrar el original; y `install.ps1` ya informa de la ruta correcta.
+- Migrada a mano la carpeta de esta máquina: `settings.json` + `.bak`.
+- **Segundo bug encontrado al leer el fichero migrado**: la clave del roster era el JSON de
+  identidad completo (`{"name":"Jhoin",...}`), no el nombre, porque `read_identity_string()`
+  devuelve ese blob. Ahora se usa el campo `name` de Mumble con el JSON solo como respaldo
+  (`ffi::identity_name`, función pura con tests). El roster migrado quedó corregido a
+  `{"Jhoin": 11011}`.
+- Verificado: 35 tests en el addon (2 nuevos), 71 en `core`, `clippy -D warnings` limpio.
+
 ## HECHO – 2026-10-31 · Arreglado el cuelgue al entrar en un mapa (0.4.2)
 
 - **Síntoma**: el juego se congelaba al entrar en un mapa después de elegir personaje (reportado

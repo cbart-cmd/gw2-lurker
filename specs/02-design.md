@@ -144,8 +144,9 @@ Patrón adoptado tras revisar `../fight_analysis_danger` y `../gw2-rotation-buil
 - Si la posición guardada cae fuera de pantalla, se corrige al cargar.
 
 **Persistencia (RF-41, alineado con los proyectos vecinos)**
-- Fichero `settings.json` en la carpeta del addon (`<addons>/gw2_lurker/`), como `timers_wvw` y `gw2_builds_wvw`. Se mantiene `settings.json.bak` con la copia anterior y la escritura es atómica (`.json.tmp` + rename).
-- Se sigue leyendo el `config.json` de 0.1–0.3 y se reescribe como `settings.json`; un fichero dañado se conserva como `settings.json.corrupt-<fecha>`.
+- Fichero `settings.json` en **`<Documentos>\Guild Wars 2\addons\gw2_lurker\`**, como `timers_wvw` y `gw2_builds_wvw`. La carpeta se resuelve con `SHGetKnownFolderPath(FOLDERID_Documents)` (`addon::ffi::paths`), que respeta Documentos redirigido a OneDrive; leer el registro daría la ruta equivocada. Nunca junto a la DLL: `addons` está en `Program Files` y escribir allí exige elevación. Se mantiene `settings.json.bak` con la copia anterior y la escritura es atómica (`.json.tmp` + rename).
+- Al arrancar se migra una sola vez el `settings.json`/`config.json` de la carpeta antigua de Nexus; el viejo **no se borra** (puede no ser borrable sin administrador). El histórico de sesión no se migra: se descarta al cerrar (ADR-012).
+- Un fichero dañado se conserva como `settings.json.corrupt-<fecha>`.
 - La escritura vive en un hilo propio (`addon::writer`): la UI solo envía una copia por un canal y el hilo se queda con el último valor, como mucho dos guardados por segundo. Así se cumple la regla 6 (nada de E/S en render) y no se pierde lo movido si el juego se cierra de golpe. En `unload` se hace un guardado final y se espera (`join`) al hilo.
 - Los mismos ajustes aparecen también en el panel de opciones de Nexus (`RenderType::OptionsRender`), que es accesible fuera de WvW (RF-02).
 

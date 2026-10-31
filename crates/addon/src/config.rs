@@ -7,7 +7,7 @@
 use std::collections::BTreeMap;
 use std::fs;
 use std::io;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use chrono::Utc;
 use gw2lurker_core::model::TeamColor;
@@ -163,10 +163,61 @@ impl Config {
 }
 
 /// Directory where the addon may write, created if needed.
+///
+/// `<Documentos>\Guild Wars 2\addons\gw2_lurker`, like the neighbouring addons. If Documents
+/// cannot be resolved we fall back to the folder Nexus gives us next to the DLL, because
+/// losing the settings is worse than writing them in the wrong place.
 pub fn addon_dir() -> io::Result<PathBuf> {
+    if let Some(documents) = crate::ffi::paths::documents() {
+        let dir = addon_dir_in(&documents);
+        fs::create_dir_all(&dir)?;
+        return Ok(dir);
+    }
     let dir = nexus::paths::get_addon_dir(crate::ADDON_DIR)?;
     fs::create_dir_all(&dir)?;
     Ok(dir)
+}
+
+/// `<Documentos>\Guild Wars 2\addons\<addon>`, split out so it can be tested without the API.
+pub fn addon_dir_in(documents: &Path) -> PathBuf {
+    documents
+        .join("Guild Wars 2")
+        .join("addons")
+        .join(crate::ADDON_DIR)
+}
+
+/// Folder Nexus used to hand us, where 0.1–0.4.2 kept the settings.
+fn legacy_addon_dir() -> Option<PathBuf> {
+    nexus::paths::get_addon_dir(crate::ADDON_DIR).ok()
+}
+
+/// Copies an existing settings file from the old location the first time.
+///
+/// Returns a note for the log when something was migrated. The old file is left alone: it is
+/// inside `Program Files` and may not even be deletable without elevation.
+fn migrate_legacy(dir: &Path) -> Option<String> {
+    let legacy = legacy_addon_dir()?;
+    if legacy == dir {
+        return None;
+    }
+    for name in [SETTINGS_FILE, LEGACY_FILE] {
+        let target = dir.join(SETTINGS_FILE);
+        if target.exists() {
+            return None;
+        }
+        let source = legacy.join(name);
+        if source.exists() {
+            return match fs::copy(&source, &target) {
+                Ok(bytes) => Some(format!(
+                    "ajustes migrados de {} a {} ({bytes} bytes)",
+                    source.display(),
+                    target.display()
+                )),
+                Err(error) => Some(format!("no se pudo migrar {} ({error})", source.display())),
+            };
+        }
+    }
+    None
 }
 
 /// Name of the settings file, like `settings.json` in the neighbouring addons.
@@ -201,6 +252,8 @@ pub fn load() -> (Config, Option<String>) {
         }
     };
 
+    let migrated = migrate_legacy(&dir);
+
     let primary = dir.join(SETTINGS_FILE);
     let legacy = dir.join(LEGACY_FILE);
     let (path, was_legacy) = if primary.exists() {
@@ -208,7 +261,7 @@ pub fn load() -> (Config, Option<String>) {
     } else if legacy.exists() {
         (legacy, true)
     } else {
-        return (Config::default(), None);
+        return (Config::default(), migrated);
     };
 
     let raw = match fs::read_to_string(&path) {
@@ -219,11 +272,13 @@ pub fn load() -> (Config, Option<String>) {
     match serde_json::from_str::<Config>(&raw) {
         Ok(mut config) => {
             config.sanitize();
-            let note = was_legacy.then(|| {
-                format!(
-                    "leído {LEGACY_FILE} de una versión anterior; se guardará como {SETTINGS_FILE}"
-                )
-            });
+            let note = was_legacy
+                .then(|| {
+                    format!(
+                        "leído {LEGACY_FILE} de una versión anterior; se guardará como {SETTINGS_FILE}"
+                    )
+                })
+                .or(migrated);
             (config, note)
         }
         Err(e) => {
@@ -266,6 +321,20 @@ pub fn save(config: &Config) -> io::Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn rf41_settings_live_under_documents_like_the_neighbours() {
+        let dir = addon_dir_in(Path::new(r"C:\Users\X\Documentos"));
+        assert_eq!(
+            dir,
+            Path::new(r"C:\Users\X\Documentos\Guild Wars 2\addons\gw2_lurker")
+        );
+        assert_eq!(
+            dir.file_name().and_then(|name| name.to_str()),
+            Some(crate::ADDON_DIR),
+            "la carpeta lleva el nombre del addon, como timers_wvw o gw2_builds_wvw"
+        );
+    }
 
     #[test]
     fn rf41_defaults_are_usable() {

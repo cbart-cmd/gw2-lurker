@@ -23,6 +23,20 @@ name = "nexus_codegen"
 expression = "MIT"
 license-files = []
 
+# `evtc` and `unofficial_extras` come from the same repository (`zerthox/arcdps-rs`, pulled in
+# by Nexus' `arc` and `extras` features). Their crate manifests declare no license, but the
+# repository ships a single MIT LICENSE at its root (Copyright 2019-2022 greaka, 2022 Zerthox),
+# so the clarification is the same shape as the one above.
+[[licenses.clarify]]
+name = "evtc"
+expression = "MIT"
+license-files = []
+
+[[licenses.clarify]]
+name = "unofficial_extras"
+expression = "MIT"
+license-files = []
+
 [bans]
 multiple-versions = "warn"
 wildcards = "deny"

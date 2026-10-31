@@ -1,6 +1,15 @@
 # Changelog
 Formato [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/), versionado [SemVer](https://semver.org/lang/es/).
 
+## [0.4.3] - 2026-10-31
+### Cambiado
+- Los ajustes se guardan en `<Documentos>\Guild Wars 2\addons\gw2_lurker\settings.json`, como
+  los addons vecinos, en vez de junto a la DLL (que está en Program Files y exigía permisos).
+  Se migra solo el fichero antiguo la primera vez.
+### Corregido
+- El equipo recordado por personaje usaba como clave el JSON de identidad completo de Mumble en
+  lugar del nombre del personaje.
+
 ## [0.4.2] - 2026-10-31
 ### Corregido
 - **Cuelgue al entrar en un mapa.** La ventana de ajustes pedía el equipo con una función
