@@ -69,6 +69,15 @@ pub const TEXT: &[(&str, [&str; COLUMNS])] = &[
     ("Alert log", ["Registro de avisos", "Alert log", "Journal des alertes", "Hinweisprotokoll"]),
     ("Show widget", ["Ver la ventana", "Show widget", "Voir la fenêtre", "Fenster zeigen"]),
     (
+        "Click-through is on: Alt+Shift+L or the Nexus options to use the mouse.",
+        [
+            "Click-through activo: Alt+Mayús+L o las opciones de Nexus para usar el ratón.",
+            "Click-through is on: Alt+Shift+L or the Nexus options to use the mouse.",
+            "Clics traversants actifs : Alt+Maj+L ou les options de Nexus pour utiliser la souris.",
+            "Klickdurchlässig aktiv: Alt+Umschalt+L oder die Nexus-Optionen für die Maus.",
+        ],
+    ),
+    (
         "Pop-up alerts",
         [
             "Avisos emergentes",

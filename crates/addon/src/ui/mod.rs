@@ -111,7 +111,8 @@ pub fn register() {
                 let board = crate::worker::dashboard();
                 (board.candidates.clone(), board.guilds.clone())
             };
-            let change = settings::draw_inline(ui, &candidates, &guilds);
+            let names = crate::worker::dashboard().guild_names.clone();
+            let change = settings::draw_inline(ui, &candidates, &guilds, &names);
             match change {
                 Some(settings::TeamChange::Pick(team_id)) => crate::team::remember(team_id),
                 Some(settings::TeamChange::Clear) => crate::team::forget(),
@@ -311,7 +312,7 @@ fn draw_tabs(
                     }
                 }
                 3 => alerts::log_body(ui, data.alerts),
-                _ => change = settings::body(ui, config, data.candidates, data.guilds),
+                _ => change = settings::body(ui, config, data.candidates, data.guilds, data.names),
             });
         }
     }
@@ -370,6 +371,16 @@ fn draw_health(ui: &nexus::imgui::Ui, config: &mut crate::config::Config, data: 
     } else {
         ui.text_disabled(format!("{summary} · {} {when}", i18n::text("Last update")));
     }
+
+    // Click-through has no visual trace of its own: without this line the only symptom is that
+    // nothing answers the mouse, which is indistinguishable from a frozen addon (bug of
+    // 2026-10-31).
+    if config.window(WIDGET).locked {
+        let _tint = ui.push_style_color(nexus::imgui::StyleColor::Text, [1.0, 0.75, 0.3, 1.0]);
+        ui.text_wrapped(i18n::text(
+            "Click-through is on: Alt+Shift+L or the Nexus options to use the mouse.",
+        ));
+    }
 }
 
 /// Pop-up with what just happened, on top of the screen (RF-19a).
@@ -395,13 +406,22 @@ fn draw_popup(
 }
 
 /// The two switches Nexus' options pane offers first (T-42).
+/// The two switches Nexus' options pane offers first (T-42).
+///
+/// They are the way back when the widget is hidden or click-through: from inside the widget that
+/// state cannot be undone with the mouse, and the hotkey may be bound to something else.
 fn draw_openers(ui: &nexus::imgui::Ui) {
     let mut config = crate::runtime();
     let mut visible = config.window(WIDGET).visible;
+    let mut locked = config.window(WIDGET).locked;
     let shown = ui.checkbox(i18n::widget("Show widget"), &mut visible);
+    let clicked = ui.checkbox(i18n::widget("Click-through"), &mut locked);
     let popups = ui.checkbox(i18n::widget("Pop-up alerts"), &mut config.popup_enabled);
     if shown {
         config.window(WIDGET).visible = visible;
+    }
+    if clicked {
+        config.window(WIDGET).locked = locked;
     }
     if popups {
         // Turning them back on with a duration of zero would do nothing: 2 s is the default.

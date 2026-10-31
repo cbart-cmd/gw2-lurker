@@ -13,6 +13,21 @@ Reglas:
 
 ---
 
+## HECHO – 2026-10-31 · La ventana no respondía al ratón (0.14.1)
+
+- **Diagnóstico con el fichero real del usuario**: su `settings.json` tenía
+  `"WvW Lurker": { "locked": true }`. Click-through activo y sin ninguna señal visible: los clics
+  se van al juego y el addon parece colgado. Nada en pantalla decía cómo salir.
+- Arreglos: (1) el estado se anuncia en naranja bajo el estado del worker, con el atajo y la
+  mención a las opciones de Nexus; (2) las opciones de Nexus ganan la casilla **Click-through**,
+  que es la salida sin teclado; (3) la lista de **clanes seguidos** de los ajustes enseña
+  `[TAG] Nombre` en vez del UUID (era el último sitio donde quedaba el id).
+- Un clan **seguido** vuelve a avisar aunque el claim ya estuviera al arrancar (RF-21, RF-25): mi
+  filtro de 0.12.1 los quitaba todos, y seguir un clan es justo para enterarte. Test
+  `rf21_a_followed_guild_is_told_even_if_the_claim_was_already_there`.
+- Sin verificar: si el claim de Eternos que reportó el usuario era suyo con su propio clan; si no
+  lo sigue, no avisará (RF-04: el baseline no genera avisos). Queda como duda en `bugs.md`.
+
 ## HECHO – 2026-10-31 · Aviso de configuración dañada (T-26; 0.14.0)
 
 - `config::load` ya renombraba el fichero ilegible y devolvía un informe, pero ese informe solo iba

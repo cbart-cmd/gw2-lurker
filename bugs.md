@@ -110,3 +110,23 @@ Estado: `[ ]` pendiente · `[x]` hecho.
    real, así que la lista de avisos y el historial de clanes arrancaban con claims de ayer. Ahora los
    `late` no entran ni en avisos ni en historial (`recent_alerts`, `history_row`) y en disco solo se
    escribe lo que reclamaron las guilds que sigues (`keeps_in_the_store`).
+
+## [x] Ventana widget no admite click (2026-10-31)
+- Click derecho no hace nada
+- clicar pestañas no hace nada
+- he reclamado e eternos taj ode la gaurdia del ogro (ogrewatch cut) y no  ha saltado  ningun aviso de reclamado
+- clanes seguidos sigue con id, adjunto imagen
+- quiero otro comportamiento: otro oel desplegable de clan a salir lo muestra en inglés, que muestre ingles / traduccion
+ - **Hecho (0.14.1):** la ventana estaba en **click-through** (`"WvW Lurker": { "locked": true }` en
+   el `settings.json`), así que los clics se iban al juego y nada lo decía. Ahora el estado se anuncia
+   en naranja con el atajo, y las opciones de Nexus tienen la casilla **Click-through** para salir sin
+   teclado. **Mientras tanto**: `Alt+Mayús+L`, o desmarcar la casilla en las opciones de Nexus.
+ - La lista de **clanes seguidos** ya enseña `[TAG] Nombre` en vez del identificador.
+ - Un clan **seguido** vuelve a avisar aunque el objetivo ya estuviera reclamado al arrancar (RF-21).
+   **Pendiente de confirmar:** si el claim de Eternos era de un clan que no sigues, no avisará (RF-04);
+   dime si quieres que avise también de tus propias capturas y con qué criterio.
+ - **Pendiente:** enseñar en el desplegable de clan el nombre en inglés **y** la traducción. Falta
+   decidir de dónde sale la segunda: los nombres de clan no los traduce el juego, así que habría que
+   usar la tabla de equipos (`data/team-names.json`) solo cuando coincida, o dejar que el usuario
+   escriba la suya. Lo dejo apuntado como T-43.
+![alt text](image.png)

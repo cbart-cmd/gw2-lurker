@@ -110,8 +110,15 @@ impl Dashboard {
             .rev()
             .filter_map(|event| self.alert_line(event))
             // What was already claimed when the addon started is not news: showing it made the
-            // widget look like it never forgot anything (bug of 2026-10-31).
-            .filter(|line| !line.late)
+            // widget look like it never forgot anything (bug of 2026-10-31). The exception is a
+            // followed guild, which is followed precisely to hear about it (RF-21, RF-25).
+            .filter(|line| {
+                !line.late
+                    || line
+                        .guild
+                        .as_deref()
+                        .is_some_and(|guild| follow.contains(guild))
+            })
             .filter(|line| filter.notify(line.map_role, line.guild.as_deref(), follow, current))
             .take(limit)
             .collect()
@@ -640,6 +647,29 @@ mod tests {
         assert_eq!(lines.len(), 1, "solo el claim visto en vivo");
         assert_eq!(lines[0].objective, "38-21");
         assert!(!lines[0].late);
+    }
+
+    #[test]
+    fn rf21_a_followed_guild_is_told_even_if_the_claim_was_already_there() {
+        let mut board = Dashboard::default();
+        board.push_alert(Event::Claim {
+            objective: "38-20".to_owned(),
+            guild: "1DB147F0".to_owned(),
+            at: Utc::now(),
+            late: true,
+        });
+
+        let mut follow = gw2lurker_core::FollowList::new();
+        follow.add("1DB147F0");
+        let filter = gw2lurker_core::AlertFilter::default();
+
+        let lines = board.recent_alerts(&filter, &follow, None, 50);
+        assert_eq!(
+            lines.len(),
+            1,
+            "un clan seguido avisa aunque el claim ya estuviera al arrancar"
+        );
+        assert!(lines[0].late);
     }
 
     #[test]

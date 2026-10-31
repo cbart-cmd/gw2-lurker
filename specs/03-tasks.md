@@ -81,6 +81,10 @@ Cada tarea es pequeña y verificable. Orden recomendado; las dependencias se ind
   toda la ventana. El **pop-up** se activa y desactiva desde ahí (`popup_enabled` + `popup_secs`)
   y desde las opciones de Nexus, que además ofrecen **Ver la ventana**; el pop-up se dibuja
   aunque la ventana esté cerrada. (T-13, T-17) — RF-14, RF-16, RF-19a, RF-46
+- **T-43** Enseñar en la lista de clanes el **nombre en inglés y la traducción** cuando exista.
+  Falta decidir el origen de la traducción: el juego no traduce nombres de clan, así que solo puede
+  salir de una tabla propia (como `data/team-names.json` para equipos) o de un campo que escriba el
+  usuario, reutilizando el patrón de `team_translations`. (T-37)
 - **T-17 ✔ (2026-10-31, parcial)** Contrato de ventana compartido en `addon::ui::window`:
   barra de título propia con `×`, plegado con doble clic, mover/redimensionar solo si no está
   bloqueada, opacidad sobre el fondo, menú contextual (bloquear, opacidad, restablecer) y

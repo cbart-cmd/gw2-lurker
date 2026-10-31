@@ -1,6 +1,16 @@
 # Changelog
 Formato [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/), versionado [SemVer](https://semver.org/lang/es/).
 
+## [0.14.1] - 2026-10-31
+### Corregido
+- **La ventana no respondía al ratón**: el modo click-through se había quedado guardado y no había
+  ninguna señal visible, así que parecía un addon colgado. Ahora, con click-through activo, la
+  ventana lo dice en naranja con el atajo, y las opciones de Nexus tienen su propia casilla, de
+  modo que siempre hay una salida sin depender del teclado.
+- **La lista de clanes seguidos enseñaba identificadores**: ahora muestra `[TAG] Nombre`.
+- Un clan **seguido** vuelve a avisar de sus claims aunque el objetivo ya estuviera reclamado al
+  arrancar (RF-21, RF-25). Los de clanes que no sigues siguen sin aparecer.
+
 ## [0.14.0] - 2026-10-31
 ### Añadido
 - **Aviso de configuración dañada** (T-26, RF-51): si `settings.json` no se puede leer, el addon

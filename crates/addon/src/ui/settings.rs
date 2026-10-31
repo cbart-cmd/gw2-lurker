@@ -82,6 +82,7 @@ pub fn body(
     config: &mut crate::config::Config,
     candidates: &[Candidate],
     guilds: &[GuildSummary],
+    names: &std::collections::BTreeMap<String, String>,
 ) -> Option<TeamChange> {
     let table = gw2lurker_core::bundled();
     let language = i18n::effective().code();
@@ -103,7 +104,7 @@ pub fn body(
     };
     let before = edits.team_id;
 
-    let save_now = draw_body(ui, table, &mut edits, candidates, guilds);
+    let save_now = draw_body(ui, table, &mut edits, candidates, guilds, names);
 
     remember_translation(config, edits.translation.as_str(), language);
     config.language = edits.language;
@@ -137,9 +138,10 @@ pub fn draw_inline(
     ui: &Ui,
     candidates: &[Candidate],
     guilds: &[GuildSummary],
+    names: &std::collections::BTreeMap<String, String>,
 ) -> Option<TeamChange> {
     let mut config = crate::runtime();
-    body(ui, &mut config, candidates, guilds)
+    body(ui, &mut config, candidates, guilds, names)
 }
 
 fn team_change(before: Option<u32>, now: Option<u32>) -> Option<TeamChange> {
@@ -185,6 +187,7 @@ fn draw_body(
     edits: &mut Edits,
     candidates: &[Candidate],
     guilds: &[GuildSummary],
+    names: &std::collections::BTreeMap<String, String>,
 ) -> bool {
     // imgui puts the label to the right of the widget: cap the widget so the translated labels
     // of a narrow window are not cut off, whatever the language.
@@ -220,7 +223,7 @@ fn draw_body(
         .build();
     draw_scope(ui, edits);
     let mut follow = edits.follow.clone();
-    draw_alert_filters(ui, edits, guilds, &mut follow);
+    draw_alert_filters(ui, edits, guilds, names, &mut follow);
     edits.follow = follow;
 
     ui.separator();
@@ -255,6 +258,7 @@ fn draw_alert_filters(
     ui: &Ui,
     edits: &mut Edits,
     guilds: &[GuildSummary],
+    names: &std::collections::BTreeMap<String, String>,
     follow: &mut FollowList,
 ) {
     ui.separator();
@@ -291,7 +295,12 @@ fn draw_alert_filters(
     }
     for summary in guilds {
         let mut followed = follow.contains(&summary.guild);
-        let label = format!("{}###follow{}", summary.guild, summary.guild);
+        // `[TAG] Nombre` cuando se conoce: un UUID no lo reconoce nadie (bug de 2026-10-31).
+        let shown = names
+            .get(&summary.guild)
+            .cloned()
+            .unwrap_or_else(|| summary.guild.clone());
+        let label = format!("{shown}###follow{}", summary.guild);
         if ui.checkbox(label, &mut followed) {
             if followed {
                 follow.add(&summary.guild);
