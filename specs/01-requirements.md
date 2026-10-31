@@ -140,6 +140,24 @@ Comprobado el **2026-10-31** contra la API real, el código fuente de `nexus-rs`
 
 **Limitación conocida:** la API solo da el último claim vigente. Un claim que ocurra y se libere entre dos polls, o dos claims consecutivos de guilds distintas entre dos polls, no se pueden observar. La spec no promete completitud (RNF-05).
 
+### C2. Estado del matchup y rutas inferidas (MVP de validación)
+
+**RF-70 (M)** El addon ofrecerá una vista **"Claims del matchup"** con lo reclamado en **los cuatro mapas** del match, agrupado por mapa y con filtros por tipo y por equipo. Cada fila muestra objetivo, guild (tag), dueño y antigüedad del claim.
+- GWT: *Given* el match `2-2` con 41 claims, *When* se abre la vista, *Then* aparecen los 41 agrupados por mapa, incluidos los de mapas donde no está el jugador.
+
+**RF-71 (M)** El addon mostrará una **lista de guilds con claim** ordenada por el claim **más reciente** primero, con el número de objetivos que tienen, el mapa del último claim y su hora. Un clic selecciona la guild (RF-72).
+- GWT: *Given* una guild con 5 claims antiguos y otra con 1 claim de hace 30 s, *When* se abre la lista, *Then* la segunda aparece primera.
+
+**RF-72 (M)** Al seleccionar una guild se verá su **historial**, separando lo reclamado en el mapa en el que está el jugador **ahora** de lo reclamado en los **demás mapas**, con el rango temporal de RF-32.
+
+**RF-73 (M)** El usuario podrá marcar guilds como **favoritas** ("seguir"): persisten entre sesiones, aparecen siempre arriba en la lista de RF-71 y alimentan las alertas de RF-21.
+
+**RF-32a (C)** La ruta virtual (RF-32) se dibuja en el **último mapa donde la guild reclamó algo**, con el origen inferido por esta precedencia:
+1. Si es su **mapa principal** y tienen el **garrison** reclamado → se empieza en el garrison.
+2. Si el objetivo está **al norte** de colinas/bahía (fronteras alpinas; el equivalente en la desértica) → se empieza en colinas/bahía, más cerca que el respawn.
+3. En cualquier otro caso → se empieza en el **respawn** del equipo.
+La ruta se etiqueta como **inferida** (RF-33): es una reconstrucción, no el recorrido real.
+
 ## D. Vistas de mapa
 
 **RF-30 (M)** Mapa simplificado por mapa de WvW: objetivos como figuras coloreadas por equipo (forma por tipo) sobre un fondo esquemático, sin texturas del juego (ADR-002). Selector de mapa. Los límites se toman de `continent_rect` de `/v2/maps` (ADR-011) y los objetivos con `coord: null` se omiten del dibujo en lugar de dibujarse en (0,0).
@@ -205,7 +223,11 @@ Comprobado el **2026-10-31** contra la API real, el código fuente de `nexus-rs`
 
 **RF-52 (S)** La ventana de configuración mostrará la versión actual y el estado de actualización.
 
-**RF-53 (M)** El addon declarará `UpdateProvider::GitHub` y `DisableHotloading` (ADR-007), y publicará el SHA-256 de cada release.
+**RF-53 (M)** El addon declarará `UpdateProvider::Direct` (no GitHub) y `DisableHotloading` (ADR-007), con `update_link` = `https://raw.githubusercontent.com/cbart-cmd/gw2addonsreleases/main/gw2_lurker.dll`. Publicará junto a la DLL su **MD5** (lo que parsea Nexus) y un **SHA-256** propio para que el usuario verifique la descarga. El procedimiento completo está en `docs/RELEASE.md`.
+- GWT: *Given* una versión nueva publicada, *When* Nexus consulta el `update_link`, *Then* descarga una DLL que empieza por `MZ` y cuyo MD5 coincide con el publicado.
+
+**RF-02a (M)** En pantallas de carga, selección de personaje y creación de personaje el addon **no** dibujará nada ni emitirá peticiones. La señal primaria es `NexusLink::is_gameplay == false` (verificado en `nexus-rs`, `src/api/data_link/nexus.rs`); como respaldo, `map_type` ∈ {`AUTO_REDIRECT` (0), `CHARACTER_CREATION` (1)} o `map_id == 0`.
+- GWT: *Given* el jugador cierra sesión y vuelve a la selección de personaje, *When* Nexus marca `is_gameplay = false`, *Then* el widget desaparece y el worker deja de pedir datos.
 
 **Nota de alcance:** la validación de DLL corruptas al cargarlas es responsabilidad de Nexus. El proyecto aporta lo que está a su alcance: publicar checksums, probar en CI que la DLL generada es un PE x64 válido que exporta el símbolo de entrada, y fallar de forma segura (RF-51).
 
@@ -254,5 +276,7 @@ Backend compartido entre usuarios, posición real de jugadores, alertas fuera de
 | RF-37..38 | `map::background`, `map::icons` | T-29 |
 | RF-40..43 | `config`, `nexus_ui::settings` | T-12, T-17 |
 | RF-44..46 | `addon::i18n`, `addon::ui::window`, `ffi::keys` | T-31, T-13, T-17 |
+| RF-70..73 | `addon::ui::matchup`, `core::history` | T-36, T-37, T-38, T-39 |
+| RF-32a | `map::route` | T-40 |
 | RF-60..63 | `addon::ui::theme` | T-28 |
 | RF-50..53 | `addon::update`, `addon::safe_mode` | T-25, T-26, T-27 |

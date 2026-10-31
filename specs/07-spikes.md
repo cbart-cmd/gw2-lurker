@@ -111,7 +111,7 @@ Regla: si un resultado contradice la spec, no se "arregla" el código; se abre u
 - Keybind reasignable: muy probable `[src]`, pendiente de confirmar en la UI. Nexus persiste los binds de usuario en `<juego>/addons/Nexus/InputBinds.json` (`RaidcoreGG/Nexus`, `Nexus/Index/Index.cpp`, ruta `EPath::InputBinds`), lo que implica que el usuario los sobrescribe desde la configuración de Nexus. El registro desde el addon es `register_keybind_with_string(id, keybind_handler!(|id, is_release| …), "ALT+SHIFT+L")` (`nexus/src/api/keybind.rs`).
 - Tamaño DLL mínima: `pendiente` (lo produce T-02b).
 - Logs `[src]`: `<juego>/addons/Nexus/Nexus.log`, más `Crash.log` y `CrashStack.log` en la misma carpeta (`RaidcoreGG/Nexus`, `Nexus/Index/Index.cpp`). El log propio del addon se escribe ahí y se filtra con `log_filter` (feature `log`).
-- Rutas de datos del addon `[src]`: `paths::get_addon_dir("gw2-lurker") -> io::Result<PathBuf>` (`nexus/src/api/paths.rs`), es decir `<juego>/addons/<nombre>/`.
+- Rutas de datos del addon `[src]`: `paths::get_addon_dir("gw2_lurker") -> io::Result<PathBuf>` (`nexus/src/api/paths.rs`), es decir `<juego>/addons/gw2_lurker/`. El nombre del directorio coincide con el de la DLL publicada (`gw2_lurker.dll`).
 
 ### T-02
 

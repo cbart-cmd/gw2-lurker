@@ -61,3 +61,31 @@ Cada tarea es pequeña y verificable. Orden recomendado; las dependencias se ind
 - **T-28** Módulo `theme`: herencia del estilo de Nexus, tema propio opcional aplicado solo a ventanas del addon (stack de estilo push/pop), colores de equipo fijos y fondo del widget configurable. (T-13, T-17) — RF-60..63
 - **T-21 (S)** RF-11, RF-15, RF-19b, RF-19c, RF-35, atajo/icono de Quick Access.
 - **T-22 (C)** RF-19d, RF-36, reproducción animada de la ruta.
+
+## Fase 6 – MVP de validación (backlog priorizado)
+
+Orden pensado para llegar cuanto antes a "lo veo en el juego y me sirve para decidir". Cada
+tarea indica de qué depende.
+
+1. **T-32 (M)** Bocetos y `docs/boceto.html` navegable para validar la UI antes de escribirla.
+   *Hecho:* el HTML enseña widget, mapa, lista de guilds e historial con datos reales de
+   ejemplo, y se puede abrir sin el juego. Requiere `PRODUCT.md` (flujo `impeccable init`).
+   — RF-16, RF-30, RF-70..73
+2. **T-33 (M)** No dibujar nada ni pollear en carga, selección/creación de personaje: señal
+   `NexusLink::is_gameplay` con respaldo por `map_type`. (T-12) — RF-02, RF-02a
+3. **T-34 (M)** Publicar la DLL en `..\gw2addonsreleases` siguiendo `docs/RELEASE.md`
+   (MD5, excepción LFS, tag `gw2-lurker-v*`, retención actual+anterior). (T-27) — RF-53
+4. **T-35 (M)** Arrancar el addon dentro del juego con este repo: `export!` real, versión
+   visible y traza en `addons/Nexus/Nexus.log`. Es la T-01 ejecutada de verdad. (T-33, T-34)
+5. **T-36 (M)** Vista **"Claims del matchup"**: los cuatro mapas agrupados, con filtros.
+   (T-11, T-15) — RF-70
+6. **T-37 (M)** Lista de guilds con claim ordenada por el más reciente. (T-36) — RF-71
+7. **T-38 (M)** Historial por guild separando el mapa actual de los demás. (T-16, T-37) — RF-72
+8. **T-39 (M)** Favoritos (seguir/dejar de seguir) con persistencia. (T-37) — RF-73
+9. **T-40 (C)** Ruta virtual con origen inferido (garrison → colinas/bahía → respawn).
+   (T-38) — RF-32a
+10. **T-41 (S)** Cerrar i18n: terminología de tipos con hablantes nativos de fr/de. (T-31)
+    — RF-44, RNF-08
+
+> Nota: la matriz de trazabilidad de `01-requirements.md` cita **T-29** y **T-30**, que no
+> existen en este fichero. Hay que crear ambas o corregir la matriz.

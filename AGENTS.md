@@ -75,3 +75,14 @@ docs/          documentación de usuario final
 - Target de la DLL: `x86_64-pc-windows-msvc`. Si no puedes compilar ese target, indícalo y limita la verificación a `core`, `api` y `store`.
 - Idioma: código y comentarios en inglés; textos de UI, specs y commits de documentación en español (con claves i18n, RNF-08).
 - Commits convencionales (`feat:`, `fix:`, `test:`, `docs:`, `refactor:`, `chore:`).
+
+## 8. Publicación (Nexus)
+
+La DLL se distribuye desde **`https://github.com/cbart-cmd/gw2addonsreleases`**, un repositorio **compartido con otros addons**. Procedimiento completo y comprobaciones obligatorias en [`docs/RELEASE.md`](docs/RELEASE.md). Resumen:
+
+- Ficheros propios: `gw2_lurker.dll` + `gw2_lurker.dll.md5` (32 hex en minúsculas, sin BOM ni salto de línea). `update_link` = `https://raw.githubusercontent.com/cbart-cmd/gw2addonsreleases/main/gw2_lurker.dll`.
+- `UpdateProvider::Direct` + `AddonFlags::DisableHotloading` (ver RF-53 y ADR-007).
+- **No tocar** los ficheros de los proyectos hermanos. Etiqueta `gw2-lurker-v<version>` y `--latest=false`.
+- Retención: **release actual + la anterior**; se borra la de dos versiones atrás.
+- Excepción de LFS para nuestra DLL en `.gitattributes` del repo de distribución **antes** de `git add`, o Nexus recibe un puntero de texto en vez de la DLL.
+- Verificar la descarga real (bytes, `MZ`, MD5) desde la URL exacta, no fiarse de un HTTP 200.
