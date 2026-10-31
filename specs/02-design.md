@@ -1,0 +1,161 @@
+# 02 – Diseño
+
+## 1. Estructura del workspace
+
+```
+wvw-watch/
+wvw-watch/                    ← raíz del repo
+├── Cargo.toml                # workspace (se crea en el scaffold)
+├── Cargo.lock                # versionado
+├── rustfmt.toml              # raíz: rustfmt lo busca aquí
+├── deny.toml                 # raíz: cargo-deny lo busca aquí
+├── scripts/
+│   ├── check_loc.sh
+│   └── check_size.sh
+├── .github/workflows/        # CI (se crea en el scaffold)
+├── crates/                   # core, api, store, addon
+├── docs/                     # documentación de usuario final
+├── specs/                    # solo documentación de diseño: requisitos, diseño, ADR…
+├── README.md
+└── CHANGELOG.md
+```
+
+`core` y `store` se testean sin el juego. `api` se testea con un cliente simulado. `addon` es fino.
+
+## 2. Integración con Nexus (`zerthox/nexus-rs`)
+
+Capacidades de la librería que se usarán, según su documentación: macro `export!` (nombre, firma, `load`/`unload`), `alert::send_alert`, `data_link` (MumbleLink), `paths` (directorio de addon), y la integración con `imgui`.
+
+Pendiente de confirmar leyendo el código en la tarea **T-01** (marcado como riesgo): firma exacta para registrar el callback de render, cómo obtener `map_id` desde Mumble, e iconos de Quick Access.
+
+## 3. Flujo de datos
+
+```
+[Mumble map_id] -> context -> (activa/desactiva worker)
+worker (hilo): GET match -> Snapshot -> diff(prev,cur) -> Vec<Event>
+   -> store.append(events de guilds seguidas)        (hilo worker)
+   -> rules(events) -> Vec<Alert>
+   -> canal mpsc / Arc<RwLock<UiState>> -> UI (render thread, solo lectura)
+```
+
+- `UiState` contiene: último `Snapshot`, `fetched_at`, estado de salud, alertas recientes, cache de nombres de guild.
+- El hilo de render **solo** toma un lock de lectura breve y clona/lee referencias; nunca hace E/S.
+
+## 4. Modelo de datos (núcleo)
+
+```rust
+enum Team { Red, Blue, Green, Neutral }
+
+struct Objective {
+    id: String,              // "95-36"
+    map_id: u32,
+    kind: ObjKind,           // Camp, Tower, Keep, Castle, Ruins, ...
+    owner: Team,
+    last_flipped: DateTime<Utc>,
+    claimed_by: Option<GuildId>,
+    claimed_at: Option<DateTime<Utc>>,
+    yaks_delivered: Option<u32>,
+    guild_upgrades: Vec<u32>,
+}
+
+struct Snapshot { match_id: String, taken_at: DateTime<Utc>, objectives: HashMap<String, Objective> }
+
+enum Event {
+    Flip   { obj: ObjRef, from: Team, to: Team, at: DateTime<Utc> },
+    Claim  { obj: ObjRef, guild: GuildId, at: DateTime<Utc>, late: bool },
+    Unclaim{ obj: ObjRef, guild: GuildId, detected_at: DateTime<Utc> },
+    Gap    { from: DateTime<Utc>, to: DateTime<Utc> },
+    MatchChanged { old: String, new: String },
+}
+```
+
+Datos estáticos (cacheados en disco, refresco al cambiar de match o manual): `/v2/wvw/objectives?ids=all` (nombre, tipo, `map_id`, `coord`), `/v2/worlds?ids=all`. Nombres de guild bajo demanda con `/v2/guild/:id`, cacheados.
+
+## 5. Algoritmo de `diff`
+
+1. Si `prev` es `None` o `prev.match_id != cur.match_id` → emitir `MatchChanged` (si aplica) y tratar `cur` como baseline: solo generar `Claim{late:true}` para guilds seguidas (RF-25).
+2. Si `cur.taken_at - prev.taken_at > umbral_gap` → emitir `Gap`; para objetivos con claim vigente de guild seguida cuyo `claimed_at` > `prev.taken_at`, emitir `Claim{late:true}`.
+3. Para cada objetivo presente en ambos:
+   - `owner` distinto → `Flip`.
+   - `claimed_by` pasa de `None/X` a `Y` → `Unclaim(X)` (si X) y `Claim(Y)` con `at = claimed_at`.
+   - `claimed_by` pasa a `None` → `Unclaim`.
+4. Orden determinista de salida (por tiempo, luego id) para facilitar tests.
+
+`rules` filtra por equipo propio, ámbito (mapa actual / todos), guilds seguidas, y aplica el cooldown por objetivo.
+
+## 6. Persistencia (ADR-003)
+
+JSON-lines, un fichero por mes: `history/2026-10.jsonl`. Una línea por evento:
+
+```json
+{"v":1,"t":"claim","match":"2-5","obj":"95-36","map":95,"guild":"B27D...","at":"2026-10-31T12:17:34Z","late":false}
+```
+
+- `trait EventStore { append, query(guild, range), prune(policy) }`.
+- Escritura *append-only* con `flush` por lote; lectura al abrir la vista Histórico (en hilo worker) con índice en memoria por guild.
+- Línea corrupta → se omite y se registra; nunca bloquea la carga.
+- Campo `v` para migraciones.
+- Retención: `prune` elimina ficheros mensuales antiguos y recorta por tamaño.
+- Configuración aparte: `config.json` (mundo, ajustes, guilds seguidas).
+
+## 7. Mapa simplificado (ADR-002)
+
+- Sin texturas: cada mapa se dibuja como un rectángulo con fondo liso.
+- `coord` de `/v2/wvw/objectives` da la posición del objetivo; los límites del mapa se calculan como el mínimo/máximo de coordenadas de sus objetivos más un margen. Se proyecta a la caja de la ventana con una transformación afín (`world_to_screen`), con Y invertida.
+- Forma por tipo: círculo (camp), cuadrado (torre), rombo (fortaleza), estrella (castillo). Color por equipo; accesible con forma + letra, no solo color.
+- Opcional posterior: contorno esquemático por mapa dibujado a mano como polilínea estática.
+- Mapa activo: el de Mumble por defecto; selector manual.
+
+## 7b. Widget fijo de alertas (ADR-006)
+
+- Ventana imgui sin decoración principal, anclada a una posición guardada en config (`x`, `y`, `w`, `h`, `locked`, `opacity`, `font_scale`, `max_lines`, `ttl_secs`).
+- **Desbloqueado:** cabecera mínima para arrastrar/redimensionar, botón de bloqueo y botón para abrir el log completo.
+- **Bloqueado:** flags de no-interacción (`NO_INPUTS`, sin foco, sin barra de título, sin guardado de ini) para que no capture ratón ni teclado.
+- Estado de UI: `VecDeque<AlertEntry { id, kind, team, obj, text, map, at, sticky }>` acotado; el render calcula antigüedad y *fade* con `now - at` (sin hilos ni timers).
+- Fuente de datos: las alertas generadas por `rules` se empujan a `UiState` por el canal del worker; el widget y el log leen la misma lista.
+- Pendiente de confirmar en T-01: flags exactos de imgui disponibles en `nexus-rs` y cómo se persiste la posición.
+
+## 8. Vista Histórico y ruta simulada (ADR-005)
+
+- Entrada: `history.query(guild, range)` → claims ordenados por `at`.
+- Salida: lista de nodos `(n, obj, at, late)`, y tramos entre nodos consecutivos del mismo mapa; si el tiempo entre nodos supera el umbral de `gap`, el tramo es discontinuo.
+- Dibujo: polilínea con flechas en el punto medio, nodos numerados, color por guild si hay varias.
+- Banner fijo: "Ruta inferida a partir de claims; no es el recorrido real."
+
+## 9. Concurrencia y errores
+
+- Un hilo worker con bucle de espera que se puede interrumpir (parar al salir de WvW o al descargar el addon; `unload` hace `join`).
+- Errores de red → `Health::Degraded{since, last_error}`; backoff 2^n con tope (por defecto 5 min).
+- `catch_unwind` en los puntos de entrada FFI y en el worker.
+
+## 10. Estrategia de pruebas
+
+| Capa | Técnica |
+|---|---|
+| `diff`, `rules`, `history` | Tests unitarios con snapshots sintéticos + tests de propiedades (p. ej. diff(s, s) = ∅) |
+| `api` | Fixtures JSON reales guardadas + cliente simulado (éxito, 503, JSON truncado) |
+| `store` | Tests con directorio temporal: append, consulta, línea corrupta, rotación |
+| `map` proyección | Tests de `world_to_screen` (inversa, bordes) |
+| `addon` | Checklist manual en el juego (`tasks.md`, fase de aceptación) |
+
+## 10b. Empaquetado, actualización y modo seguro
+
+- `export!` con `provider: GitHub`, `update_link` al repositorio y `flags: DisableHotloading` (ADR-007). Nexus hace la descarga; el addon solo avisa del reinicio.
+- Módulo `addon::update`: guarda SHA-256 y versión de su DLL al cargar y vigila el fichero cada 60 s en el hilo worker.
+- Módulo `addon::safe_mode`: carga de config/historial con degradación (`*.corrupt-<fecha>`), estado `Health::SafeMode{reason}` visible en UI.
+- Perfil release y presupuesto de tamaño: ADR-008 y `04-engineering-standards.md` §5.
+
+## 11. Riesgos y preguntas abiertas
+
+| ID | Riesgo | Mitigación |
+|---|---|---|
+| R-1 | API de Nexus/nexus-rs distinta a lo supuesto | Spike T-01 antes de comprometer UI |
+| R-2 | Caché real de la API de matches mayor que el intervalo | Medir en T-02; fijar el intervalo por defecto con datos |
+| R-3 | API atascada/503 durante largos periodos | Salud + `gap` + marca "obsoleto" |
+| R-4 | IDs de mapa WvW cambian | Derivarlos de la respuesta del match, con lista de respaldo |
+| R-5 | Claims perdidos entre polls | Documentado (RNF-05); `claimed_at` mitiga parcialmente |
+| R-6 | Mumble no da `map_id` fiable en WvW | Alternativa: detectar por tipo de mapa de `/v2/maps`; verificar en T-01 |
+| R-7 | Unicidad de nombre de guild en búsqueda | UI de selección de candidato (RF-20) |
+| R-9 | Nexus no deja la DLL nueva donde se esperaba (aviso de reinicio inviable) | Spike T-25; alternativa: avisar solo con la versión que reporte Nexus |
+| R-10 | Presupuesto de tamaño irreal por TLS/HTTP | Spike T-02b antes de fijar cifras |
+| R-8 | Widget bloqueado que interfiere con el input del juego | Verificar flags en T-01 y checklist T-19 |

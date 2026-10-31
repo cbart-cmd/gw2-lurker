@@ -1,0 +1,10 @@
+# Normalize line endings in the repo; checkouts use LF.
+* text=auto eol=lf
+
+# Shell scripts are executed by CI on Linux.
+*.sh text eol=lf
+
+# Windows-only helpers.
+*.bat text eol=crlf
+*.ps1 text eol=crlf
+*.cmd text eol=crlf
