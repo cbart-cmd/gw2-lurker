@@ -2,6 +2,8 @@
 Formato [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/), versionado [SemVer](https://semver.org/lang/es/).
 
 ## [Unreleased]
+
+## [0.26.5] - 2026-11-01
 ### Añadido
 - El equipo se guarda **por cuenta**, no por personaje: todos los personajes de una cuenta comparten
   equipo y zona, y una segunda cuenta arranca vacía y se pregunta una vez. La cuenta sale del nombre
