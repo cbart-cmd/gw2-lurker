@@ -122,6 +122,8 @@ El usuario los edita a mano, incluso mientras trabajas.
 ## 8. Gastar menos contexto sin perder calidad
 
 - No re-leas lo que ya tienes; usa `view_range` y `grep` acotado. No vuelques fixtures ni logs.
+- Para localizar código, `grep` en `modelo.md` (síntoma → fichero, y ficha por fichero) antes de
+  abrir fuentes. Tras cambios de estructura: `pwsh -File scripts/gen_modelo.ps1`.
 - Agrupa cambios coherentes antes de validar; no compiles tras cada línea.
 - Subagentes solo para trabajo grande e independiente, nunca para un comando o una búsqueda.
 - `gh … --json <campos>` antes que herramientas MCP para consultas simples a GitHub.
