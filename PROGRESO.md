@@ -50,7 +50,9 @@ Reglas:
 - Contenido: el aviso del click-through sigue al `InputBinds.json` real (commit `25dd2a5`) y el
   historial de un clan se pinta de más reciente a más antiguo (`8e2d8d8`, `ui/guilds.rs`).
 - Retención: quedan 0.26.3 y 0.26.2; la 0.26.1 ya no está en el repo de distribución.
-- Pendiente de prueba en GW2: la tecla nombrada en el aviso y el orden del historial del clan.
+- Probado en GW2 (2026-11-01) y los tres bugs abiertos quedan `[x]` en `bugs.md`: el aviso nombra
+  la tecla nueva, la ruta y el aviso de «sin eventos» funcionan y el historial del clan sale con lo
+  más reciente arriba.
 
 ## HECHO – 2026-11-01 · Subir versión en un solo paso · 0.26.3
 
