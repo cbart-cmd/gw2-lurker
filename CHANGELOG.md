@@ -2,11 +2,23 @@
 Formato [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/), versionado [SemVer](https://semver.org/lang/es/).
 
 ## [Unreleased]
+
+## [0.26.2] - 2026-11-01
 ### Corregido
 - Abrir la ruta de un clan lleva al último mapa donde reclamó, también si no es favorito, sin
   sustituirlo por el mapa del jugador durante el cambio de pestaña.
 - Si no hay eventos registrados para el clan, se conserva la pestaña y se muestra un aviso con
   el inicio del ciclo de seguimiento. El selector de clan del mapa usa la misma validación.
+- Los favoritos separan nombre (ver historial) y botón `i` (ir a Mapa), y muestran el historial
+  aunque ya no haya reclamos vigentes. El botón de mapa coincide con el último claim de la fila;
+  si solo quedan eventos históricos, permite ver su ruta.
+- La ruta pinta el origen inferido **0** desde garri, una fortaleza lateral alpina válida o el
+  respawn del equipo del clan, con condiciones temporales y geográficas; distingue posiciones
+  aproximadas, no cuenta el origen como claim y usa **0/1** si coincide con el primer evento.
+- La preparación de rutas indexa coordenadas y evita copiar textos por nodo para mantener el
+  presupuesto de CPU con el historial máximo.
+### Técnico
+- DLL release: 2 195 456 B, dentro del objetivo de tamaño; sin dependencias añadidas.
 
 ## [0.26.1] - 2026-11-01
 ### Corregido

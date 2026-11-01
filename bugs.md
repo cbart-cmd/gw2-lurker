@@ -25,3 +25,13 @@ Estado: `[ ]` pendiente · `[x]` arreglado según el addon (a falta de que el ju
 - **Pendiente:** arreglo implementado en `ui/navigation.rs`, `ui/mod.rs` y `ui/map.rs`: conservar
   el salto hasta dibujar Mapa y validar que haya eventos; de lo contrario, mostrar un aviso.
   Falta publicar y comprobar la navegación y el aviso dentro de GW2.
+- **Pendiente:** favoritos con nombre para ver historial y `i` para Mapa; destino alineado con el
+  claim vigente más reciente de la fila, con acceso histórico si ya no tiene reclamos (decisión
+  del jugador). Verificado con tests, pendiente de la misma publicación y prueba en GW2.
+
+## [ ] La ruta inferida no pinta el origen 0 (2026-11-01)
+- Faltaba el punto de salida desde respawn, garri o fortaleza lateral; el texto deducía el origen
+  por el tipo de los claims, sin identificar ni localizar una fortaleza válida.
+- **Pendiente:** propuesta aprobada implementada en `core::route` y `ui::map::route`, con fixtures
+  reales, origen 0/1, conexión discontinua y posiciones de respawn aproximadas. Falta publicar y
+  comprobar el dibujo dentro de GW2.

@@ -175,7 +175,8 @@ if ($attrs -match ':(set|unspecified|value)') { Fail "atributos git inesperados:
 Ok 'atributos filter/diff/merge/text en unset'
 
 Step 'Commit y push (solo nuestros ficheros)'
-& git -C $LocalDistRepo commit -m "gw2_lurker v$version" -- $DllName $Md5Name .gitattributes
+& git -C $LocalDistRepo commit -m "chore(release): gw2_lurker v$version" `
+    -m 'Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>' -- $DllName $Md5Name .gitattributes
 if ($LASTEXITCODE -ne 0) { Warn 'nada que commitear (mismo contenido)' }
 & git -C $LocalDistRepo push origin HEAD:main
 if ($LASTEXITCODE -ne 0) { Fail 'git push fallo' }

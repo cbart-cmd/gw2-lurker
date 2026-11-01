@@ -61,6 +61,22 @@ fn pending_remove() -> std::sync::MutexGuard<'static, Option<String>> {
 /// same trick the title bar uses for its own close button.
 const REMOVE_WIDTH: f32 = 24.0;
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum Action {
+    Select(String),
+    ShowOnMap(String),
+}
+
+fn followed_action(guild: &str, row_clicked: bool, map_clicked: bool) -> Option<Action> {
+    if map_clicked {
+        Some(Action::ShowOnMap(guild.to_owned()))
+    } else if row_clicked {
+        Some(Action::Select(guild.to_owned()))
+    } else {
+        None
+    }
+}
+
 /// Guilds the player follows, with a `×` to stop following each one.
 ///
 /// It lives in the *Guilds* tab and not in the settings: following a guild is something you
@@ -76,7 +92,7 @@ pub fn followed_section(
     follow: &mut FollowList,
     known: &BTreeMap<String, String>,
     saved: &mut BTreeMap<String, String>,
-) -> Option<String> {
+) -> Option<Action> {
     let count = format!("{}/{MAX_FOLLOWED}", follow.len());
     ui.text(i18n::format("Followed guilds ({0})", &[&count]));
 
@@ -87,6 +103,7 @@ pub fn followed_section(
     let mut remove = None;
     let mut chosen = None;
     let mut pending = pending_remove();
+    let selected = super::guilds::selected_guild();
     for guild in follow.clone().iter() {
         if pending.as_deref() == Some(guild) {
             // La pregunta va en su propia línea y los botones en la siguiente: en una sola línea
@@ -107,27 +124,40 @@ pub fn followed_section(
             ui.separator();
             continue;
         }
-        // Se puede clicar: el jugador quiere ver la ruta de ese clan (petición de 2026-10-31).
-        // La fila lleva **ancho fijo** en vez de estirarse: una `Selectable` a todo lo ancho se
-        // comía el sitio de la `×` y la empujaba fuera de la ventana (informe de 2026-10-31).
-        let mut unfollow = false;
         let start = ui.cursor_pos();
         let width = ui.content_region_avail()[0];
-        let row = Selectable::new(format!("{}###followed{guild}", label(known, guild)));
-        if width > REMOVE_WIDTH * 2.0 {
-            let row_width = (width - REMOVE_WIDTH - ui.clone_style().item_spacing[0]).max(40.0);
-            ui.set_cursor_pos([start[0] + width - REMOVE_WIDTH, start[1]]);
-            unfollow = ui.small_button(format!("×###unfollow{guild}"));
-            ui.set_cursor_pos(start);
-            if row.size([row_width, 0.0]).build(ui) {
-                chosen = Some(guild.to_owned());
+        let spacing = ui.clone_style().item_spacing[0];
+        let controls_width = REMOVE_WIDTH * 2.0 + spacing;
+        let inline = width > controls_width + spacing + 40.0;
+        let text = format!("{}###followed{guild}", label(known, guild));
+        let draw_row = |size| {
+            let clicked = Selectable::new(text.as_str())
+                .selected(selected.as_deref() == Some(guild))
+                .size(size)
+                .build(ui);
+            if ui.is_item_hovered() {
+                ui.tooltip_text(i18n::text("Show recorded events"));
             }
-        } else if row.build(ui) {
-            chosen = Some(guild.to_owned());
+            clicked
+        };
+        let mut row_clicked = false;
+        if inline {
+            ui.set_cursor_pos([start[0] + width - controls_width, start[1]]);
+        } else {
+            row_clicked = draw_row([0.0, 0.0]);
         }
-        if width <= REMOVE_WIDTH * 2.0 {
-            ui.same_line();
-            unfollow = ui.small_button(format!("×###unfollow{guild}"));
+        let map_clicked = ui.small_button(format!("i###mapfollowed{guild}"));
+        if ui.is_item_hovered() {
+            ui.tooltip_text(i18n::text("Show inferred route on map"));
+        }
+        ui.same_line();
+        let unfollow = ui.small_button(format!("×###unfollow{guild}"));
+        if inline {
+            ui.set_cursor_pos(start);
+            row_clicked = draw_row([(width - controls_width - spacing).max(40.0), 0.0]);
+        }
+        if let Some(action) = followed_action(guild, row_clicked, map_clicked) {
+            chosen = Some(action);
         }
         if unfollow {
             *pending = Some(guild.to_owned());
@@ -464,6 +494,19 @@ pub fn region_of(candidates: &[Candidate], team: Option<u32>) -> Option<Region> 
 mod tests {
     use super::*;
     use gw2lurker_core::model::TeamColor;
+
+    #[test]
+    fn rf73_favourite_labels_select_history_and_only_the_info_button_opens_map() {
+        assert_eq!(
+            followed_action("GUILD", true, false),
+            Some(Action::Select("GUILD".to_owned()))
+        );
+        assert_eq!(
+            followed_action("GUILD", false, true),
+            Some(Action::ShowOnMap("GUILD".to_owned()))
+        );
+        assert_eq!(followed_action("GUILD", false, false), None);
+    }
 
     fn candidate(team_id: u32, match_id: &str) -> Candidate {
         Candidate {

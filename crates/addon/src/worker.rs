@@ -26,7 +26,7 @@ use crate::catalog::{maps_for, objectives_for, resolve_guild_names};
 use crate::net::WinHttpTransport;
 
 /// Claims kept in memory for the current tracking cycle (RF-72).
-const MAX_HISTORY: usize = 2000;
+pub(crate) const MAX_HISTORY: usize = 2000;
 
 /// Cap used by both the shared exponential backoff and the configured polling wait.
 const MAX_BACKOFF: Duration = Duration::from_secs(300);
@@ -151,28 +151,12 @@ impl Dashboard {
 
     /// Claims of one guild during the current tracking cycle, in the order they happened (RF-72).
     pub fn guild_history(&self, guild: &str) -> Vec<ClaimRow> {
-        matchup::guild_timeline(&self.history, guild)
+        matchup::guild_timeline_with_current(&self.history, &self.claims, guild)
     }
 
-    /// Map where the guild claimed something most recently, for the route of T-16.
-    ///
-    /// Objective ids are `"<map id>-<n>"`, so the newest row carries the map. The newest is taken
-    /// by `claimed_at` and not by insertion order: one poll can report several claims at once and
-    /// the order inside it is whatever the API sent.
+    /// Latest current claim's map, or the last historical one when nothing is held (RF-71).
     pub fn last_map_of(&self, guild: &str) -> Option<MapRole> {
-        self.history
-            .iter()
-            .filter(|row| row.guild == guild)
-            .max_by_key(|row| row.claimed_at)
-            .and_then(|row| row.objective_id.split_once('-'))
-            .and_then(|(map, _)| map.parse::<u32>().ok())
-            .map(|map_id| {
-                self.map_roles
-                    .get(&map_id)
-                    .copied()
-                    .unwrap_or_else(|| MapRole::from_map_id(map_id))
-            })
-            .filter(|role| *role != MapRole::Unknown)
+        matchup::last_claim_map(&self.claims, &self.history, guild)
     }
 
     /// Guilds that hold something right now: the ones that claimed during this tracking cycle plus

@@ -94,7 +94,6 @@ pub fn body(
         }
         if guilds.is_empty() {
             ui.text_disabled(i18n::text("No claims yet"));
-            return None;
         }
 
         ui.text(i18n::text("Ordered by most recent claim"));
@@ -105,59 +104,65 @@ pub fn body(
         }
         // The list scrolls on its own: it is longer than the window, and with the history
         // pushed off-screen choosing a guild looked like it did nothing (bug of 2026-10-31).
-        nexus::imgui::ChildWindow::new("###guild_list")
-            .size([0.0, 150.0])
-            .border(true)
-            .build(ui, || {
-                let chosen = selected();
-                for summary in guilds {
-                    let followed = follow.contains(&summary.guild);
-                    // Dos botones por fila, porque clicar la fila no decía qué hacía (petición del
-                    // jugador, 2026-11-01). `+` sigue al clan; si ya se sigue, el `*` es estado y no
-                    // un botón (pulsarlo no hace nada a propósito: quitar se hace con la `×` de la
-                    // lista de seguidos, que pregunta antes). Ocupa lo mismo que el `+`, así que las
-                    // filas no se desalinean.
-                    if followed {
-                        let _dim = ui.push_style_color(StyleColor::Text, [0.55, 0.57, 0.6, 1.0]);
-                        ui.small_button(format!("*###already{}", summary.guild));
-                    } else if ui.small_button(format!("+###add{}", summary.guild)) {
-                        action = Some(Action::Follow(summary.guild.clone()));
-                    }
-                    ui.same_line();
-                    // `i`: la inferencia se ve en el mapa, no en un texto debajo de esta lista.
-                    if ui.small_button(format!("i###info{}", summary.guild)) {
-                        action = Some(Action::ShowOnMap(summary.guild.clone()));
-                    }
-                    ui.same_line();
-
-                    let when = summary.last_at.map(crate::clock::clock).unwrap_or_default();
-                    let here = match summary.last_map {
-                        Some((_, role)) if Some(role) == context.current => {
-                            format!("  ·  {} ({})", map_label(role), i18n::text("you are here"))
+        if !guilds.is_empty() {
+            nexus::imgui::ChildWindow::new("###guild_list")
+                .size([0.0, 150.0])
+                .border(true)
+                .build(ui, || {
+                    let chosen = selected();
+                    for summary in guilds {
+                        let followed = follow.contains(&summary.guild);
+                        // Dos botones por fila, porque clicar la fila no decía qué hacía (petición del
+                        // jugador, 2026-11-01). `+` sigue al clan; si ya se sigue, el `*` es estado y no
+                        // un botón (pulsarlo no hace nada a propósito: quitar se hace con la `×` de la
+                        // lista de seguidos, que pregunta antes). Ocupa lo mismo que el `+`, así que las
+                        // filas no se desalinean.
+                        if followed {
+                            let _dim =
+                                ui.push_style_color(StyleColor::Text, [0.55, 0.57, 0.6, 1.0]);
+                            ui.small_button(format!("*###already{}", summary.guild));
+                        } else if ui.small_button(format!("+###add{}", summary.guild)) {
+                            action = Some(Action::Follow(summary.guild.clone()));
                         }
-                        Some((_, role)) => format!(" · {}", map_label(role)),
-                        None => String::new(),
-                    };
-                    let text = format!(
-                        "{}  ·  {} · {}{here}###guild{}",
-                        label(&summary.guild),
-                        summary.claims,
-                        when,
-                        summary.guild
-                    );
-                    if nexus::imgui::Selectable::new(text)
-                        .selected(chosen.as_deref() == Some(summary.guild.as_str()))
-                        .build(ui)
-                    {
-                        let next = if chosen.as_deref() == Some(summary.guild.as_str()) {
-                            None
-                        } else {
-                            Some(summary.guild.clone())
+                        ui.same_line();
+                        // `i`: la inferencia se ve en el mapa, no en un texto debajo de esta lista.
+                        if ui.small_button(format!("i###info{}", summary.guild)) {
+                            action = Some(Action::ShowOnMap(summary.guild.clone()));
+                        }
+                        if ui.is_item_hovered() {
+                            ui.tooltip_text(i18n::text("Show inferred route on map"));
+                        }
+                        ui.same_line();
+
+                        let when = summary.last_at.map(crate::clock::clock).unwrap_or_default();
+                        let here = match summary.last_map {
+                            Some((_, role)) if Some(role) == context.current => {
+                                format!("  ·  {} ({})", map_label(role), i18n::text("you are here"))
+                            }
+                            Some((_, role)) => format!(" · {}", map_label(role)),
+                            None => String::new(),
                         };
-                        set_selected(next);
+                        let text = format!(
+                            "{}  ·  {} · {}{here}###guild{}",
+                            label(&summary.guild),
+                            summary.claims,
+                            when,
+                            summary.guild
+                        );
+                        if nexus::imgui::Selectable::new(text)
+                            .selected(chosen.as_deref() == Some(summary.guild.as_str()))
+                            .build(ui)
+                        {
+                            let next = if chosen.as_deref() == Some(summary.guild.as_str()) {
+                                None
+                            } else {
+                                Some(summary.guild.clone())
+                            };
+                            set_selected(next);
+                        }
                     }
-                }
-            });
+                });
+        }
 
         let Some(chosen) = selected() else {
             ui.separator();
@@ -166,7 +171,8 @@ pub fn body(
         };
 
         ui.separator();
-        ui.text(label(&chosen));
+        let chosen_label = label(&chosen);
+        ui.text(&chosen_label);
         // Campo libre: es la única traducción posible para un nombre de clan (T-43).
         let mut own = labels.get(&chosen).cloned().unwrap_or_default();
         if nexus::imgui::InputText::new(ui, "###guildlabel", &mut own)
@@ -181,7 +187,10 @@ pub fn body(
         }
         let rows = history(&chosen);
         if rows.is_empty() {
-            ui.text_disabled(i18n::text("No claims yet"));
+            ui.text_wrapped(i18n::format(
+                "No events recorded for {0} since session start or the last team reassignment.",
+                &[&chosen_label],
+            ));
             return action;
         }
         let (here, elsewhere) = match context.current {

@@ -198,16 +198,20 @@ El click-through **no tiene casilla en los ajustes** (se quitó el 2026-11-01: e
 - GWT: *Given* una guild con 5 claims antiguos y otra con 1 claim de hace 30 s, *When* se abre la lista, *Then* la segunda aparece primera.
 - GWT: *Given* una guild de la lista que no se sigue, *When* se pulsa `+`, *Then* pasa a seguida, su nombre se guarda en `settings.json` y en la lista de seguidos aparece con su `×`; si ya se seguía, la fila enseña `*` en el sitio del `+` y no hay botón que quite desde aquí.
 - GWT: *Given* una guild con reclamos en la sesión, *When* se pulsa `i`, *Then* se abre la pestaña *Mapa* en el último mapa donde reclamó, con su ruta dibujada y el resumen debajo.
+- El destino coincide con el **claim vigente más reciente mostrado en la fila**, no con un evento histórico posterior de otro mapa. Si no quedan reclamos vigentes pero sí historial, `i` permite ver el último mapa histórico. Sin ninguna observación registrada, no cambia de pestaña y muestra un aviso con el inicio del ciclo de seguimiento (decisión del jugador, 2026-11-01).
 
 **RF-72 (M)** Al seleccionar una guild se verá su **historial**, separando lo reclamado en el mapa en el que está el jugador **ahora** de lo reclamado en los **demás mapas**, con el rango temporal de RF-32.
 
 **RF-73 (M)** El usuario podrá marcar guilds como **favoritas** ("seguir"): persisten entre sesiones usando UUIDs válidos en forma canónica (mayúsculas, guiones `8-4-4-4-12`), aparecen siempre arriba en la lista de RF-71 y alimentan las alertas de RF-21.
+- Igual que en la lista de reclamos, pulsar el **nombre** selecciona el historial debajo, sin navegar; el botón `i` abre la ruta en Mapa según RF-71. El botón `×` sigue reservado a dejar de seguir, con confirmación. El historial del favorito se muestra aunque la lista de reclamos vigentes esté vacía.
 
-**RF-32a (C)** La ruta virtual (RF-32) se dibuja en el **último mapa donde la guild reclamó algo**, con el origen inferido por esta precedencia:
-1. Si es su **mapa principal** y tienen el **garrison** reclamado → se empieza en el garrison.
-2. Si el objetivo está **al norte** de colinas/bahía (fronteras alpinas; el equivalente en la desértica) → se empieza en colinas/bahía, más cerca que el respawn.
-3. En cualquier otro caso → se empieza en el **respawn** del equipo.
-La ruta se etiqueta como **inferida** (RF-33): es una reconstrucción, no el recorrido real.
+**RF-32a (C)** La ruta virtual (RF-32) abre el mapa de RF-71 y dibuja un **paso 0 de origen inferido**, separado de los claims observados 1..N (propuesta aprobada por el jugador, 2026-11-01):
+1. **Garri del mapa principal del equipo del clan**, si sigue reclamada por ese clan y su claim es anterior o igual al primer paso del tramo visible. Identidades verificadas en la fixture: `95-37`, `96-37` y la fortaleza central desértica `1099-113`.
+2. **Bahía/Colinas en un alpino** (`95/96-32/33`), si siguen reclamadas por ese clan desde antes del primer paso y **tanto el primer claim como el último** del tramo están al norte de la fortaleza (Y de continente menor). Si hay varias candidatas válidas, se elige la más cercana al primer paso, con desempate estable por id. No se aplica esta regla lateral en desierto ni en Eternos.
+3. **Respawn del equipo del clan**, identificado por el `owner` del objetivo `Spawn` del matchup, nunca por el equipo del jugador. Si `coord` es nulo, se usa `label_coord` oficial y se indica que la posición es aproximada, no la puerta exacta de salida.
+- El origen no tiene timestamp inventado ni cuenta como un claim. Se pinta hueco, con número **0**, leyenda y conexión discontinua hacia **1**; si coincide con el primer claim, el marcador es **0/1**, sin línea de longitud cero. Permanece visible durante la reproducción.
+- Los cambios de mapa no se unen gráficamente; el resumen conserva «salto a <mapa>» (RF-35). Los filtros de tiempo se aplican antes de elegir el origen, para no usar una fortaleza reclamada después de la salida.
+- Sin claims en el tramo no se dibuja un 0 aislado. Si faltan equipo o coordenadas defendibles, se muestra «Origen desconocido» en lugar de inventar una posición. La ruta y su origen se etiquetan como **inferidos** (RF-33), no como recorrido real.
 
 ## D. Vistas de mapa
 

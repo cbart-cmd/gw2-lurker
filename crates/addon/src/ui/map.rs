@@ -172,12 +172,12 @@ pub fn body(ui: &Ui, view: &View<'_>, role: &mut MapRole, here: Option<MapRole>)
 
     let since =
         range_choice(ui).map(|minutes| chrono::Utc::now() - chrono::Duration::minutes(minutes));
+    let route = guild.and_then(|guild| {
+        gw2lurker_core::route::with_origin(history, guild, map.id, states, names, since)
+    });
     // Reproducción animada de la ruta (RF-36): play/pausa y una barra de progreso. Sin reproducir
     // se dibuja la ruta entera, que es lo que se quiere casi siempre.
-    let played = playback_control(
-        ui,
-        history.iter().filter(|row| row.map_id == map.id).count(),
-    );
+    let played = playback_control(ui, route.as_ref().map_or(0, |route| route.steps.len()));
 
     // Todo el dibujo va recortado al rectángulo del mapa. En imgui la lista de dibujo de una
     // ventana hija es la del **padre**, así que sin recorte propio las teselas y los anillos se
@@ -216,19 +216,19 @@ pub fn body(ui: &Ui, view: &View<'_>, role: &mut MapRole, here: Option<MapRole>)
             }
         }
 
-        draw_route(
-            &list,
-            &RouteCanvas {
-                frame: &frame,
-                origin,
-                size,
-            },
-            map.id,
-            names,
-            history,
-            since,
-            played,
-        );
+        if let Some(route) = &route {
+            draw_route(
+                &list,
+                &RouteCanvas {
+                    frame: &frame,
+                    origin,
+                    size,
+                },
+                route,
+                names,
+                played,
+            );
+        }
 
         if let Some(text) = &hover_text {
             let [text_w, text_h] = ui.calc_text_size(text);
@@ -256,6 +256,28 @@ pub fn body(ui: &Ui, view: &View<'_>, role: &mut MapRole, here: Option<MapRole>)
     // para que no se lea dos veces y para no empujar la ventana hacia abajo.
     if hover_text.is_none() {
         ui.text_disabled(i18n::text("Point at an objective to see who holds it"));
+    }
+    if let Some(route) = &route {
+        if let Some(point) = &route.origin_point {
+            let name = names
+                .iter()
+                .find(|name| name.id == point.objective_id)
+                .map(|name| name.name.as_str())
+                .unwrap_or(&point.objective_id);
+            let label = format!("{name} ({})", i18n::text(route.origin.reason()));
+            ui.text_wrapped(i18n::format("Inferred origin (0): {0}", &[&label]));
+            if point.approximate {
+                ui.text_wrapped(i18n::text(
+                    "Respawn position is approximate: it uses the official map label.",
+                ));
+            }
+        } else {
+            ui.text_wrapped(i18n::text("Origin unknown: missing team or coordinates."));
+        }
+    } else if guild.is_some() {
+        ui.text_wrapped(i18n::text(
+            "No claims on this map in the selected time range.",
+        ));
     }
     chosen
 }

@@ -476,12 +476,16 @@ fn draw_tabs(
                         // los ajustes (petición de 2026-10-31).
                         let team = crate::team::selected_in(config);
                         let session = crate::worker::dashboard().session_guilds();
-                        clicked = follow::followed_section(
+                        match follow::followed_section(
                             ui,
                             &mut config.followed,
                             data.names,
                             &mut config.guild_names,
-                        );
+                        ) {
+                            Some(follow::Action::Select(guild)) => guilds::select(&guild),
+                            Some(follow::Action::ShowOnMap(guild)) => clicked = Some(guild),
+                            None => {}
+                        }
                         follow::add_section(
                             ui,
                             &mut config.followed,
@@ -535,7 +539,13 @@ fn draw_tabs(
     // que se está pidiendo al clicar (petición de 2026-10-31). Además se cambia a la pestaña
     // *Mapa*, donde está esa ruta: antes había que ir a mano y parecía que el clic no hacía nada.
     if let Some(guild) = clicked {
-        let target = crate::worker::dashboard().last_map_of(&guild);
+        let target = data
+            .guilds
+            .iter()
+            .find(|summary| summary.guild == guild)
+            .and_then(|summary| summary.last_map.map(|(_, role)| role))
+            .filter(|role| *role != MapRole::Unknown)
+            .or_else(|| crate::worker::dashboard().last_map_of(&guild));
         let mut requested = WANT_TAB.load(Ordering::Relaxed);
         if navigation::request_guild_map(
             &guild,

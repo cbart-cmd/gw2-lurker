@@ -112,6 +112,12 @@ pub const TEXT: &[(&str, [&str; COLUMNS])] = &[
         ],
     ),
     ("Dismiss", ["Cerrar aviso", "Dismiss", "Fermer l'avis", "Hinweis schließen"]),
+    ("Show recorded events", ["Ver eventos registrados", "Show recorded events", "Voir les événements enregistrés", "Aufgezeichnete Ereignisse anzeigen"]),
+    ("Show inferred route on map", ["Ver ruta inferida en el mapa", "Show inferred route on map", "Voir l'itinéraire déduit sur la carte", "Abgeleitete Route auf der Karte anzeigen"]),
+    ("Inferred origin (0): {0}", ["Origen inferido (0): {0}", "Inferred origin (0): {0}", "Origine déduite (0) : {0}", "Abgeleiteter Ausgangspunkt (0): {0}"]),
+    ("Respawn position is approximate: it uses the official map label.", ["La posición del respawn es aproximada: usa la etiqueta oficial del mapa.", "Respawn position is approximate: it uses the official map label.", "La position du point de réapparition est approximative : elle utilise l'étiquette officielle de la carte.", "Die Position des Wiederbelebungspunkts ist ungefähr: Sie verwendet die offizielle Kartenbeschriftung."]),
+    ("Origin unknown: missing team or coordinates.", ["Origen desconocido: falta el equipo o las coordenadas.", "Origin unknown: missing team or coordinates.", "Origine inconnue : équipe ou coordonnées manquantes.", "Ausgangspunkt unbekannt: Team oder Koordinaten fehlen."]),
+    ("No claims on this map in the selected time range.", ["No hay reclamos en este mapa dentro del intervalo seleccionado.", "No claims on this map in the selected time range.", "Aucune revendication sur cette carte dans la période sélectionnée.", "Keine Beanspruchungen auf dieser Karte im gewählten Zeitraum."]),
     ("None yet", ["Ninguno todavía", "None yet", "Aucun pour l'instant", "Noch keiner"]),
     (
         "Search a guild",

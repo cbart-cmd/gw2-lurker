@@ -39,6 +39,25 @@ Reglas:
 - Publicar: `UpdateProvider::Direct` + `DisableHotloading`, MD5 de 32 hex sin BOM, excepción
   de LFS para la DLL, tag propio con `--latest=false`. Ver `docs/RELEASE.md`.
 
+## EN CURSO – 2026-11-01 · Favoritos coherentes y paso 0 de la ruta
+
+- Primero: clic en favorito selecciona su historial sin saltar; botón `i` abre el mapa del último
+  claim vigente de la fila, o del último histórico si ya no tiene reclamos (decisión del usuario).
+  Sin historial ni reclamos, aviso y sin navegación.
+- Después: aplicar la propuesta aprobada de origen 0 (garri, fortaleza lateral alpina o respawn
+  del equipo del clan), con condiciones temporales y geográficas y coordenadas verificadas.
+- Tests primero por hito, validación completa al estabilizar; sin inferir actividad real del clan.
+- Regresiones de botones y mapa primero en rojo, después en verde; origen y plan de dibujo también.
+  El historial conserva los claims vigentes si su observación antigua salió del tope de 2 000.
+- Medición CPU con 2 000 claims: primer intento mediana 1,013 ms; índice de coordenadas bajó a
+  0,467 ms pero no cumplió p95. Textos prestados (`Cow`) evitan copiar dos cadenas por paso:
+  mediana 0,278 ms, p95 0,352 ms en release, por debajo de 0,5 ms. Frame completo pendiente en GW2.
+- Validación completa correcta: 327 tests; los 4 tests de red ignorados también pasan al lanzarlos
+  manualmente. Últimos ajustes de selección y destino revalidados; DLL 0.26.2 de 2 195 456 B.
+  El destino usa la fila del fotograma para evitar cambios si el worker actualiza durante el clic.
+- Publicación 0.26.2 autorizada y en curso. El benchmark CPU solo se compila en release; el
+  publicador conserva su flujo y añade commit convencional con trailer de coautoría.
+
 ## HECHO – 2026-11-01 · Navegación al mapa de un clan (sin publicar; RF-30, RF-71, RF-32a)
 
 - `ui/navigation.rs` conserva el salto pendiente hasta que imgui dibuja Mapa. El acceso manual

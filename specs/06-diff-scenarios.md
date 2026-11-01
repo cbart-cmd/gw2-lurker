@@ -98,6 +98,12 @@ clanes seguidos en cualquier mapa, y **solo de estructuras reclamables** (RF-19e
 | H-06 | Rango sin eventos | ruta | Lista vacía, sin error |
 | H-07 | Unclaim sin claim previo registrado | ruta/duración | Duración desconocida, sin panic |
 | H-08 | Duración de claim | ruta | `unclaim.at - claim.at`; si sigue vigente, "en curso" |
+| H-09 | Garri propia reclamada antes del primer paso | origen | Punto 0 localizado, no cuenta como claim (RF-32a) |
+| H-10 | Fortaleza lateral alpina reclamada por el clan | origen | Se usa solo si primer y último paso están al norte; no en desierto ni Eternos |
+| H-11 | Garri reclamada después del primer paso | origen | Se descarta; no se infiere una salida retroactiva |
+| H-12 | Origen y primer claim en el mismo objetivo | dibujo | Marcador 0/1; sin segmento de longitud cero |
+| H-13 | Respawn sin `coord`, con `label_coord` y color | origen | Posición de etiqueta oficial, marcada aproximada; del equipo del clan |
+| H-14 | Falta equipo/coordenadas o no hay claims | origen | Origen desconocido o ningún 0; nunca una coordenada inventada |
 
 ## P – Proyección de mapa
 

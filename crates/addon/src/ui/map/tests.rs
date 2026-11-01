@@ -7,6 +7,73 @@ use super::route::route_steps;
 use super::*;
 
 #[test]
+fn rf32a_the_drawn_route_includes_zero_and_keeps_claim_numbering() {
+    use super::route::{route_nodes, RouteCanvas};
+    let names: Vec<ObjectiveInfo> = serde_json::from_str(include_str!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../api/tests/fixtures/objectives_all.json"
+    )))
+    .unwrap();
+    let maps: Vec<WvwMap> = serde_json::from_str(include_str!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../api/tests/fixtures/maps_wvw.json"
+    )))
+    .unwrap();
+    let frame = Frame::of(maps.iter().find(|map| map.id == 95).unwrap());
+    let garrison = names
+        .iter()
+        .find(|name| name.id == "95-37")
+        .unwrap()
+        .coord
+        .unwrap();
+    let canvas = RouteCanvas {
+        frame: &frame,
+        origin: [20.0, 30.0],
+        size: [300.0, 420.0],
+    };
+    let step = |id: &str| gw2lurker_core::RouteStep {
+        objective_id: id.to_owned().into(),
+        name: id.to_owned().into(),
+        at: Some(chrono::Utc::now()),
+    };
+    let mut route = gw2lurker_core::Route {
+        origin: gw2lurker_core::RouteOrigin::Garrison,
+        origin_point: Some(gw2lurker_core::route::OriginPoint {
+            objective_id: "95-37".to_owned(),
+            position: [garrison[0], garrison[1]],
+            approximate: false,
+        }),
+        steps: vec![step("95-32"), step("95-33")],
+    };
+    let nodes = route_nodes(&route, &names, &canvas, Some(1));
+    assert_eq!(nodes.len(), 2, "origin plus the first played claim");
+    assert_eq!(nodes[0].label(), "0");
+    assert!(nodes[0].origin);
+    assert_eq!(nodes[0].at, None, "no fabricated origin timestamp");
+    assert_eq!(
+        nodes[0].point,
+        project(
+            &frame,
+            [garrison[0], garrison[1]],
+            canvas.origin,
+            canvas.size
+        )
+        .unwrap()
+    );
+    assert_eq!(nodes[1].label(), "1");
+    route.steps = vec![step("95-37")];
+    let nodes = route_nodes(&route, &names, &canvas, None);
+    assert_eq!(nodes.len(), 1, "origin and first claim share a marker");
+    assert_eq!(nodes[0].label(), "0/1");
+    assert!(nodes[0].origin && nodes[0].at.is_some());
+    route.steps.clear();
+    assert!(
+        route_nodes(&route, &names, &canvas, None).is_empty(),
+        "no orphaned zero"
+    );
+}
+
+#[test]
 fn rf30_the_map_keeps_the_real_proportions() {
     // Frontera alpina: 2560×3584 en `/v2/maps`, así que es 1,4 veces más alta que ancha.
     let alps = Frame {
@@ -284,12 +351,13 @@ fn rf35_a_route_that_crosses_maps_says_jump_to() {
         row("96-30", MapRole::BlueHome),
     ];
     let step = |id: &str| gw2lurker_core::route::Step {
-        name: id.to_owned(),
-        objective_id: id.to_owned(),
+        name: id.to_owned().into(),
+        objective_id: id.to_owned().into(),
         at: None,
     };
     let route = gw2lurker_core::Route {
         origin: gw2lurker_core::RouteOrigin::Spawn,
+        origin_point: None,
         steps: vec![step("38-10"), step("38-20"), step("96-30")],
     };
 
@@ -307,9 +375,7 @@ fn rf35_a_route_that_crosses_maps_says_jump_to() {
 }
 
 #[test]
-fn rf32_the_route_summary_says_the_origin_and_the_steps() {
-    // La línea que acompaña al dibujo empieza por el origen inferido y sigue con los pasos
-    // (ADR-005): es la única forma de leer la ruta sin adivinar por qué empieza donde empieza.
+fn rf32_the_cross_map_summary_lists_claims_without_inventing_an_origin() {
     let row = |objective_id: &str, at: &str| ClaimRow {
         map_id: 38,
         map_role: MapRole::Center,
@@ -330,7 +396,7 @@ fn rf32_the_route_summary_says_the_origin_and_the_steps() {
         row("38-2", "2026-11-01T10:05:00Z"),
     ];
 
-    use gw2lurker_core::i18n::{t, Language};
+    use gw2lurker_core::i18n::Language;
     assert_eq!(
         summary(&[], "AAAA", Language::Es),
         None,
@@ -338,11 +404,68 @@ fn rf32_the_route_summary_says_the_origin_and_the_steps() {
     );
     let line = summary(&rows, "AAAA", Language::Es).expect("hay ruta");
     assert_eq!(
-        line,
-        format!(
-            "{} -> 38-1 -> 38-2",
-            t(Language::Es, "from the spawn point")
-        ),
-        "origen inferido y pasos en orden temporal"
+        line, "38-1 -> 38-2",
+        "the located origin is captioned on its map, not invented from claim types"
+    );
+}
+
+#[test]
+#[cfg(not(debug_assertions))]
+#[ignore = "manual optimized CPU measurement; full render timing requires GW2"]
+fn rnf01_origin_route_preparation_cpu_budget() {
+    use super::route::{route_nodes, RouteCanvas};
+    let names: Vec<ObjectiveInfo> = serde_json::from_str(include_str!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../api/tests/fixtures/objectives_all.json"
+    )))
+    .unwrap();
+    let maps: Vec<WvwMap> = serde_json::from_str(include_str!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../api/tests/fixtures/maps_wvw.json"
+    )))
+    .unwrap();
+    let entry: gw2lurker_core::Match = serde_json::from_str(include_str!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../api/tests/fixtures/match_2-2.json"
+    )))
+    .unwrap();
+    let states = gw2lurker_core::matchup::states(&entry);
+    let base: Vec<_> = gw2lurker_core::matchup::claims(&entry, &names)
+        .into_iter()
+        .filter(|row| row.map_id == 95)
+        .collect();
+    assert!(!base.is_empty());
+    let rows: Vec<_> = (0..crate::worker::MAX_HISTORY)
+        .map(|index| {
+            let mut row = base[index % base.len()].clone();
+            row.guild = "BENCH".to_owned();
+            row
+        })
+        .collect();
+    let frame = Frame::of(maps.iter().find(|map| map.id == 95).unwrap());
+    let canvas = RouteCanvas {
+        frame: &frame,
+        origin: [0.0, 0.0],
+        size: [400.0, 560.0],
+    };
+    let mut times = Vec::new();
+    for _ in 0..128 {
+        let start = std::time::Instant::now();
+        let route =
+            gw2lurker_core::route::with_origin(&rows, "BENCH", 95, &states, &names, None).unwrap();
+        std::hint::black_box(route_nodes(&route, &names, &canvas, None));
+        times.push(start.elapsed());
+    }
+    times.sort_unstable();
+    let p95 = times[121];
+    println!(
+        "RNF-01 CPU preparation for {} claims: median={:.3} ms, p95={:.3} ms",
+        rows.len(),
+        times[64].as_secs_f64() * 1000.0,
+        p95.as_secs_f64() * 1000.0
+    );
+    assert!(
+        p95 < std::time::Duration::from_micros(500),
+        "CPU preparation alone exceeds RNF-01"
     );
 }

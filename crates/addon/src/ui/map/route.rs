@@ -57,75 +57,154 @@ pub(super) struct RouteCanvas<'a> {
     pub(super) size: [f32; 2],
 }
 
+#[derive(Debug)]
+pub(super) struct RouteNode {
+    pub(super) point: [f32; 2],
+    pub(super) step: usize,
+    pub(super) origin: bool,
+    pub(super) at: Option<chrono::DateTime<chrono::Utc>>,
+}
+
+impl RouteNode {
+    pub(super) fn label(&self) -> String {
+        if self.origin && self.step > 0 {
+            format!("0/{}", self.step)
+        } else {
+            self.step.to_string()
+        }
+    }
+}
+
+pub(super) fn route_nodes(
+    route: &gw2lurker_core::Route,
+    names: &[ObjectiveInfo],
+    canvas: &RouteCanvas<'_>,
+    played: Option<usize>,
+) -> Vec<RouteNode> {
+    let coordinates: std::collections::HashMap<_, _> = names
+        .iter()
+        .filter_map(|name| {
+            name.coord
+                .map(|coord| (name.id.as_str(), [coord[0], coord[1]]))
+        })
+        .collect();
+    let mut nodes: Vec<_> = route
+        .steps
+        .iter()
+        .enumerate()
+        .take(played.unwrap_or(route.steps.len()))
+        .filter_map(|(index, step)| {
+            let coord = *coordinates.get(step.objective_id.as_ref())?;
+            let point = project(canvas.frame, coord, canvas.origin, canvas.size)?;
+            Some(RouteNode {
+                point,
+                step: index + 1,
+                origin: false,
+                at: step.at,
+            })
+        })
+        .collect();
+    let Some(first) = nodes.first() else {
+        return nodes;
+    };
+    let Some(origin) = route.origin_point.as_ref() else {
+        return nodes;
+    };
+    let Some(point) = project(canvas.frame, origin.position, canvas.origin, canvas.size) else {
+        return nodes;
+    };
+    if route.steps[first.step - 1].objective_id.as_ref() == origin.objective_id.as_str() {
+        nodes[0].origin = true;
+    } else {
+        nodes.insert(
+            0,
+            RouteNode {
+                point,
+                step: 0,
+                origin: true,
+                at: None,
+            },
+        );
+    }
+    nodes
+}
+
 pub(super) fn draw_route(
     list: &nexus::imgui::DrawListMut<'_>,
     canvas: &RouteCanvas<'_>,
-    map_id: u32,
+    route: &gw2lurker_core::Route,
     names: &[ObjectiveInfo],
-    history: &[ClaimRow],
-    since: Option<chrono::DateTime<chrono::Utc>>,
     played: Option<usize>,
 ) {
-    let frame = canvas.frame;
-    let origin = canvas.origin;
-    let size = canvas.size;
-    let mut steps: Vec<([f32; 2], Option<chrono::DateTime<chrono::Utc>>)> = history
-        .iter()
-        .filter(|row| row.map_id == map_id)
-        // Rango temporal (T-16): lo que quede fuera de la ventana no se dibuja.
-        .filter(|row| match (since, row.claimed_at) {
-            (Some(since), Some(at)) => at >= since,
-            (Some(_), None) => false,
-            (None, _) => true,
-        })
-        .filter_map(|row| {
-            let objective = names.iter().find(|known| known.id == row.objective_id)?;
-            let coord = objective.coord?;
-            let point = project(frame, [coord[0], coord[1]], origin, size)?;
-            Some((point, row.claimed_at))
-        })
-        .collect();
-    if steps.is_empty() {
-        return;
+    let nodes = route_nodes(route, names, canvas, played);
+    for pair in nodes.windows(2) {
+        if pair[0].step == 0 {
+            draw_origin_connector(list, pair[0].point, pair[1].point);
+        } else {
+            list.add_line(pair[0].point, pair[1].point, [1.0, 0.75, 0.3, 0.8])
+                .thickness(2.0)
+                .build();
+        }
     }
-    // `history` llega en orden de llegada; el dibujo va en orden temporal (RF-32).
-    steps.sort_by_key(|(_, at)| *at);
-    // Reproducción animada (RF-36): solo los pasos ya «reproducidos».
-    if let Some(played) = played {
-        steps.truncate(played.clamp(1, steps.len()));
-    }
-
-    for pair in steps.windows(2) {
-        list.add_line(pair[0].0, pair[1].0, [1.0, 0.75, 0.3, 0.8])
-            .thickness(2.0)
-            .build();
-    }
-    for (index, (point, at)) in steps.iter().enumerate() {
-        let colour = if at.is_none() {
+    for node in &nodes {
+        let point = node.point;
+        let colour = if node.at.is_none() && !node.origin {
             [0.7, 0.7, 0.7, 1.0]
         } else {
             [1.0, 0.75, 0.3, 1.0]
         };
-        list.add_circle(*point, 8.0, [0.05, 0.05, 0.07, 0.9])
-            .filled(true)
-            .build();
-        list.add_circle(*point, 8.0, colour).thickness(1.5).build();
-        let number = (index + 1).to_string();
+        if !node.origin {
+            list.add_circle(point, 8.0, [0.05, 0.05, 0.07, 0.9])
+                .filled(true)
+                .build();
+        }
+        list.add_circle(point, 8.0, colour).thickness(1.5).build();
+        if node.origin {
+            list.add_circle(point, 10.0, colour).thickness(1.0).build();
+        }
+        let number = node.label();
         list.add_text(
-            [point[0] - 3.0, point[1] - 7.0],
+            [point[0] - number.len() as f32 * 3.0, point[1] - 7.0],
             [1.0, 1.0, 1.0, 1.0],
             &number,
         );
     }
     // Hacia dónde va: punta de flecha en el último tramo.
-    if let [.., before, last] = steps.as_slice() {
-        draw_heading(list, before.0, last.0);
+    if let [.., before, last] = nodes.as_slice() {
+        draw_heading(list, before.point, last.point);
     }
     // The most recent claim is the one the player wants to see first (RF-32): a bright ring.
-    if let Some((last, _)) = steps.last() {
-        list.add_circle(*last, 12.0, [1.0, 0.4, 0.2, 1.0])
+    if let Some(last) = nodes.last() {
+        list.add_circle(last.point, 12.0, [1.0, 0.4, 0.2, 1.0])
             .thickness(2.0)
             .build();
+    }
+}
+
+fn draw_origin_connector(list: &nexus::imgui::DrawListMut<'_>, from: [f32; 2], to: [f32; 2]) {
+    let dx = to[0] - from[0];
+    let dy = to[1] - from[1];
+    let length = dx.hypot(dy);
+    if !length.is_finite() {
+        log::warn!("route origin connector has non-finite coordinates");
+        return;
+    }
+    if length < 1.0 {
+        return;
+    }
+    // Bound drawing work even if coordinates fall far outside the map.
+    let count = (length / 10.0).ceil().clamp(1.0, 128.0) as usize;
+    let stride = length / count as f32;
+    for index in 0..count {
+        let at = index as f32 * stride;
+        let end = (at + stride * 0.6).min(length);
+        list.add_line(
+            [from[0] + dx * at / length, from[1] + dy * at / length],
+            [from[0] + dx * end / length, from[1] + dy * end / length],
+            [1.0, 0.75, 0.3, 0.8],
+        )
+        .thickness(1.5)
+        .build();
     }
 }
 
@@ -183,11 +262,7 @@ pub(crate) fn summary(
     language: gw2lurker_core::i18n::Language,
 ) -> Option<String> {
     let route = gw2lurker_core::build_route(rows, guild)?;
-    Some(format!(
-        "{} -> {}",
-        t(language, route_reason(route.origin)),
-        route_steps(&route, rows, language)
-    ))
+    Some(route_steps(&route, rows, language))
 }
 
 /// La ruta en texto, con un **«salto a <mapa>»** cuando los pasos cambian de mapa (RF-35).
@@ -204,7 +279,7 @@ pub(super) fn route_steps(
     for step in &route.steps {
         let step_map = rows
             .iter()
-            .find(|row| row.objective_id == step.objective_id)
+            .find(|row| row.objective_id.as_str() == step.objective_id.as_ref())
             .map(|row| row.map_role);
         if let Some(role) = step_map {
             if map.is_some_and(|previous| previous != role) {
@@ -216,17 +291,9 @@ pub(super) fn route_steps(
             }
             map = Some(role);
         }
-        parts.push(step.name.clone());
+        parts.push(step.name.to_string());
     }
     parts.join(" -> ")
-}
-
-pub(super) fn route_reason(origin: gw2lurker_core::RouteOrigin) -> &'static str {
-    match origin {
-        gw2lurker_core::RouteOrigin::Garrison => "from their keep",
-        gw2lurker_core::RouteOrigin::SideKeep => "from their side keep",
-        gw2lurker_core::RouteOrigin::Spawn => "from the spawn point",
-    }
 }
 
 /// Nombre del mapa en el idioma que se pase: las pruebas no pueden leer el idioma activo, porque

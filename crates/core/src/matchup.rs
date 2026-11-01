@@ -241,7 +241,7 @@ pub fn rank_guilds(rows: &[ClaimRow]) -> Vec<GuildSummary> {
                 guild: row.guild.clone(),
                 claims: 0,
                 last_at: None,
-                last_map: None,
+                last_map: Some((row.map_id, row.map_role)),
             });
         entry.claims += 1;
 
@@ -266,6 +266,23 @@ pub fn rank_guilds(rows: &[ClaimRow]) -> Vec<GuildSummary> {
     out
 }
 
+/// Destination of a guild's map button (RF-71).
+pub fn last_claim_map(current: &[ClaimRow], history: &[ClaimRow], guild: &str) -> Option<MapRole> {
+    rank_guilds(current)
+        .into_iter()
+        .find(|summary| summary.guild == guild)
+        .and_then(|summary| summary.last_map.map(|(_, role)| role))
+        .filter(|role| *role != MapRole::Unknown)
+        .or_else(|| {
+            history
+                .iter()
+                .filter(|row| row.guild == guild)
+                .max_by_key(|row| row.claimed_at)
+                .map(|row| row.map_role)
+                .filter(|role| *role != MapRole::Unknown)
+        })
+}
+
 /// Splits a guild's claims into "the map the player is on" and "the rest" (RF-72).
 pub fn split_by_map(rows: &[ClaimRow], current: MapRole) -> (Vec<ClaimRow>, Vec<ClaimRow>) {
     let mut here = Vec::new();
@@ -283,12 +300,37 @@ pub fn split_by_map(rows: &[ClaimRow], current: MapRole) -> (Vec<ClaimRow>, Vec<
 /// Rows of one guild, oldest first (the order the route needs).
 pub fn guild_timeline(rows: &[ClaimRow], guild: &str) -> Vec<ClaimRow> {
     let mut out: Vec<ClaimRow> = rows.iter().filter(|r| r.guild == guild).cloned().collect();
+    sort_timeline(&mut out);
+    out
+}
+
+/// Include still-visible claims even if their original history row was evicted (RF-71, RF-72).
+pub fn guild_timeline_with_current(
+    history: &[ClaimRow],
+    current: &[ClaimRow],
+    guild: &str,
+) -> Vec<ClaimRow> {
+    let mut out = guild_timeline(history, guild);
+    let history_len = out.len();
+    for row in current.iter().filter(|row| row.guild == guild) {
+        if !out.iter().any(|known| {
+            known.objective_id == row.objective_id && known.claimed_at == row.claimed_at
+        }) {
+            out.push(row.clone());
+        }
+    }
+    if out.len() != history_len {
+        sort_timeline(&mut out);
+    }
+    out
+}
+
+fn sort_timeline(out: &mut [ClaimRow]) {
     out.sort_by(|a, b| {
         a.claimed_at
             .cmp(&b.claimed_at)
             .then(a.objective_id.cmp(&b.objective_id))
     });
-    out
 }
 
 #[cfg(test)]
@@ -309,6 +351,65 @@ mod tests {
             serde_json::from_str(MATCH).unwrap(),
             serde_json::from_str(OBJECTIVES).unwrap(),
         )
+    }
+
+    #[test]
+    fn rf71_the_map_button_matches_the_latest_current_claim_in_the_list() {
+        let (m, names) = fixture();
+        let rows = claims(&m, &names);
+        let current = rows
+            .iter()
+            .find(|row| row.map_role == MapRole::RedHome)
+            .unwrap()
+            .clone();
+        let mut historical = rows
+            .iter()
+            .find(|row| row.map_role == MapRole::BlueHome)
+            .unwrap()
+            .clone();
+        historical.guild = current.guild.clone();
+        historical.claimed_at = current
+            .claimed_at
+            .map(|at| at + chrono::Duration::minutes(1));
+        let expected = rank_guilds(std::slice::from_ref(&current))[0]
+            .last_map
+            .unwrap()
+            .1;
+        assert_eq!(
+            last_claim_map(
+                std::slice::from_ref(&current),
+                &[historical],
+                &current.guild
+            ),
+            Some(expected),
+            "show the red claim in the row, not a newer historical claim on another map"
+        );
+        assert_eq!(
+            last_claim_map(std::slice::from_ref(&current), &[], &current.guild),
+            Some(expected)
+        );
+        assert_eq!(
+            last_claim_map(&[], std::slice::from_ref(&current), &current.guild),
+            Some(expected)
+        );
+        assert_eq!(last_claim_map(&[], &[], &current.guild), None);
+    }
+
+    #[test]
+    fn rf72_current_claims_remain_visible_after_history_eviction_without_duplicates() {
+        let (m, names) = fixture();
+        let rows = claims(&m, &names);
+        let current = &rows[0];
+        let timeline =
+            guild_timeline_with_current(&[], std::slice::from_ref(current), &current.guild);
+        assert_eq!(timeline, vec![current.clone()]);
+        let timeline = guild_timeline_with_current(
+            std::slice::from_ref(current),
+            std::slice::from_ref(current),
+            &current.guild,
+        );
+        assert_eq!(timeline.len(), 1);
+        assert!(guild_timeline_with_current(&[], &[], &current.guild).is_empty());
     }
 
     #[test]

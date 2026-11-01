@@ -13,10 +13,15 @@ funciona en Mundo contra Mundo.
   descarga solo la primera vez.
 - **Una sola ventana con pestañas**: Avisos · Mapa · Clanes · Registro · Ajustes.
 
-Al entrar directamente en **Mapa** se muestra el mapa actual del jugador. Al abrir la ruta de
-un clan (también uno no favorito) se muestra el último mapa donde reclamó, con su **ruta inferida**.
+Al entrar directamente en **Mapa** se muestra el mapa actual del jugador. Pulsar el nombre de
+un clan, favorito o no, selecciona sus eventos debajo; el botón **`i`** abre su **ruta inferida**
+en el mapa del claim vigente más reciente de la fila, o del último histórico si ya no tiene reclamos.
 Si no hay eventos del clan desde el inicio de sesión o la última reasignación de equipos, no se
 cambia de pestaña: aparece un aviso con la hora de inicio del seguimiento.
+
+La ruta añade un **origen 0 inferido**: garri propia, Bahía/Colinas en un alpino si encajan con
+los claims, o respawn del equipo del clan. El origen no cuenta como reclamación; su conexión es
+discontinua. La posición del respawn usa su etiqueta oficial y se avisa de que es aproximada.
 
 > Limitaciones honestas: la API pública de GW2 **no** expone el estado «bajo ataque» ni guarda
 > historial, y a veces **congela una partida entera** durante minutos (el addon lo avisa en naranja).

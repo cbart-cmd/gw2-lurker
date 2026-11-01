@@ -91,6 +91,7 @@ hace falta. Se niega a copiar con GW2 abierto, porque el fichero está bloqueado
    -- gw2_lurker.dll` debe devolver los cuatro atributos como `unset`.
 8. Commit y push solo de nuestros ficheros:
    `git -C ..\gw2addonsreleases add gw2_lurker.dll gw2_lurker.dll.md5` y push a `origin/main`.
+   El publicador usa `chore(release):` y añade el trailer de coautoría de Copilot.
 9. Crear la release con el tag `gw2-lurker-v<version>` y `--latest=false`, adjuntando
    DLL y MD5.
 10. **Verificar de verdad**: descargar la URL exacta de `update_link` siguiendo redirecciones
