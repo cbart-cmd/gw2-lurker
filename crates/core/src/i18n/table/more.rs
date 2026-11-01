@@ -358,7 +358,7 @@ pub const TEXT: &[(&str, [&str; COLUMNS])] = &[
     // «Camps» y «Towers» ya existen más abajo (el filtro del mapa): se reutilizan aquí.
     (
         "Keeps and garrisons",
-        ["Fortalezas y garitas", "Keeps and garrisons", "Fortresses et garnisons", "Festen und Garnisonen"],
+        ["Fortalezas y garris", "Keeps and garrisons", "Fortresses et garnisons", "Festen und Garnisonen"],
     ),
     ("Castles", ["Castillos", "Castles", "Châteaux", "Burgen"]),
     (

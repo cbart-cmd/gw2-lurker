@@ -48,7 +48,7 @@ muestra el id. La identidad es el **id de equipo**: nombres y colores cambian ca
 │ Intervalo de sondeo: [5] s                                 │
 │ Ámbito de alertas: ◉ mapa en el que estoy ○ …              │
 │ Avisar de: [x] Campamentos [x] Torres [x] Fortalezas y     │
-│            garitas [x] Castillos                           │
+│            garris [x] Castillos                           │
 │            [x] Eternos [x] Alpino azul [x] Verde [x] Rojo  │
 │            [x] el mapa en el que estoy [x] clanes que sigo │
 │            [ ] solo los clanes que sigo                    │
@@ -115,7 +115,9 @@ vistos en la sesión: nacen vacías y crecen; la cabecera dice desde cuándo se 
 ```
 Lectura sin etiquetas: el **tamaño** de la figura crece con `points_tick` (campamento < torre < fortaleza ≈ castillo) y el **contorno doble** marca alto valor (RF-30b), así se distingue lo importante de un vistazo sin leer texto ni depender del color.
 
-Tooltip al pasar el ratón: nombre, tipo, dueño, último flip, claim (guild + hora), puntos por tick y por captura.
+Hover sobre un objetivo: **una línea, sin el nombre del sitio** (ya sabe dónde está y tapaba los
+objetivos vecinos), con el dueño, el clan, la hora y el alto valor al final:
+`Azul  ·  * [YaK] Dolyak Sanctuary  ·  12:31  ·  Alto valor`.
 
 Con el filtro por tipo (RF-30a) solo quedan las figuras marcadas; la capa de claims seguidos no se filtra, para no ocultar justo lo que se está siguiendo.
 

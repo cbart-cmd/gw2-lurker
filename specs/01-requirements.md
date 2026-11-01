@@ -129,7 +129,7 @@ El click-through **no tiene casilla en los ajustes** (se quitó el 2026-11-01: e
 - GWT: *Given* una reclamación de un clan que no se sigue con «Guilds I follow» activo, *When* se detecta, *Then* no sale en el aviso emergente.
 - **El sonido sigue fuera**: no hay API de audio en `nexus-rs` 0.12 (comprobado en su código).
 
-**RF-19e (M)** Solo avisan las **estructuras que un clan puede reclamar**: campamentos, torres, fortalezas/garitas y castillos, con una casilla por tipo (todas marcadas por defecto). Las ruinas, los campamentos mercenarios, los spawns y el resto del decorado **nunca** generan aviso, aunque esté marcado «el mapa en el que estoy» (petición del jugador, 2026-11-01: «no me avises cuando alguien capture ruinas»).
+**RF-19e (M)** Solo avisan las **estructuras que un clan puede reclamar**: campamentos, torres, fortalezas/garris y castillos, con una casilla por tipo (todas marcadas por defecto). Las ruinas, los campamentos mercenarios, los spawns y el resto del decorado **nunca** generan aviso, aunque esté marcado «el mapa en el que estoy» (petición del jugador, 2026-11-01: «no me avises cuando alguien capture ruinas»).
 - Un objetivo de tipo desconocido **sí** avisa: la tabla de objetivos llega una vez por sesión y hasta entonces todo es `Unknown`, así que descartarlo dejaría el addon mudo en vez de filtrar.
 - GWT: *Given* todas las casillas marcadas, *When* cambia el dueño de unas ruinas, *Then* no hay aviso ni en la lista ni en el pop-up.
 
@@ -223,7 +223,10 @@ La ruta se etiqueta como **inferida** (RF-33): es una reconstrucción, no el rec
 
 **RF-33 (M)** La vista Histórico deberá indicar de forma visible que la ruta es **inferida**, y los claims `late` y los tramos con `gap` se dibujarán con estilo distinto (trazo discontinuo).
 
-**RF-34 (M)** Al pasar el ratón por un nodo: objetivo, hora, duración del claim y si es `late`.
+**RF-34 (M)** Al pasar el ratón por un objetivo del mapa se enseña **una línea** con dueño, clan, hora del claim y, al final, si es de alto valor: `Azul  ·  * [YaK] Dolyak Sanctuary  ·  12:31  ·  Alto valor`. El **nombre del objetivo no aparece**: el jugador ya sabe dónde está y alargaba la caja hasta tapar los objetivos vecinos (petición del jugador, 2026-11-01). El `*` marca los clanes que se siguen y sin claim la línea dice solo `Sin reclamar`.
+- El orden es deliberado: primero quién y cuándo, y el alto valor como matiz al final (petición del jugador, 2026-11-01).
+- Los nombres siguen estando donde no estorban: en la pestaña *Clanes* (historial y ruta) y en la lista de claims.
+- GWT: *Given* un castillo azul reclamado por un clan seguido a las 12:31 y de alto valor, *When* el ratón se posa encima, *Then* la línea es la de arriba, sin el nombre del sitio.
 
 **RF-35 (S)** Si los nodos cruzan mapas distintos, la ruta se divide en tramos por mapa con un indicador "salto a <mapa>".
 

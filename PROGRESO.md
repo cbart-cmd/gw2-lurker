@@ -13,6 +13,64 @@ Reglas:
 
 ---
 
+## HECHO – 2026-11-01 · El hover del mapa, sin nombre y con el alto valor al final (0.25.9)
+
+- Petición del jugador: el nombre del objetivo en el hover del mapa «tapa el resto» y el alto valor
+  no hacía falta. Orden pedido: `azul · * yak… · 12:31 · alto valor`.
+- `ui::map::detail_line` ya no recibe el `ObjectiveInfo` (era solo para el nombre) y el idioma pasa a
+  ser **parámetro**: `i18n::text` del addon llama a `english_override()` → `ffi::keys` → Nexus, y
+  **revienta fuera del juego** (`addon api not initialized`). Es la trampa de AGENTS §11.3 y el mismo
+  patrón que `alerts::spans`. Los tests nuevos usan `core::i18n::t(Language::Es, …)`.
+- Tests `rf30_the_hover_says_who_and_when_and_leaves_the_name_out` (comprueba el orden de las cuatro
+  partes y que el nombre no está) y `rf30_the_hover_without_a_claim_only_says_unclaimed`.
+- **Susto y lección:** al añadir esta entrada descubrí que las seis anteriores (0.25.4 a 0.25.8 y la
+  del espejo `specs/adr/`) **no se habían escrito**: usé `$t.Replace($anchor, …)` con un ancla que
+  llevaba backticks dentro de una cadena de PowerShell **de doble comilla**, así que el ancla no
+  existía y `Replace` devolvió el texto sin tocar, en silencio. Y con `bugs.md` algo parecido lo
+  dejó en **3 entradas de 17**: recuperado de `bbb124e` y repuestas las que faltaban (20 ahora).
+  Regla nueva: **en estos dos ficheros se escribe con `edit` (que falla si el ancla no existe) y se
+  comprueba el número de `## ` después**, nunca con `Replace` a ciegas.
+
+## HECHO – 2026-11-01 · Fuera el espejo `specs/adr/`
+
+- Petición del jugador: «borra las copias duplicadas de `specs/adr`». Eran **14 ficheros repetidos**
+  de `specs/ADR-*.md`, y dos (003 y 012) se habían quedado atrás: un espejo son dos fuentes de
+  verdad. Se quedan los canónicos ADR-001…016 en `specs/`.
+
+## HECHO – 2026-11-01 · CI en rojo: advisories de `zip` y `config.rs` con 813 líneas (0.25.8)
+
+- `fmt · clippy · test · loc` fallaba en `check_loc.sh`: `config.rs` con **813 líneas**. Partido en
+  `config/mod.rs` (500) + `config/tests.rs` (255).
+- `deny · audit` fallaba por **tres RUSTSEC sobre `zip` 2.6.1** (SUID/SGID al extraer y enlaces
+  simbólicos fuera del destino). El addon no llama a `extract()`, pero un aviso no se silencia:
+  **`zip` 9.2.0**. Coste: MSRV **1.88** y +57 856 B de DLL (2 141 696 B).
+- Verificado en local con `cargo deny check` (lo tengo instalado) antes de publicar, y con la prueba
+  de red `live_the_published_zip_unpacks_into_the_index` (>9 000 nombres sacados del ZIP publicado).
+
+## HECHO – 2026-11-01 · La descarga del índice fallaba por una errata en la URL (0.25.7)
+
+- `DEFAULT_URL` decía `gw2addonreleases` y el repositorio es `gw2addonsreleases`: 404 de GitHub,
+  traducido a «no existe». **Solo se veía con el cliente del addon**, no con `curl` (escribía la
+  buena a mano). Ahora la errata se repara sola en `settings.json`, el 404 se explica y hay prueba
+  de red permanente.
+
+## HECHO – 2026-11-01 · Los nombres de la sesión van a `temp.json` (0.25.6)
+
+- Reparto definitivo: `settings.json` → solo los clanes seguidos; `temp.json` → los de la sesión, que
+  **se borra en cada arranque** (tope 500); `guild-names.json` → índice de búsqueda, leído solo al
+  buscar. Módulo `session_names.rs`, con `reset`/`merge`/`save`.
+
+## HECHO – 2026-11-01 · `settings.json` solo con los nombres de los clanes seguidos (0.25.5)
+
+- `Config::guild_names` se queda con los seguidos (`≤ MAX_FOLLOWED`); al dejar de seguir se borra el
+  nombre y `sanitize` limpia al cargar. Su fichero: **51 → 8**.
+
+## HECHO – 2026-11-01 · El primer clic del buscador caía en el aire (0.25.4)
+
+- `is_item_deactivated_after_edit()` valía `true` al clicar una fila, lanzaba otra búsqueda en el
+  mismo fotograma y la lista se sustituía por «Buscando...». Ahora perder el foco no busca y
+  `State::Searching` arrastra los resultados anteriores.
+
 ## HECHO – 2026-11-01 · El índice vuelve a `data/` (y el ZIP con él)
 
 - **`data/equipos.xlsx` está borrado A PROPÓSITO** (el jugador lo usó una sola vez para rellenar

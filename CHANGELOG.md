@@ -1,6 +1,12 @@
 # Changelog
 Formato [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/), versionado [SemVer](https://semver.org/lang/es/).
 
+## [0.25.9] - 2026-11-01
+### Cambiado
+- **El hover del mapa ya no dice el nombre del objetivo** y el alto valor pasa al final de la línea:
+  `Azul · * [YaK] Dolyak Sanctuary · 12:31 · Alto valor`. El nombre alargaba la caja hasta tapar los
+  objetivos vecinos y el jugador ya sabe dónde está. Sin claim, la línea dice solo «Sin reclamar».
+
 ## [0.25.8] - 2026-11-01
 ### Corregido
 - **CI en rojo por tres avisos de seguridad de `zip` 2.6.1** (RUSTSEC-2026-0367, -0368 y -0369: bits
@@ -68,7 +74,7 @@ Formato [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/), versionado 
 
 ## [0.25.0] - 2026-11-01
 ### Añadido
-- **Avisos solo de estructuras** (RF-19e): casillas para campamentos, torres, fortalezas/garitas y
+- **Avisos solo de estructuras** (RF-19e): casillas para campamentos, torres, fortalezas/garris y
   castillos. Las ruinas y los campamentos mercenarios **nunca** avisan, aunque esté marcado «el mapa
   en el que estoy» (petición del jugador).
 - **El índice de nombres de clan se distribuye aparte** (RF-20c): `gw2_lurker_guilds.zip` + `.md5`

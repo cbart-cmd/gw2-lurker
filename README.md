@@ -3,7 +3,7 @@
 Addon de [Raidcore Nexus](https://raidcore.gg/nexus) para Guild Wars 2, escrito en Rust. Solo
 funciona en Mundo contra Mundo.
 
-- **Avisos** de lo que pasa en tu matchup: campamentos, torres, fortalezas/garitas y castillos
+- **Avisos** de lo que pasa en tu matchup: campamentos, torres, fortalezas/garris y castillos
   (las ruinas nunca avisan), con un aviso emergente opcional.
 - **Clanes**: sigues a los que te interesan (máximo 10) y se les ve por su nombre en el mapa, en los
   avisos y en la lista, también fuera de WvW.

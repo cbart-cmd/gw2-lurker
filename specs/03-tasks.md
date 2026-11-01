@@ -155,7 +155,7 @@ Todo lo demás está hecho y con test. El estado fino, con fechas y versiones, e
     `rf44_the_pool_covers_every_team_in_use`. (T-30) — RF-03f
     (ya lo hizo una vez con un Excel). **Bloqueada por eso.** (T-30) — RF-03f
 - **T-46 ✔ (2026-11-01)** Cuatro peticiones del jugador en una tanda:
-  1. **Avisos solo de estructuras reclamables** (RF-19e): campamentos, torres, fortalezas/garitas y
+  1. **Avisos solo de estructuras reclamables** (RF-19e): campamentos, torres, fortalezas/garris y
      castillos, con casilla por tipo. Las ruinas y los mercenarios dejan de avisar.
   2. **El índice de nombres no se lee todo el rato** (RF-20b): los nombres resueltos se guardan en
      `settings.json` (`guild_names`) y `guild-names.json` pasa a ser solo el índice de búsqueda, que

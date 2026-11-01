@@ -149,7 +149,7 @@ pub fn body(ui: &Ui, view: &View<'_>, role: &mut MapRole, here: Option<MapRole>)
     // dibuja dentro del recorte del mapa, que es donde está el ratón.
     let hover_text = hovered
         .and_then(|index| drawn.get(index))
-        .map(|(_, objective, row)| detail_line(objective, *row, guild_names, follow));
+        .map(|(_, _, row)| detail_line(*row, guild_names, follow, i18n::active()));
 
     let since =
         range_choice(ui).map(|minutes| chrono::Utc::now() - chrono::Duration::minutes(minutes));
@@ -473,27 +473,36 @@ fn nearest(spots: &[[f32; 2]], mouse: [f32; 2], max_distance: f32) -> Option<usi
     best.map(|(index, _)| index)
 }
 
-/// One line with everything the tooltip would say.
+/// Una línea con lo que dice el hover, **sin el nombre del sitio**: el jugador ya sabe dónde está y
+/// el nombre alargaba la caja hasta tapar los objetivos vecinos (petición del jugador, 2026-11-01).
+///
+/// Orden: dueño, clan, hora y, **al final**, «Alto valor» — se mira primero quién lo tiene y cuándo,
+/// y el alto valor es un matiz (petición del jugador, 2026-11-01: «sería azul · * yak… · 12:31 ·
+/// alto valor»).
+///
+/// El idioma entra como parámetro: leer el activo pasa por Nexus (API RealTime), que revienta fuera
+/// del juego y haría esto imposible de probar — el mismo motivo que en `alerts::spans`.
 fn detail_line(
-    objective: &ObjectiveInfo,
     row: Option<&ClaimRow>,
     guild_names: &BTreeMap<String, String>,
     follow: &FollowList,
+    language: gw2lurker_core::i18n::Language,
 ) -> String {
-    let mut parts = vec![objective.name.clone()];
+    use gw2lurker_core::i18n::t;
+    let mut parts: Vec<String> = Vec::new();
     if let Some(row) = row {
         if let Some(owner) = row.owner {
             parts.push(
-                i18n::text(match owner {
-                    TeamColor::Red => "Red",
-                    TeamColor::Green => "Green",
-                    TeamColor::Blue => "Blue",
-                })
+                t(
+                    language,
+                    match owner {
+                        TeamColor::Red => "Red",
+                        TeamColor::Green => "Green",
+                        TeamColor::Blue => "Blue",
+                    },
+                )
                 .to_owned(),
             );
-        }
-        if row.is_high_value() {
-            parts.push(i18n::text("High value").to_owned());
         }
         // `[TAG] Nombre`, no el id: el hover decía el id y no había forma de reconocer el clan
         // (informe de 2026-10-31).
@@ -509,8 +518,11 @@ fn detail_line(
         if let Some(at) = row.claimed_at {
             parts.push(crate::clock::clock(at));
         }
+        if row.is_high_value() {
+            parts.push(t(language, "High value").to_owned());
+        }
     } else {
-        parts.push(i18n::text("Unclaimed").to_owned());
+        parts.push(t(language, "Unclaimed").to_owned());
     }
     parts.join("  ·  ")
 }

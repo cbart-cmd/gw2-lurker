@@ -105,3 +105,53 @@ fn rf30a_scoring_objectives_are_the_only_ones_drawn() {
         assert!(!is_drawable(kind), "{kind:?} no se dibuja por defecto");
     }
 }
+#[test]
+fn rf30_the_hover_says_who_and_when_and_leaves_the_name_out() {
+    // Petición del jugador (2026-11-01): el nombre del sitio no hace falta (ya sabe dónde está) y
+    // alargaba la caja hasta tapar los objetivos vecinos. El alto valor, al final.
+    let row = ClaimRow {
+        map_id: 38,
+        map_role: MapRole::Center,
+        objective_id: "38-20".to_owned(),
+        name: Some("Palacio del Aguila Pescadora".to_owned()),
+        kind: ObjectiveType::Keep,
+        owner: Some(TeamColor::Blue),
+        guild: "6C45F3C8".to_owned(),
+        claimed_at: Some(
+            chrono::DateTime::parse_from_rfc3339("2026-11-01T12:31:00Z")
+                .expect("fecha")
+                .with_timezone(&chrono::Utc),
+        ),
+        points_tick: 12,
+    };
+    let mut names = BTreeMap::new();
+    names.insert("6C45F3C8".to_owned(), "[YaK] Dolyak Sanctuary".to_owned());
+    let mut follow = FollowList::default();
+    follow.add("6C45F3C8");
+
+    use gw2lurker_core::i18n::{t, Language};
+    let line = detail_line(Some(&row), &names, &follow, Language::Es);
+    assert!(
+        !line.contains("Palacio"),
+        "el nombre del sitio no va en el hover: {line}"
+    );
+
+    // Orden: dueño, clan, hora, y «Alto valor» al final.
+    let parts: Vec<&str> = line.split("  ·  ").collect();
+    assert_eq!(parts.len(), 4, "{line}");
+    assert_eq!(parts[0], t(Language::Es, "Blue"));
+    assert_eq!(parts[1], "* [YaK] Dolyak Sanctuary");
+    assert_eq!(parts[2], crate::clock::clock(row.claimed_at.expect("hora")));
+    assert_eq!(
+        parts[3],
+        t(Language::Es, "High value"),
+        "el alto valor va el último"
+    );
+}
+
+#[test]
+fn rf30_the_hover_without_a_claim_only_says_unclaimed() {
+    use gw2lurker_core::i18n::{t, Language};
+    let line = detail_line(None, &BTreeMap::new(), &FollowList::default(), Language::Es);
+    assert_eq!(line, t(Language::Es, "Unclaimed"));
+}
