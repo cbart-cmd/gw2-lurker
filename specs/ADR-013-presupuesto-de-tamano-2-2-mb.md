@@ -17,9 +17,14 @@ medición del spike T-01». La medición llegó, y con ella el addon:
 | 0.1.0 | 1 053 696 | `nexus` (log, mumble, rtapi) + ImGui, sin HTTP |
 | 0.4.0 | 1 455 616 | transporte HTTP, idioma, ajustes, ventana de estado |
 | 0.9.0 | 1 547 776 | notas por arcdps/extras, vistas de claims y avisos |
+| 0.25.7 | 2 083 840 | ventana con pestañas, mapa con teselas opcionales, buscador de clanes con índice en ZIP (`zip` 2.x) y tabla de textos en cuatro idiomas |
 
 Con 1,5 MB ya estábamos por encima en 0.8.x y quedaban por delante las vistas de clanes,
 historial, mapa y ruta: no cabían.
+
+> **Actualización de medida (2026-11-01):** la DLL está en **2 083 840 B**, o sea a **223 027 B**
+> del objetivo de 2,2 MB y a 537 600 B del límite de 2,5 MB. El margen real es del ~10 %, así que
+> sigue siendo obligatorio mirar el tamaño en cada publicación.
 
 ## Por qué 2,2 y no más
 

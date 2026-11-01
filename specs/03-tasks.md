@@ -1,23 +1,40 @@
 # 03 – Tareas
 
+> **Esto es el registro histórico del proyecto**, no la descripción del código. Recoge las tareas
+> con las que se construyó, en orden, y lo que se pidió en cada momento; algunas dicen cosas que hoy
+> ya no son ciertas (por ejemplo, hablan de `crates/store`, de `data/equipos.xlsx` o del
+> comportamiento de la UI en 0.10). **La verdad del código está en `02-design.md` y
+> `01-requirements.md`**, y el día a día en `PROGRESO.md`. Si algo de aquí contradice al código, manda
+> el código y esta lista se actualiza o se marca como superada.
+
 Cada tarea es pequeña y verificable. Orden recomendado; las dependencias se indican entre paréntesis.
 
-## Estado a 2026-10-31 (0.22.0)
+## Estado a 2026-11-01 (0.25.7)
 
 Lo que **queda vivo**, con por qué:
 
 | Tarea | Qué falta | Necesita |
 |---|---|---|
-| **T-19** | Checklist manual en el juego: widget bloqueado sin capturar clics, activar/desactivar por mapa, reset semanal, API 503, clan con tag raro | El jugador |
-| **T-21 (S)** | RF-11 y RF-15 (avisos de bajada de yaks/upgrades y capturas informativas) y el acceso rapido con atajo propio; RF-19b, RF-19c y RF-35 hechos en 0.19-0.22 | Programa |
-| **T-22 (C)** | RF-19d y RF-36 hechos en 0.22; queda el sonido opcional, que nexus-rs 0.12 no puede (sin API de audio) | API de Nexus |
-| **T-24** | Cerrar los 3 pendientes de `05-wireframes.md` | Decisión de diseño |
-| **T-25 ✔ (2026-10-31)** | Banner de version nueva hecho en 0.22 (RF-50) | - |
-| **T-28 ✔ (2026-10-31)** | Modulo ui::theme hecho en 0.22 (RF-60 a RF-63) | - |
+| **T-19** | Checklist manual en el juego (`manual-tests.md`, MT-01…MT-20) | El jugador |
+| **T-21 (S)** | RF-11 y RF-15 (avisos de bajada de yaks/upgrades y capturas informativas) | Programa |
+| **T-22 (C)** | El sonido opcional: `nexus-rs` 0.12 no tiene API de audio | API de Nexus |
+| **T-24** | Cerrar los pendientes de `05-wireframes.md` — **todos cerrados el 2026-11-01** | - |
 | **T-41 (S)** | Terminología fr/de con hablantes nativos | Nativos |
 
-Todo lo demás está hecho y con test; las que llevan `✔` citan en su línea el fichero o el test que
-lo demuestra. El estado fino, con fechas y versiones, está en `PROGRESO.md`.
+Todo lo demás está hecho y con test. El estado fino, con fechas y versiones, está en `PROGRESO.md`.
+
+## Estados que la lista original describía y hoy no existen
+
+- **`crates/store` (S-01…S-09 de `06-diff-scenarios.md`)**: eliminado en 0.24.0, el historial es
+  de la sesión y vive en memoria (ADR-015).
+- **`data/equipos.xlsx` y `scripts/merge_team_names.ps1`**: retirados el 2026-11-01; las
+  traducciones de equipo se editan a mano en `data/team-names.json` y salen de la lista de la wiki.
+- **Cooldown por objetivo y sonido**: nunca se implementaron; se retiraron de la UI y de los
+  requisitos (ver RF-40 y `06-diff-scenarios.md`, R-11).
+- **Caché en disco de objetivos/mapas/guild→equipo**: hoy es memoria por sesión (y 30 min para el
+  mapa guild→equipo del buscador).
+- **Ventanas separadas** (ajustes, log, mapa, histórico): desde ADR-014 hay **una** ventana con
+  pestañas.
 
 ## Fase 0 – Spikes (reducen riesgo)
 

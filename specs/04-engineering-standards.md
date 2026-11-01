@@ -4,10 +4,13 @@ Cumplimiento verificado por CI siempre que sea posible. Lo que no se pueda autom
 
 ## 1. Formato y estilo
 
-- **rustfmt** obligatorio, configuración en `rustfmt.toml` (ver `tooling/`). `cargo fmt --check` en CI.
-- **clippy** con `-D warnings`. Lints del workspace en `[workspace.lints]`: `clippy::all` y `clippy::pedantic` como warn, con excepciones justificadas en línea (`#[allow(..., reason = "...")]`).
+- **rustfmt** obligatorio, configuración en `rustfmt.toml`. `cargo fmt --all --check` en CI.
+- **clippy** con `-D warnings` en CI. Lints del workspace en `Cargo.toml` →
+  `[workspace.lints]`: `clippy::all` como warn, `unwrap_used` y `expect_used` en **deny** (los
+  tests se los saltan con `#![cfg_attr(test, allow(...))]`), `missing_debug_implementations` y
+  `unused_qualifications` warn, `unsafe_op_in_unsafe_fn` deny.
 - Nomenclatura estándar de Rust (RFC 430): `snake_case` funciones/módulos, `CamelCase` tipos, `SCREAMING_SNAKE_CASE` constantes.
-- Edición 2021 o superior, MSRV fijada en `rust-version` y comprobada en CI.
+- Edición 2021, MSRV en `rust-version` (1.87.0) y fijada también en `rust-toolchain.toml`.
 - Sin código comentado ni `TODO` sin identificador de tarea (`TODO(T-14): ...`).
 
 ## 2. Tamaño de ficheros y funciones
@@ -16,38 +19,40 @@ Cumplimiento verificado por CI siempre que sea posible. Lo que no se pueda autom
 - Funciones: objetivo ≤ 60 líneas; `clippy::too_many_lines` y `cognitive_complexity` en warn.
 - Un módulo, una responsabilidad: si un fichero se acerca al límite, se divide en un directorio con `mod.rs` y submódulos (ver diseño §1).
 - Los tests extensos van en `tests/` o en ficheros `*_tests.rs` aparte para no inflar el módulo bajo prueba (cuentan igual para el límite).
-- Script: `tooling/scripts/check_loc.sh`.
+- Script: `scripts/check_loc.sh` (lo lanza la CI).
 
 ## 3. Errores, seguridad y robustez
 
-- Prohibido `unwrap()`/`expect()` fuera de tests y de invariantes documentadas (`clippy::unwrap_used` en deny para el crate `addon` y `api`).
-- Errores tipados con `thiserror` en librerías; sin `anyhow` en `core`.
-- `#![forbid(unsafe_code)]` en `core`, `api` y `store`. El `unsafe` solo se permite en `addon`, aislado en un módulo `ffi` con comentario `// SAFETY:` en cada bloque.
+- Prohibido `unwrap()`/`expect()` fuera de tests: `clippy::unwrap_used` y `clippy::expect_used` están en **deny** en todo el workspace.
+- Errores con enums propios y `Display` escrito a mano (`gw2lurker_api::ApiError`, `Health` del worker). **No** se usan `thiserror` ni `anyhow`: no aportan y suman tamaño.
+- `#![forbid(unsafe_code)]` en `core` y `api`. El `unsafe` solo se permite en `addon`, aislado en `ffi/` con `// SAFETY:` en cada bloque.
 - **Frontera FFI:** todo callback que invoque Nexus envuelve su cuerpo en `catch_unwind` y registra el error en lugar de propagarlo. `panic = "unwind"` en el perfil release (ver §5, ADR-008).
 - Sin bloqueo en el hilo de render: ni E/S, ni red, ni locks largos. Revisión explícita en PR.
-- Entradas externas (JSON de API, ficheros de historial y config) se tratan como no confiables: límites de tamaño, validación y descarte de lo corrupto, nunca `panic`.
+- Entradas externas (JSON de API, `settings.json`, el ZIP del índice que se descarga) se tratan como no confiables: límites de tamaño y de entradas del ZIP, validación del MD5 publicado, y descarte de lo corrupto, nunca `panic`.
 
 ## 4. Dependencias
 
-- Política de mínimos: cada dependencia nueva requiere justificarse en el PR (coste en tamaño de DLL, mantenimiento, licencia).
-- `cargo-deny` (licencias, avisos de seguridad, fuentes) y `cargo audit` en CI. Configuración en `tooling/deny.toml`.
-- Sin runtime asíncrono (`tokio`) salvo que se demuestre necesario; el worker usa un hilo y cliente HTTP bloqueante.
+- Política de mínimos: cada dependencia nueva requiere justificarse en el PR (coste en tamaño de DLL, mantenimiento, licencia). Dependencias actuales del `addon`: `chrono`, `log`, `serde`, `serde_json`, `nexus`, `gw2lurker-core`, `gw2lurker-api` y **`zip` 2.x** (`default-features = false, features = ["deflate"]`, para descomprimir el índice de nombres; misma caja y misma feature que el addon hermano `gw2-rotation-builds`).
+- `cargo-deny` (licencias, avisos de seguridad, fuentes) y `cargo-audit` en CI, con `deny.toml` en la raíz.
+- Sin runtime asíncrono (`tokio`): el worker es un hilo y el HTTP es **WinHTTP** (servicio del sistema, sin TLS en la DLL).
 - Versiones fijadas con `Cargo.lock` versionado.
-- Elección del cliente HTTP y de TLS por **medición de tamaño** en el spike T-02b, no por preferencia.
+- Cliente HTTP decidido **por medición de tamaño** (T-02b), no por preferencia: `windows`/WinHTTP frente a `ureq`/`reqwest`.
 
-## 5. Tamaño de la DLL (ADR-008)
-
-Presupuesto **provisional**, a calibrar con el addon mínimo del spike T-01:
+## 5. Tamaño de la DLL (ADR-013)
 
 | Medida | Objetivo | Límite CI |
 |---|---|---|
 | DLL release | ≤ 2,2 MB | 2,5 MB |
 
-Perfil release recomendado:
+Medido el **2026-11-01**: **2 083 840 B** (1,99 MiB / 2,08 MB) con todas las vistas, las tablas de
+textos y el descompresor del índice. `scripts/check_size.sh` falla por encima de 2,5 MB y avisa por
+encima del objetivo; la CI lo ejecuta en el job de Windows.
+
+Perfil release (real, en `Cargo.toml`):
 
 ```toml
 [profile.release]
-opt-level = "z"        # optimiza tamaño; medir también "s" y 3 si afecta al rendimiento
+opt-level = "z"
 lto = "fat"
 codegen-units = 1
 strip = "symbols"
@@ -55,31 +60,39 @@ panic = "unwind"       # necesario para catch_unwind en la frontera FFI
 debug = false
 ```
 
-- `panic = "abort"` reduce tamaño, pero convertiría cualquier panic en un cierre del juego. Se descarta por la constitución (principio 7).
-- Evitar `regex`, `chrono` con todas las features, `reqwest`/`tokio`. Usar `time` o un parser ISO-8601 mínimo.
+- `panic = "abort"` reduciría tamaño, pero convertiría cualquier pánico en un cierre del juego. Se descarta por la constitución (principio 7).
+- Evitar `regex`, `reqwest`/`tokio` y cualquier TLS empaquetado.
 - Revisar con `cargo bloat --release --crates` en cada release; el tamaño se registra en el CHANGELOG.
-- Script de comprobación: `tooling/scripts/check_size.sh`.
 
 ## 6. Estrategia de pruebas
 
+Lo que hay de verdad hoy: **250 tests** de `cargo test` (unitarios, incluidos los de `addon` que no
+tocan Nexus), fixtures JSON reales y tres pruebas de red `#[ignore]`.
+
 | Tipo | Herramienta | Alcance |
 |---|---|---|
-| Unitarias | `cargo test` | `core`, `store`, `api` (parseo) |
-| Propiedades | `proptest` | `diff` (idempotencia: `diff(s,s)=∅`), `world_to_screen` (inversa), rotación de `store` |
-| Instantáneas | `insta` | Salida de `diff`/`rules` sobre fixtures reales |
-| Fixtures | JSON reales guardados en `crates/api/tests/fixtures/` | Respuestas de match, objetivos, guild, errores 503 y JSON truncado |
-| Cobertura | `cargo llvm-cov` | `core` ≥ 85 %, `store` ≥ 80 % |
-| Mutación (opcional) | `cargo mutants` | `core::diff` y `core::rules` |
-| Humo de DLL | test con crate `object` | La DLL generada exporta `GetAddonDef` y es un PE válido x64 |
-| Aceptación manual | Checklist T-19 | Todo lo que dependa del juego |
+| Unitarias | `cargo test` | `core` (diff, filtros, rutas, proyección, i18n, equipos), `api` (parseo), `addon` (funciones puras: `team::resolve`, `window::*`, `names::*`, `md5`, `guild_index::unpack`, `session_names`, `keybinds`) |
+| Fixtures | JSON reales en `crates/api/tests/fixtures/` | Respuestas de match, objetivos, guild, 503 y JSON truncado |
+| Red | `#[ignore]` | `live_get_returns_the_match_json`, `live_pipeline_builds_the_dashboard`, `live_the_index_zip_is_downloadable`; se lanzan a mano antes de publicar |
+| Tamaño y forma | `scripts/check_size.sh` | La DLL no pasa de 2,5 MB y es un PE x64 válido que exporta el punto de entrada |
+| Aceptación manual | `specs/manual-tests.md` | Todo lo que depende del juego |
 
-**Trazabilidad:** cada test de comportamiento lleva el ID del requisito en el nombre (`rf10_flip_of_own_objective_emits_alert`). Un check de CI lista los requisitos M sin ningún test que los referencie; los que solo pueden probarse a mano se enumeran en `specs/manual-tests.md`.
+**Reglas que ya nos han costado un fallo** (AGENTS §11): el valor esperado sale de los datos;
+un test del `addon` no puede llamar a `AddonApi::get()`; nada de tests que reimplementen la lógica;
+antes de asumir una firma externa, se abre su fuente.
+
+**Trazabilidad:** cada test de comportamiento lleva el ID del requisito en el nombre (`rf19e_ruins_never_alert`). `scripts/check_traceability.sh` **falla** si un test cita un requisito que no existe en `01-requirements.md`, e informa de los que no tienen cobertura.
 
 ## 7. Documentación
 
-- `#![warn(missing_docs)]` en `core`, `api` y `store`; rustdoc con ejemplos ejecutables (doctests) en la API pública.
-- `README.md` (instalación, límites conocidos, capturas), `CHANGELOG.md` (Keep a Changelog + SemVer), `docs/` para el usuario final.
-- **Spec-driven:** ningún cambio de comportamiento sin actualizar antes `01-requirements.md` y, si procede, un ADR. El PR enlaza los RF/T afectados.
+- `rustdoc` en la API pública de `core` y `api`; los módulos del `addon` llevan comentario de
+  cabecera explicando el porqué (no `missing_docs` a nivel de crate).
+- `README.md` (qué hace, instalación, límites conocidos), `CHANGELOG.md` (Keep a Changelog + SemVer),
+  `docs/` para el usuario y para publicar (`RELEASE.md`).
+- `PROGRESO.md` es la bitácora (lo más reciente arriba) y `bugs.md` la bandeja de fallos del jugador,
+  que **no se borra nunca**.
+- **Spec-driven:** ningún cambio de comportamiento sin actualizar antes `01-requirements.md` y, si
+  procede, un ADR. El PR enlaza los RF/T afectados.
 - ADRs inmutables una vez aceptados; los cambios se hacen con un ADR nuevo que sustituye al anterior.
 
 ## 8. Control de versiones y releases

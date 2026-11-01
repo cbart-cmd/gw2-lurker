@@ -1,65 +1,73 @@
 # 05 – Bocetos de interfaz (wireframes)
 
-Boceto de estructura, no de estilo visual. Leyenda: `[R]` rojo, `[A]` azul, `[V]` verde; formas: `●` campamento, `■` torre, `◆` fortaleza, `★` castillo; **contorno doble** `(◆)` = objetivo de alto valor. El color nunca es la única señal (RF-19).
+Boceto de **estructura**, no de estilo visual, y actualizado al código de la 0.25.x. En el juego los
+iconos se dibujan con primitivas (`ui::icons`), no con estos caracteres, y **todo el texto va en
+ASCII + latino-1**: la fuente de Nexus no tiene flechas ni estrellas (se dibujan como «?»).
 
-## W1 – Widget fijo de alertas (RF-16..19)
+Una sola ventana con pestañas (ADR-014): **Avisos · Mapa · Clanes · Registro · Ajustes**.
 
-Desbloqueado (movible/redimensionable):
-```
-┌ WvW Watch ───────────── 🔒 ≡ ┐   🔒 bloquear   ≡ abrir log
-│ ■ Torre Durios perdida [R]   │
-│   Ojos de Aguas · hace 12 s  │
-│ ◆ Claim <GUILD> en Fortaleza │
-│   Frontera Roja · hace 3 min │
-│ ● Campamento X perdido [A]   │
-│   Frontera Verde · hace 9 min│
-└──────────────────────────────┘
-```
-Bloqueado (sin cabecera, sin capturar clics, opacidad configurable):
-```
- ■ Torre Durios perdida [R]  · 12 s
- ◆ Claim <GUILD> Fortaleza   · 3 min
-```
-Estados: sin alertas y bloqueado → widget oculto (opcional: texto tenue "Sin novedades"); datos obsoletos → línea fija `⚠ Datos obsoletos desde 14:02`.
+## W1 – Pestaña de avisos / widget (RF-16..19e)
 
-## W2 – Primer uso: elegir equipo (RF-03a, RF-03g)
+Desbloqueada (movible/redimensionable, con cromo):
 ```
-┌ WvW Watch – Configuración inicial ───────────────────┐
-│ Elige tu equipo (match 2-2 · EU):                    │
-│ [ buscar equipo…                              🔍 ]   │
-│  ◉ Great House Aviary (12014)                        │
-│  ○ Bava Nisos      (12015)                           │
-│  ○ Bloodstone Gulch (12007)                          │
-│                                                      │
-│ Comprobación: eres AZUL; tus rivales son             │
-│ Bava Nisos (rojo) y Bloodstone Gulch (verde).        │
-│                        [ Correcto ]   [ Cambiar ]    │
-└──────────────────────────────────────────────────────┘
+┌ WvW Watch ─ [Avisos|Mapa|Clanes|Registro|Ajustes] ─ 🔒 × ┐
+│ 12:31  Azul  ·  Zanja de Mendon  -  [YaK] Dolyak  -  36 s│
+│ 12:28  Verde ·  Torre Durios     -  Rojo -> Azul    3 min│
+│ 12:20  Rojo  ·  Campamento X     -  sin reclamar    9 min│
+└──────────────────────────────────────────────────────────┘
 ```
-El nombre sale de `data/wvw-teams.json`; si el id no está en la tabla se muestra solo `(12014)`. La identidad es el id: los nombres y los colores cambian cada temporada.
+Cada línea: hora, mapa con su color (Eternos en gris, Azul/Verde/Rojo en el suyo), objetivo, y en
+gris el clan o el cambio de dueño (`Rojo -> Azul`). El tipo de objetivo va con su dibujo delante.
+Bloqueada y en click-through (sin cromo, los clics van al juego):
+```
+ 12:31  Azul  ·  Zanja de Mendon  -  [YaK] Dolyak
+ 12:28  Verde ·  Torre Durios     -  Rojo -> Azul
+```
+Estados: sin alertas y bloqueado → no se dibuja nada (indicador de estado con «sin novedades»);
+datos obsoletos → línea fija `Datos obsoletos desde 14:02`; API congelada → aviso naranja
+`La API de ArenaNet no publica cambios de esta partida desde hace N min`.
 
-## W3 – Configuración (RF-40, RF-44, RF-46)
+## W2 – Elegir equipo (RF-03a, RF-03g), dentro de Ajustes
 ```
-┌ WvW Watch ─ Configuración ──────────────── 🔒 ─ × ┐  ← arrastrar la cabecera mueve,
-│ [General] [Alertas] [Widget] [Guilds] [Datos]     │    el borde redimensiona,
-├───────────────────────────────────────────────────┤    🔒 bloquea, clic derecho = menú
-│ Idioma: ◉ Auto (juego: español) ○ EN ○ ES ○ FR ○ DE│
-│         manten Ctrl der. para ver todo en inglés   │
-│ Alertas:  ◉ Mi mapa  ○ Todos los mapas            │
-│ Sonido: [x]   Cooldown por objetivo: [ 60 ] s     │
-│ Widget: Líneas [5]  Vida [60] s  Opacidad [80]%   │
-│         [x] Bloqueado    Atajo: [ Alt+Shift+L ]   │
-│ Polling: [30] s                                    │
-│ Historial: sesión actual (desde 12:04)             │
-│ Estilo ventanas: ◉ Nexus  ○ Propio                │
-│ Fondo widget: ○ Transparente ◉ Semitransparente   │
-│ Versión 0.1.0  ·  Estado: ✔ actualizado           │
-└───────────────────────────────────────────────────┘
+┌ Ajustes ─────────────────────────────────────────────────┐
+│ Región:   [EU ▾]                                         │
+│ Color:    (Rojo) (Verde) (Azul)                          │
+│ Equipo:   [Great House Aviary (12014) ▾]  ← nombre (id)  │
+│ Traducción: [ Invernadero de Lutgardis            ]      │
+│ (Comprobación: eres AZUL; rivales Bava Nisos (rojo)…)    │
+└──────────────────────────────────────────────────────────┘
 ```
-Menú contextual (clic derecho sobre cualquier ventana, mismo orden siempre):
+El nombre viene de `data/wvw-teams.json` y su traducción de `data/team-names.json`; si falta, se
+muestra el id. La identidad es el **id de equipo**: nombres y colores cambian cada temporada.
+
+## W3 – Pestaña Ajustes (RF-40, RF-44, RF-46)
+```
+┌ Ajustes ─────────────────────────────────────────── 🔒 ─ × ┐
+│ Idioma: ◉ Auto (juego: español) ○ EN ○ ES ○ FR ○ DE        │
+│         mantén Ctrl der. para ver todo en inglés           │
+│ Intervalo de sondeo: [5] s                                 │
+│ Ámbito de alertas: ◉ mapa en el que estoy ○ …              │
+│ Avisar de: [x] Campamentos [x] Torres [x] Fortalezas y     │
+│            garitas [x] Castillos                           │
+│            [x] Eternos [x] Alpino azul [x] Verde [x] Rojo  │
+│            [x] el mapa en el que estoy [x] clanes que sigo │
+│            [ ] solo los clanes que sigo                    │
+│ Segundos del aviso emergente: [2.0 s]   [x] Avisos activos │
+│ Widget: líneas [5]  opacidad [85]%  texto [1.0x]          │
+│         [x] Ventana visible   [x] Posición bloqueada       │
+│         (el click-through se pone con clic derecho)        │
+│ Fondo del mapa: [x]   Estilo: ◉ Nexus ○ Propio             │
+│ Fondo del widget: ◉ Oscuro ○ Transparente                  │
+│ Índice de nombres de clan: 9 886 listos · [Descargar]      │
+│ URL del índice: [ https://…/gw2_lurker_guilds.zip      ]   │
+│ Versión 0.25.7 · Estado: ✔ actualizado                     │
+└────────────────────────────────────────────────────────────┘
+```
+Menú contextual (clic derecho sobre la ventana, mismo orden siempre):
 ```
 ┌───────────────────────────┐
 │ [x] Bloquear posición     │
+│ [ ] Click-through         │
 │ ───────────────────────── │
 │ Opacidad   [=====|     ]  │
 │ ───────────────────────── │
@@ -67,28 +75,31 @@ Menú contextual (clic derecho sobre cualquier ventana, mismo orden siempre):
 │ Ajustes…                  │
 └───────────────────────────┘
 ```
-El cromo es **idéntico en todas las ventanas**: la `×` oculta (no destruye), la cabecera arrastra, el borde redimensiona. Lo único que cambia es el tamaño mínimo y si hay acciones propias.
+La `×` oculta (no destruye) y la cabecera arrastra. El click-through **no** tiene casilla en
+Ajustes a propósito (se quitó el 2026-11-01): se sale con el clic derecho o con el keybind de Nexus,
+cuyo atajo se muestra tal y como lo tiene guardado Nexus.
 
-## W4 – Guilds seguidas y sugeridas (RF-20, RF-20a, RF-23)
+## W4 – Pestaña Clanes (RF-20, RF-20a, RF-23, RF-73)
 ```
-┌ Guilds seguidas ─────────────────────────────────────┐
-│ Añadir: [ nombre o ID…          ] [Buscar]           │
-│  Resultados: ○ Nombre [TAG]   ○ Nombre2 [TG2]        │
-├──────────────────────────────────────────────────────┤
-│ Sugeridas (claims vistos desde 31/10 12:00)          │
-│  YAK [YAK]  6 claims · este mapa  · últ. 14:41  [+]  │
-│  OTR [OTR]  3 claims · este mapa  · últ. 14:02  [+]  │
-│  XYZ [XYZ]  9 claims · otros mapas · últ. 13:50  [+] │
-├──────────────────────────────────────────────────────┤
-│ ▸ Nombre [TAG]            2 objetivos ahora     [✕]  │
-│     ◆ Fortaleza X – Frontera Roja – desde 14:20      │
-│     ■ Torre Y     – Ojos de Aguas – desde 14:41      │
-│ ▸ Otra [OTR]              0 objetivos ahora     [✕]  │
-└──────────────────────────────────────────────────────┘
+┌ Clanes ───────────────────────────────────────────────────┐
+│ Clanes que sigo (3/10)                                    │
+│  * [YaK] Dolyak Sanctuary                               × │
+│  * [DB] Die Barbaren                                    × │
+│  - [DG] Die Garde                                       × │
+│ ───────────────────────────────────────────────────────── │
+│ ▸ Añadir clan                                             │
+│    Con algo reclamado ahora:  [YaK] … 2 · 12:31      [+]  │
+│    Buscar un clan: [ dolyak            ] [Buscar]         │
+│      * [YaK] Dolyak Sanctuary                             │
+│        [Dyak] Dolyak Attack                               │
+│    9 886 clanes en el índice                              │
+└───────────────────────────────────────────────────────────┘
 ```
-La lista de sugeridas sale **solo** de claims que el addon ha visto (RF-20a): nace vacía y crece. Se ordena por claims en el mapa actual y luego por el resto, con la fecha de inicio de observación siempre visible para no aparentar un ranking global.
+`*` = lo sigues, `-` = no (antes eran estrellas, que la fuente no tiene). Al añadir uno, su nombre
+se guarda en `settings.json` y el índice aprende el clan. Las sugeridas salen **solo** de claims
+vistos en la sesión: nacen vacías y crecen; la cabecera dice desde cuándo se observa.
 
-## W5 – Mapa simplificado (RF-30, RF-30a, RF-30b, RF-31)
+## W5 – Mapa simplificado (RF-30, RF-30a, RF-30b, RF-31, RF-37)
 ```
 ┌ Mapa ─ [Ojos de Aguas ▾] ────────────────── hace 8 s ┐
 │ Tipo:  [● Camp] [■ Torre] [◆ Fort] [★ Cast]          │
@@ -123,12 +134,14 @@ Con el filtro por tipo (RF-30a) solo quedan las figuras marcadas; la capa de cla
 │ 5 Campamento Z 15:10  ⌚ tardío                         │
 └────────────────────────────────────────────────────────┘
 ```
-Nodos tardíos con contorno punteado; saltos entre mapas con indicador `→ Ojos de Aguas`. El nodo **más reciente** va relleno y con el número en negrita (RF-32): es la respuesta a "¿qué ha reclamado por última vez?".
+Nodos tardíos con contorno punteado; saltos entre mapas con el texto «salto a <mapa>». El nodo
+**más reciente** va relleno y con el número en negrita (RF-32): es la respuesta a «¿qué ha reclamado
+por última vez?». El historial es **de la sesión** (ADR-015): el rango empieza al arrancar el addon.
 
 ## W7 – Banner de actualización (RF-50)
 ```
 ┌ WvW Watch ────────────────────────────────────────────┐
-│ ⟳ Actualizado a v0.2.0. Reinicia el juego para aplicar.│
+│ Actualizado a v0.25.7. Reinicia el juego para aplicar. │
 │                                              [ Cerrar ]│
 └────────────────────────────────────────────────────────┘
 ```
@@ -136,14 +149,21 @@ Se muestra fijo y visible hasta reiniciar, aunque el jugador no esté en WvW (so
 
 ## W8 – Fallo de carga / modo seguro (RF-51)
 ```
- ⚠ WvW Watch en modo seguro: configuración dañada, se usan valores por defecto.
-   Copia conservada en config.json.corrupt-20261031-1415   [ Detalles ]
+ WvW Watch en modo seguro: configuración dañada, se usan valores por defecto.
+ Copia conservada en settings.json.corrupt-20261031-1415   [ Detalles ]
 ```
 
 ## Pendientes de cierre del boceto
 
-1. ~~Atajo por defecto del widget~~ **Resuelto:** `Alt+Shift+L` (RF-18). Debe registrarse como keybind gestionado por Nexus, para que el usuario pueda reasignarlo si choca con otro.
-2. ~~Widget vacío~~ **Resuelto:** se oculta por completo cuando no hay novedades (RF-16). Opción "Mostrar «Sin novedades»" disponible en configuración, desactivada por defecto. Mientras esté desbloqueado se muestra siempre, para poder colocarlo.
-3. ~~Paleta y tema~~ **Resuelto (ADR-009):** ventanas heredan el estilo de Nexus con opción de estilo propio; colores de equipo clásicos del juego; fondo del widget configurable, semitransparente por defecto.
+Todos cerrados:
 
-**Todos los pendientes de bocetos están cerrados.**
+1. ~~Atajo por defecto del widget~~ **Resuelto (2026-11-01):** keybind `GW2LURKER_CLICK_THROUGH`,
+   registrado como `Ctrl+Shift+L` pero reasignable; la ventana muestra **el que Nexus tiene guardado**
+   (leído de `Nexus/InputBinds.json`), no un literal.
+2. ~~Widget vacío~~ **Resuelto:** sin novedades y en click-through no se dibuja; desbloqueado se
+   muestra siempre, para poder colocarlo.
+3. ~~Paleta y tema~~ **Resuelto (ADR-009):** ventanas heredan el estilo de Nexus con opción de estilo
+   propio; colores de equipo clásicos del juego; fondo del widget configurable, semitransparente por
+   defecto.
+4. ~~Sonido y cooldown por objetivo~~ **Retirados de la UI:** no hay API de audio en `nexus-rs` 0.12
+   y el cooldown por objetivo nunca se implementó. Si vuelven, se documentan antes en `01-requirements.md`.

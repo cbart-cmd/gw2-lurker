@@ -1,8 +1,14 @@
-# 06 – Catálogo de escenarios (diff, rules, store, history, mapa)
+# 06 – Catálogo de escenarios (diff, filtros de aviso y mapa)
 
-Contrato de pruebas **antes del código**. Cada escenario es un test; el nombre de la función empieza por el ID en minúsculas (`d07_...`). Si un escenario cambia, se cambia aquí primero.
+Contrato de comportamiento. **Ojo con la nomenclatura:** los tests se llaman por el **requisito**
+(`rf10_owner_change_emits_a_flip_with_the_real_time`), no por el ID `d07` que se usó al planificar;
+la columna «Test» de cada tabla dice cuál es el nombre real o «—» si aún no lo hay. Si un escenario
+cambia, se cambia aquí primero.
 
-Convenciones: `S0` = snapshot anterior, `S1` = actual. Tiempos en UTC. "Seguida" = guild en la lista de seguimiento. Equipo propio = Verde salvo que se indique.
+Convenciones: `S0` = snapshot anterior, `S1` = actual. Tiempos en UTC. «Seguida» = guild en la lista
+de seguimiento. No hay módulo `rules` ni crate `store`: los filtros viven en `core::alerts::Filter`
+y se aplican en `addon::alerts::Dashboard::recent_alerts`; el historial es de la sesión y está en
+memoria (ADR-015).
 
 ## D – `core::diff` (Snapshot, Snapshot) → Vec<Event>
 
@@ -29,59 +35,63 @@ Convenciones: `S0` = snapshot anterior, `S1` = actual. Tiempos en UTC. "Seguida"
 |---|---|---|---|
 | B-01 | Sin S0 | primer diff | Sin `Flip`; ninguna alerta de flip (RF-04) |
 | B-02 | Sin S0, objetivo claimed por guild seguida G | primer diff | `Claim{late:true, at:claimed_at}` (RF-25) |
-| B-03 | Sin S0, objetivo claimed por guild no seguida | primer diff | Sin eventos persistibles |
+| B-03 | Sin S0, objetivo claimed por guild no seguida | primer diff | `Claim{late:true}` como observación en la sesión (no avisa, alimenta las sugeridas de RF-20a) |
 | B-04 | `match_id` distinto entre S0 y S1 | diff | `MatchChanged` y nueva línea base; sin flips por la diferencia (RF-03d) |
 | B-05 | `S1.taken_at - S0.taken_at` > umbral | diff | `Gap{from,to}` (RF-26) |
 | B-06 | Hueco y claim de guild seguida con `claimed_at` dentro del hueco | diff | `Gap` + `Claim{late:true}` |
 | B-07 | Hueco y claim con `claimed_at` anterior al hueco | diff | Sin claim duplicado si ya estaba registrado |
-| B-08 | Mismo snapshot repetido por API atascada (hash idéntico, tiempo avanza) | diff | Sin eventos; la capa superior marca "obsoleto" (RF-43) |
+| B-08 | Mismo snapshot repetido por API atascada (huella idéntica, tiempo avanza) | diff + worker | Sin eventos; `matchup::digest` + `payload_since` marcan la partida como congelada y el widget lo dice (RF-43) |
 | B-09 | `taken_at` no monótono (S1 anterior a S0) | diff | Sin panic; S1 se descarta y se registra |
+| B-10 | `claimed_by` puesto, `last_flipped` **posterior** a `claimed_at` | diff | Claim **caducado**: se descarta y no se pinta (`matchup::claim_holds`; bug de 2026-10-31, «un clan en un campa de otro color») |
 
-## R – `core::rules` (Event → Alert), equipo propio = Verde
+## R – Filtros de aviso (`core::alerts::Filter` aplicado en `addon::alerts`)
 
-| ID | Dado | Cuando | Entonces |
-|---|---|---|---|
-| R-01 | `Flip` Verde → Rojo, ámbito "todos" | rules | Alerta de pérdida (RF-10) |
-| R-02 | `Flip` Rojo → Verde (lo tomamos nosotros) | rules | Sin alerta (informativa solo si RF-15 activo) |
-| R-03 | `Flip` Rojo → Azul (enemigos entre sí) | rules | Sin alerta |
-| R-04 | Pérdida en otro mapa, ámbito "solo mi mapa" | rules | Sin alerta (RF-12) |
-| R-05 | Dos flips del mismo objetivo en 30 s, cooldown 60 s | rules | 1 alerta; la 2.ª solo al log (RF-13) |
-| R-06 | `Claim` de guild seguida | rules | Alerta de claim con guild, objetivo, mapa (RF-21) |
-| R-07 | `Claim` de guild no seguida | rules | Sin alerta |
-| R-08 | `Claim{late:true}` de guild seguida | rules | Se registra; alerta solo si es reciente (configurable) |
-| R-09 | `Gap` | rules | Aviso de estado "puede haber eventos perdidos", no alerta de objetivo |
-| R-10 | Ámbito cambia en caliente | rules | Aplica a eventos posteriores, no reescribe el log |
+No hay regla por «equipo propio» ni cooldown: se avisa de lo que pase en los mapas marcados, o de los
+clanes seguidos en cualquier mapa, y **solo de estructuras reclamables** (RF-19e).
 
-## M – Resolución de equipo (`match_resolver`)
+| ID | Dado | Cuando | Entonces | Test |
+|---|---|---|---|---|
+| R-01 | `Flip` en un mapa marcado, cualquier dueño | filtro | Avisa (RF-10) | `rf19_by_default_everything_is_told` |
+| R-02 | `Flip` en un mapa **no** marcado y sin clan seguido | filtro | No avisa (RF-12) | `rf19_unticking_a_map_silences_only_that_map` |
+| R-03 | `Flip` de unas **ruinas** con todas las casillas marcadas | filtro | No avisa (RF-19e) | `rf19e_ruins_never_alert` |
+| R-04 | `Claim` de un clan seguido, en cualquier mapa | filtro | Avisa con clan, objetivo y mapa (RF-21) | `rf73_a_followed_guild_is_interesting_on_every_map` |
+| R-05 | `Claim` de un clan no seguido y su mapa sin marcar | filtro | No avisa | `rf73_…` (caso contrario) |
+| R-06 | «Solo los clanes que sigo» marcado | filtro | Manda sobre las casillas de mapa | `rf19a_only_the_followed_guilds_is_one_switch` |
+| R-07 | `Claim{late:true}` de un clan seguido, hace minutos | filtro | Avisa (es lo que se perdió al cargar) | `rf25_late_claims_carry_the_real_claimed_at` |
+| R-08 | `Claim{late:true}` de hace horas | filtro | No avisa; queda en el historial de la sesión | — (regla en `LATE_GRACE`) |
+| R-09 | `Gap` | UI | Línea de estado «puede haber eventos perdidos», no alerta de objetivo | — |
+| R-10 | El jugador cambia los filtros | render | Se aplica en el acto a la lista ya construida | `rf19_unticking_a_map_silences_only_that_map` |
+| R-11 | Cooldown por objetivo | — | **No implementado**: se retiró de la UI y no está en el código | — |
 
-| ID | Dado | Cuando | Entonces |
-|---|---|---|---|
-| M-01 | Mundo en `worlds.green` | resolver | Equipo propio = Verde |
-| M-02 | Mundo solo en `all_worlds.blue` (enlazado) | resolver | Equipo propio = Azul (RF-03b) |
-| M-03 | Mundo no aparece en el match | resolver | Error tipado `WorldNotInMatch` |
-| M-04 | Mismo mundo, match distinto la semana siguiente, color distinto | resolver | Color nuevo; no se persiste el color (RF-03d) |
-
-## S – `store` (JSON-lines)
+## M – Resolución de equipo (`core::resolver` + `addon::team`)
 
 | ID | Dado | Cuando | Entonces |
 |---|---|---|---|
-| S-01 | Eventos escritos | leer | Mismos eventos, mismo orden |
-| S-02 | Línea corrupta en medio del fichero | leer | Se omite, se cuenta y registra; el resto se lee |
-| S-03 | Fichero truncado a mitad de línea | leer | Última línea descartada sin error fatal |
-| S-04 | Línea con `v` desconocido | leer | Se omite y se avisa; sin panic |
-| S-05 | Consulta por guild y rango | query | Solo eventos de esa guild dentro del rango (inclusivo/exclusivo documentado) |
-| S-06 | Retención 30 días con ficheros mensuales antiguos | prune | Se eliminan los anteriores al límite |
-| S-07 | Tamaño total > máximo | prune | Se eliminan los más antiguos hasta cumplir |
-| S-08 | Directorio sin permisos de escritura | append | Error tipado; el addon sigue funcionando sin historial |
-| S-09 | Ruta/ID con caracteres raros | append/leer | Sin inyección ni path traversal |
+| M-01 | Id de equipo en `all_worlds` del match, color verde | resolver | Equipo propio = Verde |
+| M-02 | Id de equipo que solo aparece en `all_worlds.blue` (junto a ids de mundo antiguos) | resolver | Equipo propio = Azul (RF-03b) |
+| M-03 | Id de equipo que no aparece en ningún match vivo | resolver | Sin elección válida: se reabre el selector |
+| M-04 | Mismo equipo, match distinto la semana siguiente, color distinto | resolver | Color nuevo; el color no se persiste (RF-03d) |
+| M-05 | Sin id manual, personaje conocido | `team::resolve` | Manda el roster del personaje |
+| M-06 | Id manual distinto del roster | `team::resolve` | Manda el manual |
 
-## H – `core::history` (ruta simulada)
+## S – Historial de la sesión (antes `store`, hoy memoria: ADR-015)
+
+| ID | Dado | Cuando | Entonces |
+|---|---|---|---|
+| S-01 | Eventos empujados | consultar por clan | Mismos eventos, en orden |
+| S-02 | Más de 2 000 filas | push | Se descartan las más antiguas (`MAX_HISTORY`) |
+| S-03 | Reinicio del juego | `load` | El historial empieza vacío: no hay fichero que leer |
+| S-04 | Claim de un clan cualquiera | `guild_history` | Aparece como observación (alimenta RF-20a) |
+| S-05 | Consulta de un clan sin historial | `guild_history` | Lista vacía, sin panic |
+| ~~S-06..S-09~~ | Rotación, `prune`, permisos, path traversal | — | **Ya no existen**: no hay fichero de historial. El formato JSON-lines se retiró con `crates/store` |
+
+## H – Ruta inferida (`core::route`)
 
 | ID | Dado | Cuando | Entonces |
 |---|---|---|---|
 | H-01 | 5 claims de G en 2 h | ruta | 5 nodos numerados 1..5 en orden temporal (RF-32) |
-| H-02 | Claims en dos mapas | ruta | Tramos separados por mapa con marca de salto (RF-35) |
-| H-03 | Hueco entre dos claims > umbral | ruta | Tramo marcado discontinuo (RF-33) |
+| H-02 | Claims en dos mapas | ruta | Tramos separados por mapa con el texto «salto a <mapa>» (RF-35) |
+| H-03 | Un solo claim | ruta | Un nodo y una flecha con la dirección (`heading`) |
 | H-04 | Claim `late` | ruta | Nodo marcado `late` |
 | H-05 | Dos claims con el mismo `at` | ruta | Orden estable (por id de objetivo) |
 | H-06 | Rango sin eventos | ruta | Lista vacía, sin error |

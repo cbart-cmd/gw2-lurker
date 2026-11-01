@@ -2,6 +2,11 @@
 
 Esta guía te dice qué hacer tú y cómo trabajar con la IA. Los detalles de qué construir están en `specs/`; las instrucciones que lee la IA, en `AGENTS.md`.
 
+> **Estado (2026-11-01, 0.25.7):** el addon está construido, publicado e instalado; los spikes de
+> §2.C están hechos y sus resultados en `specs/07-spikes.md`. Lo que queda vivo está al principio de
+> `specs/03-tasks.md`, y el día a día en `PROGRESO.md`. Las casillas de abajo se dejan como registro
+> de la puesta en marcha.
+
 ## 1. Qué hay en el paquete
 
 | Fichero | Para quién | Qué es |

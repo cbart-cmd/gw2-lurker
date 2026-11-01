@@ -23,18 +23,20 @@ combate, pantalla completa, atención repartida.
 
 ## Superficies
 
-- **Widget de alertas**: siempre en pantalla, 2–3 líneas, bloqueable (los clics pasan al
-  juego), se oculta cuando no hay novedades.
-- **Ventana de mapa**: esquemática, con filtros por tipo y marca de alto valor.
-- **Lista de guilds**: orden por claim más reciente, favoritos.
-- **Historial**: ruta inferida con origen deducido.
+- **Ventana única con pestañas** (ADR-014): Avisos · Mapa · Clanes · Registro · Ajustes.
+- **Widget de alertas** (pestaña Avisos): siempre en pantalla, 2–5 líneas, bloqueable; en
+  click-through los clics pasan al juego y se sale con el botón derecho.
+- **Mapa**: esquemático, con filtros por tipo y marca de alto valor.
+- **Clanes**: los que sigues (10 como mucho) y un buscador por subcadena sobre un índice propio.
+- **Historial de la sesión**: ruta inferida con origen deducido.
 
 ## Restricciones reales
 
 - Vive dentro del juego: imgui de Nexus, no HTML. El HTML del boceto es **solo validación**.
-- El mapa se dibuja con primitivas, sin texturas por defecto (ADR-002).
-- Textos en es/en/fr/de (RF-44), con fr y de de primera clase.
-- Nada de info que la API no dé: sin "bajo ataque", sin posición de jugadores ajenos.
+- El mapa se dibuja con primitivas; las teselas son opcionales y se cachean (ADR-002, ADR-011).
+- Textos en es/en/fr/de (RF-44), con fr y de de primera clase, y **solo ASCII + latino-1**: la fuente
+  de Nexus no tiene más glifos (lo que no tiene, sale como «?»).
+- Nada de info que la API no dé: sin «bajo ataque», sin posición de jugadores ajenos.
 - El color nunca es la única señal (RF-19, RF-62).
 
 ## Éxito del boceto

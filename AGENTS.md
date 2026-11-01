@@ -9,7 +9,7 @@ Proyecto: addon de Nexus (Guild Wars 2) en Rust para Mundo contra Mundo. Avisa d
 2. `specs/04-engineering-standards.md` – estilo, límites y CI.
 3. `specs/03-tasks.md` – localiza **la única tarea** que te han pedido.
 4. Los requisitos (`specs/01-requirements.md`) y secciones de `specs/02-design.md` que la tarea cita.
-5. Si la tarea toca `diff`, `rules`, `store` o `history`: `specs/06-diff-scenarios.md`.
+5. Si la tarea toca `diff`, los filtros de aviso, el historial de la sesión, los nombres de clan o el mapa: `specs/06-diff-scenarios.md`.
 6. `specs/07-spikes.md` → sección **Resultados**: es lo único verificado sobre Nexus y la API real. Lo que no esté ahí no está confirmado.
 
 ## 2. Reglas de oro
@@ -46,13 +46,15 @@ Proyecto: addon de Nexus (Guild Wars 2) en Rust para Mundo contra Mundo. Avisa d
 
 ```
 crates/core    lógica pura (sin Nexus, sin imgui, sin red). #![forbid(unsafe_code)]
-crates/api     cliente HTTP y parseo. #![forbid(unsafe_code)]
-crates/store   persistencia JSON-lines. #![forbid(unsafe_code)]
+crates/api     cliente HTTP (transporte inyectable) y parseo. #![forbid(unsafe_code)]
 crates/addon   cdylib: integración Nexus + imgui (único sitio con unsafe, en ffi/)
+data/          wvw-teams.json y team-names.json (empaquetados); guild-names.json + su ZIP (no en la DLL)
 specs/         documentación de diseño (no código)
-scripts/       comprobaciones de CI
-docs/          documentación de usuario final
+scripts/       comprobaciones de CI y utilidades (búsqueda de clanes, publicación)
+docs/          documentación de usuario final y de publicación (RELEASE.md)
 ```
+
+No hay crate `store`: el historial es de la sesión y vive en memoria (ADR-015).
 
 ## 5. Formato de entrega
 

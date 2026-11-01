@@ -17,7 +17,10 @@ Comprobado el **2026-10-31** contra la API real, el código fuente de `nexus-rs`
 - `[API]` `/v2/wvw/guilds/eu` y `/na` devuelven `{ guild_id: team_id }` (282 KB para toda EU): es la fuente oficial guild → equipo. `/v2/guild/:id` no lo informa.
 - `[API]` `/v2/wvw/objectives?ids=all`: `coord` está en **coordenadas de continente** y **81 de 178** entradas tienen `coord: null`. `/v2/maps` aporta `continent_rect` (caja real) y `map_rect` (ADR-011).
 - `[API]` `Cache-Control: public, max-age=1`, sin cabecera `Age`, `X-Rate-Limit-Limit: 600` (600 peticiones/hora).
-- `[medido]` Con polling a 10 s: los cambios de **propiedad de objetivos** tienen mediana 19–20 s (máx 110 s observado) y hay emparejamientos muertos con **22 min sin un solo cambio**. 227 peticiones, 0 errores. Conclusión: **30 s por defecto** (120 req/h).
+- `[medido]` Con polling a 10 s: los cambios de **propiedad de objetivos** tienen mediana 19–20 s (máx 110 s observado) y hay emparejamientos muertos con **22 min sin un solo cambio**. 227 peticiones, 0 errores. Conclusión inicial: 30 s. **Decisión posterior (2026-10-31): 5 s por defecto** —el jugador pidió acercarse a gw2mists y el sondeo pide **una** partida por id, no los nueve—, con recorte por backoff (RNF-02).
+- `[medido]` **La API congela una partida entera**: el 2026-11-01 la partida `1-1` devolvió 20 minutos la misma copia, **puntos incluidos**, mientras las otras ocho se movían. No es CDN (`?cb=` da lo mismo) ni el cliente HTTP: es el backend. Por eso el widget avisa en naranja cuando la huella de la partida no cambia en ≥5 min, y no se puede confundir «no pasa nada» con «el addon está parado».
+- `[medido]` **El atlas de fuentes de Nexus solo trae latín básico y latino-1**: `·` (U+00B7) y `×` (U+00D7) se dibujan; `→` (U+2192), `…` (U+2026) y `★` (U+2605) salen como «?». Todo texto de la UI se queda en ASCII + latino-1 (test `rf44_the_table_stays_inside_latin_1`). Los nombres de clan que llegan del API sí pueden traer otros alfabetos: esos no tienen glifo.
+- `[API]` `/v2/guild/search?name=` devuelve **un solo** clan y solo si el texto **empieza** su nombre (`die` → *Die*; `a ne` → nada). No hay búsqueda por subcadena ni listado masivo (`/v2/guild?ids=` → 404). De ahí el índice propio (`guild-names.json`, 9 886 nombres) que el addon distribuye y consulta al buscar.
 - La API **no** expone estado "bajo ataque" (ADR-001) ni historial: solo el último claim vigente.
 - La API a veces se queda atascada o devuelve 503/"unknown error" durante minutos u horas (reportado por la comunidad). Hay que tolerarlo (RNF-04).
 - `[API]` `/v2/account/wvw` existe y requiere API key: permitiría leer el equipo de la cuenta, pero ADR-010 descarta pedir clave.
@@ -101,19 +104,20 @@ Comprobado el **2026-10-31** contra la API real, el código fuente de `nexus-rs`
 - **Bloquear posición**: no se puede mover ni redimensionar, pero **sí** acepta clics.
 - **Click-through**: sigue dibujándose y **no captura el ratón** (los clics pasan al juego).
 
-El click-through se alterna desde la configuración, desde las opciones de Nexus y con un atajo **keybind de Nexus, reasignable**. Por defecto `Ctrl+Shift+L`: **`Alt+Shift+L` no vale**, es el menú legacy de arcDPS y el juego se lo queda (comprobado en el juego, 2026-10-31).
+El click-through **no tiene casilla en los ajustes** (se quitó el 2026-11-01: era la forma de quedarse sin ratón sin saber por qué). Se alterna desde el **menú del clic derecho sobre el widget** y con el **keybind de Nexus** `GW2LURKER_CLICK_THROUGH`, que se registra por defecto como `Ctrl+Shift+L` pero el jugador puede reasignar: la ventana muestra el atajo **que Nexus tiene guardado**, leído de `Nexus/InputBinds.json` (`keybinds.rs`), no un literal. `Alt+Shift+L` no vale: es el menú legacy de arcDPS y el juego se lo queda (comprobado en el juego, 2026-10-31).
 - GWT: *Given* el widget en click-through, *When* el usuario hace clic sobre él, *Then* el clic llega al juego.
 - GWT *(2026-10-31)*: *Given* el widget en click-through, *When* el usuario hace **clic derecho**
   dentro de la caja del widget, *Then* el click-through se apaga y se guarda, sin abrir los ajustes. Con
   `NO_INPUTS` la ventana no recibe el ratón, así que el callback de render lo mira por su cuenta
-  (`ui::right_click_on_widget`, solo en el flanco de bajada, contra la caja guardada).
+  (`ui::window::right_click_on`, solo en el flanco de bajada, contra la caja guardada).
 - GWT: *Given* el widget con la posición bloqueada, *When* el usuario hace clic en una pestaña, *Then* cambia de pestaña.
 
 **RF-19 (M)** Cada línea deberá mostrar: icono/forma de tipo de objetivo, texto, mapa y antigüedad ("hace 2 min"), con color según el equipo implicado y distinción por tipo de alerta (pérdida, claim de guild seguida, informativa). No se usará solo el color para distinguirlas.
 
 **RF-19a (M)** El usuario elegirá **de qué se le avisa**, con casillas independientes y **todas marcadas por defecto**: Eternos, Alpino azul, Alpino verde, Desierto rojo, «el mapa en el que estoy» y «los clanes que sigo».
 - Un **clan seguido** avisa en **cualquier** mapa del emparejamiento, esté el jugador donde esté.
-- Además hay un **aviso emergente** que desaparece tras `popup_secs` segundos (por defecto **2**, rango 0–5; `0` lo desactiva), mientras el aviso **sigue en la lista** del widget, que conserva hasta 25 líneas sin desvanecerse dentro de la sesión. Los claims descubiertos en el baseline (`late`) no hacen pop-up.
+- Además hay un **aviso emergente** que desaparece tras `popup_secs` segundos (por defecto **2**, rango **0–20**; `0` lo desactiva), mientras el aviso **sigue en la lista** del widget, que conserva hasta 50 líneas (`max_lines` configura cuántas se ven). Los claims descubiertos en el baseline (`late`) no hacen pop-up, salvo que sean de un clan seguido y de los últimos 10 minutos.
+- Hay un interruptor «**solo los clanes que sigo**» (`only_followed`) que manda sobre las casillas de mapa: con él marcado, lo demás no cuenta.
 - El mapa actual sale del `map_id` de Mumble: 38 Eternos, 95 alpino verde, 96 alpino azul, 1099 desierto. Cualquier otro (Cañón, salón, PvE) no cuenta como «mapa actual».
 
 **RF-19b (S)** Clic en una línea (widget desbloqueado) abrirá el mapa simplificado centrado en ese objetivo.
@@ -131,7 +135,7 @@ El click-through se alterna desde la configuración, desde las opciones de Nexus
 
 ## C. Objetivo 2 – Seguimiento de guilds enemigas
 
-**RF-20 (M)** El usuario podrá añadir guilds a seguir por nombre (`/v2/guild/search?name=`) o por ID, y quitarlas. Se guardará ID, nombre y tag (`/v2/guild/:id`). Para saber a qué **equipo** pertenece cada guild se usará `/v2/wvw/guilds/:region` (mapa guild → equipo de la API oficial), cacheado en disco y refrescado al cambiar de match.
+**RF-20 (M)** El usuario podrá añadir guilds a seguir **buscándolas por un trozo del nombre** (índice local + `/v2/guild/search?name=` como extra) o desde la lista de las que han reclamado algo en la sesión, y quitarlas. Se guarda el id en `followed` y su `[TAG] Nombre` en `settings.json` (RF-20b). Para saber a qué **equipo** pertenece cada guild se usa `/v2/wvw/guilds/:region` (mapa guild → equipo de la API oficial), **cacheado en memoria 30 minutos** (`search.rs`), no en disco.
 - GWT: *Given* un nombre ambiguo, *When* la búsqueda devuelve varias guilds, *Then* el usuario elige entre candidatos con nombre y tag.
 - GWT: *Given* una guild seguida, *When* se resuelve el match, *Then* la UI muestra el equipo al que pertenece según `/v2/wvw/guilds/:region` y si es propio o enemigo.
 
@@ -146,7 +150,7 @@ El click-through se alterna desde la configuración, desde las opciones de Nexus
 
 **RF-20d (M)** Al empezar a seguir un clan cuyo nombre no está en el índice, el addon pide su nombre al API y lo **añade al índice**, para que la próxima búsqueda por texto lo encuentre.
 
-**RF-20a (M)** Además de buscar por nombre, el addon ofrecerá una **lista de guilds sugeridas** para seguir, construida con los claims ya observados en el historial local: ordenada por número de claims en el mapa actual, después en el resto de mapas del match y después en total; cada fila muestra tag, nombre si se conoce, nº de claims y la hora del último. Un clic la añade a seguidas.
+**RF-20a (M)** Además de buscar, el addon ofrecerá una **lista de guilds sugeridas** para seguir, construida con los claims ya observados **en la sesión**: ordenada por número de claims en el mapa actual, después en el resto de mapas del match y después en total; cada fila muestra tag, nombre si se conoce, nº de claims y la hora del último. Un clic la añade a seguidas.
 - GWT: *Given* el addon lleva 2 h observando el mapa actual, *When* el usuario abre la pestaña Guilds, *Then* la lista empieza por las guilds con más claims vistos **en ese mapa**, no por orden alfabético.
 - La lista nace **vacía** en cada sesión y crece solo con lo observado en ella (ADR-012); la UI debe indicarlo ("claims vistos desde 12:00") para no aparentar un ranking global. No se obtiene de ninguna fuente externa: la API no publica estadísticas de claims por guild.
 
@@ -160,7 +164,8 @@ El click-through se alterna desde la configuración, desde las opciones de Nexus
 **RF-24 (M)** El historial cubrirá **la sesión actual** (ADR-012): al arrancar el addon se descarta el de la sesión anterior y se empieza uno nuevo. Dentro de la sesión podrá consultarse por guild y rango de tiempo. La UI mostrará siempre la hora de inicio de sesión como límite inferior de lo que se puede ver.
 
 **RF-25 (M)** En baseline o tras un hueco, para **cada** objetivo con `claimed_by` —de cualquier guild, no solo las seguidas— el addon deberá registrar un claim marcado `late=true` usando `claimed_at` como hora real. Los claims de guilds no seguidas se guardan como observación: no generan aviso, pero alimentan el ranking de RF-20a.
-- Los `late` **no entran en la lista de avisos ni en el historial de la sesión** (ni en el registro): al reiniciar el juego el historial de claims está vacío, y solo se conserva en disco lo que hicieron las guilds seguidas (bug de 2026-10-31).
+- Los `late` **no entran en la lista de avisos** ni en el pop-up: al reiniciar el juego no aparece de golpe todo lo que ya estaba reclamado (bug de 2026-10-31). La única excepción es un claim de un **clan seguido** de los últimos 10 minutos, que es justo lo que se perdió al cargar (RF-21).
+- No hay nada de esto en disco (ADR-015): el historial `late` vive en la memoria de la sesión.
 
 **RF-26 (M)** Cuando el hueco entre snapshots válidos supere el umbral (por defecto 3 × intervalo), el addon deberá registrar un evento `gap` para que la UI advierta de que pueden faltar claims.
 
@@ -230,11 +235,11 @@ La ruta se etiqueta como **inferida** (RF-33): es una reconstrucción, no el rec
 
 ## E. Configuración y UX
 
-**RF-40 (M)** Ventana de configuración: equipo, ámbito de alertas, opciones del widget (posición, bloqueo, opacidad, líneas, tiempo de vida), sonido, cooldown, intervalo de polling, retención de historial, guilds seguidas.
+**RF-40 (M)** Ventana de configuración (pestaña *Ajustes*, la última): equipo (selector región → color → equipo), traducción del nombre del equipo, idioma, intervalo de sondeo, ámbito y filtros de avisos (mapas, clanes seguidos, tipos de estructura), segundos y activación del aviso emergente, tipos de aviso del widget, fondo del mapa, tema, fondo y opacidad del widget, tamaño de texto, líneas visibles, ventana visible y posición bloqueada, y la **URL del índice de nombres** con su botón de descarga. Las guilds seguidas se gestionan en la pestaña *Clanes*, no aquí.
 
 **RF-41 (M)** Persistencia de la configuración en el directorio de addon de Nexus.
 
-**RF-42 (S)** Atajo de teclado y/o icono de acceso rápido de Nexus para abrir/cerrar la ventana principal.
+**RF-42 (S)** El widget se abre y se cierra desde las opciones de Nexus (*Ver la ventana*), desde el menú del clic derecho y con el keybind `GW2LURKER_CLICK_THROUGH` (que alterna el click-through, no la visibilidad); el atajo que se muestra es el que Nexus tiene guardado.
 
 **RF-43 (M)** Indicador de estado: último refresco correcto, "obsoleto" si supera N intervalos, error de red resumido.
 
@@ -269,8 +274,8 @@ configuración y se restaura al arrancar.
 **RF-50 (M)** Cuando el fichero de la DLL en disco cambie respecto a la versión cargada (ADR-007), el addon deberá mostrar un aviso visible y persistente: "Actualizado a vX.Y.Z, reinicia el juego para aplicar", sin intentar recargarse en caliente.
 - GWT: *Given* v0.1.0 cargada, *When* Nexus deja v0.2.0 en disco, *Then* el banner aparece en ≤ 2 min y permanece hasta reiniciar.
 
-**RF-51 (M)** Si la inicialización o la lectura de `config.json` o del historial falla, el addon deberá arrancar en **modo seguro**: renombrar el fichero dañado a `*.corrupt-<fecha>`, usar valores por defecto, avisar en UI (W8) y no cerrar el juego.
-- GWT: *Given* un `config.json` con JSON truncado, *When* carga el addon, *Then* se conserva una copia `.corrupt`, se crea una configuración por defecto y se muestra el aviso.
+**RF-51 (M)** Si la lectura de `settings.json` falla, el addon deberá arrancar en **modo seguro**: renombrar el fichero dañado a `*.corrupt-<fecha>`, usar valores por defecto, avisar en UI y no cerrar el juego.
+- GWT: *Given* un `settings.json` con JSON truncado, *When* carga el addon, *Then* se conserva una copia `.corrupt`, se crea una configuración por defecto y se muestra el aviso.
 
 **RF-52 (S)** La ventana de configuración mostrará la versión actual y el estado de actualización.
 
@@ -299,13 +304,13 @@ configuración y se restaura al arrancar.
 |---|---|---|
 | RNF-01 | Frame time añadido < 0.5 ms en render (widget y mapa abiertos) | Medición con temporizador en dev |
 | RNF-02 | Intervalo de polling configurable, **5–600 s**; por defecto **5 s** (decisión del jugador, 2026-10-31, para acercarse a gw2mists). Es asequible porque el sondeo pide **una** partida por id (~44 KB, con sus cuatro mapas) y no los nueve emparejamientos (~400 KB): 12 peticiones/min. La ventana del límite `X-Rate-Limit-Limit: 600` no viene en la cabecera; si fuera por hora, 5 s son 720/h y el worker recorta con su backoff | Test + spike |
-| RNF-03 | Historial acotado **por sesión** (ADR-012): tope de 2 MB con rotación dentro de la sesión; al arrancar se descarta la anterior | Test de rotación |
+| RNF-03 | Historial acotado **por sesión** (ADR-012/ADR-015): **solo memoria**, tope de 2 000 filas; no hay fichero de historial y al arrancar se empieza de cero | Test con datos sintéticos |
 | RNF-04 | Sin red: UI funcional con último estado y marca "obsoleto"; backoff exponencial con tope | Test con cliente simulado |
 | RNF-05 | El historial es "mejor esfuerzo": no se promete completitud | Documentado en UI y README |
 | RNF-06 | Sin `panic` a través de FFI; errores internos a log | Revisión + `catch_unwind` en puntos de entrada |
 | RNF-07 | Compatible con las versiones de Nexus/GW2 objetivo; el addon se desactiva sin romper si falla la carga | Prueba manual |
 | RNF-08 | Todo texto propio pasa por la tabla de traducción (es/en/fr/de, con caída a inglés); sin literales en la UI. Un test recorre las claves y detecta columnas vacías | Revisión + test |
-| RNF-09 | DLL release ≤ 2,2 MB objetivo, 2,5 MB límite (ADR-013) | `check_size.sh` en CI |
+| RNF-09 | DLL release ≤ 2,2 MB objetivo, 2,5 MB límite (ADR-013). Medida el 2026-11-01: **2 083 840 B** con las vistas, el índice en ZIP (`zip` 2.x) y la tabla de textos | `check_size.sh` en CI |
 | RNF-10 | Ningún fichero de código > 800 líneas | `check_loc.sh` en CI |
 | RNF-11 | Formato y lints: `rustfmt` y `clippy -D warnings` | CI |
 | RNF-12 | DLL generada es PE x64 válido y exporta el punto de entrada de Nexus | Test de humo en CI |
@@ -316,18 +321,17 @@ Backend compartido entre usuarios, posición real de jugadores, alertas fuera de
 
 ## Matriz de trazabilidad (resumen)
 
-| Requisito | Módulo de diseño | Tarea |
+Módulos **reales** del workspace actual (`crates/core`, `crates/api`, `crates/addon`). La columna de tareas remite a `03-tasks.md`, que es histórico.
+
+| Requisito | Módulo | Dónde |
 |---|---|---|
-| RF-01/02 | `nexus_ui::context` | T-12 |
-| RF-03*, RF-04 | `core::match_resolver`, `core::baseline`, `addon::ui::world_picker`, `data/wvw-teams.json` | T-05, T-06, T-30 |
-| RF-10..15 | `core::diff`, `core::rules`, `nexus_ui::alerts` | T-07, T-08, T-13 |
-| RF-16..19d | `addon::ui::alert_widget` | T-13, T-13b |
-| RF-20..26 | `core::follow`, `store`, `api::guild` | T-09, T-10, T-11 |
-| RF-30..36 | `map::*` | T-14, T-15, T-16 |
-| RF-37..38 | `map::background`, `map::icons` | T-29 |
-| RF-40..43 | `config`, `nexus_ui::settings` | T-12, T-17 |
-| RF-44..46 | `addon::i18n`, `addon::ui::window`, `ffi::keys` | T-31, T-13, T-17 |
-| RF-70..73 | `addon::ui::matchup`, `core::history` | T-36, T-37, T-38, T-39 |
-| RF-32a | `map::route` | T-40 |
-| RF-60..63 | `addon::ui::theme` | T-28 |
-| RF-50..53 | `addon::update`, `addon::safe_mode` | T-25, T-26, T-27 |
+| RF-01/02/02a | `addon::context`, `addon::detect`, `addon::ffi::mumble` | `ui::mod`, `worker` |
+| RF-03* | `addon::team`, `addon::arc_team`, `core::detect`, `core::resolver`, `core::select`, `core::teams` + `data/wvw-teams.json` y `data/team-names.json` | `ui::settings`, `worker` |
+| RF-10..15, RF-22..27 | `core::diff`, `core::gate`, `core::matchup` (`claim_holds`, `digest`) | `worker` |
+| RF-16..19e | `addon::alerts`, `addon::ui::alerts`, `addon::ui::popup`, `core::alerts` (filtros) | `ui::mod` |
+| RF-20..20d, RF-73 | `addon::catalog` (nombres), `addon::names` (índice), `addon::session_names` (`temp.json`), `addon::guild_index` (ZIP), `addon::search` (búsqueda), `core::follow` | `ui::follow`, `ui::guilds` |
+| RF-30..38 | `core::project`, `core::model`, `core::route`, `addon::ui::map`, `addon::ui::map::route`, `addon::ui::icons` | `ui::map` |
+| RF-40..43, RF-46 | `addon::config`, `addon::writer`, `addon::ui::settings`, `addon::ui::window` | `ui::mod` |
+| RF-44..45 | `core::i18n` (tabla), `addon::i18n`, `addon::lang`, `addon::keybinds`, `ffi::keys` | todo el render |
+| RF-50..53 | `addon::lib` (DLL en disco, versión), `addon::config` (modo seguro), `scripts/release.ps1`, `scripts/pack-guild-index.ps1` | CI + `docs/RELEASE.md` |
+| RF-60..63 | `addon::ui::theme` | `ui::mod` |
