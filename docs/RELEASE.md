@@ -39,6 +39,12 @@ los ajustes).
 | Checksum | `gw2_lurker_guilds.zip.md5`, mismo formato que el de la DLL |
 | URL por defecto | `https://raw.githubusercontent.com/cbart-cmd/gw2addonsreleases/main/gw2_lurker_guilds.zip` |
 | Script | `scripts/pack-guild-index.ps1` (`-Publish` para subirlo) |
+| Dónde viven | `data/guild-names.json`, `data/gw2_lurker_guilds.zip` y su `.md5`, **versionados** en este repo |
+
+`data/guild-names.json` es el índice de trabajo (el jugador lo mantiene a mano o lo regenera con
+`scripts/guild-search.ps1 -BuildIndex`); el ZIP sale de él y es lo único que se publica. Los tres
+ficheros se versionan aquí: el ZIP que descarga el addon tiene que ser el mismo que está en
+`data/`, y el `.md5` lo demuestra.
 
 Se empaqueta y publica con:
 

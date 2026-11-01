@@ -5,9 +5,12 @@
 #   pwsh -File scripts/pack-guild-index.ps1 -Publish           # ademas lo sube al repo hermano
 #   pwsh -File scripts/pack-guild-index.ps1 -Json <ruta>       # usar otro guild-names.json
 #
-# Genera `gw2_lurker_guilds.zip` (con `guild-names.json` en la raiz del ZIP) y su `.md5`, que es
-# lo que el addon descarga y verifica. El nombre del fichero esta fijado en
-# `crates/addon/src/guild_index.rs` (`DEFAULT_URL`): si cambia aqui, cambia alli.
+# Los dos ficheros viven en `data/`, junto al JSON del que salen:
+#   data/guild-names.json          el indice de trabajo (se versiona: lo mantiene el jugador)
+#   data/gw2_lurker_guilds.zip     lo que descarga el addon
+#   data/gw2_lurker_guilds.zip.md5 su hash
+# El nombre del ZIP esta fijado en `crates/addon/src/guild_index.rs` (`DEFAULT_URL`): si cambia
+# aqui, cambia alli.
 #
 # Reglas que aplica, en orden:
 #   1. el JSON tiene que existir, ser un objeto `id -> "[TAG] Nombre"` y no estar vacio,
@@ -34,10 +37,17 @@ $Md5Name = "$ZipName.md5"
 $PublicUrl = "https://raw.githubusercontent.com/cbart-cmd/gw2addonsreleases/main/$ZipName"
 
 if (-not $Json) {
-    $documents = [Environment]::GetFolderPath('MyDocuments')
-    $Json = Join-Path $documents "Guild Wars 2\addons\gw2_lurker\$EntryName"
+    # El de trabajo está en el repo, junto al ZIP; si aún no existe se usa el que tiene el jugador
+    # en la carpeta del addon (el del repo manda: no se copia al revés).
+    $inRepo = Join-Path $RepoRoot "data\$EntryName"
+    if (Test-Path $inRepo) {
+        $Json = $inRepo
+    } else {
+        $documents = [Environment]::GetFolderPath('MyDocuments')
+        $Json = Join-Path $documents "Guild Wars 2\addons\gw2_lurker\$EntryName"
+    }
 }
-if (-not $OutDir) { $OutDir = Join-Path $RepoRoot 'dist' }
+if (-not $OutDir) { $OutDir = Join-Path $RepoRoot 'data' }
 if (-not $LocalDistRepo) {
     $LocalDistRepo = Join-Path (Split-Path $RepoRoot -Parent) 'gw2addonsreleases'
 }
@@ -108,7 +118,7 @@ Ok "$EntryName dentro del ZIP con $insideCount nombres"
 
 if (-not $Publish) {
     Write-Host "`nSin -Publish: no se toca nada remoto." -ForegroundColor Yellow
-    Write-Host "   quedaria en $LocalDistRepo\$ZipName"
+    Write-Host "   los dos ficheros estan en $OutDir"
     exit 0
 }
 

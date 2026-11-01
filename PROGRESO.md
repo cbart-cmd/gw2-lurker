@@ -13,6 +13,22 @@ Reglas:
 
 ---
 
+## HECHO – 2026-11-01 · El índice vuelve a `data/` (y el ZIP con él)
+
+- **Error mío, y queda apuntado como trampa:** al pasar el índice a "solo caché de búsqueda"
+  quité del repo `data/guild-names.json` —que había generado el jugador— y lo añadí a
+  `.gitignore`. Nadie me lo pidió: al contrario, AGENTS §9 dice que no se borra lo del jugador sin
+  preguntar. También se había quedado fuera `data/equipos.xlsx` (dos veces) y las capturas
+  `image*.png` del jugador. Todo repuesto desde el historial de git y desde la carpeta del addon.
+- Estado actual: `data/guild-names.json` (9 886 nombres), `data/gw2_lurker_guilds.zip` y
+  `data/gw2_lurker_guilds.zip.md5` **versionados**, que es lo que el jugador venía haciendo. El ZIP
+  regenerado da el mismo MD5 que el publicado (`c8941df1…`), así que la distribución y `data/`
+  coinciden.
+- `scripts/pack-guild-index.ps1` empaqueta por defecto **desde y hacia `data/`** (antes escribía en
+  `dist/`, que está ignorado, y leía de Documentos).
+- **Trampa para el que venga:** ficheros que crea el jugador (`data/guild-names.json`,
+  `data/equipos.xlsx`, capturas) **no se borran ni se desversionan sin permiso explícito**. Si algo
+  parece sobrante, se pregunta.
 ## HECHO – 2026-11-01 · Español y francés de los equipos desde la lista de la wiki (0.25.3)
 
 - El jugador pasó una instantánea de `wiki.guildwars2.com/wiki/API:2/wvw/guilds/:region`
