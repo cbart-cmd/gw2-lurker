@@ -24,8 +24,10 @@ Reglas:
   un clic de clan, así que la ruta de un clan sigue abriendo **su** mapa (RF-32a).
 - `map_choice` se queda como estaba: es la elección de la sesión, y esto solo la mueve al entrar.
 - Spec: RF-30 gana el GWT de este caso. `bugs.md` con la entrada de hoy.
-- Publicado en **0.25.15** e instalado en el juego. `cargo fmt`, `clippy -D warnings`, 264 tests,
-  `check_loc.sh` y `check_traceability.sh` en verde.
+- Publicado en **0.25.15** (MD5 `5456bb462d3d29b5fa85e8585b44dd4e`). `install.ps1` **no pudo
+  copiarla**: GW2 estaba abierto y bloquea la DLL. Se instalará al cerrar el juego (o Nexus la
+  sustituye en el siguiente arranque). `cargo fmt`, `clippy -D warnings`, 264 tests, `check_loc.sh` y
+  `check_traceability.sh` en verde.
 - **No verificado:** verlo cambiando de mapa en el juego.
 
 ## HECHO – 2026-11-01 · Lista de clanes: `+` para seguir e `i` para ver la ruta en el mapa (0.25.14)
