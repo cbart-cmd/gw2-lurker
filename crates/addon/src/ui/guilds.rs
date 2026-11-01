@@ -209,7 +209,7 @@ fn draw_group(ui: &Ui, heading: &'static str, rows: &[gw2lurker_core::matchup::C
         return;
     }
     ui.text_disabled(i18n::text(heading));
-    for row in rows {
+    for row in rows.iter().rev() {
         let name = row.name.clone().unwrap_or_else(|| row.objective_id.clone());
         let when = row.claimed_at.map(crate::clock::clock).unwrap_or_default();
         ui.text(format!("{when}  {name}  ·  {}", map_label(row.map_role)));
