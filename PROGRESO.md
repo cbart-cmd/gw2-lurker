@@ -42,6 +42,14 @@ Reglas:
   worker según la fecha de modificación y la tecla se nombra en el hilo que pide el texto
   (`GetKeyNameTextW` usa la distribución de teclado de ese hilo).
 
+## HECHO – 2026-11-01 · Publicada la 0.26.5
+
+- Release `gw2-lurker-v0.26.5`, MD5 `5db876cb1ce08641388a44cc08b28d8e` (2 202 112 B), verificado con
+  la descarga real. Retención: quedan 0.26.5 y 0.26.4; borrada la 0.26.3.
+- Contenido: el equipo se guarda por cuenta (`AgentUpdate::account` de arcdps).
+- Pendiente de probar en GW2: que `Nexus.log` diga `arcdps: cuenta <nombre>` con la cuenta real y
+  que el selector salga una sola vez por cuenta, no por personaje.
+
 ## HECHO – 2026-11-01 · El equipo se guarda por cuenta (RF-03a)
 
 - Petición del jugador: con dos cuentas, el equipo/zona debe guardarse por **cuenta**, no por
