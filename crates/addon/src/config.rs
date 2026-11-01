@@ -152,6 +152,15 @@ pub struct Config {
     /// Guild names are not translated by the game, so the only translations that can exist are
     /// the player's own: they win over the API name and are never overwritten by it.
     pub guild_labels: BTreeMap<String, String>,
+    /// `[TAG] Nombre` of the guilds the addon has already resolved, per guild id (RF-20).
+    ///
+    /// Es lo que se dibuja en pantalla y lo que evita volver a pedir un nombre: los nombres de
+    /// clan no cambian nunca. Vive aquí, en `settings.json`, y **no** en `guild-names.json`: ese
+    /// fichero es solo el índice de búsqueda por texto y no se tiene en memoria (petición del
+    /// jugador, 2026-11-01).
+    pub guild_names: BTreeMap<String, String>,
+    /// Dónde se descarga el índice de nombres de clan (RF-20). Vacío = la URL publicada.
+    pub guild_index_url: String,
     /// Where the player dragged the pop-up, `None` until it is moved (RF-19a).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub popup_pos: Option<[f32; 2]>,
@@ -250,6 +259,8 @@ impl Default for Config {
             popup_enabled: true,
             map_tiles: true,
             guild_labels: BTreeMap::new(),
+            guild_names: BTreeMap::new(),
+            guild_index_url: crate::guild_index::DEFAULT_URL.to_owned(),
             popup_pos: None,
             language: LanguagePreference::default(),
             followed: FollowList::default(),
@@ -336,6 +347,14 @@ impl Config {
         for state in self.windows.values_mut() {
             state.sanitize();
         }
+        // Una URL vacía o sin https no se acepta: la descarga del índice la rechazaría y el
+        // jugador vería un error que no puede arreglar desde la ventana.
+        let url = self.guild_index_url.trim();
+        self.guild_index_url = if url.starts_with("https://") {
+            url.to_owned()
+        } else {
+            crate::guild_index::DEFAULT_URL.to_owned()
+        };
     }
 }
 
@@ -598,6 +617,49 @@ mod tests {
         };
         nan.sanitize();
         assert_eq!(nan.widget_opacity, 0.85, "NaN no puede llegar a imgui");
+    }
+
+    #[test]
+    fn rf20c_an_index_url_without_https_falls_back_to_the_published_one() {
+        // La descarga del índice exige https; una URL escrita a mano sin él dejaría al jugador con
+        // un error que no puede arreglar desde la ventana.
+        for bad in ["", "   ", "http://ejemplo/x.zip", "ejemplo/x.zip"] {
+            let mut c = Config {
+                guild_index_url: bad.to_owned(),
+                ..Config::default()
+            };
+            c.sanitize();
+            assert_eq!(
+                c.guild_index_url,
+                crate::guild_index::DEFAULT_URL,
+                "{bad:?}"
+            );
+        }
+        let mut good = Config {
+            guild_index_url: " https://ejemplo/x.zip ".to_owned(),
+            ..Config::default()
+        };
+        good.sanitize();
+        assert_eq!(good.guild_index_url, "https://ejemplo/x.zip");
+    }
+
+    #[test]
+    fn rf20b_guild_names_are_stored_in_the_settings_file() {
+        // Los nombres resueltos viven en `settings.json`, no en el índice de búsqueda: es lo que
+        // evita clonar miles de entradas en cada sondeo (petición del jugador, 2026-11-01).
+        let mut c = Config::default();
+        c.guild_names.insert(
+            "6C45F3C8-F21C-EF11-81AB-8B4A188BDE13".to_owned(),
+            "[YaK] Dolyak Sanctuary".to_owned(),
+        );
+        let json = serde_json::to_string(&c).unwrap();
+        let back: Config = serde_json::from_str(&json).unwrap();
+        assert_eq!(
+            back.guild_names
+                .get("6C45F3C8-F21C-EF11-81AB-8B4A188BDE13")
+                .map(String::as_str),
+            Some("[YaK] Dolyak Sanctuary")
+        );
     }
 
     #[test]

@@ -25,14 +25,6 @@ use crate::net::WinHttpTransport;
 /// was willing to wait (report of 2026-10-31). The API allows 600 requests a minute.
 const GUILD_LOOKUPS_PER_POLL: usize = 20;
 
-#[derive(Default)]
-struct GuildNameCache {
-    known: std::collections::BTreeMap<String, String>,
-    /// Guilds the API refused once. A disbanded guild answers 404 forever, so retrying it on
-    /// every poll would burn the request budget for nothing.
-    failed: std::collections::HashSet<String>,
-}
-
 /// `[TAG] Nombre`, the way the game shows a guild.
 pub fn guild_label(info: &gw2lurker_api::GuildInfo) -> String {
     match (info.tag.trim(), info.name.trim()) {
@@ -42,24 +34,24 @@ pub fn guild_label(info: &gw2lurker_api::GuildInfo) -> String {
     }
 }
 
-/// Names of the guilds in the matchup: from the session cache, then from the API.
+/// Names of the guilds in the matchup: from the settings file, then from the API.
 ///
-/// Returns the whole map so the caller publishes it with the dashboard and the UI never has to
-/// take a second lock to label a row.
+/// Returns the map so the caller publishes it with the dashboard and the UI never has to take a
+/// second lock to label a row. What is already known lives in `settings.json`
+/// (`Config::guild_names`) and a new name is written there once: guild names never change, so it
+/// is never asked again (report of 2026-11-01). The big `guild-names.json` index is **not** read
+/// here — that one is only for the text search.
 pub fn resolve_guild_names(
     api: &Api<WinHttpTransport>,
     guilds: &[GuildSummary],
     followed: &gw2lurker_core::FollowList,
 ) -> std::collections::BTreeMap<String, String> {
-    static CACHE: OnceLock<Mutex<GuildNameCache>> = OnceLock::new();
-    // Se arranca con la caché persistente: los nombres guardados no se piden otra vez.
-    let cache = CACHE.get_or_init(|| {
-        Mutex::new(GuildNameCache {
-            known: crate::names::all(),
-            failed: Default::default(),
-        })
-    });
-    let mut cache = cache.lock().unwrap_or_else(|error| error.into_inner());
+    static FAILED: OnceLock<Mutex<std::collections::HashSet<String>>> = OnceLock::new();
+    let failed = FAILED.get_or_init(|| Mutex::new(Default::default()));
+    let mut failed = failed.lock().unwrap_or_else(|error| error.into_inner());
+
+    let mut known = crate::runtime().guild_names.clone();
+    let before = known.len();
 
     // The followed guilds first: they are the ones the player sees by name in the settings and
     // in the alerts, and they were being left as raw ids because only the guilds that had
@@ -73,28 +65,34 @@ pub fn resolve_guild_names(
         if budget == 0 {
             break;
         }
-        if cache.known.contains_key(id) || cache.failed.contains(id) {
+        if known.contains_key(id) || failed.contains(id) {
             continue;
         }
         budget -= 1;
         match api.guild(id) {
             Ok(info) => {
-                cache.known.insert(id.to_owned(), guild_label(&info));
+                known.insert(id.to_owned(), guild_label(&info));
             }
             Err(error) => {
                 log::debug!("worker: sin nombre de clan {id} ({error})");
-                cache.failed.insert(id.to_owned());
+                failed.insert(id.to_owned());
             }
         }
     }
-    // La caché de sesión se vuelca en la persistente: un nombre pedido una vez no se vuelve a
-    // pedir nunca (los nombres de clan no cambian). El worker la guarda cuando crece.
-    if crate::names::merge(&cache.known) {
-        if let Err(error) = crate::names::save() {
-            log::warn!("no se pudo guardar la caché de nombres de clan ({error})");
+    failed.retain(|id| !known.contains_key(id));
+
+    if known.len() != before {
+        // A `settings.json`, que es donde el jugador y la ventana leen los nombres: antes se
+        // volcaban en el índice de búsqueda y el render acababa clonando 9 900 entradas cada
+        // sondeo (queja del jugador, 2026-11-01). Se **mezcla**, no se sustituye: el render puede
+        // haber añadido un nombre en este mismo fotograma.
+        let mut config = crate::runtime();
+        for (id, label) in &known {
+            config.guild_names.insert(id.clone(), label.clone());
         }
+        crate::request_save(&config);
     }
-    crate::names::all()
+    known
 }
 /// Names of the old servers, fetched once per session.
 ///

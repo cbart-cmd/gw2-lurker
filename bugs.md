@@ -140,3 +140,33 @@ ejemplo, pongo europa y busco dolyak  y dice uqe no existe. pero sí exxiste, es
   distingue «no pasa nada» de «el addon está parado».
 - **Pendiente:** que el jugador lo compruebe la próxima vez; si el aviso sale, la culpa es de la
   API y se puede ver a mano en `https://api.guildwars2.com/v2/wvw/matches/1-1`.
+
+## [x] avisos de ruinas, nombres de clan e índice de búsqueda (2026-11-01)
+«no me avises cuando alguien capture ruinas, solo quiero campamentos, torres, fortalezas / garri / piedraniebla. el json de nombres de clan deberíamos incorporarlo a la distribución… que lo descargue la primera vez que ejecutes el addon, y a petición con la opción de poner otra URL… cuando dentro del addon se añada un nuevo clan, si ese clan no está en el json, que busque el nombre para ese clan concreto y lo añada. importante no estar leyendo guild names.json todo el rato: json de nombres es solo una caché para buscar clanes a añadir por texto; en followed, aparte del id, guardar el nombre.»
+- **Hecho (0.25.0):** las ruinas (y los campamentos mercenarios) **nunca** avisan: `AlertFilter`
+  lleva ahora una casilla por estructura reclamable (campamento, torre, fortaleza/garita, castillo)
+  y descarta el resto. Un objetivo de tipo desconocido sí avisa, para no quedarse mudo mientras
+  llega la tabla de objetivos.
+- **Hecho (0.25.0):** los nombres resueltos se guardan en `settings.json` (`guild_names`) y
+  `guild-names.json` deja de cargarse al arrancar: lo lee el hilo del buscador, lo filtra y lo
+  suelta. Ya no se clonan 9 900 entradas en cada sondeo.
+- **Hecho (0.25.0):** el índice se publica como `gw2_lurker_guilds.zip` + `.md5` en
+  `gw2addonreleases` (9 886 nombres, 297 KB) y el addon lo descarga la primera vez o cuando pulsas
+  *Descargar el índice* en Ajustes, con la URL configurable.
+- **Hecho (0.25.0):** al empezar a seguir un clan que no estaba en el índice, su nombre se resuelve
+  por API y se añade al fichero.
+- **Pendiente:** que el jugador confirme en el juego que las ruinas ya no avisan y que el buscador
+  encuentra «a new» y «DIE» sin esperar a nada.
+
+## [x] el juego se ha congelado y ha hecho un crash (2026-11-01, 00:40-00:41)
+«estaba probando y se me ha congelado el juego a las 00:40 o 00:41, ha hecho un crash»
+- **Causa (0.24.1, mía):** el aviso naranja de «partida congelada» que añadí en la 0.24.1 pedía el
+  candado de la configuración (`crate::runtime()`) **dentro** de una función que ya lo tenía
+  (`draw_health` recibe `config: &mut Config`). `std::sync::Mutex` no es reentrante: el hilo de
+  render se quedaba esperándose a sí mismo y el juego se congelaba. El log acaba en `sondeo 50` sin
+  pánico y el `arcdps_crash` del directorio es del 30/10, así que no fue una excepción: fue un
+  bloqueo. Es la misma trampa del 2026-10-31, esta vez en otro sitio.
+- **Hecho (0.24.2):** el aviso lee el intervalo de la configuración que ya trae la función. Revisado
+  el resto de `ui/mod.rs`: las demás llamadas a `crate::runtime()` están **fuera** del candado
+  (callbacks del menú, pestaña «Clanes» y `draw_openers`).
+- **Pendiente:** que el jugador confirme que ya no se cuelga al abrir el widget con la 0.24.2.

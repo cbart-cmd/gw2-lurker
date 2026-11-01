@@ -137,6 +137,17 @@ lo demuestra. El estado fino, con fechas y versiones, está en `PROGRESO.md`.
   - Tests: `rf44_german_comes_from_gw2mists_and_not_from_the_spreadsheet` y
     `rf44_the_pool_covers_every_team_in_use`. (T-30) — RF-03f
     (ya lo hizo una vez con un Excel). **Bloqueada por eso.** (T-30) — RF-03f
+- **T-46 ✔ (2026-11-01)** Cuatro peticiones del jugador en una tanda:
+  1. **Avisos solo de estructuras reclamables** (RF-19e): campamentos, torres, fortalezas/garitas y
+     castillos, con casilla por tipo. Las ruinas y los mercenarios dejan de avisar.
+  2. **El índice de nombres no se lee todo el rato** (RF-20b): los nombres resueltos se guardan en
+     `settings.json` (`guild_names`) y `guild-names.json` pasa a ser solo el índice de búsqueda, que
+     se lee en el hilo del buscador y se suelta (ADR-016).
+  3. **El índice se distribuye** (RF-20c) como `gw2_lurker_guilds.zip` + `.md5` en el repositorio
+     compartido, con descarga la primera vez y a petición (`scripts/pack-guild-index.ps1`).
+  4. **Al añadir un clan que no está en el índice** se resuelve su nombre y se añade (RF-20d).
+  Además: fuera la hoja `data/equipos.xlsx` y su script; `data/team-names.json` se edita a mano.
+  (T-44, T-13) — RF-19e, RF-20b, RF-20c, RF-20d
 - **T-17 ✔ (2026-10-31, parcial)** Contrato de ventana compartido en `addon::ui::window`:
   barra de título propia con `×`, plegado con doble clic, mover/redimensionar solo si no está
   bloqueada, opacidad sobre el fondo, menú contextual (bloquear, opacidad, restablecer) y

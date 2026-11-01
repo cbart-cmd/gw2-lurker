@@ -25,12 +25,6 @@ use nexus::imgui::{InputText, Selectable, Ui};
 
 use crate::i18n;
 
-/// How many rows a local search shows.
-///
-/// Más que los ocho del API: la caché es instantánea y gratuita, y con nombres parecidos
-/// («die …») el jugador quiere ver varios.
-const MAX_SEARCH_ROWS: usize = 12;
-
 /// How many guilds the *Claimed since the addon started* shortcut offers.
 const MAX_SESSION_ROWS: usize = 10;
 
@@ -146,7 +140,7 @@ pub fn followed_section(
 pub fn add_section(
     ui: &Ui,
     follow: &mut FollowList,
-    names: &BTreeMap<String, String>,
+    names: &mut BTreeMap<String, String>,
     candidates: &[Candidate],
     my_team: Option<u32>,
     session: &[(String, usize, Option<DateTime<Utc>>)],
@@ -165,7 +159,7 @@ pub fn add_section(
     }
     session_block(ui, follow, session, names);
     ui.separator();
-    search_block(ui, follow, candidates, my_team);
+    search_block(ui, follow, names, candidates, my_team);
 }
 
 /// `[TAG] Nombre` when it is known, the raw id otherwise.
@@ -207,14 +201,23 @@ fn session_block(
     }
 }
 
-/// Buscador de clanes: **caché local primero** —subcadena, instantánea, sin red— y el API como
-/// extra para lo que aún no esté en la caché.
+/// Buscador de clanes: **índice local primero** —subcadena, sin red— y el API como extra.
 ///
 /// `/v2/guild/search?name=` devuelve **un solo** clan y solo cuando el texto empieza su nombre
 /// (medido el 2026-11-01: «die» → *Die*, no *Die Garde* ni las demás), así que la búsqueda de
-/// verdad es la local, sobre los nombres que el addon ya conoce (`guild-names.json`, que también
-/// puede rellenar `scripts/guild-search.ps1 -BuildIndex`).
-fn search_block(ui: &Ui, follow: &mut FollowList, candidates: &[Candidate], my_team: Option<u32>) {
+/// verdad es la local, sobre el índice de nombres (`guild-names.json`, que genera
+/// `scripts/guild-search.ps1 -BuildIndex` y llega en el ZIP del addon).
+///
+/// El índice **no** se lee aquí: lo lee el hilo de la búsqueda, lo filtra y lo suelta (petición del
+/// jugador, 2026-11-01). Al escribir se lanza solo la parte local (instantánea); con Enter o el
+/// botón se añade la del API.
+fn search_block(
+    ui: &Ui,
+    follow: &mut FollowList,
+    names: &mut BTreeMap<String, String>,
+    candidates: &[Candidate],
+    my_team: Option<u32>,
+) {
     // La lista de equipos vivos se pide mientras esto está en pantalla (el selector la usa).
     crate::worker::set_teams_needed(true);
 
@@ -230,39 +233,36 @@ fn search_block(ui: &Ui, follow: &mut FollowList, candidates: &[Candidate], my_t
             "Searches the guilds the addon already knows, plus one hit from the API.",
         ));
     }
-    go |= ui.is_item_deactivated_after_edit();
+    let typed = ui.is_item_deactivated_after_edit();
+    go |= typed;
     ui.same_line();
     go |= ui.button(i18n::widget("Search"));
 
     let needle = text.trim().to_owned();
-    if go && !needle.is_empty() {
-        // El API solo necesita la región del jugador; el equipo ya no descarta nada.
-        let region = region_of(candidates, my_team).unwrap_or(Region::Eu);
-        crate::search::start(region, None, needle.clone());
-    }
     drop(text);
-
-    // Caché local: al teclear ya hay resultados, sin gastar una petición.
-    let known = crate::names::search(&needle, MAX_SEARCH_ROWS);
-    let mut add = None;
-    for (id, label) in &known {
-        let star = if follow.contains(id) { "★ " } else { "" };
-        if Selectable::new(format!("{star}{label}###known{id}")).build(ui) {
-            add = Some(id.clone());
+    if !needle.is_empty() {
+        // Al teclear basta el índice: es instantáneo y no gasta peticiones. Con Enter o el botón
+        // se pide además al API, que aporta el clan que aún no está en el índice.
+        let due = if go {
+            note_typing(&needle);
+            true
+        } else {
+            typing_settled(&needle)
+        };
+        if due {
+            let region = region_of(candidates, my_team).unwrap_or(Region::Eu);
+            let mode = if go {
+                crate::search::Mode::Full
+            } else {
+                crate::search::Mode::Local
+            };
+            if crate::search::start(region, None, needle.clone(), mode) {
+                mark_searched();
+            }
         }
     }
-    if let Some(guild) = add {
-        follow.add(&guild);
-        return;
-    }
-    let cached = crate::names::all().len();
-    if !needle.is_empty() {
-        ui.text_disabled(i18n::format(
-            "{0} guilds in the cache",
-            &[&cached.to_string()],
-        ));
-    }
 
+    let mut add: Option<(String, Option<String>)> = None;
     match crate::search::snapshot() {
         crate::search::State::Idle => {
             ui.text_disabled(i18n::text(
@@ -276,12 +276,23 @@ fn search_block(ui: &Ui, follow: &mut FollowList, candidates: &[Candidate], my_t
             ui.text_disabled(i18n::format("Search failed: {0}", &[&error]));
         }
         crate::search::State::Done(hits) => {
-            let mut add = None;
-            for hit in hits
-                .iter()
-                .filter(|hit| crate::names::get(&hit.id).is_none())
-            {
-                // Los que ya salieron de la caché no se repiten; la estrella marca lo que sigues.
+            if hits.is_empty() && needle.len() >= 2 {
+                let cached = crate::names::index_len();
+                if cached == 0 {
+                    // Sin índice solo queda el API, que devuelve uno y por el principio del
+                    // nombre: se dice, en vez de dejar la ventana vacía (informe de 2026-10-31).
+                    ui.text_wrapped(i18n::text(
+                        "There is no index of guild names yet: only the API is searched, and it returns one guild at most. Download the index from the settings.",
+                    ));
+                } else {
+                    ui.text_wrapped(i18n::format(
+                        "Nothing matches in the index ({0} guilds). The API returns one guild at most, and only when the text starts its name.",
+                        &[&cached.to_string()],
+                    ));
+                }
+            }
+            for hit in hits.iter() {
+                // La estrella marca lo que sigues.
                 let star = if follow.contains(&hit.id) { "★ " } else { "" };
                 let text = match hit.team {
                     Some(team) => format!(
@@ -293,23 +304,75 @@ fn search_block(ui: &Ui, follow: &mut FollowList, candidates: &[Candidate], my_t
                     None => format!("{star}{}###hit{}", hit.label, hit.id),
                 };
                 if Selectable::new(text).build(ui) {
-                    add = Some(hit.id.clone());
+                    add = Some((hit.id.clone(), Some(hit.label.clone())));
                 }
-            }
-            if let Some(guild) = add {
-                follow.add(&guild);
-                return;
-            }
-            if hits.is_empty() && known.is_empty() && needle.len() >= 2 {
-                // El API devuelve **uno** y solo por el principio del nombre; la caché es la que
-                // busca de verdad, así que se dice qué hay y cómo llenarla.
-                ui.text_wrapped(i18n::format(
-                    "Nothing matches in the cache ({0} guilds). The API returns one guild at most, and only when the text starts its name.",
-                    &[&cached.to_string()],
-                ));
             }
         }
     }
+    if let Some((guild, label)) = add {
+        follow.add(&guild);
+        // El nombre se guarda con el clan: a partir de aquí la ventana lo dibuja sin volver a
+        // preguntar al API, y el índice de búsqueda lo aprende para la próxima vez (petición del
+        // jugador, 2026-11-01).
+        if let Some(label) = label {
+            names.insert(guild.clone(), label.clone());
+            crate::names::append_async(vec![(guild, label)]);
+        }
+    }
+}
+
+/// Cuánto tiene que estar quieto el texto antes de buscar en el índice.
+const LOCAL_DELAY: std::time::Duration = std::time::Duration::from_millis(300);
+
+/// Lo que el jugador lleva escrito y si ya se buscó: sin esto, el fotograma siguiente al de una
+/// búsqueda volvería a lanzarla, y otra vez cada [`LOCAL_DELAY`].
+struct Typing {
+    text: String,
+    at: std::time::Instant,
+    searched: bool,
+}
+
+static KEYSTROKE: std::sync::OnceLock<std::sync::Mutex<Typing>> = std::sync::OnceLock::new();
+
+fn typing() -> std::sync::MutexGuard<'static, Typing> {
+    KEYSTROKE
+        .get_or_init(|| {
+            std::sync::Mutex::new(Typing {
+                text: String::new(),
+                at: std::time::Instant::now(),
+                searched: false,
+            })
+        })
+        .lock()
+        .unwrap_or_else(|error| error.into_inner())
+}
+
+/// Whether the text has stopped changing long enough to search it, and has not been searched yet.
+///
+/// Every frame that sees a new text restarts the clock: only the text that stays put reaches
+/// [`LOCAL_DELAY`], so typing five letters does not launch five searches.
+fn typing_settled(needle: &str) -> bool {
+    let mut state = typing();
+    if state.text != needle {
+        state.text = needle.to_owned();
+        state.at = std::time::Instant::now();
+        state.searched = false;
+        return false;
+    }
+    !state.searched && state.at.elapsed() >= LOCAL_DELAY
+}
+
+/// Marca el texto como «ya buscado» para que no se repita hasta que cambie.
+fn mark_searched() {
+    typing().searched = true;
+}
+
+/// Reinicia el reloj porque el jugador acaba de pedir una búsqueda con Enter o el botón.
+fn note_typing(needle: &str) {
+    let mut state = typing();
+    state.text = needle.to_owned();
+    state.at = std::time::Instant::now();
+    state.searched = false;
 }
 
 /// Name of a team as the player knows it: their own translation first, then the bundled name from
@@ -388,5 +451,23 @@ mod tests {
             !crate::names::matches_text(yak, "6C45F3C8", "waifu"),
             "lo que no coincide no se cuela"
         );
+    }
+
+    #[test]
+    fn t44_the_search_is_launched_once_per_text() {
+        // Sin esto, el fotograma siguiente a una búsqueda volvía a lanzarla, y otra vez cada
+        // 300 ms: el buscador no paraba de trabajar y la lista parpadeaba.
+        let needle = "die";
+        assert!(!typing_settled(needle), "el texto acaba de cambiar");
+        std::thread::sleep(LOCAL_DELAY);
+        assert!(typing_settled(needle), "quieto el tiempo mínimo: se busca");
+        mark_searched();
+        assert!(!typing_settled(needle), "ya se buscó este texto");
+        assert!(
+            !typing_settled("diex"),
+            "un texto distinto vuelve a empezar"
+        );
+        note_typing(needle);
+        assert!(!typing_settled(needle), "Enter reinicia el reloj");
     }
 }

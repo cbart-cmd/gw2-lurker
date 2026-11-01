@@ -76,6 +76,7 @@ struct Edits {
     font_scale: f32,
     max_lines: i32,
     kinds: crate::config::AlertKinds,
+    guild_index_url: String,
 }
 
 /// Body of the *Settings* tab: the whole form, without window chrome (T-42).
@@ -114,6 +115,7 @@ pub fn body(
         font_scale: config.font_scale,
         max_lines: config.max_lines as i32,
         kinds: config.alert_kinds,
+        guild_index_url: config.guild_index_url.clone(),
     };
     let before = edits.team_id;
 
@@ -134,6 +136,7 @@ pub fn body(
     config.font_scale = edits.font_scale.clamp(0.8, 1.6);
     config.max_lines = edits.max_lines.clamp(1, 50) as usize;
     config.alert_kinds = edits.kinds;
+    config.guild_index_url = edits.guild_index_url.trim().to_owned();
     config.followed = edits.follow;
     // The switches of the widget itself: written only when moved, so the chrome of this window
     // is not undone every frame (`×`, dragging, lock).
@@ -287,6 +290,7 @@ fn draw_body(
     ui.text_disabled(i18n::text(
         "Following guilds lives in the Guilds tab, next to the match you are looking at.",
     ));
+    draw_guild_index(ui, edits);
 
     ui.separator();
     ui.text(i18n::text("Windows"));
@@ -396,6 +400,20 @@ fn draw_theme(ui: &Ui, edits: &mut Edits) {
 fn draw_alert_filters(ui: &Ui, edits: &mut Edits) {
     ui.separator();
     ui.text(i18n::text("Alert on"));
+    // Las estructuras primero: es lo que el jugador pidió (2026-11-01). Las ruinas y el resto
+    // del decorado no aparecen porque nunca avisan.
+    ui.checkbox(i18n::widget("Camps"), &mut edits.alerts.structures.camp);
+    ui.checkbox(i18n::widget("Towers"), &mut edits.alerts.structures.tower);
+    ui.checkbox(
+        i18n::widget("Keeps and garrisons"),
+        &mut edits.alerts.structures.keep,
+    );
+    ui.checkbox(i18n::widget("Castles"), &mut edits.alerts.structures.castle);
+    if ui.is_item_hovered() {
+        ui.tooltip_text(i18n::text(
+            "Only structures a guild can claim raise an alert: ruins and mercenary camps never do.",
+        ));
+    }
     ui.checkbox(i18n::widget("Eternals"), &mut edits.alerts.ebg);
     ui.checkbox(i18n::widget("Blue alpine"), &mut edits.alerts.blue);
     ui.checkbox(i18n::widget("Green alpine"), &mut edits.alerts.green);
@@ -426,6 +444,59 @@ fn draw_alert_filters(ui: &Ui, edits: &mut Edits) {
     if ui.is_item_hovered() {
         ui.tooltip_text(i18n::text(
             "How long each pop-up stays. They come one at a time; the list keeps them all.",
+        ));
+    }
+}
+
+/// Índice de nombres de clan: estado y descarga (RF-20).
+///
+/// Se descarga solo la primera vez (o cuando el jugador lo pide), se verifica su MD5 y se
+/// descomprime en la carpeta del addon. La URL es configurable para poder publicar el índice en
+/// otro sitio sin recompilar.
+fn draw_guild_index(ui: &Ui, edits: &mut Edits) {
+    ui.separator();
+    ui.text(i18n::text("Guild names index"));
+    let known = crate::names::index_len();
+    match crate::guild_index::status() {
+        crate::guild_index::Status::Idle => {
+            if known > 0 {
+                ui.text_disabled(i18n::format(
+                    "{0} guild names ready to search",
+                    &[&known.to_string()],
+                ));
+            } else {
+                ui.text_disabled(i18n::text(
+                    "Not downloaded yet: the search only asks the API, which returns one guild at most.",
+                ));
+            }
+        }
+        crate::guild_index::Status::Downloading => {
+            ui.text_disabled(i18n::text("Downloading the index…"));
+        }
+        crate::guild_index::Status::Done(count) => {
+            ui.text_disabled(i18n::format(
+                "{0} guild names ready to search",
+                &[&count.to_string()],
+            ));
+        }
+        crate::guild_index::Status::Failed(error) => {
+            let _tint = ui.push_style_color(StyleColor::Text, [1.0, 0.55, 0.35, 1.0]);
+            ui.text_wrapped(i18n::format("Index download failed: {0}", &[&error]));
+        }
+    }
+    ui.input_text(i18n::widget("Index URL"), &mut edits.guild_index_url)
+        .build();
+    if ui.is_item_hovered() {
+        ui.tooltip_text(i18n::text(
+            "Where the ZIP with the guild names is published, next to its .md5.",
+        ));
+    }
+    if ui.button(i18n::widget("Download the index")) {
+        crate::guild_index::download(edits.guild_index_url.trim().to_owned());
+    }
+    if ui.is_item_hovered() {
+        ui.tooltip_text(i18n::text(
+            "Reads the published ZIP, checks its MD5 and replaces the index on disk.",
         ));
     }
 }

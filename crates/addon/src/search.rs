@@ -1,8 +1,12 @@
 //! Guild search for the follow selector (T-44).
 //!
 //! The search cannot run in the render callback (rule 6: no network there), so it goes on its
-//! own thread and the window only reads the state. Three API calls are involved and each one has
-//! its catch:
+//! own thread and the window only reads the state. The big index of names (`guild-names.json`,
+//! thousands of entries) is read **here** and dropped as soon as it is filtered, so the render
+//! never walks it (request of 2026-11-01).
+//!
+//! Two modes: [`Mode::Local`] only reads the index (instantaneous, no network) and is what a
+//! keystroke triggers; [`Mode::Full`] adds the API calls:
 //!
 //! - `/v2/guild/search?name=` matches **a single word, by prefix and case-insensitive**: `Raven`
 //!   finds *Legends Of Ravenous…* and `avenous` does not. Multi-word text returns nothing, so the
@@ -69,7 +73,7 @@ pub fn snapshot() -> State {
 /// `team` is **optional**: the region is what the search needs to look in the right half of the
 /// world, and asking for a team as well left the button doing nothing whenever the list of live
 /// teams had not arrived (bug of 2026-10-31).
-pub fn start(region: Region, team: Option<u32>, text: String) -> bool {
+pub fn start(region: Region, team: Option<u32>, text: String, mode: Mode) -> bool {
     {
         let mut state = slot().lock().unwrap_or_else(|error| error.into_inner());
         if matches!(*state, State::Searching) {
@@ -81,7 +85,7 @@ pub fn start(region: Region, team: Option<u32>, text: String) -> bool {
     let spawned = std::thread::Builder::new()
         .name("gw2lurker-search".to_owned())
         .spawn(move || {
-            let outcome = run(region, team, &text);
+            let outcome = run(region, team, &text, mode);
             let mut state = slot().lock().unwrap_or_else(|error| error.into_inner());
             *state = match outcome {
                 Ok(hits) => State::Done(hits),
@@ -97,21 +101,64 @@ pub fn start(region: Region, team: Option<u32>, text: String) -> bool {
     true
 }
 
-fn run(region: Region, team: Option<u32>, text: &str) -> Result<Vec<Hit>, String> {
+/// What a search is allowed to do.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Mode {
+    /// Solo el índice del disco: instantáneo y sin red (lo que se lanza al escribir).
+    Local,
+    /// El índice **y** el API (lo que se lanza con Enter o el botón).
+    Full,
+}
+
+fn run(region: Region, team: Option<u32>, text: &str, mode: Mode) -> Result<Vec<Hit>, String> {
+    // El índice se lee aquí, en este hilo, y se suelta en cuanto se filtra: son miles de entradas
+    // y el hilo de render no las toca nunca (petición del jugador, 2026-11-01).
+    let index = crate::names::read();
+    let local = crate::names::search_in(&index, text, MAX_HITS);
+    drop(index);
+    log::debug!("search: {} en el índice local para «{text}»", local.len());
+
+    if mode == Mode::Local {
+        return Ok(local
+            .into_iter()
+            .map(|(id, label)| Hit {
+                id,
+                label,
+                team: None,
+                matches_team: true,
+            })
+            .collect());
+    }
+
     let api = Api::new(WinHttpTransport::default());
     let ctx = format!("«{text}» en {region:?}");
+    let teams = teams_of(region, &api).map_err(|error| format!("{ctx} (equipos): {error}"))?;
+
+    let mut hits: Vec<Hit> = local
+        .into_iter()
+        .map(|(id, label)| {
+            let of_team = teams.get(&id).copied();
+            Hit {
+                matches_team: team.is_none_or(|wanted| of_team == Some(wanted)),
+                id,
+                label,
+                team: of_team,
+            }
+        })
+        .collect();
+
     let ids = api
         .guild_search(text)
         .map_err(|error| format!("{ctx} (búsqueda): {error}"))?;
-    let teams = teams_of(region, &api).map_err(|error| format!("{ctx} (equipos): {error}"))?;
-
-    let mut hits = Vec::new();
     for id in ids.into_iter().take(MAX_LOOKUPS) {
         // Un id de clan es un UUID. Cualquier otra cosa que devuelva el índice se descarta aquí:
         // pedirla a `/v2/guild/:id` solo produce un error opaco de la API (informe de 2026-10-31,
         // «invalid type string …»).
         if !looks_like_guild_id(&id) {
             log::warn!("search: la API devolvió {id}, que no es un id de clan; se ignora");
+            continue;
+        }
+        if hits.iter().any(|hit| hit.id == id) {
             continue;
         }
         let of_team = teams.get(&id).copied();
@@ -186,7 +233,12 @@ mod tests {
     fn t44_a_search_is_not_started_on_top_of_another() {
         *slot().lock().unwrap() = State::Searching;
 
-        assert!(!start(Region::Eu, Some(12014), "lord".to_owned()));
+        assert!(!start(
+            Region::Eu,
+            Some(12014),
+            "lord".to_owned(),
+            Mode::Local
+        ));
         assert_eq!(snapshot(), State::Searching, "el estado no se pisa");
 
         *slot().lock().unwrap() = State::Idle;

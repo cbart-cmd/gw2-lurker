@@ -16,9 +16,11 @@ mod context;
 mod detect;
 mod diagnostics;
 mod ffi;
+mod guild_index;
 mod i18n;
 mod keybinds;
 mod lang;
+mod md5;
 mod names;
 mod net;
 mod search;
@@ -198,7 +200,7 @@ fn load() {
 
     log::info!("WvW Lurker: {}", arc_team::describe());
     keybinds::remember_shortcut();
-    names::load();
+    guild_index::ensure_present();
     lang::subscribe();
     arc_team::subscribe();
     let _ = WRITER.set(Mutex::new(Some(writer::Writer::start())));

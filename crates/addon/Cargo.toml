@@ -14,8 +14,8 @@ crate-type = ["cdylib"]
 
 [dependencies]
 chrono = { version = "0.4", default-features = false, features = ["std", "serde", "clock"] }
-gw2lurker-api = { path = "../api", version = "0.24.2" }
-gw2lurker-core = { path = "../core", version = "0.24.2" }
+gw2lurker-api = { path = "../api", version = "0.25.0" }
+gw2lurker-core = { path = "../core", version = "0.25.0" }
 log = "0.4"
 nexus = { git = "https://github.com/zerthox/nexus-rs", tag = "0.12.0", version = "0.12.0", features = [
     "arc",
@@ -26,6 +26,11 @@ nexus = { git = "https://github.com/zerthox/nexus-rs", tag = "0.12.0", version =
 ] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
+# Descomprime el ZIP del índice de nombres de clan (RF-20). `deflate` es la feature que trae el
+# lector de flate2; el resto (bzip2, zstd, lzma, aes) no se pide, porque el ZIP lo generamos
+# nosotros. Es la misma caja y la misma feature que el addon hermano `gw2-rotation-builds` usa
+# para su `data.zip`.
+zip = { version = "2", default-features = false, features = ["deflate"] }
 
 [lints]
 workspace = true

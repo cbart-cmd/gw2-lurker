@@ -16,9 +16,11 @@ pub const BUNDLED_JSON: &str = include_str!(concat!(
 
 /// Curated translations, keyed by the **English** name.
 ///
-/// Generated from `data/equipos.xlsx` by `scripts/merge_team_names.ps1`. Keyed by name and not
-/// by id on purpose: WvW team names rotate every season while the ids stay, so a translation
-/// must survive an id changing its name and come back if the name returns.
+/// Se mantiene **a mano** en `data/team-names.json`: la hoja de cálculo de la primera carga
+/// (`data/equipos.xlsx`) y el script que la convertía se retiraron el 2026-11-01, cuando el
+/// jugador decidió editar el JSON directamente. Keyed by name and not by id on purpose: WvW team
+/// names rotate every season while the ids stay, so a translation must survive an id changing its
+/// name and come back if the name returns.
 pub const NAMES_JSON: &str = include_str!(concat!(
     env!("CARGO_MANIFEST_DIR"),
     "/../../data/team-names.json"

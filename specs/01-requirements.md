@@ -45,7 +45,7 @@ Comprobado el **2026-10-31** contra la API real, el código fuente de `nexus-rs`
 - **No se puede deducir el color del jugador:** Mumble solo expone `server_address`, `map_id`, `map_type`, `shard_id`, `instance` y `build_id`; `Identity::team_color_id` es un id de *tinte* (`/v2/colors`), no el color de WvW; `UserInfo` de Unofficial Extras no tiene campo de equipo; Nexus no lo expone. Por eso el color se conoce **después** de elegir equipo, y sirve para confirmar rivales (RF-03g), no para filtrar la primera elección.
 - **Validación automática:** cada vez que se entra en WvW se comprueba el equipo guardado contra los matchups vivos. Si sigue jugando, no se pregunta nada; si no aparece en ninguno (sorteo mensual), **el selector vuelve a abrirse solo**.
 - **Memoria por personaje** (`Roster`, indexado por `Identity::name` de Mumble): una segunda cuenta tiene otros personajes, así que el alt no hereda el equipo del main y se le pregunta una vez. El botón manual de ajustes sigue siendo la salida para el resto de casos.
-- La **API no traduce nombres de equipo** (`/v2/wvw/teams` responde 404; `/v2/wvw/objectives?lang=es` sí traduce objetivos). Las traducciones vienen de `data/equipos.xlsx`, extraídas por `scripts/merge_team_names.ps1` a `data/team-names.json` **indexadas por nombre inglés** (los nombres rotan cada temporada, los ids no): son literales (`Great House Aviary → Pajar de la Gran Casa`), no los del cliente (*Bosquemugoso*), así que el mapa `names` por id de `wvw-teams.json` tiene prioridad para meter los oficiales.
+- La **API no traduce nombres de equipo** (`/v2/wvw/teams` responde 404; `/v2/wvw/objectives?lang=es` sí traduce objetivos). Las traducciones viven en `data/team-names.json` **indexadas por nombre inglés** (los nombres rotan cada temporada, los ids no) y se mantienen **a mano** desde el 2026-11-01 —la hoja `data/equipos.xlsx` y el script que la convertía se retiraron—: son literales (`Great House Aviary → Pajar de la Gran Casa`), no los del cliente (*Bosquemugoso*), así que el mapa `names` por id de `wvw-teams.json` tiene prioridad para meter los oficiales.
 
 **RF-03b (M)** El addon deberá resolver el match buscando el **id de equipo** en `all_worlds` (no en `worlds`, que solo trae el mundo heredado) para deducir el color propio y los de los enemigos. Usará el prefijo del id de match para descartar la región contraria (`1-x` = NA, `2-x` = EU).
 
@@ -125,11 +125,23 @@ El click-through se alterna desde la configuración, desde las opciones de Nexus
 - GWT: *Given* una reclamación de un clan que no se sigue con «Guilds I follow» activo, *When* se detecta, *Then* no sale en el aviso emergente.
 - **El sonido sigue fuera**: no hay API de audio en `nexus-rs` 0.12 (comprobado en su código).
 
+**RF-19e (M)** Solo avisan las **estructuras que un clan puede reclamar**: campamentos, torres, fortalezas/garitas y castillos, con una casilla por tipo (todas marcadas por defecto). Las ruinas, los campamentos mercenarios, los spawns y el resto del decorado **nunca** generan aviso, aunque esté marcado «el mapa en el que estoy» (petición del jugador, 2026-11-01: «no me avises cuando alguien capture ruinas»).
+- Un objetivo de tipo desconocido **sí** avisa: la tabla de objetivos llega una vez por sesión y hasta entonces todo es `Unknown`, así que descartarlo dejaría el addon mudo en vez de filtrar.
+- GWT: *Given* todas las casillas marcadas, *When* cambia el dueño de unas ruinas, *Then* no hay aviso ni en la lista ni en el pop-up.
+
 ## C. Objetivo 2 – Seguimiento de guilds enemigas
 
 **RF-20 (M)** El usuario podrá añadir guilds a seguir por nombre (`/v2/guild/search?name=`) o por ID, y quitarlas. Se guardará ID, nombre y tag (`/v2/guild/:id`). Para saber a qué **equipo** pertenece cada guild se usará `/v2/wvw/guilds/:region` (mapa guild → equipo de la API oficial), cacheado en disco y refrescado al cambiar de match.
 - GWT: *Given* un nombre ambiguo, *When* la búsqueda devuelve varias guilds, *Then* el usuario elige entre candidatos con nombre y tag.
 - GWT: *Given* una guild seguida, *When* se resuelve el match, *Then* la UI muestra el equipo al que pertenece según `/v2/wvw/guilds/:region` y si es propio o enemigo.
+
+**RF-20b (M)** El nombre de un clan (`[TAG] Nombre`) se guarda **en `settings.json`** la primera vez que se resuelve y no se vuelve a pedir: los nombres de clan no cambian. `guild-names.json` es **solo** el índice de búsqueda por texto y **no se tiene en memoria**: se lee en el hilo de la búsqueda, se filtra y se suelta. El hilo de render nunca lo lee ni lo clona (petición del jugador, 2026-11-01: «importante no estar leyendo guild names.json todo el rato»).
+- Corolario: ninguna ventana puede depender del índice para dibujar un nombre; lo que no esté en `settings.json` se muestra como id hasta que el worker lo resuelva.
+
+**RF-20c (M)** El índice de nombres se **distribuye** como ZIP (`gw2_lurker_guilds.zip`) junto a su `.md5` en el repositorio de distribución, y el addon lo descarga **la primera vez que arranca** (si no está en disco) y **a petición**, con la URL configurable en los ajustes. Antes de escribir nada se comprueba el MD5 publicado; si no coincide, no se instala.
+- Es el mismo mecanismo que el addon hermano `gw2-rotation-builds` usa para su `data.zip` (descargar → verificar MD5 → descomprimir).
+
+**RF-20d (M)** Al empezar a seguir un clan cuyo nombre no está en el índice, el addon pide su nombre al API y lo **añade al índice**, para que la próxima búsqueda por texto lo encuentre.
 
 **RF-20a (M)** Además de buscar por nombre, el addon ofrecerá una **lista de guilds sugeridas** para seguir, construida con los claims ya observados en el historial local: ordenada por número de claims en el mapa actual, después en el resto de mapas del match y después en total; cada fila muestra tag, nombre si se conoce, nº de claims y la hora del último. Un clic la añade a seguidas.
 - GWT: *Given* el addon lleva 2 h observando el mapa actual, *When* el usuario abre la pestaña Guilds, *Then* la lista empieza por las guilds con más claims vistos **en ese mapa**, no por orden alfabético.

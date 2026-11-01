@@ -68,7 +68,15 @@ impl Dashboard {
                         && newest
                             .is_some_and(|seen| seen.signed_duration_since(line.at) < LATE_GRACE))
             })
-            .filter(|line| filter.notify(line.map_role, line.guild.as_deref(), follow, current))
+            .filter(|line| {
+                filter.notify(
+                    line.map_role,
+                    line.guild.as_deref(),
+                    follow,
+                    current,
+                    line.objective_kind,
+                )
+            })
             .take(limit)
             .collect()
     }

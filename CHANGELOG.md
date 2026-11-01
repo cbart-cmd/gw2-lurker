@@ -1,7 +1,35 @@
 # Changelog
 Formato [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/), versionado [SemVer](https://semver.org/lang/es/).
 
+## [0.25.0] - 2026-11-01
+### Añadido
+- **Avisos solo de estructuras** (RF-19e): casillas para campamentos, torres, fortalezas/garitas y
+  castillos. Las ruinas y los campamentos mercenarios **nunca** avisan, aunque esté marcado «el mapa
+  en el que estoy» (petición del jugador).
+- **El índice de nombres de clan se distribuye aparte** (RF-20c): `gw2_lurker_guilds.zip` + `.md5`
+  en el repositorio de distribución. El addon lo descarga la primera vez que no lo encuentra y a
+  petición, con la URL configurable en Ajustes → *Índice de nombres de clan*.
+- Al empezar a seguir un clan que no estaba en el índice, su nombre se resuelve y se añade (RF-20d),
+  así que la próxima búsqueda por texto lo encuentra.
+
+### Cambiado
+- **Los nombres de clan ya resueltos se guardan en `settings.json`** (RF-20b) y `guild-names.json`
+  pasa a ser **solo** el índice de búsqueda: se lee en el hilo del buscador, se filtra y se suelta.
+  Antes se cargaba entero al arrancar y se clonaba en cada sondeo (9 900 entradas cada 5 s).
+- El buscador de clanes busca mientras escribes (300 ms de espera) contra el índice y añade el API
+  al pulsar Enter o *Buscar*.
+
+### Quitado
+- `data/equipos.xlsx` y `scripts/merge_team_names.ps1`: `data/team-names.json` se edita a mano.
+
+### Corregido
+- **Cuelgue del juego con el widget abierto** (0.24.1): el aviso naranja de «partida congelada»
+  pedía el candado de la configuración desde dentro de una función que ya lo tenía, y el hilo de
+  render se quedaba esperándose a sí mismo. El log acababa en `sondeo 50` sin pánico (crash del
+  jugador a las 00:40). Ahora lee el intervalo de la configuración que ya trae la función.
+
 ## [0.24.2] - 2026-11-01
+
 ### Corregido
 - **Cuelgue del juego al abrir el widget** (crash del jugador, 00:40). El aviso de «partida
   congelada» de la 0.24.1 pedía el candado de la configuración dentro de una función que **ya lo
@@ -9,7 +37,9 @@ Formato [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/), versionado 
   mismo. Ahora lee el intervalo de la configuración que ya trae la función. Es el mismo fallo que
   congeló el juego el 2026-10-31, esta vez dentro de `draw_health`.
 
-## [0.24.1] - 2026-11-01### Añadido
+## [0.24.1] - 2026-11-01
+
+### Añadido
 - **Aviso de partida congelada**: cuando la API de ArenaNet repite la misma copia de la partida
   durante 5 minutos o más, el widget lo dice en naranja con los minutos y el intervalo de sondeo.
   El 2026-11-01 la partida `1-1` devolvió durante **20 minutos** exactamente los mismos puntos y
@@ -21,7 +51,9 @@ Formato [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/), versionado 
   quedado fuera el parte anterior y el reporte nuevo de los 11 minutos). El fichero vuelve a
   tenerlas todas.
 
-## [0.24.0] - 2026-11-01### Añadido
+## [0.24.0] - 2026-11-01
+
+### Añadido
 - **Buscador de clanes que busca de verdad.** El API (`/v2/guild/search`) devuelve **un solo**
   clan y solo cuando el texto empieza su nombre, así que «DIE» encontraba *Die* y ninguna más.
   Ahora el addon busca por **subcadena** en su propia caché de nombres (`guild-names.json`), que

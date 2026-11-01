@@ -223,10 +223,10 @@ fn teams_needed() -> bool {
 pub fn start() {
     static STARTED: OnceLock<()> = OnceLock::new();
     STARTED.get_or_init(|| {
-        // Los nombres de clan ya están en disco: que la ventana los tenga desde el primer
-        // fotograma, también en el Bastión del Armisticio, donde no se sondea nada (informe del
-        // jugador, 2026-11-01).
-        dashboard().guild_names = crate::names::all();
+        // Los nombres de clan ya resueltos están en `settings.json`: que la ventana los tenga
+        // desde el primer fotograma, también en el Bastión del Armisticio, donde no se sondea
+        // nada (informe del jugador, 2026-11-01).
+        dashboard().guild_names = crate::config().guild_names.clone();
         let spawn = std::thread::Builder::new()
             .name("gw2lurker-worker".to_owned())
             .spawn(run);

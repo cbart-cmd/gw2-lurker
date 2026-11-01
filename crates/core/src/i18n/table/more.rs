@@ -355,6 +355,102 @@ pub const TEXT: &[(&str, [&str; COLUMNS])] = &[
     ),
     ("No alerts yet", ["Sin avisos todavía", "No alerts yet", "Pas encore d'alertes", "Noch keine Hinweise"]),
     ("Alert on", ["Avisar de", "Alert on", "Alerter sur", "Hinweis bei"]),
+    // «Camps» y «Towers» ya existen más abajo (el filtro del mapa): se reutilizan aquí.
+    (
+        "Keeps and garrisons",
+        ["Fortalezas y garitas", "Keeps and garrisons", "Fortresses et garnisons", "Festen und Garnisonen"],
+    ),
+    ("Castles", ["Castillos", "Castles", "Châteaux", "Burgen"]),
+    (
+        "Only structures a guild can claim raise an alert: ruins and mercenary camps never do.",
+        [
+            "Solo avisan las estructuras que un clan puede reclamar: las ruinas y los campamentos mercenarios nunca lo hacen.",
+            "Only structures a guild can claim raise an alert: ruins and mercenary camps never do.",
+            "Seules les structures qu'une guilde peut revendiquer déclenchent une alerte : les ruines et les camps mercenaires jamais.",
+            "Nur Strukturen, die eine Gilde beanspruchen kann, lösen einen Hinweis aus: Ruinen und Söldnerlager nie.",
+        ],
+    ),
+    (
+        "Guild names index",
+        ["Índice de nombres de clan", "Guild names index", "Index des noms de guilde", "Gildennamen-Index"],
+    ),
+    (
+        "{0} guild names ready to search",
+        [
+            "{0} nombres de clan listos para buscar",
+            "{0} guild names ready to search",
+            "{0} noms de guilde prêts à chercher",
+            "{0} Gildennamen zum Suchen bereit",
+        ],
+    ),
+    (
+        "Not downloaded yet: the search only asks the API, which returns one guild at most.",
+        [
+            "Sin descargar: el buscador solo pregunta al API, que devuelve un clan como mucho.",
+            "Not downloaded yet: the search only asks the API, which returns one guild at most.",
+            "Pas encore téléchargé : la recherche n'interroge que l'API, qui renvoie une guilde au plus.",
+            "Noch nicht geladen: die Suche fragt nur die API, die höchstens eine Gilde liefert.",
+        ],
+    ),
+    (
+        "Downloading the index…",
+        [
+            "Descargando el índice…",
+            "Downloading the index…",
+            "Téléchargement de l'index…",
+            "Index wird geladen…",
+        ],
+    ),
+    (
+        "Index download failed: {0}",
+        [
+            "No se pudo descargar el índice: {0}",
+            "Index download failed: {0}",
+            "Échec du téléchargement de l'index : {0}",
+            "Index-Download fehlgeschlagen: {0}",
+        ],
+    ),
+    ("Index URL", ["URL del índice", "Index URL", "URL de l'index", "Index-URL"]),
+    (
+        "Where the ZIP with the guild names is published, next to its .md5.",
+        [
+            "Dónde está publicado el ZIP con los nombres de clan, junto a su .md5.",
+            "Where the ZIP with the guild names is published, next to its .md5.",
+            "Où le ZIP des noms de guilde est publié, à côté de son .md5.",
+            "Wo die ZIP mit den Gildennamen veröffentlicht ist, neben ihrer .md5.",
+        ],
+    ),
+    (
+        "Download the index",
+        ["Descargar el índice", "Download the index", "Télécharger l'index", "Index herunterladen"],
+    ),
+    (
+        "Reads the published ZIP, checks its MD5 and replaces the index on disk.",
+        [
+            "Lee el ZIP publicado, comprueba su MD5 y sustituye el índice del disco.",
+            "Reads the published ZIP, checks its MD5 and replaces the index on disk.",
+            "Lit le ZIP publié, vérifie son MD5 et remplace l'index sur le disque.",
+            "Liest die veröffentlichte ZIP, prüft ihre MD5 und ersetzt den Index auf der Festplatte.",
+        ],
+    ),
+    (
+        "There is no index of guild names yet: only the API is searched, and it returns one guild at most. Download the index from the settings.",
+        [
+            "Todavía no hay índice de nombres de clan: solo se busca en el API, que devuelve un clan como mucho. Descarga el índice desde los ajustes.",
+            "There is no index of guild names yet: only the API is searched, and it returns one guild at most. Download the index from the settings.",
+            "Il n'y a pas encore d'index des noms de guilde : seule l'API est interrogée, qui renvoie une guilde au plus. Télécharge l'index depuis les réglages.",
+            "Es gibt noch keinen Gildennamen-Index: es wird nur die API gefragt, die höchstens eine Gilde liefert. Lade den Index in den Einstellungen.",
+        ],
+    ),
+    (
+        "Nothing matches in the index ({0} guilds). The API returns one guild at most, and only when the text starts its name.",
+        [
+            "No hay coincidencias en el índice ({0} clanes). El API devuelve un clan como mucho, y solo cuando el texto empieza su nombre.",
+            "Nothing matches in the index ({0} guilds). The API returns one guild at most, and only when the text starts its name.",
+            "Aucune correspondance dans l'index ({0} guildes). L'API renvoie une guilde au plus, et seulement quand le texte commence son nom.",
+            "Keine Treffer im Index ({0} Gilden). Die API liefert höchstens eine Gilde, und nur wenn der Text ihren Namen beginnt.",
+        ],
+    ),
     ("Eternals", ["Eternos", "Eternals", "Éternel", "Ewige Schlachtfelder"]),
     ("Blue alpine", ["Alpino azul", "Blue alpine", "Alpin bleu", "Blaues Alpin"]),
     ("Green alpine", ["Alpino verde", "Green alpine", "Alpin vert", "Grünes Alpin"]),

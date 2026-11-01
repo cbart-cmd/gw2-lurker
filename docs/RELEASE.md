@@ -26,6 +26,35 @@ El **MD5** es lo que parsea Nexus para decidir si hay versión nueva. El **SHA-2
 publicamos aparte (RF-53) es nuestro, para que el usuario pueda comprobar la descarga;
 no lo usa Nexus.
 
+### El índice de nombres de clan (ficheros de datos)
+
+`guild-names.json` (miles de nombres, RF-20c) **no va dentro de la DLL**: se publica como
+`gw2_lurker_guilds.zip` + `gw2_lurker_guilds.zip.md5` en el mismo repositorio, y el addon lo
+descarga la primera vez que arranca sin él (o cuando el jugador pulsa *Descargar el índice* en
+los ajustes).
+
+| Dato | Valor |
+|---|---|
+| Fichero | `gw2_lurker_guilds.zip` (un solo `guild-names.json` en la raíz) |
+| Checksum | `gw2_lurker_guilds.zip.md5`, mismo formato que el de la DLL |
+| URL por defecto | `https://raw.githubusercontent.com/cbart-cmd/gw2addonsreleases/main/gw2_lurker_guilds.zip` |
+| Script | `scripts/pack-guild-index.ps1` (`-Publish` para subirlo) |
+
+Se empaqueta y publica con:
+
+```
+pwsh -File scripts/pack-guild-index.ps1              # empaqueta y verifica, sin tocar lo remoto
+pwsh -File scripts/pack-guild-index.ps1 -Publish      # sube el ZIP y su .md5
+```
+
+El script aborta si el JSON de origen está vacío, si el `.md5` no mide 32 bytes, si el ZIP no
+lleva el `guild-names.json` dentro, si el blob preparado es un puntero LFS o si la descarga
+publicada no coincide en bytes y MD5. La excepción de LFS para `gw2_lurker_guilds.zip` se añade
+al `.gitattributes` del repo de distribución **antes** del `git add`.
+
+El ZIP **no** cuelga de una release: vive en `main`, así que la URL es estable y no hay que
+tocar nada en el addon para republicarlo.
+
 ## Flujo
 
 Todo esto lo hace `scripts/release.ps1`; los pasos quedan aquí como contrato de lo que el

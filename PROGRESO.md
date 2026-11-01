@@ -13,6 +13,38 @@ Reglas:
 
 ---
 
+## HECHO – 2026-11-01 · Cuelgue mío (0.24.2), avisos solo de estructuras y el índice fuera de memoria (0.25.0)
+
+- **0.24.2 — el cuelgue del jugador a las 00:40 era mío.** El aviso naranja de «partida congelada»
+  que añadí en la 0.24.1 llamaba a `crate::runtime()` **dentro** de `draw_health`, que ya recibe la
+  configuración bloqueada: `Mutex` no reentrante → el hilo de render se espera a sí mismo y el juego
+  se congela. El log acababa en `sondeo 50` sin pánico (el worker seguía vivo) y el `arcdps_crash`
+  del directorio era del 30/10, así que no había excepción: era un bloqueo. **Misma trampa del
+  2026-10-31, en otro sitio.** Revisadas las demás llamadas a `runtime()` de `ui/mod.rs`: todas
+  están fuera del candado (callbacks del menú, pestaña Clanes y `draw_openers`).
+- **0.25.0 — cuatro peticiones**, con ADR-016:
+  1. **Avisos solo de estructuras** (RF-19e): `AlertFilter::structures` con una casilla por tipo
+     reclamable; ruinas, mercenarios y *bloodlust* nunca avisan. Un objetivo de tipo **desconocido
+     sí** avisa (la tabla de objetivos llega una vez por sesión; descartarlo dejaba el addon mudo).
+  2. **Nombres fuera del índice** (RF-20b): `Config::guild_names` en `settings.json`; `names.rs`
+     pasa a ser solo el índice, sin `load`/`all`/`get`. El worker mezcla (no sustituye) para no
+     pisar lo que el render acaba de añadir.
+  3. **El índice se distribuye** (RF-20c): `scripts/pack-guild-index.ps1` genera
+     `gw2_lurker_guilds.zip` (9 886 nombres, 297 532 B) + `.md5` (`c8941df1…`) y lo publica en
+     `gw2addonsreleases`. Verificado bajando la URL real (bytes y MD5). Añadida la dependencia
+     `zip` 2.x (`deflate`), la misma que usa `gw2-rotation-builds`; el MD5 va en `md5.rs` con los
+     vectores del RFC 1321 para no añadir otra caja.
+  4. **Al añadir un clan** que no está en el índice se pide su nombre y se añade (`names::append`
+     en un hilo corto, `publish` por lectura-mezcla-escritura con `.tmp` + rename).
+- **Trampa nueva (apúntala):** `ui::settings::body` y `ui::guilds::body` reciben `&mut Config`, o
+  sea que **el render ya tiene el candado**. Cualquier cosa que llame a `crate::runtime()` desde
+  ahí (o desde `follow::add_section`) cuelga el juego. Para escribir nombres desde la ventana se
+  pasa `&mut config.guild_names` y deja que `persist_if_changed()` guarde.
+- **Callejón sin salida:** `git push` al repo compartido fue rechazado porque alguien más había
+  publicado (`2e52ec2 Update README…`). El script nuevo comprueba el código de salida de
+  `commit`/`push` y ahora aborta en vez de decir «ok» (antes lo decía con el push fallido).
+- Verificación: 241 tests, clippy/fmt limpios, `check_loc.sh` y `check_traceability.sh` en verde.
+  Publicadas 0.24.2 y 0.25.0; ZIP del índice verificado en su URL.
 ## HECHO – 2026-11-01 · La causa de «deja de registrar eventos»: la API congela la partida (0.24.1)
 
 - El jugador reapuntó los «~10 minutos» y aportó captura (`image-6.png`): a las 00:15 la cabecera

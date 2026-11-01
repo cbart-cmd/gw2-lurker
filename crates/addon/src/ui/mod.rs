@@ -420,7 +420,7 @@ fn draw_tabs(
                     follow::add_section(
                         ui,
                         &mut config.followed,
-                        data.names,
+                        &mut config.guild_names,
                         data.candidates,
                         team,
                         &session,
