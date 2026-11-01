@@ -1,6 +1,15 @@
 # Changelog
 Formato [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/), versionado [SemVer](https://semver.org/lang/es/).
 
+## [0.25.15] - 2026-11-01
+### Cambiado
+- **La pestaña *Mapa* se abre en el mapa en el que estás** (petición del jugador): al entrar desde
+  otra pestaña se dibuja el mapa que da el Mumble, así que si cambias de mapa en el juego lo ves al
+  abrirla sin tocar el desplegable.
+- La excepción sigue siendo clicar un clan (su fila en *Clanes* o el botón `i`): entonces se abre el
+  mapa donde ese clan reclamó, que es lo que se quiere ver de su ruta.
+- Quedarse en la pestaña no cambia el mapa elegido a mano en el desplegable.
+
 ## [0.25.14] - 2026-11-01
 ### Cambiado
 - **La lista de clanes del widget lleva dos botones por fila** (petición del jugador): `+` para seguir

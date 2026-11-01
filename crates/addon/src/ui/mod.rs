@@ -362,6 +362,8 @@ fn draw_tabs(
     // until the last ones were unreachable. With the scroll policy it draws the little arrows in
     // the bar, which is the «...» that was asked for (report of 2026-10-31).
     let jump = WANT_TAB.load(Ordering::Relaxed);
+    // Pestaña que se dibuja este fotograma: imgui solo ejecuta el contenido de la elegida.
+    let mut shown = usize::MAX;
     if let Some(_bar) = TabBar::new("###gw2lurker_tabs")
         .flags(TabBarFlags::FITTING_POLICY_SCROLL)
         .begin(ui)
@@ -371,108 +373,113 @@ fn draw_tabs(
             if jump == index {
                 item = item.flags(TabItemFlags::SET_SELECTED);
             }
-            item.build(ui, || match index {
-                // Todas las ramas devuelven el clan que se ha clicado, si lo hay: con él se
-                // selecciona la ruta (petición de 2026-10-31).
-                0 => {
-                    clicked = alerts::body(ui, data.alerts, data.now);
-                }
-                1 => {
-                    let selected = guilds::selected_guild();
-                    let history = selected
-                        .as_deref()
-                        .map(|guild| crate::worker::dashboard().guild_history(guild))
-                        .unwrap_or_default();
-                    let session = crate::worker::dashboard().session_guilds();
-                    map::body(
-                        ui,
-                        &map::View {
-                            states: data.states,
-                            names: data.objectives,
-                            maps: data.maps,
-                            follow: data.follow,
-                            guild_names: data.names,
-                            opacity: config.window(WIDGET).opacity,
-                            real_map: config.map_tiles,
-                            history: &history,
-                            guild: selected.as_deref(),
-                            session_guilds: &session,
-                        },
-                        &mut map_choice(),
-                        data.current,
-                    );
-                    if let Some(guild) = selected.as_deref() {
-                        // ADR-005: la ruta es una deducción y se dice siempre; RF-35: si sigue en
-                        // otro mapa, el resumen lo anuncia. Va aquí, junto al dibujo, porque la
-                        // pestaña *Clanes* ya no la escribe (petición del jugador, 2026-11-01).
-                        if let Some(summary) = map::summary(&history, guild, i18n::effective()) {
-                            ui.text_disabled(i18n::text(
-                                "Route inferred from claims; it is not the real path.",
-                            ));
-                            ui.text(summary);
+            item.build(ui, || {
+                shown = index;
+                match index {
+                    // Todas las ramas devuelven el clan que se ha clicado, si lo hay: con él se
+                    // selecciona la ruta (petición de 2026-10-31).
+                    0 => {
+                        clicked = alerts::body(ui, data.alerts, data.now);
+                    }
+                    1 => {
+                        let selected = guilds::selected_guild();
+                        let history = selected
+                            .as_deref()
+                            .map(|guild| crate::worker::dashboard().guild_history(guild))
+                            .unwrap_or_default();
+                        let session = crate::worker::dashboard().session_guilds();
+                        map::body(
+                            ui,
+                            &map::View {
+                                states: data.states,
+                                names: data.objectives,
+                                maps: data.maps,
+                                follow: data.follow,
+                                guild_names: data.names,
+                                opacity: config.window(WIDGET).opacity,
+                                real_map: config.map_tiles,
+                                history: &history,
+                                guild: selected.as_deref(),
+                                session_guilds: &session,
+                            },
+                            &mut map_choice(),
+                            data.current,
+                        );
+                        if let Some(guild) = selected.as_deref() {
+                            // ADR-005: la ruta es una deducción y se dice siempre; RF-35: si sigue en
+                            // otro mapa, el resumen lo anuncia. Va aquí, junto al dibujo, porque la
+                            // pestaña *Clanes* ya no la escribe (petición del jugador, 2026-11-01).
+                            if let Some(summary) = map::summary(&history, guild, i18n::effective())
+                            {
+                                ui.text_disabled(i18n::text(
+                                    "Route inferred from claims; it is not the real path.",
+                                ));
+                                ui.text(summary);
+                            }
+                        }
+                        // The list is the same data as the map, one click away: during a fight the
+                        // text is faster to read than the picture.
+                        ui.separator();
+                        if nexus::imgui::CollapsingHeader::new(i18n::widget("Matchup claims"))
+                            .build(ui)
+                        {
+                            matchup::body(
+                                ui,
+                                filters,
+                                data.claims,
+                                data.current,
+                                data.follow,
+                                data.names,
+                            );
                         }
                     }
-                    // The list is the same data as the map, one click away: during a fight the
-                    // text is faster to read than the picture.
-                    ui.separator();
-                    if nexus::imgui::CollapsingHeader::new(i18n::widget("Matchup claims")).build(ui)
-                    {
-                        matchup::body(
+                    2 => {
+                        // T-44: seguir un clan y añadirlo se decide aquí, mirando la partida, no en
+                        // los ajustes (petición de 2026-10-31).
+                        let team = crate::team::selected_in(config);
+                        let session = crate::worker::dashboard().session_guilds();
+                        clicked = follow::followed_section(
                             ui,
-                            filters,
-                            data.claims,
-                            data.current,
-                            data.follow,
-                            data.names,
-                        );
-                    }
-                }
-                2 => {
-                    // T-44: seguir un clan y añadirlo se decide aquí, mirando la partida, no en
-                    // los ajustes (petición de 2026-10-31).
-                    let team = crate::team::selected_in(config);
-                    let session = crate::worker::dashboard().session_guilds();
-                    clicked = follow::followed_section(
-                        ui,
-                        &mut config.followed,
-                        data.names,
-                        &mut config.guild_names,
-                    );
-                    follow::add_section(
-                        ui,
-                        &mut config.followed,
-                        data.names,
-                        &mut config.guild_names,
-                        data.candidates,
-                        team,
-                        &session,
-                    );
-                    ui.separator();
-                    match guilds::body(
-                        ui,
-                        data.guilds,
-                        data.names,
-                        &mut config.guild_labels,
-                        data.follow,
-                        data.current,
-                        |guild| crate::worker::dashboard().guild_history(guild),
-                    ) {
-                        Some(guilds::Action::Follow(guild)) => follow::add_followed(
                             &mut config.followed,
                             data.names,
                             &mut config.guild_names,
-                            &guild,
-                        ),
-                        // `i`: la ruta se dibuja en el mapa, con el resto de la inferencia.
-                        Some(guilds::Action::ShowOnMap(guild)) => clicked = Some(guild),
-                        None => {}
+                        );
+                        follow::add_section(
+                            ui,
+                            &mut config.followed,
+                            data.names,
+                            &mut config.guild_names,
+                            data.candidates,
+                            team,
+                            &session,
+                        );
+                        ui.separator();
+                        match guilds::body(
+                            ui,
+                            data.guilds,
+                            data.names,
+                            &mut config.guild_labels,
+                            data.follow,
+                            data.current,
+                            |guild| crate::worker::dashboard().guild_history(guild),
+                        ) {
+                            Some(guilds::Action::Follow(guild)) => follow::add_followed(
+                                &mut config.followed,
+                                data.names,
+                                &mut config.guild_names,
+                                &guild,
+                            ),
+                            // `i`: la ruta se dibuja en el mapa, con el resto de la inferencia.
+                            Some(guilds::Action::ShowOnMap(guild)) => clicked = Some(guild),
+                            None => {}
+                        }
                     }
-                }
-                3 => {
-                    clicked = alerts::log_body(ui, data.alerts);
-                }
-                _ => {
-                    change = settings::body(ui, config, data.candidates, data.worlds);
+                    3 => {
+                        clicked = alerts::log_body(ui, data.alerts);
+                    }
+                    _ => {
+                        change = settings::body(ui, config, data.candidates, data.worlds);
+                    }
                 }
             });
         }
@@ -492,11 +499,35 @@ fn draw_tabs(
         }
         WANT_TAB.store(TAB_MAP, Ordering::Relaxed);
     }
+
+    // Al **entrar** en *Mapa* desde otra pestaña se abre el mapa en el que está el jugador, salvo
+    // que se llegue por un clic de clan, que abre el de ese clan (petición del jugador,
+    // 2026-11-01). Así, si cambia de mapa en el juego, lo ve al ir a la pestaña.
+    if snap_to_current(shown, LAST_TAB.load(Ordering::Relaxed), jump) {
+        if let Some(here) = data.current {
+            *map_choice() = here;
+        }
+    }
+    LAST_TAB.store(shown, Ordering::Relaxed);
+
     change
+}
+
+/// Whether entering the *Map* tab has to snap the drawing to the map the player is on.
+///
+/// `shown` es la pestaña dibujada este fotograma, `last` la del anterior y `jump` la que el widget
+/// ha pedido seleccionar (clic de clan). Se salta al mapa del jugador **solo** al entrar desde
+/// otra pestaña y **solo** si no se viene de seleccionar un clan: la ruta de un clan se dibuja en
+/// el mapa donde reclamó, no en el del jugador.
+fn snap_to_current(shown: usize, last: usize, jump: usize) -> bool {
+    shown == TAB_MAP && last != TAB_MAP && jump != TAB_MAP
 }
 
 /// Tab index of the *Map* tab inside [`TABS`].
 const TAB_MAP: usize = 1;
+
+/// Tab drawn on the previous frame, `usize::MAX` for «none». Session state, like the map choice.
+static LAST_TAB: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(usize::MAX);
 
 /// Tab the widget has to switch to on this frame, `usize::MAX` for «stay where the player is».
 ///
@@ -541,6 +572,35 @@ fn draw_openers(ui: &nexus::imgui::Ui) {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn rf30_the_map_tab_opens_on_the_map_i_am_on() {
+        // Petición del jugador (2026-11-01): al entrar en *Mapa* desde otra pestaña se abre el mapa
+        // en el que está, que es el que le importa; pero si llega por clicar un clan (`jump`), manda
+        // el mapa de ese clan (RF-32a).
+        let none = usize::MAX;
+        assert!(
+            snap_to_current(TAB_MAP, 0, none),
+            "entrar desde Alertas tiene que saltar al mapa del jugador"
+        );
+        assert!(
+            snap_to_current(TAB_MAP, 4, none),
+            "entrar desde Ajustes también"
+        );
+        assert!(
+            snap_to_current(TAB_MAP, none, none),
+            "al abrir el widget por primera vez, el mapa del jugador"
+        );
+        assert!(
+            !snap_to_current(TAB_MAP, TAB_MAP, none),
+            "quedarse en la pestaña no cambia el mapa elegido a mano"
+        );
+        assert!(!snap_to_current(3, 0, none), "solo la pestaña Mapa");
+        assert!(
+            !snap_to_current(TAB_MAP, 2, TAB_MAP),
+            "un clic de clan abre el mapa del clan, no el del jugador"
+        );
+    }
 
     #[test]
     fn rf18_the_shortcut_turns_click_through_on_and_off() {

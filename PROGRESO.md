@@ -13,6 +13,21 @@ Reglas:
 
 ---
 
+## HECHO – 2026-11-01 · La pestaña *Mapa* se abre en el mapa del jugador (0.25.15)
+
+- Petición del jugador: al entrar en la pestaña *Mapa* desde otra, y si no se llega por clicar un
+  clan, se abre en el mapa en el que está.
+- `draw_tabs` guarda en `shown` la pestaña que imgui dibuja este fotograma (`TabItem::build` solo
+  ejecuta la elegida, `arcdps-imgui` 0.8 `widget/tab.rs:98`) y la compara con la del fotograma
+  anterior (`LAST_TAB`). La regla va en `snap_to_current(shown, last, jump)`, pura y con test, y
+  excluye el salto programático: `jump` es la pestaña que pide `WANT_TAB`, que es justo lo que pone
+  un clic de clan, así que la ruta de un clan sigue abriendo **su** mapa (RF-32a).
+- `map_choice` se queda como estaba: es la elección de la sesión, y esto solo la mueve al entrar.
+- Spec: RF-30 gana el GWT de este caso. `bugs.md` con la entrada de hoy.
+- Publicado en **0.25.15** e instalado en el juego. `cargo fmt`, `clippy -D warnings`, 264 tests,
+  `check_loc.sh` y `check_traceability.sh` en verde.
+- **No verificado:** verlo cambiando de mapa en el juego.
+
 ## HECHO – 2026-11-01 · Lista de clanes: `+` para seguir e `i` para ver la ruta en el mapa (0.25.14)
 
 - Petición del jugador: en la pestaña *Clanes*, la lista ordenada por reclamo no decía qué hacía

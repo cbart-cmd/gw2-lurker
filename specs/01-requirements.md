@@ -211,6 +211,7 @@ La ruta se etiqueta como **inferida** (RF-33): es una reconstrucción, no el rec
 ## D. Vistas de mapa
 
 **RF-30 (M)** Mapa simplificado por mapa de WvW: objetivos como figuras coloreadas por equipo (forma por tipo) sobre un fondo esquemático, sin texturas del juego (ADR-002). Selector de mapa. Los límites se toman de `continent_rect` de `/v2/maps` (ADR-011) y los objetivos con `coord: null` se omiten del dibujo en lugar de dibujarse en (0,0).
+- GWT: *Given* el jugador cambia de mapa en el juego, *When* entra en la pestaña *Mapa* desde otra, *Then* se abre en el mapa en el que está (petición del jugador, 2026-11-01). Quedarse en la pestaña no cambia el mapa elegido a mano, y llegar desde un clic de clan (RF-32a) abre el mapa de ese clan, no el del jugador.
 
 **RF-30a (M)** El mapa tendrá filtros por tipo de objetivo (campamento, torre, fortaleza, castillo) activables individualmente y **persistentes** entre sesiones. Los tipos sin valor de puntuación (`Ruins`, `Mercenary`, `Spawn`, `Resource`, `Generic`) estarán ocultos por defecto.
 - GWT: *Given* solo "torre" y "castillo" activos, *When* se repinta el mapa, *Then* no se dibuja ningún campamento, pero la capa de claims seguidos sigue mostrando los suyos.

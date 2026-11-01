@@ -30,4 +30,13 @@ tipo "i" de información, que haga la inferencia sobre el mapa y no en texto aba
   el dibujo. Clicar la fila sigue enseñando el historial del clan (RF-72).
 - **Pendiente:** verlo en el juego.
 
+## [x] la pestaña de mapas se abre en el mapa en el que estoy (2026-11-01)
+«cuando cambie de mapa, si en el widget voy a la pestaña de mapas desde otra y no sea porque he
+clicado un clan, me abra el mapa en el que estoy»
+- **Hecho (0.25.15):** entrar en la pestaña *Mapa* desde otra pestaña salta al mapa donde está el
+  jugador (el que da el Mumble). Si se llega por clicar un clan —la fila de *Clanes* o el `i`— manda el
+  mapa donde ese clan reclamó, como hasta ahora. Quedarse en la pestaña no cambia el mapa que hayas
+  elegido a mano en el desplegable.
+- **Pendiente:** verlo en el juego cambiando de mapa.
+
 
