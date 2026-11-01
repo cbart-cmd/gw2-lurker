@@ -32,6 +32,10 @@ Reglas:
   y el mismo número de reclamados que `claims`) y
   `rf30b_an_objective_owned_without_claim_keeps_its_colour_on_the_hover`.
 - Spec actualizada (RF-30b): el color sale del `owner` del objetivo, **no** del reclamo.
+- Publicado en **0.25.13**: commit `7d4f7a8`, DLL MD5 `bfd73176da612973cc4945042a4cb12a`, release
+  `gw2-lurker-v0.25.13` en `gw2addonsreleases`. `install.ps1` **no pudo copiarla**: GW2 estaba abierto
+  y bloquea la DLL (la instalada era la 0.25.8). Se instalará al cerrar el juego, o Nexus la sustituye
+  en el siguiente arranque.
 - **No verificado:** falta verlo en el juego con una captura sin reclamar.
 
 ## HECHO – 2026-11-01 · Ajustes por defecto de una instalación nueva (0.25.12)
