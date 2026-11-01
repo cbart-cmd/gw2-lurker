@@ -13,6 +13,7 @@ pub(super) fn draw_health(
     ui: &nexus::imgui::Ui,
     config: &mut crate::config::Config,
     data: &Tabbed,
+    team_id: Option<u32>,
 ) {
     let state = crate::context::snapshot();
     let (
@@ -39,7 +40,6 @@ pub(super) fn draw_health(
             board.payload_since,
         )
     };
-    let team_id = crate::team::selected_in(config);
     let language = i18n::effective().code();
 
     // El jugador reconoce el mapa por su nombre, no por el id de Mumble: el id solo se enseña
@@ -67,100 +67,103 @@ pub(super) fn draw_health(
     // Nada de «1-1»: eso es un código interno del API. Lo que el jugador reconoce es **quién
     // juega** en su partida, con sus colores. El id sigue en el log, que es donde sirve
     // (insistencia del jugador, 2026-10-31: «soy humano, nadie dice 1-1»).
-    if let Some(id) = &match_id {
-        let region = match region_of_matchup(id) {
-            "NA" => i18n::text("North America"),
-            "EU" => i18n::text("Europe"),
-            _ => i18n::text("Unknown region"),
-        };
-        ui.text_disabled(i18n::format("Match in {0}", &[region]));
-        let teams: Vec<String> = [TeamColor::Green, TeamColor::Blue, TeamColor::Red]
-            .into_iter()
-            .filter_map(|colour| {
-                let candidate = candidates
-                    .iter()
-                    .find(|c| c.match_id == *id && c.color == colour)?;
-                let name = crate::team::display_name(config, language, candidate.team_id);
-                Some(format!("{} · {name}", colour_label(colour)))
-            })
-            .collect();
-        if !teams.is_empty() {
-            ui.text_wrapped(teams.join("   "));
+    if team_id.is_some() {
+        if let Some(id) = &match_id {
+            let region = match region_of_matchup(id) {
+                "NA" => i18n::text("North America"),
+                "EU" => i18n::text("Europe"),
+                _ => i18n::text("Unknown region"),
+            };
+            ui.text_disabled(i18n::format("Match in {0}", &[region]));
+            let teams: Vec<String> = [TeamColor::Green, TeamColor::Blue, TeamColor::Red]
+                .into_iter()
+                .filter_map(|colour| {
+                    let candidate = candidates
+                        .iter()
+                        .find(|c| c.match_id == *id && c.color == colour)?;
+                    let name = crate::team::display_name(config, language, candidate.team_id);
+                    Some(format!("{} · {name}", colour_label(colour)))
+                })
+                .collect();
+            if !teams.is_empty() {
+                ui.text_wrapped(teams.join("   "));
+            }
         }
-    }
-    // Si el juego dice que juegas con otro equipo, decirlo: es la causa de todos los «no salen
-    // avisos» hasta ahora (informe de 2026-10-31).
-    if let (Some(played), Some(configured)) = (played_team, team_id) {
-        if played != configured {
-            let played_name = crate::team::display_name(config, language, played);
-            let configured_name = crate::team::display_name(config, language, configured);
-            let _tint = ui.push_style_color(nexus::imgui::StyleColor::Text, [1.0, 0.6, 0.2, 1.0]);
-            ui.text_wrapped(i18n::format(
+        // Si el juego dice que juegas con otro equipo, decirlo: es la causa de todos los «no salen
+        // avisos» hasta ahora (informe de 2026-10-31).
+        if let (Some(played), Some(configured)) = (played_team, team_id) {
+            if played != configured {
+                let played_name = crate::team::display_name(config, language, played);
+                let configured_name = crate::team::display_name(config, language, configured);
+                let _tint =
+                    ui.push_style_color(nexus::imgui::StyleColor::Text, [1.0, 0.6, 0.2, 1.0]);
+                ui.text_wrapped(i18n::format(
                 "The game says you play with {0}, but the addon watches {1}: change the team in Settings.",
                 &[&played_name, &configured_name],
             ));
+            }
         }
-    }
-    // A saved team that no longer plays leaves the addon watching a matchup that is not the
-    // player's: saying it out loud is the difference between "no funciona" and "elige equipo".
-    if let gw2lurker_core::select::Selection::Stale { previous } = selection {
-        let _tint = ui.push_style_color(nexus::imgui::StyleColor::Text, [1.0, 0.75, 0.3, 1.0]);
-        ui.text_wrapped(i18n::format(
-            "The saved team ({0}) is not playing right now: pick it again in Settings.",
-            &[&previous.to_string()],
-        ));
-    }
-    let summary = match &health {
-        crate::worker::Health::Idle => i18n::text("No data yet").to_owned(),
-        crate::worker::Health::Ok { .. } => {
-            i18n::format("{0} claimed objectives", &[&data.claims.len().to_string()])
+        // A saved team that no longer plays leaves the addon watching a matchup that is not the
+        // player's: saying it out loud is the difference between "no funciona" and "elige equipo".
+        if let gw2lurker_core::select::Selection::Stale { previous } = selection {
+            let _tint = ui.push_style_color(nexus::imgui::StyleColor::Text, [1.0, 0.75, 0.3, 1.0]);
+            ui.text_wrapped(i18n::format(
+                "The saved team ({0}) is not playing right now: pick it again in Settings.",
+                &[&previous.to_string()],
+            ));
         }
-        crate::worker::Health::Degraded { error, .. } => {
-            i18n::format("Error: {0}", &[&i18n::format_api_error(error)])
+        let summary = match &health {
+            crate::worker::Health::Idle => i18n::text("No data yet").to_owned(),
+            crate::worker::Health::Ok { .. } => {
+                i18n::format("{0} claimed objectives", &[&data.claims.len().to_string()])
+            }
+            crate::worker::Health::Degraded { error, .. } => {
+                i18n::format("Error: {0}", &[&i18n::format_api_error(error)])
+            }
+        };
+        let when = updated.map(crate::clock::clock_seconds).unwrap_or_default();
+        if when.is_empty() {
+            ui.text_disabled(summary);
+        } else {
+            ui.text_disabled(format!(
+                "{summary} · {}",
+                i18n::format("Last update {0}", &[&when])
+            ));
         }
-    };
-    let when = updated.map(crate::clock::clock_seconds).unwrap_or_default();
-    if when.is_empty() {
-        ui.text_disabled(summary);
-    } else {
-        ui.text_disabled(format!(
-            "{summary} · {}",
-            i18n::format("Last update {0}", &[&when])
-        ));
-    }
-    // Cuándo vio el juego el último reclamo de esta partida: si eso es viejo, el addon no está
-    // parado, es que aquí no ha reclamado nadie (informe de 2026-10-31).
-    if let Some(at) = last_claim_at {
-        let minutes = chrono::Utc::now()
-            .signed_duration_since(at)
-            .num_minutes()
-            .max(0);
-        ui.text_disabled(i18n::format(
-            "Newest claim {0} min ago",
-            &[&minutes.to_string()],
-        ));
-    }
-    // La partida puede quedarse congelada en la API de ArenaNet mientras el sondeo sigue vivo:
-    // el 2026-11-01 la copia de `1-1` no cambió en 20 minutos (puntos incluidos) y el jugador lo
-    // leyó como «ha dejado de funcionar». Se dice, en naranja, con los minutos y el intervalo.
-    let polling = crate::context::gate();
-    if polling.show_ui && polling.poll {
-        if let Some(since) = payload_since {
+        // Cuándo vio el juego el último reclamo de esta partida: si eso es viejo, el addon no está
+        // parado, es que aquí no ha reclamado nadie (informe de 2026-10-31).
+        if let Some(at) = last_claim_at {
             let minutes = chrono::Utc::now()
-                .signed_duration_since(since)
+                .signed_duration_since(at)
                 .num_minutes()
                 .max(0);
-            if minutes >= 5 {
-                // Del `config` que ya tiene el candado, **nunca** de `crate::runtime()`: pedirlo
-                // aquí volvía a bloquear el mismo mutex no reentrante y congelaba el juego
-                // (crash del jugador, 2026-11-01 00:40; es el mismo fallo del 2026-10-31).
-                let secs = config.poll_secs.to_string();
-                let _tint =
-                    ui.push_style_color(nexus::imgui::StyleColor::Text, [1.0, 0.75, 0.3, 1.0]);
-                ui.text_wrapped(i18n::format(
+            ui.text_disabled(i18n::format(
+                "Newest claim {0} min ago",
+                &[&minutes.to_string()],
+            ));
+        }
+        // La partida puede quedarse congelada en la API de ArenaNet mientras el sondeo sigue vivo:
+        // el 2026-11-01 la copia de `1-1` no cambió en 20 minutos (puntos incluidos) y el jugador lo
+        // leyó como «ha dejado de funcionar». Se dice, en naranja, con los minutos y el intervalo.
+        let polling = crate::context::gate();
+        if polling.show_ui && polling.poll {
+            if let Some(since) = payload_since {
+                let minutes = chrono::Utc::now()
+                    .signed_duration_since(since)
+                    .num_minutes()
+                    .max(0);
+                if minutes >= 5 {
+                    // Del `config` que ya tiene el candado, **nunca** de `crate::runtime()`: pedirlo
+                    // aquí volvía a bloquear el mismo mutex no reentrante y congelaba el juego
+                    // (crash del jugador, 2026-11-01 00:40; es el mismo fallo del 2026-10-31).
+                    let secs = config.poll_secs.to_string();
+                    let _tint =
+                        ui.push_style_color(nexus::imgui::StyleColor::Text, [1.0, 0.75, 0.3, 1.0]);
+                    ui.text_wrapped(i18n::format(
                     "ArenaNet's API has not published any change to this match for {0} min; the addon keeps polling every {1} s.",
                     &[&minutes.to_string(), &secs],
                 ));
+                }
             }
         }
     }

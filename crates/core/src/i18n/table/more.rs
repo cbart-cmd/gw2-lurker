@@ -7,6 +7,15 @@ use super::COLUMNS;
 /// The rest of the table: `(english key, [es, en, fr, de])`.
 pub const TEXT: &[(&str, [&str; COLUMNS])] = &[
     (
+        "No data until you choose a team in Settings.",
+        [
+            "No hay datos hasta que elijas un equipo en Ajustes.",
+            "No data until you choose a team in Settings.",
+            "Aucune donnée tant que vous n'avez pas choisi d'équipe dans les paramètres.",
+            "Keine Daten, bis du in den Einstellungen ein Team auswählst.",
+        ],
+    ),
+    (
         "Yes",
         ["Sí", "Yes", "Oui", "Ja"],
     ),

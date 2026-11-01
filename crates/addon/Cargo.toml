@@ -14,8 +14,8 @@ crate-type = ["cdylib"]
 
 [dependencies]
 chrono = { version = "0.4", default-features = false, features = ["std", "serde", "clock"] }
-gw2lurker-api = { path = "../api", version = "0.26.5" }
-gw2lurker-core = { path = "../core", version = "0.26.5" }
+gw2lurker-api = { path = "../api", version = "0.26.6" }
+gw2lurker-core = { path = "../core", version = "0.26.6" }
 log = "0.4"
 nexus = { git = "https://github.com/zerthox/nexus-rs", tag = "0.12.0", version = "0.12.0", features = [
     "arc",

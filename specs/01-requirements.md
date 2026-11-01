@@ -44,6 +44,7 @@ Comprobado el **2026-10-31** contra la API real, el código fuente de `nexus-rs`
 - GWT: *Given* el polling activo, *When* el jugador viaja a una ciudad, *Then* no se emiten peticiones de red y no se dibuja nada.
 
 **RF-03a (M)** Si no hay equipo configurado, el addon deberá pedir al usuario que elija su **equipo** (no su mundo) de la lista de equipos del match en curso, obtenida de `all_worlds` de `/v2/wvw/matches?ids=all` (ids 11xxx/12xxx). Se mostrará siempre `nombre (id)`, leyendo el nombre de la tabla versionada `data/wvw-teams.json`, porque la API oficial no expone nombres de equipo. Si un id no está en la tabla, se mostrará solo el id y se avisará de que falta el nombre (ADR-010).
+- **Pestañas sin equipo (2026-11-02, petición del jugador):** si la cuenta actual no tiene equipo elegido, cada pestaña de datos del widget muestra «No hay datos hasta que elijas un equipo en Ajustes» en lugar de su contenido. Ajustes permanece accesible y operativo. No se muestran estadísticas de la partida anterior como si fueran actuales; elegir equipo devuelve el contenido normal de las pestañas.
 - **Selector en dos pasos (2026-10-31):** región (EU/NA, deducida del prefijo del id: `2-x`/`1-x`) → matchup (`2-1`…`2-5`) → uno de sus **tres** equipos, con su color. Se ofrecen solo ids de equipo: `all_worlds` mezcla ids de mundo antiguos (`2xxx`) que nadie puede elegir.
 - **No se puede deducir el color del jugador:** Mumble solo expone `server_address`, `map_id`, `map_type`, `shard_id`, `instance` y `build_id`; `Identity::team_color_id` es un id de *tinte* (`/v2/colors`), no el color de WvW; `UserInfo` de Unofficial Extras no tiene campo de equipo; Nexus no lo expone. Por eso el color se conoce **después** de elegir equipo, y sirve para confirmar rivales (RF-03g), no para filtrar la primera elección.
 - **Validación automática:** cada vez que se entra en WvW se comprueba el equipo guardado contra los matchups vivos. Si sigue jugando, no se pregunta nada; si no aparece en ninguno (sorteo mensual), **el selector vuelve a abrirse solo**.
@@ -86,8 +87,9 @@ Comprobado el **2026-10-31** contra la API real, el código fuente de `nexus-rs`
 
 **RF-12 (M)** El usuario podrá elegir el ámbito de las alertas: *solo mi mapa actual* o *todos los mapas del match*.
 
-**RF-13 (M)** El addon deberá permitir activar/desactivar sonido y configurar un cooldown anti-spam por objetivo (por defecto 60 s).
-- GWT: *Given* cooldown 60 s, *When* un objetivo cambia de dueño dos veces en 30 s, *Then* solo se muestra una alerta (la segunda se agrupa en el log).
+**RF-13 (retirado)** Sonido y cooldown anti-spam fuera del alcance. El cooldown ya se retiró
+del formulario; el jugador retira expresamente el audio el 2026-11-02. No hay integración de audio
+ni una tarea pendiente a la espera de una futura API de Nexus.
 
 **RF-14 (M)** El addon deberá mantener un log de alertas recientes (últimas N configurables), accesible desde el widget en una ventana ampliada.
 
@@ -130,7 +132,7 @@ El click-through **no tiene casilla en los ajustes** (se quitó el 2026-11-01: e
 **RF-19d (C)** El **aviso emergente** (la ventana de arriba, la que dibuja el addon) muestra cualquier alerta que pase los filtros del jugador —tipo de aviso y alcance—, de una en una y durante los segundos que se configuren (0–20). No se usa el sistema de avisos de Nexus: `nexus-rs` 0.12 solo expone `send_alert(texto)`, sin título ni sonido, y duplicaba esta ventana (decisión de 2026-10-31 tras la confusión del jugador entre «toast» y «aviso emergente»).
 - GWT: *Given* dos reclamaciones seguidas, *When* llegan en el mismo sondeo, *Then* el pop-up enseña primero la más antigua y la siguiente cuando pasa su tiempo, nunca las dos a la vez.
 - GWT: *Given* una reclamación de un clan que no se sigue con «Guilds I follow» activo, *When* se detecta, *Then* no sale en el aviso emergente.
-- **El sonido sigue fuera**: no hay API de audio en `nexus-rs` 0.12 (comprobado en su código).
+- **Sin sonido**: retirado del alcance por el jugador el 2026-11-02; no queda pendiente de una API futura.
 
 **RF-19e (M)** Solo avisan las **estructuras que un clan puede reclamar**: campamentos, torres, fortalezas/garris y castillos, con una casilla por tipo (todas marcadas por defecto). Las ruinas, los campamentos mercenarios, los spawns y el resto del decorado **nunca** generan aviso, aunque esté marcado «el mapa en el que estoy» (petición del jugador, 2026-11-01: «no me avises cuando alguien capture ruinas»).
 - Un objetivo de tipo desconocido **sí** avisa: la tabla de objetivos llega una vez por sesión y hasta entonces todo es `Unknown`, así que descartarlo dejaría el addon mudo en vez de filtrar.
@@ -230,10 +232,16 @@ El click-through **no tiene casilla en los ajustes** (se quitó el 2026-11-01: e
 
 **RF-31 (M)** Capa de claims: marca visualmente los objetivos reclamados por guilds seguidas (anillo/etiqueta con tag de guild).
 
-**RF-32 (M)** Vista **Histórico** por guild: dibuja los claims en orden cronológico como polilínea numerada y direccional (ruta simulada), con selector de guild y de rango temporal. El claim **más reciente** se resaltará de forma inequívoca (relleno distinto y número en negrita), porque es el que el usuario quiere ver primero.
+**RF-32 (M)** Vista **Histórico** por guild: dibuja los claims en orden cronológico como estela numerada y direccional (ruta simulada), con selector de guild y de rango temporal. El claim **más reciente** se resaltará de forma inequívoca (relleno distinto y número en negrita), porque es el que el usuario quiere ver primero. Presentación B — Estela aprobada por el jugador el 2026-11-02 e implementada en 0.26.6:
+- Los enlaces son curvas con flechas; los tramos recientes son más gruesos y opacos que los antiguos. Las curvas alternan el lado para distinguir ida y vuelta; no representan caminos transitables ni navegación real.
+- Las revisitas comparten marcador sin perder sus números de paso. Un claim sin coordenadas permanece en la cronología, sin posición inventada y sin conectar sus vecinos saltándolo.
+- Un solo claim tiene marcador, sin estela; sin claims se muestra un estado vacío. Se conserva el origen inferido 0 de RF-32a.
 - GWT: *Given* 5 claims de la guild G en 2 h, *When* se selecciona G y el rango "últimas 2 h", *Then* se dibujan 5 nodos numerados unidos por flechas en orden temporal, con el 5 resaltado como más reciente.
 
 **RF-33 (M)** La vista Histórico deberá indicar de forma visible que la ruta es **inferida**, y los claims `late` y los tramos con `gap` se dibujarán con estilo distinto (trazo discontinuo).
+- Banner permanente: «Ruta inferida a partir de los claims; no es el recorrido real».
+- En B — Estela, un anillo fino representa el tiempo hasta el siguiente claim, no distancia ni duración de ocupación. Sin siguiente claim no hay anillo de intervalo.
+- Un intervalo entre claims **≥20 minutos** se marca en la cronología como «sin claims registrados»; no implica inactividad del clan ni equivale a un `gap` de sondeo.
 
 **RF-34 (M)** Al pasar el ratón por un objetivo del mapa se enseña **una línea** con dueño, clan, hora del claim y, al final, si es de alto valor: `Azul  ·  * [YaK] Dolyak Sanctuary  ·  12:31  ·  Alto valor`. El **nombre del objetivo no aparece**: el jugador ya sabe dónde está y alargaba la caja hasta tapar los objetivos vecinos (petición del jugador, 2026-11-01). El `*` marca los clanes que se siguen y sin claim la línea dice solo `Sin reclamar`.
 - El orden es deliberado: primero quién y cuándo, y el alto valor como matiz al final (petición del jugador, 2026-11-01).
@@ -242,7 +250,15 @@ El click-through **no tiene casilla en los ajustes** (se quitó el 2026-11-01: e
 
 **RF-35 (S)** Si los nodos cruzan mapas distintos, la ruta se divide en tramos por mapa con un indicador "salto a <mapa>".
 
-**RF-36 (C)** Reproducción animada de la ruta (play/pausa) sobre el tiempo.
+**RF-36 (C)** Reproducción animada de la ruta (play/pausa) sobre el tiempo. Comportamiento B — Estela aprobado por el jugador el 2026-11-02 e implementado en 0.26.6:
+- Línea de tiempo con posiciones proporcionales a las horas de los claims; selección por clic, arrastre o teclado. Muestra paso, hora, objetivo y tiempo desde el anterior. Los empates conservan el orden estable de H-05.
+- El paso seleccionado se destaca; los posteriores aparecen huecos y punteados como contexto de la reproducción, no como predicciones.
+- Play avanza **un claim cada 700 ms**, sin simular velocidad real, y se detiene al terminar. Desde el final empieza de nuevo; cambiar de clan pausa y selecciona su último paso. Salir de la pestaña Mapa pausa.
+- Ventana de estela: **Todo el historial disponible** (por defecto), **Última hora** o **Últimos 15 minutos**. Cuenta hacia atrás desde el paso seleccionado; el límite se incluye y lo anterior queda atenuado, sin borrar historial ni renumerar pasos.
+- Los cambios de mapa aparecen en la cronología y mantienen RF-35: no se unen gráficamente entre mapas.
+- Usa solo el historial en memoria de RF-24, sin consultas adicionales ni historial en disco. No separa escuadras, predice movimientos ni calcula caminos reales.
+- GWT: *Given* un paso seleccionado y ventana de 15 minutos, *When* hay claims exactamente 900 s y 901 s antes, *Then* el primero está dentro de la ventana y el segundo atenuado.
+- GWT: *Given* una reproducción en curso, *When* se sale de Mapa, *Then* queda pausada y no sigue avanzando.
 
 **RF-37 (C)** Fondo opcional del mapa con las teselas oficiales (servicio de teselas, continente de Las Brumas), descargadas en ejecución y guardadas en caché local; nunca empaquetadas en la DLL (ADR-011). Desactivado por defecto.
 

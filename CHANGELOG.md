@@ -2,7 +2,23 @@
 Formato [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/), versionado [SemVer](https://semver.org/lang/es/).
 
 ## [Unreleased]
+
+## [0.26.6] - 2026-11-02
+### Añadido
+- **B — Estela** en Mapa: curvas inferidas con flechas, recencia, revisitas agrupadas,
+  selección de paso y anillos de intervalo. Cronología proporcional a las horas reales,
+  ventanas Todo/1 h/15 min y play/pausa a 700 ms por claim; pausa al ocultar el mapa.
+- Los claims tardíos y los huecos de sondeo conservan sus marcas. Saltos de mapa y posiciones
+  ausentes no se conectan; los intervalos largos sin claims no se presentan como gaps de red.
+### Corregido
+- Sin equipo elegido para la cuenta actual, todas las pestañas de datos del widget indican
+  que hay que elegirlo en Ajustes, que sigue accesible. No se muestran estadísticas de la
+  partida anterior mientras falta esa elección.
 ### Cambiado
+- Modelos temporales preparados en el worker y geometría cacheada; arcos coincidentes y marcas
+  ligeras evitan agotar los índices de imgui con 2.000 claims. Sin consultas de API nuevas.
+- Audio retirado del alcance por petición del jugador; no había una integración implementada
+  que eliminar ni queda un pendiente esperando una API de Nexus.
 - El equipo se guarda **solo por cuenta** y no se migra nada de lo anterior: `settings.json` lo
   guarda ahora en `roster.by_account` y el `roster.by_character` de versiones anteriores se ignora
   (desaparece al guardar), así que cada cuenta elige su equipo **una vez** tras actualizar y todos
@@ -15,6 +31,10 @@ Formato [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/), versionado 
   minutos aunque el intervalo de sondeo sea de 5 s. Se mantienen el arranque, los cambios de
   contexto (`gate`), los avisos y los errores.
 - El log ya no guarda el nombre de tu cuenta de GW2: se pega en los informes.
+### Técnico
+- DLL release: 2 264 576 B, dentro del objetivo; sin dependencias añadidas.
+- Preparación de geometría con 2.000 claims: p95 0,056 ms. Cronología, objetivos y ruta con
+  imgui nativo local: p95 0,311 ms en el caso denso. No es una medición del frame completo de GW2.
 
 ## [0.26.5] - 2026-11-01
 ### Añadido

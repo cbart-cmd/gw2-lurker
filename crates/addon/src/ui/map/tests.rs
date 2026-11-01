@@ -8,7 +8,9 @@ use super::*;
 
 #[test]
 fn rf32a_the_drawn_route_includes_zero_and_keeps_claim_numbering() {
-    use super::route::{route_nodes, RouteCanvas};
+    use super::route::RouteCanvas;
+    use super::scene::Scene;
+    use gw2lurker_core::route::trail::{Trail, Window};
     let names: Vec<ObjectiveInfo> = serde_json::from_str(include_str!(concat!(
         env!("CARGO_MANIFEST_DIR"),
         "/../api/tests/fixtures/objectives_all.json"
@@ -45,32 +47,47 @@ fn rf32a_the_drawn_route_includes_zero_and_keeps_claim_numbering() {
         }),
         steps: vec![step("95-32"), step("95-33")],
     };
-    let nodes = route_nodes(&route, &names, &canvas, Some(1));
-    assert_eq!(nodes.len(), 2, "origin plus the first played claim");
-    assert_eq!(nodes[0].label(), "0");
-    assert!(nodes[0].origin);
-    assert_eq!(nodes[0].at, None, "no fabricated origin timestamp");
+    let claim = |id: &str| ClaimRow {
+        map_id: 95,
+        map_role: MapRole::GreenHome,
+        objective_id: id.into(),
+        name: None,
+        kind: ObjectiveType::Keep,
+        owner: Some(TeamColor::Green),
+        guild: "G".into(),
+        claimed_at: None,
+        points_tick: 10,
+    };
+    let rows = [claim("95-32"), claim("95-33")];
+    let trail = Trail::new(&rows, "G", &names, &[]);
+    let mut scene = Scene::prepare(&trail, &trail.view(0, Window::All), 95, &canvas);
+    scene.attach_origin(&route, &rows[..1], 95, &canvas);
+    assert!(
+        scene.origin_link.is_some(),
+        "zero connects to the first claim"
+    );
     assert_eq!(
-        nodes[0].point,
+        scene.origin,
         project(
             &frame,
             [garrison[0], garrison[1]],
             canvas.origin,
             canvas.size
         )
-        .unwrap()
     );
-    assert_eq!(nodes[1].label(), "1");
+    assert_eq!(scene.markers[0].label, "1");
     route.steps = vec![step("95-37")];
-    let nodes = route_nodes(&route, &names, &canvas, None);
-    assert_eq!(nodes.len(), 1, "origin and first claim share a marker");
-    assert_eq!(nodes[0].label(), "0/1");
-    assert!(nodes[0].origin && nodes[0].at.is_some());
-    route.steps.clear();
-    assert!(
-        route_nodes(&route, &names, &canvas, None).is_empty(),
-        "no orphaned zero"
-    );
+    let rows = [claim("95-37")];
+    let trail = Trail::new(&rows, "G", &names, &[]);
+    let mut scene = Scene::prepare(&trail, &trail.view(0, Window::All), 95, &canvas);
+    scene.attach_origin(&route, &rows, 95, &canvas);
+    assert_eq!(scene.markers.len(), 1);
+    assert_eq!(scene.markers[0].label, "0/1");
+    assert!(scene.origin_link.is_none());
+    let trail = Trail::new(&[], "G", &names, &[]);
+    let mut scene = Scene::prepare(&trail, &trail.view(0, Window::All), 95, &canvas);
+    scene.attach_origin(&route, &[], 95, &canvas);
+    assert!(scene.origin.is_none(), "no orphaned zero");
 }
 
 #[test]
@@ -413,7 +430,9 @@ fn rf32_the_cross_map_summary_lists_claims_without_inventing_an_origin() {
 #[cfg(not(debug_assertions))]
 #[ignore = "manual optimized CPU measurement; full render timing requires GW2"]
 fn rnf01_origin_route_preparation_cpu_budget() {
-    use super::route::{route_nodes, RouteCanvas};
+    use super::route::RouteCanvas;
+    use super::scene::Scene;
+    use gw2lurker_core::route::trail::{Trail, Window};
     let names: Vec<ObjectiveInfo> = serde_json::from_str(include_str!(concat!(
         env!("CARGO_MANIFEST_DIR"),
         "/../api/tests/fixtures/objectives_all.json"
@@ -448,12 +467,22 @@ fn rnf01_origin_route_preparation_cpu_budget() {
         origin: [0.0, 0.0],
         size: [400.0, 560.0],
     };
+    let trail = Trail::new(&rows, "BENCH", &names, &[]);
     let mut times = Vec::new();
     for _ in 0..128 {
         let start = std::time::Instant::now();
-        let route =
-            gw2lurker_core::route::with_origin(&rows, "BENCH", 95, &states, &names, None).unwrap();
-        std::hint::black_box(route_nodes(&route, &names, &canvas, None));
+        let view = trail.view(rows.len() - 1, Window::All);
+        let borrowed: Vec<_> = trail.steps.iter().map(|s| s.claim.as_ref()).collect();
+        let (origin, origin_point) =
+            gw2lurker_core::route::locate_origin(&borrowed, "BENCH", &states, &names);
+        let route = gw2lurker_core::Route {
+            origin,
+            origin_point,
+            steps: Vec::new(),
+        };
+        let mut scene = Scene::prepare(&trail, &view, 95, &canvas);
+        scene.attach_origin(&route, borrowed.iter().copied(), 95, &canvas);
+        std::hint::black_box(scene);
         times.push(start.elapsed());
     }
     times.sort_unstable();

@@ -9,19 +9,18 @@
 
 Cada tarea es pequeña y verificable. Orden recomendado; las dependencias se indican entre paréntesis.
 
-## Estado a 2026-11-01 (0.25.7)
+## Estado a 2026-11-02 (0.26.6)
 
 Lo que **queda vivo**, con por qué:
 
 | Tarea | Qué falta | Necesita |
 |---|---|---|
-| **T-19** | Checklist manual en el juego (`manual-tests.md`, MT-01…MT-20) | El jugador |
 | **T-21 (S)** | RF-11 y RF-15 (avisos de bajada de yaks/upgrades y capturas informativas) | Programa |
-| **T-22 (C)** | El sonido opcional: `nexus-rs` 0.12 no tiene API de audio | API de Nexus |
-| **T-24** | Cerrar los pendientes de `05-wireframes.md` — **todos cerrados el 2026-11-01** | - |
 | **T-41 (S)** | Terminología fr/de con hablantes nativos | Nativos |
+| **Prueba B** | Probar el nuevo mapa 0.26.6 (MT-21); implementación T-51..T-53 terminada | El jugador |
 
-Todo lo demás está hecho y con test. El estado fino, con fechas y versiones, está en `PROGRESO.md`.
+Pruebas previas en juego aceptadas por indicación del jugador el 2026-11-02, sin atribuir nuevas
+mediciones a la IA. Audio retirado del alcance; T-24 ya estaba cerrado. El estado fino está en `PROGRESO.md`.
 
 ## Estados que la lista original describía y hoy no existen
 
@@ -116,6 +115,10 @@ Todo lo demás está hecho y con test. El estado fino, con fechas y versiones, e
   toda la ventana. El **pop-up** se activa y desactiva desde ahí (`popup_enabled` + `popup_secs`)
   y desde las opciones de Nexus, que además ofrecen **Ver la ventana**; el pop-up se dibuja
   aunque la ventana esté cerrada. (T-13, T-17) — RF-14, RF-16, RF-19a, RF-46
+  - **Ampliación ✔ (2026-11-02), RF-03a:** sin equipo en la cuenta actual, los cuerpos de Avisos,
+    Mapa, Clanes y Registro muestran el aviso de elegir equipo en Ajustes; Ajustes queda operativo.
+    No se enseñan estadísticas ni avisos de navegación de la partida anterior. Regla compartida
+    con dos tests puros (todas las pestañas y cuenta distinta); texto es/en/fr/de.
 - **T-43 ✔ (2026-10-31)** Enseñar en la lista de clanes el **nombre en inglés y la traducción** cuando exista.
   Falta decidir el origen de la traducción: el juego no traduce nombres de clan, así que solo puede
   salir de una tabla propia (como `data/team-names.json` para equipos) o de un campo que escriba el
@@ -191,7 +194,7 @@ Todo lo demás está hecho y con test. El estado fino, con fechas y versiones, e
 - **T-15 ✔ (2026-10-31, parcial)** Capa de claims sobre el mapa: los objetivos de las guilds seguidas
   llevan anillo dorado **y su tag** (RF-31), y el hover enseña dueño, alto valor, clan y hora. Falta
   la vista de estado por guild (RF-23). (T-14, T-11) — RF-31, RF-23
-- **T-16** Vista Histórico: ruta simulada numerada, flechas, selector de rango, banner de "inferida", estilo para `late`/`gap`, tooltip. (T-15) — RF-32, RF-33, RF-34
+- **T-16 ✔ (2026-11-02)** Vista Histórico: ruta simulada numerada, flechas, selector de rango, banner de "inferida", estilo para `late`/`gap`, tooltip. Completada con T-52/T-53. (T-15) — RF-32, RF-33, RF-34
 
 - **T-26 ✔ (2026-10-31)** Modo seguro: un `settings.json` ilegible se renombra a
   `settings.json.corrupt-<fecha>`, el addon sigue con los valores por defecto y **lo dice en rojo**
@@ -245,11 +248,13 @@ Todo lo demás está hecho y con test. El estado fino, con fechas y versiones, e
 ## Fase 5 – Aceptación y pulido
 
 - **T-18 ✔ (2026-10-31)** Medición de frame time con mapa abierto. *Hecho:* < 0.5 ms (RNF-01).
-- **T-19** Checklist manual en el juego: widget bloqueado sin capturar clics, activar/desactivar por mapa, reset semanal, sin red, API 503, guild con claims reales.
+- **T-19 ✔ (2026-11-02)** Checklist previa en juego aceptada por indicación expresa del jugador.
+  No implica una medición nueva por la IA ni la aceptación del nuevo seguimiento B (MT-21).
 - **T-20 ✔ (2026-10-31, parcial)** README, CHANGELOG, `docs/` de usuario, instalación, limitaciones conocidas (RNF-05), empaquetado de la DLL.
 - **T-28 ✔ (2026-10-31)** Módulo `theme`: herencia del estilo de Nexus, tema propio opcional aplicado solo a ventanas del addon (stack de estilo push/pop), colores de equipo fijos y fondo del widget configurable. (T-13, T-17) — RF-60..63
 - **T-21 (S) ✔ (2026-10-31, parcial)** RF-11, RF-15, RF-19b, RF-19c, RF-35, atajo/icono de Quick Access.
 - **T-22 (C) ✔ (2026-10-31, parcial)** RF-19d, RF-36, reproducción animada de la ruta.
+  Ampliación B — Estela completada en T-51..T-53 (0.26.6). Audio retirado por el jugador.
 
 ## Fase 6 – MVP de validación (backlog priorizado)
 
@@ -260,16 +265,15 @@ tarea indica de qué depende.
    *Hecho:* el HTML enseña widget, mapa, lista de guilds e historial con datos reales de
    ejemplo, y se puede abrir sin el juego. Requiere `PRODUCT.md` (flujo `impeccable init`).
    — RF-16, RF-30, RF-70..73
-2. **T-33 (M)** No dibujar nada ni pollear en carga, selección/creación de personaje: señal
+2. **T-33 (M) ✔ (2026-11-02)** No dibujar nada ni pollear en carga, selección/creación de personaje: señal
    `NexusLink::is_gameplay` con respaldo por `map_type`. (T-12) — RF-02, RF-02a
-   - **Parcial (2026-10-31):** la decisión pura está hecha en `core::gate` (6 tests). Falta
-     conectar `NexusLink::is_gameplay` y `Context` cuando exista T-12.
+   - Integrado en `ffi/context` y el gate de UI/worker; prueba previa aceptada por el jugador.
 3. **T-34 ✔ (2026-10-31)** Publicar la DLL en `..\gw2addonsreleases` siguiendo `docs/RELEASE.md`
    (MD5, excepción LFS, tag `gw2-lurker-v*`, retención actual+anterior). Automatizado en
    `scripts/release.ps1` (`-DryRun` / normal / `-VerifyOnly`), que aborta en vez de publicar
    un puntero LFS, un `.md5` que no mida 32 bytes o una descarga que no coincida. El fichero
    pasa a llamarse `gw2_lurker.dll` por el `[lib] name` del addon. (T-27) — RF-53
-4. **T-35 (M)** Arrancar el addon dentro del juego con este repo: `export!` real, versión
+4. **T-35 (M) ✔ (2026-11-02)** Arrancar el addon dentro del juego con este repo: `export!` real, versión
    visible y traza en `addons/Nexus/Nexus.log`. Es la T-01 ejecutada de verdad. (T-33, T-34)
 5. **T-36 ✔ (2026-10-31)** Vista **"Claims del matchup"**: los cuatro mapas agrupados y
    plegables, cada fila `hora · objetivo · clan` con el color del dueño y el mapa actual marcado
@@ -294,3 +298,29 @@ tarea indica de qué depende.
    (T-38) — RF-32a
 10. **T-41 (S)** Cerrar i18n: terminología de tipos con hablantes nativos de fr/de. (T-31)
     — RF-44, RNF-08
+
+## Fase 7 – B: Estela (implementada en 0.26.6; prueba nueva en juego MT-21)
+
+- **T-51 ✔ (2026-11-02)** Modelo puro y tests primero: pasos/intervalos, selección temporal, ventanas inclusivas
+  Todo/1 h/15 min, revisitas, datos incompletos y marcas de huecos ≥20 min. Conservar origen 0,
+  orden estable, `late`, `gap` y saltos de mapa; sin red ni persistencia del historial.
+  (T-16, T-40) — RF-24, RF-32, RF-32a, RF-33, RF-35, RF-36; H-15..H-20, H-23..H-25, H-27.
+  Implementado en `core::route::trail`: observaciones prestadas, índices estables, grupos de
+  revisitas y pares consecutivos incluso sin posición. Conserva `late`/`gap` de eventos
+  proporcionados, sin deducirlos de la separación entre claims; el origen sigue en `with_origin`.
+  11 tests nuevos (incluidos datos de coordenadas de la fixture oficial).
+  Solo modelo en esta tarea; dibujo e interacción completados posteriormente en T-52/T-53.
+- **T-52 ✔ (2026-11-02)** Dibujar B en Mapa: curvas alternadas con flechas y recencia por grosor/opacidad,
+  marcadores de revisitas, paso elegido y posteriores, anillos de intervalo, leyenda y aviso
+  de inferencia. Mantener el comportamiento sin clan seleccionado y las capas actuales.
+  (T-51) — RF-30, RF-31, RF-32, RF-32a, RF-33, RF-35; H-15, H-16, H-20, H-23..H-25, H-27.
+- **T-53 ✔ (2026-11-02)** Cronología interactiva e i18n: clic/arrastre/teclado, ventana Todo por defecto,
+  play/pausa a 700 ms por claim, parada al final, pausa al salir de Mapa y al cambiar clan.
+  Tests con reloj controlado y aceptación de los seis escenarios del boceto B. Medir coste
+  del render (RNF-01), validar en el juego y actualizar docs/CHANGELOG antes de cerrar;
+  no dar por verificado el rendimiento por el HTML.
+  (T-51, T-52) — RF-36, RF-44, RNF-01; H-16..H-19, H-21, H-22, H-24..H-27.
+  Tests con fixtures para tres casos normales y tres extremos, reloj controlado, pausa oculta,
+  refresco sin perder selección, reutilización de geometría y retención/reset de anotaciones.
+  Medición optimizada con el draw list real de imgui y preparación de geometría; no sustituye
+  el frame completo de GW2. MT-21 queda para probar esta versión, como pide el jugador.

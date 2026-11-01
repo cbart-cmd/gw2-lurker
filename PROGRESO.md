@@ -46,6 +46,74 @@ Reglas:
   verificarlos (403 entre carpetas, no redimensiona el viewport): se probaron con Edge del sistema
   y `playwright-core` (hay que reinstalarlo; no queda nada en el repo).
 
+## EN CURSO – 2026-11-02 · Completar B — Estela y publicar para probar
+
+- Petición: retirar el pendiente de audio, aceptar las pruebas anteriores en juego por indicación
+  del jugador y completar T-52/T-53. La aceptación previa no sustituye la prueba del nuevo mapa.
+- T-52: dibujo preparado y cacheado, curvas/flechas, revisitas, intervalos, origen y marcas `late`/`gap`.
+- T-53: cronología temporal con ratón/teclado, ventanas inclusivas y reproducción a 700 ms por claim;
+  pausa al ocultar Mapa/cambiar clan. Tests puros y medición CPU del render preparado.
+- Validar todo, actualizar docs/versión y publicar con `release.ps1`; comprobar descarga real.
+- Hallazgos corregidos: 2.000 claims agotaban los índices de 16 bits de imgui; se comparten arcos
+  coincidentes y la teselación se adapta a la densidad. La preparación temporal superaba 0,5 ms:
+  pasa al worker fuera del candado y se publica en una instantánea coherente con historia/eventos.
+- No se usa el intervalo entre claims como duración de un hueco de sondeo. Se conservan número
+  actual/último en revisitas densas. Medición nativa local, no simulación del juego ni medida GPU.
+- Gate en verde: fmt, clippy, loc, trazabilidad, versiones y 366 tests (4 ignorados de red).
+  Preparación de geometría con 2.000 claims p95 0,056 ms; cronología/objetivos/ruta nativos
+  p95 0,311 ms (20.860 vértices en el caso denso). DLL 0.26.6: 2.264.576 B, dentro del objetivo.
+  Un test preexistente de búsqueda con estado global compartido falló una vez en paralelo;
+  dos ejecuciones posteriores de la suite completa pasaron. No se altera su comportamiento.
+- `modelo.md` regenerado sin items sin descripción. Audio retirado y pruebas previas aceptadas
+  como decisión del jugador; no se atribuye una nueva ejecución en GW2. Falta publicar y MT-21.
+
+## HECHO – 2026-11-02 · RF-03a: aviso de equipo pendiente en todas las pestañas
+
+- Petición: sin equipo elegido, cualquier pestaña de datos debe explicar que no hay datos
+  hasta elegirlo en Ajustes; Ajustes debe seguir funcionando.
+- Regla compartida `navigation::tab_available` antes de dibujar cada cuerpo, probada sin Nexus,
+  y texto i18n en los cuatro idiomas. La cuenta actual se resuelve con `selected_in`, sin volver
+  a bloquear `RUNTIME`. Sin equipo se ocultan estadísticas y avisos de navegación anteriores,
+  conservando avisos generales (click-through, actualización, modo seguro).
+- Dos tests nuevos: todas las pestañas con/sin equipo y cuenta distinta sin equipo. RF-03a,
+  M-07/M-08, MT-03, T-42, CHANGELOG y `modelo.md` actualizados.
+- Validación completa en verde: fmt, clippy, loc, trazabilidad, versión y 355 tests pasados,
+  0 fallidos, 4 ignorados. `modelo.md`: 0 items sin descripción.
+- No verificado: dibujo dentro del juego (MT-03). Sin publicar, subir versión ni crear commit.
+  T-52/T-53 y los cambios pendientes de Estela se mantienen intactos.
+
+## HECHO – 2026-11-02 · T-51: modelo puro de B — Estela
+
+- `core::route::trail`: observaciones prestadas en orden temporal, cronología proporcional,
+  ventanas Todo/1 h/15 min inclusivas, intervalos, revisitas agrupadas y selección sin renumerar.
+- Cada par consecutivo conserva su identidad: salto de mapa, falta de posición, revisita o curva.
+  No se inventan posiciones/horas ni se conectan vecinos saltando un claim sin coordenadas.
+- `late` se cruza por clan/objetivo/hora con eventos originales; `gap` se conserva aparte del
+  silencio entre claims ≥20 min. Gaps solapados se fusionan para consultas logarítmicas.
+  `ClaimRow` no incluye esas marcas: T-52/T-53 deberán pasar los eventos retenidos al nuevo modelo.
+- Reutiliza la ordenación de `route` y deja el origen en `with_origin`; ni el dibujo ni los
+  controles actuales cambian. Sin dependencias nuevas, red, E/S ni reloj en la lógica.
+- 11 tests nuevos: límites 900/3600 s (también precisión subsegundo), umbral 1200 s, empates,
+  revisitas, clanes distintos, pasos rápidos/densos, mapas, coordenadas oficiales/ausentes/no
+  finitas, horas desconocidas, cero/un paso y selección fuera de rango acotada explícitamente.
+- Validación completa: fmt, clippy, loc, trazabilidad, versiones y tests en verde (353 pasados,
+  0 fallidos, 4 ignorados). `modelo.md` regenerado; 0 items sin descripción.
+- Pendiente: T-52 (dibujo), T-53 (controles/reproducción), seis casos visuales, medir render y
+  validar en el juego. No se publica ni se sube versión. Sin commit en este turno.
+
+## HECHO – 2026-11-02 · Spec aprobada de B — Estela; implementación pendiente
+
+- El jugador eligió B y aprobó la propuesta de spec antes de implementar. Solo se modifican docs;
+  no se cambia el addon, los bocetos ni la versión.
+- RF-32/RF-33/RF-36: curvas inferidas, recencia, cronología, ventanas Todo/1 h/15 min (Todo por
+  defecto), reproducción a 700 ms por claim, pausas, anillos de intervalo y huecos ≥20 min.
+- Se conservan origen 0, `late`, `gap`, saltos de mapa, revisitas y claims sin coordenadas.
+  Sin nuevas consultas, caminos reales, separación de escuadras ni historial en disco.
+- Diseño §8 alineado; escenarios H-15..H-27 y tareas pendientes T-51..T-53 añadidos.
+- Verificación documental: coherencia de IDs, límites inclusivos y distinción entre intervalo
+  sin claims y `gap` de sondeo. No procede compilar ni ejecutar tests Rust: no hay cambios de código.
+- Pendiente: implementar T-51..T-53, medir render y validar en el juego. Sin commit en este turno.
+
 ## HECHO – 2026-11-01 · El equipo se guarda solo por cuenta y no se migra nada (RF-03a)
 
 - Petición: `settings.json` «parece guardar el equipo por personaje»; la cuenta ya se recupera (arcdps),

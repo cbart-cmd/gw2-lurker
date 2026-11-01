@@ -94,7 +94,10 @@ pub use table::TEXT;
 
 /// All the entries of the table, in two files so neither grows past the line limit.
 fn entries() -> impl Iterator<Item = (&'static str, [&'static str; COLUMNS])> {
-    TEXT.iter().chain(table::more::TEXT.iter()).copied()
+    TEXT.iter()
+        .chain(table::more::TEXT.iter())
+        .chain(table::trail::TEXT.iter())
+        .copied()
 }
 
 /// Looks a key up in an arbitrary table. Kept separate so the English fallback can be tested

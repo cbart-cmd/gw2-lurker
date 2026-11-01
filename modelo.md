@@ -103,7 +103,7 @@ Estado global (en `addon/src/lib.rs` y `worker.rs`):
 
 <!-- GENERADO: no editar debajo; se rehace con scripts/gen_modelo.ps1 -->
 
-Generado el 2026-11-02 00:09 desde el commit `d2ccac1`.
+Generado el 2026-11-02 00:52 desde el commit `b840e17`.
 
 ## Crate `core`
 
@@ -254,7 +254,7 @@ When the addon may draw and poll (RF-01, RF-02, RF-02a).
 **Tests (7):** `rf01_playable_wvw_maps_show_and_poll`, `rf02a_loading_screen_wins_over_map_data`, `rf02a_character_select_and_redirect_are_transitions`, `rf02a_without_any_data_nothing_is_drawn`, `rf02_outside_wvw_hides_but_allows_settings`, `rf01_wvw_maps_without_objectives_are_excluded`, `rf01_the_lounge_shows_the_window_so_it_can_be_configured`
 
 
-### `crates/core/src/i18n.rs` (305 líneas)
+### `crates/core/src/i18n.rs` (308 líneas)
 
 Translation table (RF-44).
 
@@ -283,25 +283,37 @@ Translation table (RF-44).
 **Tests (12):** `rf44_every_column_is_filled`, `rf44_the_table_stays_inside_latin_1`, `rf44_keys_are_unique`, `rf44_unknown_key_is_returned_as_is`, `rf44_both_halves_of_the_table_are_looked_up`, `rf44_empty_cell_falls_back_to_english`, `rf44_format_substitutes_every_placeholder`, `rf44_widget_id_does_not_change_with_language`, `rf44_game_language_codes_match_nexus`, `rf44_windows_language_is_only_a_fallback`, `rf44_language_codes_round_trip`, `rf44_spanish_column_is_actually_spanish`
 
 
-### `crates/core/src/i18n/table.rs` (434 líneas)
+### `crates/core/src/i18n/table.rs` (435 líneas)
 
 The translation table itself (RF-44).
 
 **Contenido:**
 
 - `pub mod more`
+- `pub mod trail`
 - `pub const TEXT` — The table: `(english key, [es, en, fr, de])`.
 
 **Usa (interno):** `super::COLUMNS`, `super::more`
 
 
-### `crates/core/src/i18n/table/more.rs` (690 líneas)
+### `crates/core/src/i18n/table/more.rs` (699 líneas)
 
 The second half of the translation table (RF-44).
 
 **Contenido:**
 
 - `pub const TEXT` — The rest of the table: `(english key, [es, en, fr, de])`.
+
+**Usa (interno):** `super::COLUMNS`
+
+
+### `crates/core/src/i18n/table/trail.rs` (51 líneas)
+
+B - Estela messages (RF-32, RF-33, RF-36, RF-44).
+
+**Contenido:**
+
+- `pub const TEXT` — Route controls and their complete translations.
 
 **Usa (interno):** `super::COLUMNS`
 
@@ -440,12 +452,14 @@ Resolves the player's team inside a match snapshot (RF-03b, RF-03g).
 **Tests (3):** `rf03b_resolves_team_color_and_rivals`, `rf03b_linked_legacy_world_resolves_to_the_same_side`, `rf03b_unknown_team_is_not_resolved`
 
 
-### `crates/core/src/route.rs` (624 líneas)
+### `crates/core/src/route.rs` (630 líneas)
 
 Virtual route of a guild (T-40, RF-32a).
 
 **Contenido:**
 
+- `pub mod playback`
+- `pub mod trail`
 - `pub enum Origin` — Where the route starts, and why.
 - `impl Origin`
   - `pub fn reason(self) -> &'static str` — Short reason, for the caption under the route.
@@ -458,12 +472,72 @@ Virtual route of a guild (T-40, RF-32a).
 - `pub fn build<'a>(rows: &'a [ClaimRow], guild: &str) -> Option<Route<'a>>` — Builds chronological observations; locating an origin additionally requires [`with_origin`].
 - `fn ordered<'a>(…)` — Reclamos de un clan, filtrados opcionalmente por mapa y por fecha mínima, ordenados por `claimed_at` (los pasos de la ruta).
 - `fn build_claims<'a>(mine: &[&'a ClaimRow]) -> Option<Route<'a>>` — Convierte los reclamos ordenados en una `Route` sin origen (un paso por reclamo); `None` si no hay ninguno.
-- `fn locate_origin(…)` — Infiere el paso 0 (RF-32a): color del clan y, por prioridad, garri propia aún suya, Bahía/Colinas si toda la ruta va al norte (alpinos) o el respawn de su equipo.
+- `pub fn locate_origin(…)` — Infers an origin from chronological claims already restricted to one guild and map.
 - `fn origin_point(…)` — Posición del paso 0 a partir del objetivo: `coord` exacta o, si se permite, `label_coord` marcada como aproximada (los spawns no tienen `coord`).
 
 **Usa (interno):** `crate::matchup`, `crate::model`
 
 **Tests (16):** `rf32a_step_zero_locates_a_previously_claimed_home_garrison`, `rf32a_an_alpine_side_keep_requires_the_whole_segment_to_start_north`, `rf32a_a_future_garrison_cannot_be_the_departure_for_earlier_claims`, `rf32a_respawn_uses_the_guild_colour_and_the_official_label_position`, `rf32a_time_ranges_and_map_segments_do_not_change_earlier_departures`, `rf32a_enemy_garrisons_and_eternal_keeps_are_not_home_departures`, `rf32a_desert_uses_its_home_garrison_but_not_the_alpine_side_keep_rule`, `rf32a_missing_colour_or_coordinates_never_fabricates_step_zero`, `rf32a_route_follows_the_claim_order`, `rf32a_a_guild_without_claims_has_no_route`, `rf32a_claim_types_without_context_cannot_identify_a_garrison`, `rf32a_towers_do_not_identify_a_side_keep`, `rf32a_spawn_without_coordinates_remains_unknown`, `rf32a_the_origin_is_always_labelled_as_inferred`, `rf36_playback_shows_the_steps_it_has_reached`, `rf36_progress_goes_from_zero_to_one`
+
+
+### `crates/core/src/route/playback.rs` (117 líneas)
+
+Clock-injected step playback for B - Estela (RF-36).
+
+**Contenido:**
+
+- `const STEP` — One observation every 700 ms, not a simulation of movement speed.
+- `pub struct Playback` — Session-only player. The caller pauses it when the map is hidden or the guild changes.
+- `impl Playback`
+  - `pub fn reset(&mut self, count: usize)` — Selects the latest observation of a new guild and stops playback.
+  - `pub fn pause(&mut self)` — Pauses without losing the selected claim or counting elapsed time while hidden.
+  - `pub fn choose(&mut self, index: usize, count: usize)` — Selects an existing step, clamping after history eviction, and pauses.
+  - `pub fn toggle(&mut self, now: Duration, count: usize)` — Starts/resumes, or pauses. Play at the end restarts at the first observation.
+  - `pub fn tick(&mut self, now: Duration, count: usize)` — Advances with an injected monotonic clock, preserving sub-step remainder.
+
+**Tests (2):** `rf36_estela_playback_advances_at_700ms_and_stops_at_the_end`, `rf36_estela_pause_resume_and_scrubbing_do_not_count_hidden_time`
+
+
+### `crates/core/src/route/trail_tests.rs` (258 líneas)
+
+**Contenido:**
+
+- `fn at(seconds: i64) -> DateTime<Utc>` — Synthetic clock with explicit offsets for temporal boundary tests.
+- `fn row(id: &str, map_id: u32, seconds: Option<i64>) -> ClaimRow` — Synthetic observation; tests needing official coordinates load the objective fixture.
+- `fn names() -> Vec<ObjectiveInfo>` — Real objective catalogue shared with the existing origin tests.
+
+**Usa (interno):** `crate::model`
+
+**APIs externas:** `serde_json::from_str`
+
+**Tests (11):** `rf32_trail_preserves_revisits_and_orders_time_ties_by_objective`, `rf36_trail_windows_include_the_exact_limit_without_renumbering`, `rf33_trail_claim_silence_is_not_a_polling_gap`, `rf33_trail_preserves_late_events_and_overlapping_poll_gaps`, `rf32_trail_missing_coordinates_break_both_links_without_losing_the_step`, `rf36_trail_empty_single_and_equal_times_have_finite_timelines`, `rf36_trail_does_not_invent_times_or_intervals`, `rf32_trail_filters_the_guild_and_keeps_fast_claims_as_one_sequence`, `rf36_trail_unknown_times_stay_explicit_and_do_not_create_silence`, `rf36_trail_window_uses_exact_durations_not_rounded_seconds`, `rf32_trail_cannot_use_another_maps_or_nonfinite_coordinates`
+
+
+### `crates/core/src/route/trail.rs` (291 líneas)
+
+Pure temporal model for B - Estela (T-51, RF-32, RF-33, RF-36).
+
+**Contenido:**
+
+- `pub enum Window` — Time span behind the selected claim; observations outside it are dimmed, not discarded.
+- `impl Window`
+  - `fn duration(self) -> Option<TimeDelta>` — Window length, or no limit for the available history.
+- `pub enum Visibility` — How a claim is presented relative to the selected step.
+- `pub enum Connection` — Whether two consecutive observations can have a curved connector.
+- `pub struct Observation` — Claim with its official position and temporal information, without invented data.
+- `pub struct Leg` — One adjacent pair of observations, including pairs that must not be joined on the map.
+- `pub struct Group` — All visits to an objective on one map, in stable chronological order.
+- `pub struct Trail` — All observations of one guild; borrowed history and copied metadata only.
+- `pub struct View` — Selection and per-step visibility, with exactly one state per original observation.
+- `impl <'a> Trail<'a>`
+  - `pub fn new(…)` — Builds the guild timeline and preserves late/gap annotations from retained events.
+  - `pub fn view(&self, selected: usize, window: Window) -> View` — Classifies every step without filtering the source history.
+  - `pub fn into_owned(self) -> Trail<'static>` — Owns the observations for a UI cache without borrowing the live dashboard.
+- `fn group_visits(steps: &[Observation<'_>]) -> Vec<Group>` — Groups by map and objective while preserving each visit's index.
+- `fn merged_gaps(events: &[Event]) -> Vec<(DateTime<Utc>, DateTime<Utc>)>` — Merges polling gaps so interval lookups are logarithmic, even for overlapping input.
+- `mod tests`
+
+**Usa (interno):** `super::ordered`, `super::with_origin`
 
 
 ### `crates/core/src/select.rs` (383 líneas)
@@ -594,7 +668,7 @@ HTTP client for the public GW2 API and its response parsing.
 
 - `crates/addon/Cargo.toml` — Descomprime el ZIP del índice de nombres de clan (RF-20). `deflate` es la feature que trae el lector de flate2; el resto (bzip2, zstd, lzma, aes) no se pide, porque el ZIP lo generamos nosotros. Es la misma caja y la mis…
 
-### `crates/addon/src/alerts.rs` (197 líneas)
+### `crates/addon/src/alerts.rs` (209 líneas)
 
 Alert lines: the events of the session turned into something the widget can draw (T-13).
 
@@ -606,6 +680,7 @@ Alert lines: the events of the session turned into something the widget can draw
   - `pub fn push_alert(&mut self, event: Event)` — Añade un evento a la lista de avisos (salvo línea base y huecos) con la hora de recepción, recortando a `MAX_ALERTS`.
   - `pub fn recent_alerts(…)` — Recent events as ready-to-draw lines, **newest first** (RF-19), already filtered.
   - `fn alert_line(&self, event: &Event, received: DateTime<Utc>) -> Option<AlertLine>` — Traduce un `Event` del diff a la línea de aviso de la UI: nombre del objetivo, mapa (rol por el prefijo del id), tipo, clan y colores.
+- `pub fn retain_route_event(events: &mut std::sync::Arc<Vec<Event>>, event: &Event)` — Shares the annotation retention rule with the worker's prepared route snapshot.
 - `pub enum AlertKind` — What happened, for the alert widget.
 - `pub struct AlertLine` — One line of the alert widget.
 - `pub struct Received` — An event and the instant this addon learnt about it.
@@ -1372,13 +1447,16 @@ Objective glyphs drawn with primitives: the little drawing inside the team-colou
 **Tests (5):** `rf30_the_four_objectives_that_score_have_their_own_drawing`, `rf30_each_objective_is_told_apart_by_its_drawing_and_not_only_by_colour`, `rf30_a_tower_is_taller_than_a_camp_and_a_keep_wider_than_a_tower`, `rf38_a_generic_kind_still_gets_a_mark`, `rf38_the_glyph_is_centred_where_it_was_asked_to_be`
 
 
-### `crates/addon/src/ui/map.rs` (791 líneas)
+### `crates/addon/src/ui/map.rs` (774 líneas)
 
 Simplified map of one WvW map (T-14, RF-30).
 
 **Contenido:**
 
 - `mod route`
+- `mod scene`
+- `mod timeline`
+- `mod trail_tests`
 - `pub const KEY` — Translation key (and stable id) of this tab.
 - `const MAP_HEIGHT` — Height of the drawing area when the map has no usable proportions.
 - `const MIN_MAP_HEIGHT` — Smallest and biggest height the map may take when it keeps its real proportions.
@@ -1424,43 +1502,121 @@ Simplified map of one WvW map (T-14, RF-30).
 **APIs externas:** `nexus::imgui`, `nexus::imgui::DrawListMut`, `nexus::imgui::TextureId`, `nexus::texture::get_texture_or_create_from_file`, `disco: fs::metadata`, `imgui::DrawListMut`, `imgui::TextureId`, `imgui (dibuja con &Ui)`
 
 
-### `crates/addon/src/ui/map/route.rs` (339 líneas)
+### `crates/addon/src/ui/map/route.rs` (273 líneas)
 
-Ruta inferida de un clan y su reproducción (T-16, RF-32, RF-36).
+Native drawing of the cached B - Estela scene (T-52).
 
 **Contenido:**
 
-- `pub fn range_choice(ui: &Ui) -> Option<i64>` — Time window of the route, in minutes; `None` is the whole session (T-16).
-- `pub struct RouteCanvas` — Numbered, directed path of the chosen guild on this map (T-16, RF-32).
-- `pub struct RouteNode` — Punto de la ruta ya en pantalla: posición, número de paso, si es el origen y hora.
-- `impl RouteNode`
-  - `pub fn label(&self) -> String` — Etiqueta del nodo: número de paso, o «0/n» si el origen coincide con el paso n.
-- `pub fn route_nodes(…)` — Pasa la ruta (origen y pasos con coordenadas) a puntos de pantalla, hasta el paso reproducido si hay animación.
-- `pub fn draw_route(…)` — Dibuja la ruta: conector discontinuo 0→1, líneas entre pasos y marcadores numerados (el 0 hueco).
-- `fn draw_origin_connector(list: &nexus::imgui::DrawListMut<'_>, from: [f32; 2], to: [f32; 2])` — Línea discontinua acotada (≤ 128 trazos) del origen al primer paso; ignora coordenadas no finitas.
-- `const PLAYBACK_SECS` — Cuánto dura una reproducción completa de la ruta, en segundos (RF-36).
-- `static PLAYBACK` — Estado de la reproducción: desde cuándo corre, o `None` si está parada (RF-36).
-- `pub fn playback_control(ui: &Ui, steps: usize) -> Option<usize>` — Play/pausa de la ruta y cuántos pasos hay que dibujar, `None` para dibujarla entera.
-- `pub fn summary(…)` — Resumen en texto de la ruta inferida, para ponerlo **al lado del mapa** (RF-32, RF-33, RF-35).
-- `pub fn route_steps(…)` — La ruta en texto, con un **«salto a <mapa>»** cuando los pasos cambian de mapa (RF-35).
-- `fn map_label_in(role: MapRole, language: gw2lurker_core::i18n::Language) -> &'static str` — Nombre del mapa en el idioma que se pase: las pruebas no pueden leer el idioma activo, porque eso pasa por la API de Nexus y revienta fuera del juego.
-- `pub fn heading(from: [f32; 2], to: [f32; 2]) -> Option<(f32, f32)>` — Unit vector of the last jump, `None` when it is too short to mean anything (the same objective twice, or two pixels apart). Pure, so the rule can be tested.
-- `fn draw_heading(list: &nexus::imgui::DrawListMut<'_>, from: [f32; 2], to: [f32; 2])` — Two short strokes on the newest claim pointing away from the previous one.
+- `pub struct RouteCanvas` — Projection box and screen rectangle used by both geometry tests and native drawing.
+- `pub fn draw_route(list: &DrawListMut<'_>, scene: &Scene)` — Draws prepared geometry; all expensive grouping/projection happens outside the steady frame.
+- `fn draw_stroke(list: &DrawListMut<'_>, stroke: &Stroke, segments: u32)` — Uses the verified arcdps-imgui 0.8 draw_list.rs Bezier builder; fixed tessellation bounds cost.
+- `fn dashed_ring(list: &DrawListMut<'_>, point: [f32; 2], radius: f32, colour: [f32; 4])` — Dashed outline distinguishes future and late observations without relying on colour.
+- `pub fn caption(ui: &Ui, state: &Session, names: &[ObjectiveInfo])` — Origin explanation and legend remain beside the map, never presented as observed movement.
+- `pub fn hover(ui: &Ui, state: &Session, canvas: &RouteCanvas<'_>)` — Hover metadata of route nodes, retaining all revisit numbers without an oversized tooltip.
+- `pub fn summary(…)` — Text summary with map transitions, kept compatible with the Guilds navigation tests.
+- `pub fn route_steps(…)` — Summarizes the inferred sequence with an explicit jump between maps.
+- `fn map_label_in(role: MapRole, language: gw2lurker_core::i18n::Language) -> &'static str` — Map name in a supplied language, so tests never query Nexus for the active language.
+- `pub fn heading(from: [f32; 2], to: [f32; 2]) -> Option<(f32, f32)>` — Direction of a non-degenerate connector; no inferred heading from coincident points.
 
-**Usa (interno):** `gw2lurker_core::build_route`, `gw2lurker_core::i18n`, `gw2lurker_core::Route`
+**Usa (interno):** `crate::clock`, `gw2lurker_core::build_route`, `gw2lurker_core::i18n`, `gw2lurker_core::Route`, `super::inside`, `super::scene`, `super::timeline`
 
-**APIs externas:** `nexus::imgui::DrawListMut`, `imgui::DrawListMut`, `imgui (dibuja con &Ui)`
+**APIs externas:** `nexus::imgui`, `imgui (dibuja con &Ui)`
 
 
-### `crates/addon/src/ui/map/tests.rs` (471 líneas)
+### `crates/addon/src/ui/map/scene.rs` (276 líneas)
+
+Prepared geometry for B - Estela (T-52), independent of Nexus.
+
+**Contenido:**
+
+- `pub struct Curve` — Quadratic visual connector; not a traversable path.
+- `impl Curve`
+  - `pub fn between(from: [f32; 2], to: [f32; 2], index: usize) -> Self` — Alternate sides in a canonical direction, so a return leg cannot retrace the same arc.
+  - `pub fn point(&self, t: f32) -> [f32; 2]` — Point on the quadratic curve, with t in 0..=1.
+  - `pub fn cubic(&self) -> ([f32; 2], [f32; 2])` — Equivalent cubic control points for imgui's verified Bezier API.
+- `pub struct Stroke` — A precomputed connector and its style.
+- `pub struct Marker` — One marker for every visited objective, including all its original step numbers.
+- `pub struct Scene` — Prepared drawing for one map; rebuilt only when data, viewport or selection changes.
+- `impl Scene`
+  - `pub fn prepare(trail: &Trail<'_>, view: &View, map: u32, canvas: &RouteCanvas<'_>) -> Self` — Projects consecutive observations without bridging missing coordinates or map changes.
+  - `pub fn attach_origin<'a>(…)` — Origin is separate from observations and has no invented timestamp.
+
+**Usa (interno):** `gw2lurker_core::Route`, `super::ClaimRow`, `super::project`, `super::route`
+
+
+### `crates/addon/src/ui/map/tests.rs` (500 líneas)
 
 Tests of the map tab: projection, hover, tiles and proportions.
 
-**Usa (interno):** `crate::clock`, `crate::worker`, `gw2lurker_core::i18n`, `gw2lurker_core::Match`, `gw2lurker_core::matchup`, `gw2lurker_core::route`, `gw2lurker_core::RouteOrigin`, `gw2lurker_core::RouteStep`, `super::route`
+**Usa (interno):** `crate::clock`, `crate::worker`, `gw2lurker_core::i18n`, `gw2lurker_core::Match`, `gw2lurker_core::matchup`, `gw2lurker_core::Route`, `gw2lurker_core::RouteOrigin`, `gw2lurker_core::RouteStep`, `super::route`, `super::scene`
 
 **APIs externas:** `serde_json::from_str`
 
 **Tests (15):** `rf32a_the_drawn_route_includes_zero_and_keeps_claim_numbering`, `rf30_the_map_keeps_the_real_proportions`, `rf32_the_heading_is_the_last_jump_and_only_when_it_means_something`, `rf30_the_closest_objective_wins_the_hover`, `rf30_only_the_inside_of_the_board_has_hover`, `rf30a_scoring_objectives_are_the_only_ones_drawn`, `rf30b_missing_objective_state_does_not_get_a_high_value_ring`, `rf30_the_unknown_map_defaults_to_center_before_drawing_the_selector`, `rf30_the_hover_says_who_and_when_and_leaves_the_name_out`, `rf30_the_hover_without_a_claim_only_says_unclaimed`, `rf30b_an_objective_owned_without_claim_keeps_its_colour_on_the_hover`, `rf31_the_guild_menu_is_the_followed_ones_and_then_the_latest_five`, `rf31_the_guild_menu_without_anything_to_offer_is_empty`, `rf35_a_route_that_crosses_maps_says_jump_to`, `rf32_the_cross_map_summary_lists_claims_without_inventing_an_origin`
+
+
+### `crates/addon/src/ui/map/timeline_tests.rs` (127 líneas)
+
+Native timeline state tests without Nexus or a running game.
+
+**Contenido:**
+
+- `struct Data` — History and fixture-backed catalogues shared by the test views.
+- `impl Data`
+  - `fn new() -> Self` — Normal sequence with unequal intervals and an official map catalogue.
+  - `fn refresh(&mut self)` — Emulates preparation on the worker, not inside the UI view.
+  - `fn view<'a>(&'a self, guild: Option<&'a str>, revision: i64) -> View<'a>` — Gives the cache a deterministic worker revision.
+
+**Usa (interno):** `crate::ui`, `super::super`
+
+**Tests (3):** `rf36_estela_hidden_map_and_changed_guild_pause_playback`, `rf36_estela_mouse_selection_uses_time_and_keeps_unknown_times_separate`, `rf36_estela_refresh_preserves_the_inspected_claim_and_reuses_geometry`
+
+
+### `crates/addon/src/ui/map/timeline.rs` (450 líneas)
+
+Session cache and native timeline controls for B - Estela (T-53).
+
+**Contenido:**
+
+- `struct SceneKey` — Inputs that affect the prepared geometry but not its cached source observations.
+- `pub struct Session` — Session-only state. No configuration mutex or worker lock is held by this cache.
+- `impl Default for Session`
+  - `fn default() -> Self` — Starts empty and paused, with no prepared geometry or persistent playback settings.
+- `fn session() -> MutexGuard<'static, Session>` — Locks only the map's own session state, never RUNTIME.
+- `pub fn pause_unless_drawn(frame: i32)` — Pauses even when the widget is collapsed, closed, outside WvW or not on the Map tab.
+- `pub fn prepare<'a>(ui: &Ui, data: &View<'a>) -> MutexGuard<'static, Session>` — Updates the source cache only on a worker revision or guild/cycle change, then draws controls.
+- `impl Session`
+  - `fn pause_if_hidden(&mut self, frame: i32)` — Visibility rule shared by tab changes, collapsed windows and the WvW render gate.
+  - `fn synchronize(&mut self, data: &View<'_>)` — Refreshes history without jumping away from a step the player is inspecting.
+  - `pub fn prepare_scene(&mut self, data: &View<'_>, map: u32, canvas: &RouteCanvas<'_>)` — Caches projection and origin inference until data, viewport or selection changes.
+- `fn position(trail: &Trail<'_>, index: usize) -> (f32, bool)` — Temporal position, or a separately labelled lane for observations with unknown times.
+- `fn pick_at(trail: &Trail<'_>, x: f32, unknown: bool) -> Option<usize>` — Nearest observation in the chosen time lane; ties keep the stable step order.
+- `fn controls(ui: &Ui, state: &mut Session)` — Native controls precede the map so their draw list is dropped before drawing the board.
+- `fn window_label(window: Window) -> &'static str` — Translation key for each non-persistent trail window.
+- `pub fn duration(dt: chrono::TimeDelta) -> String` — Interval formatting, shared by timeline and route tooltips.
+- `pub fn track(ui: &Ui, state: &mut Session)` — Real-time axis plus an explicit separate lane for unknown timestamps. Draws the real temporal axis, kept separate from localized controls for native measurements.
+- `mod tests`
+
+**Usa (interno):** `crate::clock`, `gw2lurker_core::Route`, `super::map_label`
+
+**APIs externas:** `nexus::imgui`, `imgui (dibuja con &Ui)`
+
+
+### `crates/addon/src/ui/map/trail_tests.rs` (233 líneas)
+
+Acceptance of the prepared B scene without calling Nexus.
+
+**Contenido:**
+
+- `pub fn fixtures() -> (Vec<ObjectiveInfo>, Vec<WvwMap>)` — Real catalogues used for map projection and objective coordinates.
+- `pub fn claim(id: &str, seconds: i64) -> ClaimRow` — Synthetic claim whose coordinates come from the real objective table.
+
+**Usa (interno):** `gw2lurker_core::Event`, `gw2lurker_core::route`, `super::scene`
+
+**APIs externas:** `nexus::imgui`, `serde_json::from_str`
+
+**Tests (4):** `rf32_estela_curves_preserve_endpoints_and_show_separate_return_paths`, `rf32_estela_six_cases_keep_claims_maps_and_holes`, `rf33_estela_keeps_late_gap_and_future_styles`, `rnf01_estela_native_draw_budget`
 
 
 ### `crates/addon/src/ui/matchup.rs` (316 líneas)
@@ -1486,7 +1642,7 @@ Matchup claims view (T-36, RF-70): what is claimed right now, grouped by map.
 **Tests (6):** `rf73_the_claims_view_can_show_only_followed_guilds`, `rf30b_high_value_is_the_tick_of_this_snapshot_not_the_kind`, `rf70_all_kinds_are_visible_by_default`, `rf70_kind_filters_remove_rows`, `rf70_high_value_hides_camps_but_keeps_castles`, `rf70_rows_are_grouped_by_map`
 
 
-### `crates/addon/src/ui/mod.rs` (761 líneas)
+### `crates/addon/src/ui/mod.rs` (777 líneas)
 
 Windows of the addon. Every one of them goes through [`window::draw`] (RF-46).
 
@@ -1538,12 +1694,13 @@ Windows of the addon. Every one of them goes through [`window::draw`] (RF-46).
 **Tests (5):** `rf30_the_map_tab_opens_on_the_map_i_am_on`, `rf18_the_shortcut_turns_click_through_on_and_off`, `rf18_the_shortcut_brings_the_window_back`, `rf46_click_through_does_not_reopen_a_closed_widget`, `t42_the_settings_are_the_last_tab`
 
 
-### `crates/addon/src/ui/navigation.rs` (246 líneas)
+### `crates/addon/src/ui/navigation.rs` (275 líneas)
 
 Map navigation rules, independent of Nexus and imgui (RF-30, RF-71).
 
 **Contenido:**
 
+- `pub fn tab_available(key: &str, team: Option<u32>) -> bool` — Data tabs require the current account's team; Settings always stays usable (RF-03a).
 - `pub fn pending_tab_after_draw(shown: usize, requested: usize) -> usize` — Mantiene la pestaña pedida hasta que se ha dibujado; entonces la suelta (`usize::MAX`).
 - `pub fn entering_by_hand(…)` — ¿Toca saltar al mapa del jugador al dibujar la pestaña *Mapa*?
 - `fn guild_choice_state() -> std::sync::MutexGuard<'static, Option<String>>` — Clan cuya ruta dibuja la pestaña *Mapa*, si hay alguno elegido.
@@ -1552,9 +1709,9 @@ Map navigation rules, independent of Nexus and imgui (RF-30, RF-71).
 - `pub fn guild_from_pick(pick: &str) -> Option<String>` — Lo elegido en el desplegable de clan → clan a dibujar.
 - `pub fn request_guild_map(…)` — Ir al mapa de un clan: con mapa conocido fija mapa y pestaña Mapa; sin él no cambia de pestaña y deja el aviso.
 
-**Usa (interno):** `gw2lurker_core::MapRole`, `super::TAB_MAP`
+**Usa (interno):** `gw2lurker_core::MapRole`, `super::settings`, `super::TAB_MAP`
 
-**Tests (7):** `rf30_a_guild_jump_waits_until_the_map_tab_is_drawn`, `rf30_returning_to_the_map_tab_by_hand_snaps_to_the_players_map`, `rf71_a_guild_without_events_keeps_the_tab_and_map`, `rf71_a_guild_jump_chooses_its_map_and_clears_the_notice`, `rf71_an_empty_guild_cancels_an_earlier_pending_jump`, `rf32a_a_non_favourite_guild_opens_its_last_claim_map_with_a_route`, `rf71_entering_the_map_tab_by_hand_leaves_no_guild_chosen`
+**Tests (9):** `rf03a_without_a_team_every_data_tab_requires_the_settings_step`, `rf03a_another_accounts_saved_team_does_not_unlock_the_tabs`, `rf30_a_guild_jump_waits_until_the_map_tab_is_drawn`, `rf30_returning_to_the_map_tab_by_hand_snaps_to_the_players_map`, `rf71_a_guild_without_events_keeps_the_tab_and_map`, `rf71_a_guild_jump_chooses_its_map_and_clears_the_notice`, `rf71_an_empty_guild_cancels_an_earlier_pending_jump`, `rf32a_a_non_favourite_guild_opens_its_last_claim_map_with_a_route`, `rf71_entering_the_map_tab_by_hand_leaves_no_guild_chosen`
 
 
 ### `crates/addon/src/ui/popup.rs` (140 líneas)
@@ -1634,7 +1791,7 @@ Tests of the settings window: the picker, the label column and the translated na
 **Tests (6):** `rf03a_narrowing_starts_at_the_saved_team`, `rf03a_both_regions_are_always_offered`, `rf03a_the_colour_is_offered_before_any_data`, `rf03a_narrowing_is_remembered_between_frames`, `rf03f_the_field_starts_with_the_automatic_translation`, `rf03a_three_steps_bring_the_list_down_to_a_handful`
 
 
-### `crates/addon/src/ui/status.rs` (231 líneas)
+### `crates/addon/src/ui/status.rs` (234 líneas)
 
 La línea de estado de la ventana: salud del sondeo, partida, equipo y origen del empate.
 
@@ -1698,12 +1855,13 @@ Shared window contract (RF-46).
 **Tests (6):** `rf18_the_right_click_is_the_way_back_from_click_through`, `rf46_the_chrome_only_writes_the_fields_nobody_else_touched`, `rf46_opacity_is_shown_as_percent`, `rf46_window_background_uses_the_current_setting`, `rf46_percent_round_trip_keeps_the_stored_value`, `rf18_a_right_click_on_the_widget_is_noticed_even_with_click_through`
 
 
-### `crates/addon/src/worker.rs` (777 líneas)
+### `crates/addon/src/worker.rs` (791 líneas)
 
 Polling worker (T-11c, RF-20, RNF-04, RNF-05).
 
 **Contenido:**
 
+- `mod routes`
 - `pub const MAX_HISTORY` — Claims kept in memory for the current tracking cycle (RF-72).
 - `const MAX_BACKOFF` — Cap used by both the shared exponential backoff and the configured polling wait.
 - `static MAY_POLL` — Whether the worker may use the network (set from the render callback's gate).
@@ -1755,12 +1913,25 @@ Polling worker (T-11c, RF-20, RNF-04, RNF-05).
 - `fn selected_match_id(selection: &Selection) -> Option<&str>` — Id del match si la selección de equipo está confirmada.
 - `mod tests`
 
-**Usa (interno):** `crate::alerts`, `crate::assignment`, `crate::background`, `crate::catalog`, `crate::check_dll_update`, `crate::config`, `crate::detect`, `crate::diagnostics`, `crate::keybinds`, `crate::net`, `crate::runtime`, `crate::session_names`, `crate::team`, `gw2lurker_core::Candidate`, `gw2lurker_core::diff`, `gw2lurker_core::DiffConfig`, `gw2lurker_core::matchup`, `gw2lurker_core::model`, `gw2lurker_core::ObjectiveType`, `gw2lurker_core::select`, `gw2lurker_core::WvwMap`
+**Usa (interno):** `crate::alerts`, `crate::assignment`, `crate::background`, `crate::catalog`, `crate::check_dll_update`, `crate::config`, `crate::detect`, `crate::diagnostics`, `crate::keybinds`, `crate::net`, `crate::runtime`, `crate::session_names`, `crate::team`, `gw2lurker_core::Candidate`, `gw2lurker_core::diff`, `gw2lurker_core::DiffConfig`, `gw2lurker_core::matchup`, `gw2lurker_core::model`, `gw2lurker_core::ObjectiveType`, `gw2lurker_core::route`, `gw2lurker_core::select`, `gw2lurker_core::WvwMap`
 
 **APIs externas:** `hilos: thread::sleep`
 
 
-### `crates/addon/src/worker/tests.rs` (559 líneas)
+### `crates/addon/src/worker/routes.rs` (50 líneas)
+
+Prepares immutable Estela models on the polling thread, never in the render callback.
+
+**Contenido:**
+
+- `pub struct Prepared` — Atomically published history, annotations and derived per-guild models.
+  - `pub mod els`
+- `pub fn prepare(…)` — Merges a successful poll with bounded history and includes still-current baseline claims.
+
+**Usa (interno):** `crate::alerts`, `gw2lurker_core::route`
+
+
+### `crates/addon/src/worker/tests.rs` (628 líneas)
 
 Tests of the polling worker.
 
@@ -1772,7 +1943,7 @@ Tests of the polling worker.
 
 **APIs externas:** `serde_json::from_str`
 
-**Tests (19):** `rf03a_the_picker_asks_for_every_matchup_but_not_on_every_poll`, `rf03a_a_poll_without_a_known_team_or_match_does_not_fetch_all`, `rnf02_only_the_watched_match_is_polled_at_the_configured_cadence`, `rf03a_the_poll_asks_for_the_team_the_game_gave`, `rf03a_only_a_confirmed_selection_has_a_match_to_watch`, `rf03a_a_team_lookup_reuses_the_full_response_when_the_team_is_missing`, `rf24_assignment_reset_clears_history_and_alerts_and_sets_new_boundary`, `rf03d_confirmed_assignment_change_resets_the_differ_and_tracking_state`, `rf03d_expired_timer_does_not_reset_tracking_while_match_is_active`, `rf25_a_restart_does_not_show_yesterday`, `rf21_a_followed_guild_is_told_when_the_claim_is_fresh`, `rf25_late_claim_grace_uses_when_the_addon_received_it`, `rf25_a_restart_does_not_refill_the_log_with_yesterdays_claims`, `t02_the_poll_asks_for_the_match_it_already_knows`, `rf25_the_history_starts_with_what_is_already_claimed`, `t51_clicking_a_guild_knows_its_last_map`, `rf19_alerts_are_bounded_and_skip_baselines`, `rf38_an_alert_says_which_kind_of_objective_it_is_about`, `rnf04_worker_uses_shared_api_backoff_only_for_retryable_errors`
+**Tests (21):** `rf03a_the_picker_asks_for_every_matchup_but_not_on_every_poll`, `rf03a_a_poll_without_a_known_team_or_match_does_not_fetch_all`, `rnf02_only_the_watched_match_is_polled_at_the_configured_cadence`, `rf03a_the_poll_asks_for_the_team_the_game_gave`, `rf03a_only_a_confirmed_selection_has_a_match_to_watch`, `rf03a_a_team_lookup_reuses_the_full_response_when_the_team_is_missing`, `rf24_assignment_reset_clears_history_and_alerts_and_sets_new_boundary`, `rf03d_confirmed_assignment_change_resets_the_differ_and_tracking_state`, `rf03d_expired_timer_does_not_reset_tracking_while_match_is_active`, `rf25_a_restart_does_not_show_yesterday`, `rf21_a_followed_guild_is_told_when_the_claim_is_fresh`, `rf25_late_claim_grace_uses_when_the_addon_received_it`, `rf25_a_restart_does_not_refill_the_log_with_yesterdays_claims`, `t02_the_poll_asks_for_the_match_it_already_knows`, `rf25_the_history_starts_with_what_is_already_claimed`, `t51_clicking_a_guild_knows_its_last_map`, `rf19_alerts_are_bounded_and_skip_baselines`, `rf33_estela_retains_poll_gaps_without_turning_them_into_alerts`, `rf33_estela_worker_prepares_immutable_models_and_keeps_current_baselines`, `rf38_an_alert_says_which_kind_of_objective_it_is_about`, `rnf04_worker_uses_shared_api_backoff_only_for_retryable_errors`
 
 
 ### `crates/addon/src/writer.rs` (106 líneas)
@@ -1807,7 +1978,7 @@ Off-thread writer for the settings file.
 - `bugs.md` — Bugs — Bandeja de entrada de fallos. **No se borra**: cada bug se queda con su marca. `[x]` cuando creo que está arreglado, con la versión en la que sale el arreglo, para que el jugador pueda comprobarlo y tacharlo del todo si…
 - `Cargo.lock`
 - `Cargo.toml`
-- `CHANGELOG.md` — Changelog — Formato [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/), versionado [SemVer](https://semver.org/lang/es/). guarda ahora en `roster.by_account` y el `roster.by_character` de versiones anteriores se ignora (des…
+- `CHANGELOG.md` — Changelog — Formato [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/), versionado [SemVer](https://semver.org/lang/es/). selección de paso y anillos de intervalo. Cronología proporcional a las horas reales, ventanas Todo/1…
 - `CLAUDE.md` —  — Lee y sigue `AGENTS.md` (instrucciones completas para agentes de IA de este repositorio).
 - `deny.toml` — RUSTSEC-2024-0384 (instant) y RUSTSEC-2024-0436 (paste): avisos de "sin mantenimiento" en crates que arrastra `nexus-rs`. No son vulnerabilidades, están fuera de nuestro control y no podemos actualizarlos por separado: s…
 - `docs/agents/lecciones.md` — Lecciones con contexto (referencia de AGENTS.md) — Texto completo de las reglas que en `AGENTS.md` van en una línea. Cada punto sale de un fallo real. Léelo cuando la tarea toque tests, imgui, el candado `RUNTIME` o `settings.json`; no hace falta cargarlo en cada sesión.
@@ -1857,7 +2028,7 @@ Off-thread writer for the settings file.
 - `specs/00-constitution.md` — Constitución del proyecto: WvW Watch (nombre provisional) — Addon de Nexus para Guild Wars 2, escrito en Rust sobre `zerthox/nexus-rs`, activo solo en Mundo contra Mundo (WvW/MCM). Estos principios son **no negociables**. Cualquier requisito, diseño o tarea que los contradiga deb…
 - `specs/01-requirements.md` — 01 – Requisitos — Formato EARS + criterios de aceptación Given/When/Then (GWT). Prioridad: **M** = must (v1), **S** = should, **C** = could. Comprobado el **2026-10-31** contra la API real, el código fuente de `nexus-rs` y una medición pr…
 - `specs/02-design.md` — 02 – Diseño — gw2-lurker/ ← raíz del repo (el nombre del remoto: github.com/cbart-cmd/gw2-lurker) ├── Cargo.toml # workspace + [workspace.lints] + [profile.release] ├── Cargo.lock # versionado
-- `specs/03-tasks.md` — 03 – Tareas — Cada tarea es pequeña y verificable. Orden recomendado; las dependencias se indican entre paréntesis. Lo que **queda vivo**, con por qué: Todo lo demás está hecho y con test. El estado fino, con fechas y versiones, está…
+- `specs/03-tasks.md` — 03 – Tareas — Cada tarea es pequeña y verificable. Orden recomendado; las dependencias se indican entre paréntesis. Lo que **queda vivo**, con por qué: Pruebas previas en juego aceptadas por indicación del jugador el 2026-11-02, sin a…
 - `specs/04-engineering-standards.md` — 04 – Estándares de ingeniería — Cumplimiento verificado por CI siempre que sea posible. Lo que no se pueda automatizar se revisa en PR con la checklist del final. tests se los saltan con `#![cfg_attr(test, allow(...))]`), `missing_debug_implementations…
 - `specs/05-wireframes.md` — 05 – Bocetos de interfaz (wireframes) — Boceto de **estructura**, no de estilo visual, y actualizado al código de la 0.25.x. En el juego los iconos se dibujan con primitivas (`ui::icons`), no con estos caracteres, y **todo el texto va en ASCII + latino-1**: la…
 - `specs/06-diff-scenarios.md` — 06 – Catálogo de escenarios (diff, filtros de aviso y mapa) — Contrato de comportamiento. **Ojo con la nomenclatura:** los tests se llaman por el **requisito** (`rf10_owner_change_emits_a_flip_with_the_real_time`), no por el ID `d07` que se usó al planificar; la columna «Test» de c…
@@ -1879,6 +2050,6 @@ Off-thread writer for the settings file.
 - `specs/ADR-015-sin-historial-en-disco.md` — ADR-015 – No hay historial en disco — en ADR-003 y complementa ADR-012. la sesión anterior. Aun así se seguían escribiendo los reclamos de los clanes seguidos en que tiene en memoria, y leer el fichero habría sido una segunda fuente de verdad que además se
 - `specs/ADR-016-indice-de-nombres-distribuido.md` — ADR-016 – El índice de nombres de clan se distribuye aparte y no vive en memoria — disco; el historial no) y RF-20b/RF-20c/RF-20d. (medido: «die» → *Die*, «a ne» → nada). Se construyó `guild-names.json` con **9 886** nombres (675 KB) y en la 0.24.0 se cargaba **entero en memoria al arrancar**, se clona…
 - `specs/glossary.md` — Glosario — 
-- `specs/manual-tests.md` — Pruebas manuales en el juego — Requisitos que solo se pueden comprobar con GW2 + Nexus (referenciados por la trazabilidad). Se ejecutan en T-19 y antes de cada release. Anota fecha, versión, resultado.
+- `specs/manual-tests.md` — Pruebas manuales en el juego — Requisitos que solo se pueden comprobar con GW2 + Nexus (referenciados por la trazabilidad). Se ejecutan en T-19 y antes de cada release. Anota fecha, versión, resultado. **2026-11-02:** el jugador da por buenas las comp…
 - `specs/templates/adr-template.md` — ADR-NNN – Título — 
 - `START-HERE.md` — START-HERE – Guía para ti (la persona) — Esta guía te dice qué hacer tú y cómo trabajar con la IA. Los detalles de qué construir están en `specs/`; las instrucciones que lee la IA, en `AGENTS.md`. **A. Cuenta y repositorio** **B. Entorno**

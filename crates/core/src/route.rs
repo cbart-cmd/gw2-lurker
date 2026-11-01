@@ -13,6 +13,9 @@ use crate::matchup::ObjectiveState;
 use crate::model::{MapRole, ObjectiveInfo, ObjectiveType, TeamColor};
 use std::borrow::Cow;
 
+pub mod playback;
+pub mod trail;
+
 /// Where the route starts, and why.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Origin {
@@ -151,7 +154,10 @@ fn build_claims<'a>(mine: &[&'a ClaimRow]) -> Option<Route<'a>> {
     })
 }
 
-fn locate_origin(
+/// Infers an origin from chronological claims already restricted to one guild and map.
+///
+/// The temporal UI reuses this without allocating route steps or cloning the source claims.
+pub fn locate_origin(
     rows: &[&ClaimRow],
     guild: &str,
     states: &[ObjectiveState],

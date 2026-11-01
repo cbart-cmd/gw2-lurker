@@ -67,3 +67,9 @@ Cada punto de esta lista sale de un fallo real de este proyecto, no de una buena
     pedirlo dentro de un bucle cierra el juego en cuanto hay más de un elemento. Costó un cierre
     real al abrir la pestaña Mapa (2026-10-31); el `catch_unwind` del render lo dejó en una línea
     de `Nexus.log` en vez de una pantalla negra.
+13. **Los vértices también están acotados.** Sin `RendererHasVtxOffset`, una lista de dibujo con
+    ≥65.536 vértices provoca un `assert` nativo que `catch_unwind` no puede recuperar.
+    La prueba de Estela con 2.000 claims lo detectó antes de publicar: agrupar arcos coincidentes,
+    adaptar teselación y usar marcas ligeras en la cronología. `arcdps-imgui` permite crear un
+    contexto local y ejercitar las funciones reales de dibujo sin llamar a `AddonApi`; no mide
+    GPU, Nexus ni el frame completo de GW2.

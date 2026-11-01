@@ -152,6 +152,7 @@ pub fn register() {
             // se dibujan (y el worker lo recuerda unos segundos): antes se pedía «por si acaso» en
             // cada sondeo —`gate.settings_available()` es cierto casi siempre—, lo que a 5 s
             // serían 4,8 MB por minuto.
+            map::pause_unless_drawn(ui.frame_count());
             crate::persist_if_changed();
         }),
     )
@@ -387,8 +388,11 @@ fn draw_tabs(
     }
 
     // The status of the worker, above the tabs: it is what tells a bug from a quiet matchup.
-    status::draw_health(ui, config, data);
-    draw_map_notice(ui, data);
+    let team = crate::team::selected_in(config);
+    status::draw_health(ui, config, data, team);
+    if team.is_some() {
+        draw_map_notice(ui, data);
+    }
     ui.separator();
 
     // Scroll instead of shrinking: with six tabs in a narrow window imgui used to squeeze them
@@ -411,6 +415,10 @@ fn draw_tabs(
             }
             item.build(ui, || {
                 shown = index;
+                if !navigation::tab_available(key, team) {
+                    ui.text_wrapped(i18n::text("No data until you choose a team in Settings."));
+                    return;
+                }
                 match index {
                     // Todas las ramas devuelven el clan que se ha clicado, si lo hay: con él se
                     // selecciona la ruta (petición de 2026-10-31).
@@ -439,6 +447,16 @@ fn draw_tabs(
                             .map(|guild| crate::worker::dashboard().guild_history(guild))
                             .unwrap_or_default();
                         let session = crate::worker::dashboard().session_guilds();
+                        let (revision, prepared) = {
+                            let board = crate::worker::dashboard();
+                            (
+                                (board.updated_at, board.history_since),
+                                selected
+                                    .as_deref()
+                                    .and_then(|guild| board.route_models.get(guild))
+                                    .cloned(),
+                            )
+                        };
                         clicked = map::body(
                             ui,
                             &map::View {
@@ -449,9 +467,10 @@ fn draw_tabs(
                                 guild_names: data.names,
                                 opacity: config.window(WIDGET).opacity,
                                 real_map: config.map_tiles,
-                                history: &history,
                                 guild: selected.as_deref(),
                                 session_guilds: &session,
+                                revision,
+                                prepared: prepared.as_ref(),
                             },
                             &mut map_choice(),
                             data.current,
@@ -462,10 +481,7 @@ fn draw_tabs(
                             // pestaña *Clanes* ya no la escribe (petición del jugador, 2026-11-01).
                             if let Some(summary) = map::summary(&history, guild, i18n::effective())
                             {
-                                ui.text_disabled(i18n::text(
-                                    "Route inferred from claims; it is not the real path.",
-                                ));
-                                ui.text(summary);
+                                ui.text_wrapped(summary);
                             }
                         }
                         // The list is the same data as the map, one click away: during a fight the

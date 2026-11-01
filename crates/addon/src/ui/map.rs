@@ -20,8 +20,15 @@ use crate::i18n;
 use super::navigation;
 
 mod route;
+mod scene;
+mod timeline;
 
-use route::{draw_route, playback_control, range_choice, RouteCanvas};
+#[cfg(test)]
+mod trail_tests;
+
+use route::{draw_route, RouteCanvas};
+
+pub(super) use timeline::pause_unless_drawn;
 
 /// La ruta inferida en texto, que se pinta junto al mapa (RF-33, RF-35).
 pub(crate) use route::summary;
@@ -62,13 +69,18 @@ pub struct View<'a> {
     pub opacity: f32,
     /// Draw the real tiles instead of the schematic board (T-29).
     pub real_map: bool,
-    /// What the guild chosen in the *Guilds* tab claimed this session, for the route (T-16).
-    pub history: &'a [ClaimRow],
     /// Clan cuya ruta se está dibujando, si hay uno elegido.
     pub guild: Option<&'a str>,
     /// Clanes que han reclamado algo en la sesión, **el más reciente primero**
     /// (`Dashboard::session_guilds`). Alimentan el desplegable de clan de esta pestaña.
     pub session_guilds: &'a [(String, usize, Option<chrono::DateTime<chrono::Utc>>)],
+    /// Worker revision and tracking-cycle start; invalidate the route cache.
+    pub revision: (
+        Option<chrono::DateTime<chrono::Utc>>,
+        Option<chrono::DateTime<chrono::Utc>>,
+    ),
+    /// Temporal model prepared on the worker, shared without cloning claims every frame.
+    pub prepared: Option<&'a std::sync::Arc<gw2lurker_core::route::trail::Trail<'static>>>,
 }
 
 /// Body of the *Map* tab.
@@ -83,9 +95,9 @@ pub fn body(ui: &Ui, view: &View<'_>, role: &mut MapRole, here: Option<MapRole>)
         guild_names,
         opacity,
         real_map,
-        history,
         guild,
         session_guilds,
+        ..
     } = *view;
 
     // Once per session: if the tab ever takes the game down, this is the line that says with
@@ -114,6 +126,7 @@ pub fn body(ui: &Ui, view: &View<'_>, role: &mut MapRole, here: Option<MapRole>)
         navigation::set_guild_choice(next.as_deref());
     }
     let chosen = pick.and_then(|pick| navigation::guild_from_pick(&pick));
+    let mut route_state = timeline::prepare(ui, view);
 
     let Some(map) = maps
         .iter()
@@ -134,6 +147,12 @@ pub fn body(ui: &Ui, view: &View<'_>, role: &mut MapRole, here: Option<MapRole>)
     let indent = ((width - size[0]) / 2.0).max(0.0);
     ui.set_cursor_pos([ui.cursor_pos()[0] + indent, ui.cursor_pos()[1]]);
     let origin = ui.cursor_screen_pos();
+    let canvas = RouteCanvas {
+        frame: &frame,
+        origin,
+        size,
+    };
+    route_state.prepare_scene(view, map.id, &canvas);
     // The area is reserved with a dummy so the window sizes itself; the drawing itself goes
     // straight to the draw list, which is what imgui wants for shapes.
     ui.dummy(size);
@@ -178,15 +197,6 @@ pub fn body(ui: &Ui, view: &View<'_>, role: &mut MapRole, here: Option<MapRole>)
         .and_then(|index| drawn.get(index))
         .map(|(_, _, state)| detail_line(*state, guild_names, follow, i18n::active()));
 
-    let since =
-        range_choice(ui).map(|minutes| chrono::Utc::now() - chrono::Duration::minutes(minutes));
-    let route = guild.and_then(|guild| {
-        gw2lurker_core::route::with_origin(history, guild, map.id, states, names, since)
-    });
-    // Reproducción animada de la ruta (RF-36): play/pausa y una barra de progreso. Sin reproducir
-    // se dibuja la ruta entera, que es lo que se quiere casi siempre.
-    let played = playback_control(ui, route.as_ref().map_or(0, |route| route.steps.len()));
-
     // Todo el dibujo va recortado al rectángulo del mapa. En imgui la lista de dibujo de una
     // ventana hija es la del **padre**, así que sin recorte propio las teselas y los anillos se
     // pintaban encima de las pestañas y fuera de la ventana (informe de 2026-10-31, con captura).
@@ -224,18 +234,8 @@ pub fn body(ui: &Ui, view: &View<'_>, role: &mut MapRole, here: Option<MapRole>)
             }
         }
 
-        if let Some(route) = &route {
-            draw_route(
-                &list,
-                &RouteCanvas {
-                    frame: &frame,
-                    origin,
-                    size,
-                },
-                route,
-                names,
-                played,
-            );
+        if guild.is_some() {
+            draw_route(&list, &route_state.scene);
         }
 
         if let Some(text) = &hover_text {
@@ -265,27 +265,10 @@ pub fn body(ui: &Ui, view: &View<'_>, role: &mut MapRole, here: Option<MapRole>)
     if hover_text.is_none() {
         ui.text_disabled(i18n::text("Point at an objective to see who holds it"));
     }
-    if let Some(route) = &route {
-        if let Some(point) = &route.origin_point {
-            let name = names
-                .iter()
-                .find(|name| name.id == point.objective_id)
-                .map(|name| name.name.as_str())
-                .unwrap_or(&point.objective_id);
-            let label = format!("{name} ({})", i18n::text(route.origin.reason()));
-            ui.text_wrapped(i18n::format("Inferred origin (0): {0}", &[&label]));
-            if point.approximate {
-                ui.text_wrapped(i18n::text(
-                    "Respawn position is approximate: it uses the official map label.",
-                ));
-            }
-        } else {
-            ui.text_wrapped(i18n::text("Origin unknown: missing team or coordinates."));
-        }
-    } else if guild.is_some() {
-        ui.text_wrapped(i18n::text(
-            "No claims on this map in the selected time range.",
-        ));
+    drop(list);
+    if guild.is_some() {
+        route::hover(ui, &route_state, &canvas);
+        route::caption(ui, &route_state, names);
     }
     chosen
 }

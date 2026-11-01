@@ -23,6 +23,14 @@ La ruta añade un **origen 0 inferido**: garri propia, Bahía/Colinas en un alpi
 los claims, o respawn del equipo del clan. El origen no cuenta como reclamación; su conexión es
 discontinua. La posición del respawn usa su etiqueta oficial y se avisa de que es aproximada.
 
+**B — Estela:** curvas con flechas y mayor énfasis en lo reciente. La cronología respeta las horas
+reales; clic/arrastre o el selector de paso (flechas, Inicio/Fin) permiten inspeccionarla.
+**Todo**, **1 h** y **15 min** se calculan desde el paso elegido; lo anterior queda atenuado.
+Play avanza un claim cada **700 ms**, no simula velocidad real, y pausa al salir de Mapa,
+ocultar el widget o cambiar de clan. Los pasos posteriores son contexto de reproducción, no
+predicciones. Los anillos finos indican tiempo hasta el siguiente claim, no ocupación ni distancia;
+«sin claims registrados» (≥20 min) no significa lo mismo que un hueco de sondeo.
+
 > Limitaciones honestas: la API pública de GW2 **no** expone el estado «bajo ataque» ni guarda
 > historial, y a veces **congela una partida entera** durante minutos (el addon lo avisa en naranja).
 > El historial es **de la sesión**: al reiniciar el juego empieza de cero (ADR-012, ADR-015). Las

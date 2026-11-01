@@ -25,6 +25,8 @@ pub use crate::alerts::{AlertKind, AlertLine, Received};
 use crate::catalog::{maps_for, objectives_for, resolve_guild_names};
 use crate::net::WinHttpTransport;
 
+mod routes;
+
 /// Claims kept in memory for the current tracking cycle (RF-72).
 pub(crate) const MAX_HISTORY: usize = 2000;
 
@@ -97,6 +99,13 @@ pub struct Dashboard {
     pub map_roles: std::collections::BTreeMap<u32, MapRole>,
     /// Claims seen during this tracking cycle, oldest first: the guild history of ADR-012.
     pub history: Vec<ClaimRow>,
+    /// Retained claim/gap annotations for the inferred route, bounded like the history.
+    pub route_events: std::sync::Arc<Vec<Event>>,
+    /// Immutable temporal models, prepared outside the dashboard lock on the polling thread.
+    pub route_models: std::collections::BTreeMap<
+        String,
+        std::sync::Arc<gw2lurker_core::route::trail::Trail<'static>>,
+    >,
     /// Start of the current tracking cycle: addon load or confirmed team reassignment.
     pub history_since: Option<DateTime<Utc>>,
     /// Most recent events, newest last (RF-19), each with **when we saw it**.
@@ -139,6 +148,8 @@ impl Dashboard {
         self.candidates.clear();
         self.map_roles.clear();
         self.history.clear();
+        self.route_events = Default::default();
+        self.route_models.clear();
         self.history_since = Some(at);
         self.alerts.clear();
         self.updated_at = None;
@@ -517,6 +528,11 @@ fn poll_once(
                 .collect::<std::collections::BTreeMap<_, _>>()
         })
         .unwrap_or_default();
+    let (history, annotations) = {
+        let board = dashboard();
+        (board.history.clone(), board.route_events.clone())
+    };
+    let prepared = routes::prepare(history, annotations, new_history, &events, &claims, &names);
     let mut board = dashboard();
     board.health = Health::Ok { at: now };
     board.history_since.get_or_insert(now);
@@ -546,11 +562,9 @@ fn poll_once(
     for event in &events {
         board.push_alert(event.clone());
     }
-    board.history.extend(new_history);
-    if board.history.len() > MAX_HISTORY {
-        let excess = board.history.len() - MAX_HISTORY;
-        board.history.drain(..excess);
-    }
+    board.history = prepared.history;
+    board.route_events = prepared.events;
+    board.route_models = prepared.models;
     board.updated_at = Some(now);
     board.last_claim_at = crate::diagnostics::last_claim_of(&live, match_id.as_deref());
     board.played_team = detected.as_ref().map(|found| found.team);

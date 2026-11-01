@@ -200,9 +200,29 @@ click-through.
 - Entrada: el historial **en memoria** del ciclo de seguimiento (`Dashboard::guild_history`), filtrado por guild.
 - Salida: nodos `(n, objetivo, hora, late)` y tramos; si dos nodos están en mapas distintos se
   escribe «salto a <mapa>».
-- Dibujo: polilínea con flecha de dirección, nodos numerados y el más reciente resaltado.
+- Dibujo B — Estela (0.26.6): curvas direccionales alternadas,
+  con grosor y opacidad crecientes hacia lo reciente, nodos numerados y el más reciente resaltado.
+  Las curvas son enlaces visuales inferidos, no caminos reales. Revisitas en un marcador compartido;
+  claims sin coordenadas solo en la cronología, sin enlazar sus vecinos saltándolos.
 - Banner fijo: «Ruta inferida a partir de los claims; no es el recorrido real.» Además, con un solo
   claim se dibuja el punto y una flecha con la dirección (`heading`) para no dejarlo vacío.
+- Estado de interfaz de B: paso seleccionado, ventana (`Todo` por defecto, 1 h, 15 min), play/pausa
+  y reloj de reproducción. La cronología usa las horas reales; la reproducción avanza un paso cada
+  700 ms, no a velocidad real. Cambiar de clan pausa y selecciona el último paso; salir de Mapa pausa.
+- La ventana se mide desde el paso seleccionado, incluye el límite y atenúa los pasos anteriores.
+  Los posteriores quedan huecos/punteados; el origen 0 sigue visible según RF-32a.
+- Anillos finos: tiempo hasta el siguiente claim, no duración de ocupación ni radio geográfico.
+  Intervalos ≥20 min: «sin claims registrados», distinto de un `gap` de sondeo. Se conservan
+  `late`, `gap` y «salto a <mapa>», sin enlaces entre mapas.
+- Separar cálculos puros testeables de estado/UI Nexus. Sin nuevas llamadas de API ni E/S en render;
+  historial solo en memoria (ADR-015). Medir el coste de render antes de cerrar la implementación
+  (RNF-01); no se considera validación de rendimiento la fluidez del boceto HTML.
+- El worker prepara modelos inmutables por clan fuera del candado de `Dashboard`; publica historia,
+  eventos `Claim`/`Gap` y modelos juntos. El render comparte un `Arc`, conserva la selección por
+  identidad del claim y cachea geometría/origen por revisión, mapa, selección, ventana y viewport.
+  Los arcos coincidentes comparten el trazo más reciente de cada estado, sin perder observaciones;
+  la teselación se adapta a la densidad y el eje usa marcas ligeras para respetar los índices de
+  16 bits de imgui. Un hueco de sondeo lleva marca propia, nunca la duración entre claims.
 
 ## 9. Concurrencia y errores
 

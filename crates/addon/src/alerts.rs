@@ -23,6 +23,7 @@ const LATE_GRACE: chrono::Duration = chrono::Duration::minutes(10);
 
 impl Dashboard {
     pub fn push_alert(&mut self, event: Event) {
+        retain_route_event(&mut self.route_events, &event);
         if !matches!(event, Event::Baseline { .. } | Event::Gap { .. }) {
             self.alerts.push(Received {
                 event,
@@ -153,6 +154,17 @@ impl Dashboard {
                 late: false,
             }),
             Event::Baseline { .. } | Event::Gap { .. } | Event::MatchChanged { .. } => None,
+        }
+    }
+}
+
+/// Shares the annotation retention rule with the worker's prepared route snapshot.
+pub(crate) fn retain_route_event(events: &mut std::sync::Arc<Vec<Event>>, event: &Event) {
+    if matches!(event, Event::Claim { .. } | Event::Gap { .. }) {
+        let events = std::sync::Arc::make_mut(events);
+        events.push(event.clone());
+        if events.len() > crate::worker::MAX_HISTORY {
+            events.drain(..events.len() - crate::worker::MAX_HISTORY);
         }
     }
 }

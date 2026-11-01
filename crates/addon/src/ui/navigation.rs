@@ -4,6 +4,11 @@ use gw2lurker_core::MapRole;
 
 use super::TAB_MAP;
 
+/// Data tabs require the current account's team; Settings always stays usable (RF-03a).
+pub(super) fn tab_available(key: &str, team: Option<u32>) -> bool {
+    team.is_some() || key == super::settings::KEY
+}
+
 pub(super) fn pending_tab_after_draw(shown: usize, requested: usize) -> usize {
     if shown == requested {
         usize::MAX
@@ -89,6 +94,30 @@ pub(super) fn request_guild_map(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn rf03a_without_a_team_every_data_tab_requires_the_settings_step() {
+        for key in super::super::TABS {
+            assert_eq!(
+                tab_available(key, None),
+                key == super::super::settings::KEY,
+                "{key}: only Settings remains available without a team",
+            );
+            assert!(tab_available(key, Some(12014)), "{key}: team selected");
+        }
+    }
+
+    #[test]
+    fn rf03a_another_accounts_saved_team_does_not_unlock_the_tabs() {
+        let mut roster = gw2lurker_core::Roster::default();
+        roster.set("account-a", 12014);
+        let selected = crate::team::resolve(None, &roster, Some("account-b"), None);
+        assert_eq!(selected, None);
+        assert!(!tab_available(super::super::map::KEY, selected));
+        assert!(tab_available(super::super::settings::KEY, selected));
+        let selected = crate::team::resolve(None, &roster, Some("account-a"), None);
+        assert!(tab_available(super::super::map::KEY, selected));
+    }
 
     #[test]
     fn rf30_a_guild_jump_waits_until_the_map_tab_is_drawn() {

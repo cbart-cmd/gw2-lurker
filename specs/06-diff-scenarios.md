@@ -76,6 +76,8 @@ clanes seguidos en cualquier mapa, y **solo de estructuras reclamables** (RF-19e
 | M-05b | Cuenta conocida y entrada guardada solo por personaje (≤ 0.26.5) | `team::resolve` | No se lee: sin migración, la cuenta elige su equipo una vez (RF-03a) |
 | M-05c | Sin cuenta (arcdps no instalado o aún sin evento), personaje conocido | `team::resolve` | Manda el roster del personaje: es la única clave que hay |
 | M-06 | Id manual distinto del roster | `team::resolve` | Manda el manual |
+| M-07 | Sin equipo en la cuenta actual, incluso con datos anteriores en memoria | abrir cada pestaña del widget | Las de datos muestran el aviso de elegir equipo en Ajustes, sin contenido ni estadísticas de la partida anterior; Ajustes sigue operativo (RF-03a) |
+| M-08 | Equipo elegido para la cuenta actual | abrir las pestañas del widget | Vuelve su contenido normal, también mientras se espera la primera respuesta de la API (RF-03a) |
 
 ## S – Historial de la sesión (antes `store`, hoy memoria: ADR-015)
 
@@ -106,6 +108,19 @@ clanes seguidos en cualquier mapa, y **solo de estructuras reclamables** (RF-19e
 | H-12 | Origen y primer claim en el mismo objetivo | dibujo | Marcador 0/1; sin segmento de longitud cero |
 | H-13 | Respawn sin `coord`, con `label_coord` y color | origen | Posición de etiqueta oficial, marcada aproximada; del equipo del clan |
 | H-14 | Falta equipo/coordenadas o no hay claims | origen | Origen desconocido o ningún 0; nunca una coordenada inventada |
+| H-15 | Claims consecutivos y una revisita A→B→A | estela B | Curvas direccionales alternadas; reciente más grueso/opaco; A conserva ambos números en un marcador |
+| H-16 | Paso seleccionado con claims anteriores y posteriores | cronología B | Paso destacado; posteriores huecos/punteados; posición temporal proporcional; empates estables como H-05 |
+| H-17 | Ventana de 15 min y claims 899, 900 y 901 s antes del paso seleccionado | ventana B | 899 y 900 dentro; 901 atenuado; sin borrar ni renumerar |
+| H-18 | Ventana de 1 h y claims 3599, 3600 y 3601 s antes del paso seleccionado | ventana B | 3599 y 3600 dentro; 3601 atenuado; Todo incluye el historial disponible |
+| H-19 | Intervalos de 1199, 1200 y 1201 s entre claims | cronología B | Solo 1200 y 1201 llevan «sin claims registrados»; no implica inactividad ni `gap` de sondeo |
+| H-20 | Claim con siguiente claim conocido y último claim sin sucesor | anillos B | El primero representa el intervalo hasta el siguiente; el último no tiene anillo de intervalo; no se muestra como ocupación/distancia |
+| H-21 | Reproducción con reloj controlado | play B | Avanza un claim por 700 ms, pausa sin avanzar y se detiene al final; Play desde el final reinicia |
+| H-22 | Reproducción activa | cambiar clan o salir de Mapa | Ambos pausan; cambiar clan selecciona el último paso del nuevo clan |
+| H-23 | Claim sin coordenadas entre dos localizados | estela B | Sigue en cronología; sin posición inventada ni enlace que salte el claim intermedio |
+| H-24 | Cero o un claim, o todos con la misma hora | controles B | Estado vacío o marcador sin estela; sin división por cero ni índices inválidos |
+| H-25 | Tres casos normales y tres extremos del boceto B | aceptación B | Secuencia normal, ida/vuelta, un claim, claims rápidos, historial denso con hueco y cambios de mapa con coordenadas ausentes conservan sus pasos y avisos |
+| H-26 | Línea de tiempo disponible | clic, arrastre o teclado | Selecciona pasos existentes; actualiza paso/hora/objetivo/intervalo; respeta extremos |
+| H-27 | Claims `late`, tramos con `gap`, origen 0 y salto de mapa | estela B | Mantiene los estilos discontinuos, origen visible y aviso permanente de inferencia; sin enlace entre mapas |
 
 ## P – Proyección de mapa
 

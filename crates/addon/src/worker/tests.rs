@@ -489,7 +489,76 @@ fn rf19_alerts_are_bounded_and_skip_baselines() {
             at: Utc::now(),
         });
     }
+
     assert_eq!(board.alerts.len(), MAX_ALERTS);
+}
+
+#[test]
+fn rf33_estela_retains_poll_gaps_without_turning_them_into_alerts() {
+    let mut board = Dashboard::default();
+    let now = Utc::now();
+    let gap = Event::Gap {
+        from: now - chrono::Duration::minutes(1),
+        to: now,
+    };
+    for _ in 0..MAX_HISTORY + 10 {
+        board.push_alert(gap.clone());
+    }
+    assert!(board.alerts.is_empty());
+    assert_eq!(board.route_events.len(), MAX_HISTORY);
+    assert!(board.route_events.iter().all(|e| e == &gap));
+    let held = board.route_events.clone();
+    board.reset_tracking_cycle(now);
+    assert!(board.route_events.is_empty());
+    assert_eq!(
+        held.len(),
+        MAX_HISTORY,
+        "the UI snapshot stays valid across a reset"
+    );
+}
+#[test]
+fn rf33_estela_worker_prepares_immutable_models_and_keeps_current_baselines() {
+    let at = Utc::now();
+    let row = ClaimRow {
+        guild: "G".to_owned(),
+        objective_id: "95-32".to_owned(),
+        claimed_at: Some(at),
+        map_id: 95,
+        map_role: MapRole::GreenHome,
+        name: None,
+        kind: gw2lurker_core::ObjectiveType::Camp,
+        owner: Some(gw2lurker_core::TeamColor::Green),
+        points_tick: 0,
+    };
+    let event = Event::Claim {
+        guild: row.guild.clone(),
+        objective: row.objective_id.clone(),
+        at,
+        late: true,
+    };
+    let prepared = routes::prepare(
+        Vec::new(),
+        Default::default(),
+        Vec::new(),
+        &[event],
+        &[row],
+        &[],
+    );
+    assert!(
+        prepared.history.is_empty(),
+        "baseline claims do not invent history events"
+    );
+    let model = prepared.models.get("G").unwrap();
+    assert_eq!(model.steps.len(), 1);
+    assert!(model.steps[0].late);
+    let mut board = Dashboard {
+        route_models: prepared.models,
+        ..Dashboard::default()
+    };
+    let snapshot = board.route_models.get("G").unwrap().clone();
+    board.reset_tracking_cycle(at);
+    assert!(board.route_models.is_empty());
+    assert_eq!(snapshot.steps.len(), 1);
 }
 
 #[test]
