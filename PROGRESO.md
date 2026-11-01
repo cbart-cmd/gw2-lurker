@@ -83,6 +83,10 @@ Reglas:
   reproducción de B sí se probó).
 - Honestidad (ADR-001, ADR-005): todo va rotulado «ruta inferida»; no se predice el siguiente objetivo.
 - Si el jugador elige una propuesta, antes de tocar código hace falta spec/ADR (AGENTS §2.4).
+- `PROGRESO.md` superaba ~30 KB (31,0 KB): las entradas de 0.25.14 a 0.26.0 se movieron tal cual a
+  `docs/historial/progreso-hasta-0.26.0.md` (20,4 KB; comprobado línea a línea contra `HEAD`).
+- Commits: `948f48e` (los 16 ficheros de `docs/bocetos/ruta/` y `modelo.md`) y `59ebc1e` (esta entrada y
+  el archivo histórico). Sin cambios en Rust: no se ejecutó `validate.ps1`; solo el CI.
 
 ## HECHO – 2026-11-01 · Menos ruido en `Nexus.log` (sin publicar)
 
