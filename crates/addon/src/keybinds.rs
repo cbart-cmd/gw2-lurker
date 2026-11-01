@@ -9,9 +9,15 @@
 //! El fichero guarda el **código de escaneo** de la tecla (set 1) y tres modificadores. Aquí se
 //! traduce a texto; si la tecla no está en la tabla se dice el número en vez de inventarla.
 //!
-//! Se lee **una vez al cargar** (rule 6: nada de disco en el render) y se cachea.
+//! Se lee al cargar y, después, el worker vuelve a leerlo cuando cambia su fecha de modificación
+//! (rule 6: nada de disco en el render). Hasta la 0.26.2 solo se leía al cargar: el jugador cambió
+//! el atajo a Alt+Shift+Ñ con el juego abierto y el aviso seguía diciendo Ctrl+Shift+Ñ (informe del
+//! 2026-11-01). El nombre de la tecla se calcula en el hilo que pide el texto, porque Windows lo da
+//! según la distribución de teclado de ese hilo.
 
-use std::sync::OnceLock;
+use std::path::PathBuf;
+use std::sync::Mutex;
+use std::time::SystemTime;
 
 use serde::Deserialize;
 
@@ -22,7 +28,7 @@ pub const IDENTIFIER: &str = "GW2LURKER_CLICK_THROUGH";
 const UNKNOWN: &str = "GW2LURKER_CLICK_THROUGH";
 
 /// Una entrada de `InputBinds.json`.
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
 struct Bind {
     #[serde(rename = "Alt", default)]
     alt: bool,
@@ -36,47 +42,145 @@ struct Bind {
     shift: bool,
 }
 
-/// Descripción del atajo, calculada al cargar y cacheada para el hilo de render.
-pub fn shortcut() -> &'static str {
-    SLOT.get().map(String::as_str).unwrap_or(UNKNOWN)
+/// Lo último leído del fichero y su descripción. `pending` es una lectura nueva que aún no se ha
+/// convertido en texto: se convierte en el hilo que llama a [`shortcut`].
+struct Shown {
+    described: String,
+    /// `Some(None)`: el fichero ya no tiene nuestro atajo o no se puede leer.
+    pending: Option<Option<Bind>>,
 }
 
-static SLOT: OnceLock<String> = OnceLock::new();
+impl Shown {
+    const fn new() -> Self {
+        Self {
+            described: String::new(),
+            pending: None,
+        }
+    }
 
-/// Lee `InputBinds.json` y guarda la descripción del atajo. Se llama desde `load` y nunca desde
-/// el render.
-///
-/// Devuelve la descripción que ha quedado guardada, para el log.
-pub fn remember_shortcut() -> &'static str {
-    let described = read_binds()
-        .as_deref()
-        .and_then(|json| describe_identifier(json, crate::ffi::keys::layout_key_name))
-        .unwrap_or_else(|| UNKNOWN.to_owned());
-    log::info!("atajo de Nexus para {IDENTIFIER}: {described}");
-    let _ = SLOT.set(described);
-    shortcut()
+    /// Aplica la lectura pendiente, si la hay, y devuelve la descripción vigente.
+    fn current(&mut self, layout: impl Fn(u16) -> Option<String>) -> &str {
+        if let Some(read) = self.pending.take() {
+            let described = read.map_or_else(|| UNKNOWN.to_owned(), |bind| describe(&bind, layout));
+            if described != self.described {
+                log::info!("atajo de Nexus para {IDENTIFIER}: {described}");
+            }
+            self.described = described;
+        }
+        if self.described.is_empty() {
+            UNKNOWN
+        } else {
+            &self.described
+        }
+    }
 }
 
-/// Contenido de `addons/Nexus/InputBinds.json`, si se puede leer.
-fn read_binds() -> Option<String> {
-    let path = nexus::paths::get_game_dir()
-        .ok()?
-        .join("addons")
-        .join("Nexus")
-        .join("InputBinds.json");
-    std::fs::read_to_string(path).ok()
+static SHOWN: Mutex<Shown> = Mutex::new(Shown::new());
+static WATCH: Mutex<Option<Watch>> = Mutex::new(None);
+
+/// Descripción del atajo según lo último que Nexus ha guardado. No toca el disco.
+pub fn shortcut() -> String {
+    match SHOWN.lock() {
+        Ok(mut shown) => shown.current(crate::ffi::keys::layout_key_name).to_owned(),
+        Err(_) => UNKNOWN.to_owned(),
+    }
+}
+
+/// Lee `InputBinds.json` por primera vez y deja la ruta para [`refresh`]. Se llama desde `load`
+/// y nunca desde el render.
+pub fn remember_shortcut() {
+    let Some(path) = binds_path() else {
+        log::info!("atajo de Nexus para {IDENTIFIER}: {UNKNOWN} (sin carpeta del juego)");
+        return;
+    };
+    let mut watch = Watch::new(path);
+    let read = watch.poll();
+    if let Ok(mut slot) = WATCH.lock() {
+        *slot = Some(watch);
+    }
+    if let Some(read) = read {
+        store(read);
+    }
+    shortcut();
+}
+
+/// Vuelve a leer el atajo si Nexus ha reescrito el fichero. La llama el worker, nunca el render.
+pub fn refresh() {
+    let read = match WATCH.lock() {
+        Ok(mut slot) => slot.as_mut().and_then(Watch::poll),
+        Err(_) => None,
+    };
+    if let Some(read) = read {
+        store(read);
+    }
+}
+
+fn store(read: Option<Bind>) {
+    if let Ok(mut shown) = SHOWN.lock() {
+        shown.pending = Some(read);
+    }
+}
+
+/// `addons/Nexus/InputBinds.json` dentro de la carpeta del juego.
+fn binds_path() -> Option<PathBuf> {
+    Some(
+        nexus::paths::get_game_dir()
+            .ok()?
+            .join("addons")
+            .join("Nexus")
+            .join("InputBinds.json"),
+    )
+}
+
+/// Vigila la fecha de modificación del fichero para leerlo solo cuando cambia.
+struct Watch {
+    path: PathBuf,
+    stamp: Option<SystemTime>,
+    seen: bool,
+}
+
+impl Watch {
+    fn new(path: PathBuf) -> Self {
+        Self {
+            path,
+            stamp: None,
+            seen: false,
+        }
+    }
+
+    /// `None` si el fichero no ha cambiado desde la última vez; si no, nuestro atajo tal como
+    /// está ahora (`Some(None)` si ya no está o no se puede leer).
+    fn poll(&mut self) -> Option<Option<Bind>> {
+        let stamp = std::fs::metadata(&self.path)
+            .and_then(|meta| meta.modified())
+            .ok();
+        if self.seen && stamp == self.stamp {
+            return None;
+        }
+        self.seen = true;
+        self.stamp = stamp;
+        Some(
+            std::fs::read_to_string(&self.path)
+                .ok()
+                .as_deref()
+                .and_then(find_bind),
+        )
+    }
+}
+
+/// Nuestro atajo dentro del JSON de Nexus.
+fn find_bind(json: &str) -> Option<Bind> {
+    let binds: Vec<Bind> = serde_json::from_str(json).ok()?;
+    binds.into_iter().find(|bind| bind.identifier == IDENTIFIER)
 }
 
 /// Descripción del atajo de `identifier` dentro del JSON. Pura: se prueba con el fichero real.
 ///
 /// `layout` nombra la tecla según la distribución del jugador (en un teclado español el código
 /// 0x27 es «Ñ», no el «;» de la tabla US: informe del 2026-11-01). Si no la conoce, la tabla.
+#[cfg(test)]
 fn describe_identifier(json: &str, layout: impl Fn(u16) -> Option<String>) -> Option<String> {
-    let binds: Vec<Bind> = serde_json::from_str(json).ok()?;
-    let found = binds
-        .into_iter()
-        .find(|bind| bind.identifier == IDENTIFIER)?;
-    Some(describe(&found, layout))
+    find_bind(json).map(|found| describe(&found, layout))
 }
 
 /// `Ctrl+Shift+L` a partir de los modificadores y el código de escaneo.
@@ -244,6 +348,45 @@ mod tests {
             Some("L")
         );
         assert_eq!(crate::ffi::keys::layout_key_name(0), None);
+    }
+
+    #[test]
+    fn rf18_a_rebinding_made_while_playing_reaches_the_message() {
+        // Informe del 2026-11-01: el jugador puso Alt+Shift+Ñ con el juego abierto y el aviso del
+        // click-through seguía diciendo Ctrl+Shift+Ñ, porque el fichero solo se leía al cargar.
+        let path = std::env::temp_dir().join(format!("gw2lurker_rf18_{}.json", std::process::id()));
+        let write = |json: &str, at: SystemTime| {
+            std::fs::write(&path, json).ok();
+            if let Ok(file) = std::fs::File::options().write(true).open(&path) {
+                file.set_modified(at).ok();
+            }
+        };
+        let start = SystemTime::UNIX_EPOCH + std::time::Duration::from_secs(1_800_000_000);
+        write(REAL, start);
+        let mut watch = Watch::new(path.clone());
+        let mut shown = Shown::new();
+
+        shown.pending = watch.poll();
+        assert_eq!(shown.current(spanish), "Ctrl+Shift+Ñ");
+        assert_eq!(watch.poll(), None, "sin cambios no se vuelve a leer");
+
+        let rebound = REAL.replacen(
+            r#""Alt": false, "Code": 39, "Ctrl": true"#,
+            r#""Alt": true, "Code": 39, "Ctrl": false"#,
+            1,
+        );
+        assert_ne!(rebound, REAL, "la fixture tiene que cambiar");
+        write(&rebound, start + std::time::Duration::from_secs(60));
+        shown.pending = watch.poll();
+        assert_eq!(shown.current(spanish), "Alt+Shift+Ñ");
+
+        std::fs::remove_file(&path).ok();
+        shown.pending = watch.poll();
+        assert_eq!(
+            shown.current(spanish),
+            UNKNOWN,
+            "sin fichero no se inventa un atajo"
+        );
     }
 
     #[test]

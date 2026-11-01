@@ -370,6 +370,7 @@ fn sleep(total: Duration) {
     let mut left = total;
     while left > Duration::ZERO && !STOP.load(Ordering::Relaxed) {
         crate::check_dll_update();
+        crate::keybinds::refresh();
         let chunk = left.min(step);
         std::thread::sleep(chunk);
         left -= chunk;

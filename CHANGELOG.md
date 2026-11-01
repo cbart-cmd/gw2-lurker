@@ -2,6 +2,9 @@
 Formato [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/), versionado [SemVer](https://semver.org/lang/es/).
 
 ## [Unreleased]
+### Corregido
+- El aviso del click-through muestra el atajo actual aunque se cambie en Nexus con el juego
+  abierto (antes se quedaba con el que había al cargar el addon).
 
 ## [0.26.2] - 2026-11-01
 ### Corregido

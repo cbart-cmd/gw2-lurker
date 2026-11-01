@@ -172,7 +172,7 @@ pub(super) fn draw_health(
         let _tint = ui.push_style_color(nexus::imgui::StyleColor::Text, [1.0, 0.75, 0.3, 1.0]);
         ui.text_wrapped(i18n::format(
             "Click-through is on: right-click here to use the mouse again (Nexus has {0} for the same).",
-            &[crate::keybinds::shortcut()],
+            &[crate::keybinds::shortcut().as_str()],
         ));
     }
 

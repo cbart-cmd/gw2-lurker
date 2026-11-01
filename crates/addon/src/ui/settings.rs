@@ -310,7 +310,7 @@ fn draw_body(
     draw_theme(ui, edits);
     ui.text_disabled(i18n::format(
         "Click-through keeps the mouse for the game. Right-click on the widget to use the mouse again; the Nexus shortcut for {0} does the same.",
-        &[crate::keybinds::shortcut()],
+        &[crate::keybinds::shortcut().as_str()],
     ));
 
     // There used to be a *Save* button here; it wrote the file without any feedback and was

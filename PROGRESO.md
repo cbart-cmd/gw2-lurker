@@ -38,6 +38,19 @@ Reglas:
   con `claimed_at` o el mapa pinta un anillo en un campa de otro color (0.22.10).
 - Publicar: `UpdateProvider::Direct` + `DisableHotloading`, MD5 de 32 hex sin BOM, excepción
   de LFS para la DLL, tag propio con `--latest=false`. Ver `docs/RELEASE.md`.
+- `InputBinds.json` cambia con el juego abierto: no cachear el atajo para siempre. Lo relee el
+  worker según la fecha de modificación y la tecla se nombra en el hilo que pide el texto
+  (`GetKeyNameTextW` usa la distribución de teclado de ese hilo).
+
+## HECHO – 2026-11-01 · Atajo del click-through desactualizado (RF-18, sin publicar)
+
+- Bug: el jugador cambió el atajo a Alt+Shift+Ñ en Nexus y el aviso seguía diciendo Ctrl+Shift+Ñ.
+  `InputBinds.json` (18:33:36) ya decía `Alt: true, Ctrl: false`; el addon lo leía solo al cargar
+  en un `OnceLock`.
+- `keybinds.rs`: `Watch` compara la fecha del fichero y lo relee solo si cambió; `refresh()` se
+  llama en `worker::sleep` (cada 250 ms, nunca en el render). `shortcut()` devuelve `String`.
+- Test `rf18_a_rebinding_made_while_playing_reaches_the_message` (fichero temporal reescrito).
+  `validate.ps1 -Release`: todo OK, 328 tests. Pendiente: comprobarlo en GW2.
 
 ## HECHO – 2026-11-01 · Favoritos coherentes y paso 0 de la ruta · 0.26.2
 

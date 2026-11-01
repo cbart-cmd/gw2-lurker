@@ -35,3 +35,8 @@ Estado: `[ ]` pendiente · `[x]` arreglado según el addon (a falta de que el ju
 - **Pendiente:** propuesta aprobada implementada en `core::route` y `ui::map::route`, con fixtures
   reales, origen 0/1, conexión discontinua y posiciones de respawn aproximadas. Publicado en 0.26.2;
   falta comprobar el dibujo dentro de GW2.
+
+## [ ] El click-through dice un atajo que ya no es (2026-11-01)
+- Con el atajo cambiado a Alt+Shift+Ñ en Nexus, el aviso decía «Ctrl+Shift+Ñ».
+- **Pendiente:** `keybinds.rs` relee `InputBinds.json` cuando cambia (desde el worker) en vez de
+  solo al cargar. Con test; sin publicar todavía y falta comprobarlo en GW2.
