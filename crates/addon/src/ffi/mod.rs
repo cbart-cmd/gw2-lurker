@@ -28,10 +28,9 @@ pub fn mumble_map() -> Option<(u32, u32)> {
     Some((link.read_map_id(), link.read_map_type()))
 }
 
-/// Character name from MumbleLink, used to key the per-character team roster (RF-03a).
-///
-/// Mumble exposes the character, not the account: a second account is a different character,
-/// which is exactly the granularity we need.
+/// Character name from MumbleLink. It is the **fallback key** of the team memory (RF-03a): the
+/// real key is the account name arcdps reports (`arc_team::self_account`), because the team is
+/// shared by every character of the same account.
 ///
 /// The name comes from the **identity JSON**. The `name` field of MumbleLink looks like the
 /// character but it is the game's own name: measured on 2026-10-31 it held `"Guild Wars 2"`, and

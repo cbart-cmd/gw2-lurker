@@ -40,8 +40,8 @@ fn retry_due(at: Instant, now: Instant) -> bool {
 
 /// Forgets the last sweep, so the next poll asks for the nine matchups again.
 ///
-/// Used when the character changes: the roster is per character, so another alt can play with a
-/// different team (RF-03a).
+/// Used when the account changes: the team is remembered per account, so another account can
+/// play with a different team (RF-03a).
 pub fn forget() {
     *slot().lock().unwrap_or_else(|error| error.into_inner()) = None;
 }

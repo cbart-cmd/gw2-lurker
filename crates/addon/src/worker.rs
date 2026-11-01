@@ -385,7 +385,7 @@ fn poll_once(
     let saved = crate::team::selected();
     // El personaje manda: la lista por personaje es de RF-03a, así que un alt con otro equipo
     // tiene que revalidar (una sola vez) al entrar.
-    if character_changed() {
+    if identity_changed() {
         crate::detect::forget();
     }
     // Con el selector en pantalla hacen falta los nueve emparejamientos, pero como mucho una vez
@@ -600,19 +600,20 @@ fn all_stale() -> bool {
         .is_none_or(|at| at.elapsed() >= ALL_MATCHUPS_TTL)
 }
 
-/// Whether the character changed since the last poll, which re-arms the one sweep of the nine
-/// matchups: the roster is per character (RF-03a).
-fn character_changed() -> bool {
+/// Whether the identity changed since the last poll, which re-arms the one sweep of the nine
+/// matchups: the team is remembered per account (RF-03a), so changing character inside the same
+/// account does not need a sweep.
+fn identity_changed() -> bool {
     static LAST: Mutex<Option<String>> = Mutex::new(None);
-    let Some(name) = crate::ffi::character_name() else {
+    let Some(key) = crate::team::current_key() else {
         return false;
     };
     let mut last = LAST.lock().unwrap_or_else(|error| error.into_inner());
-    if last.as_deref() == Some(name.as_str()) {
+    if last.as_deref() == Some(key.as_str()) {
         return false;
     }
     let changed = last.is_some();
-    *last = Some(name);
+    *last = Some(key);
     changed
 }
 

@@ -68,12 +68,13 @@ pub fn of_region_and_color(
         .collect()
 }
 
-/// The team chosen for each character.
+/// The team chosen for each **account**.
 ///
-/// Keyed by character name (Mumble's `Identity::name`) on purpose: a second account has
-/// different characters, so an alt in the other region does not inherit the main's team and
-/// gets its own picker once. Two accounts with the same character name would collide, which
-/// is rare enough to be covered by the manual picker.
+/// Keyed by the account name arcdps reports (`Jhoin.1234`) since 2026-11-01: every character of
+/// an account shares the team, so an alt does not ask again, and a second account gets its own
+/// picker instead of inheriting the main's team. The character name stays as the fallback key
+/// while arcdps has not said which account we are in — and it is the key older versions wrote,
+/// so their entries keep resolving.
 #[derive(Debug, Clone, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 #[serde(default)]
 pub struct Roster {
@@ -126,9 +127,9 @@ pub fn evaluate(saved: Option<u32>, live: &[Match]) -> Selection {
     }
 }
 
-/// Same decision, but looking the character up in the roster first.
-pub fn evaluate_for(character: &str, roster: &Roster, live: &[Match]) -> Selection {
-    evaluate(roster.get(character), live)
+/// Same decision, but looking the key (account, or character as fallback) up in the roster first.
+pub fn evaluate_for(key: &str, roster: &Roster, live: &[Match]) -> Selection {
+    evaluate(roster.get(key), live)
 }
 
 /// Every team playing a live match, ordered by match and then by colour.
@@ -273,7 +274,7 @@ mod tests {
     }
 
     #[test]
-    fn rf03a_roster_keeps_one_team_per_character() {
+    fn rf03a_roster_keeps_one_team_per_key() {
         let all = live();
         let mut roster = Roster::default();
         assert_eq!(evaluate_for("Main", &roster, &all), Selection::Missing);

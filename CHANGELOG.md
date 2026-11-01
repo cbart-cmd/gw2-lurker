@@ -2,6 +2,11 @@
 Formato [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/), versionado [SemVer](https://semver.org/lang/es/).
 
 ## [Unreleased]
+### Añadido
+- El equipo se guarda **por cuenta**, no por personaje: todos los personajes de una cuenta comparten
+  equipo y zona, y una segunda cuenta arranca vacía y se pregunta una vez. La cuenta sale del nombre
+  que arcdps ya entregaba en el evento de carga de mapa y que el addon no usaba. Las entradas
+  guardadas por personaje en versiones anteriores se siguen leyendo.
 
 ## [0.26.4] - 2026-11-01
 ### Corregido

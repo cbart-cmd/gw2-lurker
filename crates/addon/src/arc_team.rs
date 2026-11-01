@@ -12,11 +12,15 @@
 //! here and nothing else has to change.
 
 use std::sync::atomic::{AtomicI32, Ordering};
+use std::sync::Mutex;
 
 use nexus::event::{arc::SELF_JOIN, event_consume};
 
 /// arcdps team of the local player; `-1` until arcdps reports it.
 static SELF_TEAM: AtomicI32 = AtomicI32::new(-1);
+
+/// Account name arcdps reports for the local player, `None` until the first self-join.
+static ACCOUNT: Mutex<Option<String>> = Mutex::new(None);
 
 /// Subscribes to arcdps' self-join event. Must be called from `load`.
 ///
@@ -29,8 +33,18 @@ pub fn subscribe() {
 }
 
 fn on_self_join(payload: Option<&nexus::event::arc::AgentUpdate>) {
-    if let Some(agent) = payload {
-        SELF_TEAM.store(i32::from(agent.team), Ordering::Relaxed);
+    let Some(agent) = payload else {
+        return;
+    };
+    SELF_TEAM.store(i32::from(agent.team), Ordering::Relaxed);
+    // El equipo se recuerda por cuenta, no por personaje (RF-03a): arcdps da el nombre de
+    // cuenta en el mismo evento que el equipo, así que no hay que preguntar nada.
+    if let Some(account) = agent.account().map(str::trim).filter(|a| !a.is_empty()) {
+        let mut slot = ACCOUNT.lock().unwrap_or_else(|error| error.into_inner());
+        if slot.as_deref() != Some(account) {
+            log::info!("arcdps: cuenta {account}");
+            *slot = Some(account.to_owned());
+        }
     }
 }
 
@@ -41,6 +55,17 @@ pub fn self_team_tag() -> Option<u16> {
     u16::try_from(SELF_TEAM.load(Ordering::Relaxed))
         .ok()
         .filter(|tag| *tag != 0)
+}
+
+/// Account name arcdps reported for the local player (`Jhoin.1234`), which is the key the team
+/// is saved under (RF-03a).
+///
+/// Copied out on purpose: the event arrives on arcdps' thread, so callers never hold the lock.
+pub fn self_account() -> Option<String> {
+    ACCOUNT
+        .lock()
+        .unwrap_or_else(|error| error.into_inner())
+        .clone()
 }
 
 /// Tag as text for the log, so a bug report can say which side arcdps thought we were on.

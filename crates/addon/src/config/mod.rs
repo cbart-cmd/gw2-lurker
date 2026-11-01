@@ -180,7 +180,9 @@ pub struct Config {
     pub widget_locked: bool,
     /// Per-window UI state, keyed by the window's English title (RF-46).
     pub windows: BTreeMap<String, WindowState>,
-    /// One team per character (RF-03a); the manual `team_id` wins over it.
+    /// One team per account (RF-03a), keyed by the account name arcdps reports; the character
+    /// name is the fallback key while arcdps has not answered and the key older versions used.
+    /// The manual `team_id` wins over it.
     pub roster: gw2lurker_core::Roster,
     /// Draws the overlay outside WvW too. Diagnostic only: `false` in normal use (RF-01).
     pub debug_show_everywhere: bool,

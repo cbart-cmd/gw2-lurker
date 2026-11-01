@@ -42,6 +42,25 @@ Reglas:
   worker según la fecha de modificación y la tecla se nombra en el hilo que pide el texto
   (`GetKeyNameTextW` usa la distribución de teclado de ese hilo).
 
+## HECHO – 2026-11-01 · El equipo se guarda por cuenta (RF-03a)
+
+- Petición del jugador: con dos cuentas, el equipo/zona debe guardarse por **cuenta**, no por
+  personaje, para que todos los personajes de una cuenta lo compartan y la otra cuenta arranque
+  vacía.
+- **No hace falta detectar nada nuevo**: `arc_team.rs` ya se suscribe a `EV_ARCDPS_SELF_JOIN`, y el
+  `AgentUpdate` que trae el equipo lleva también `account()` (nombre de cuenta) y `character()`
+  (`nexus/src/api/event/arc.rs`). El campo se tiraba; ahora se guarda en un `Mutex` y se expone en
+  `arc_team::self_account()`. Cero dependencias nuevas, cero `unsafe` nuevo (el accesor es seguro).
+- `team.rs`: `key(account, character)` decide la clave (cuenta primero; personaje como respaldo y
+  como clave heredada de ≤ 0.26.4) y `resolve` la usa, así que una entrada vieja por personaje sigue
+  resolviendo. `remember_in` y `forget_in` guardan/borran por cuenta.
+- `worker.rs`: el barrido de los nueve emparejamientos se rearma cuando cambia la **cuenta**
+  (`identity_changed` con `team::current_key()`), no con cada personaje.
+- Spec actualizada (RF-03a) y CHANGELOG. Tests: `rf03a_the_team_is_remembered_per_account_and_shared_by_its_characters`
+  y `rf03a_a_team_saved_per_character_still_resolves_after_the_upgrade`.
+- UNVERIFIED: que `AgentUpdate::account` llegue con `Jhoin.1234` en el juego. El log imprime
+  `arcdps: cuenta <nombre>` la primera vez de cada sesión; con eso se comprueba.
+
 ## HECHO – 2026-11-01 · Publicada la 0.26.4
 
 - Release `gw2-lurker-v0.26.4`, MD5 `b4536bef9dae5b6f0c38732493bda61d` (2 199 552 B), verificado
