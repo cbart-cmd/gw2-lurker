@@ -4,12 +4,13 @@
 //! 1. the **manual override** in the settings window, which wins for every account — it is
 //!    the escape hatch for the odd case where the old and the new team share a matchup;
 //! 2. the **per-account memory**, keyed by the account name arcdps reports
-//!    (`Jhoin.1234`), so every character of that account shares the team and a second account
+//!    (`:Jhoin.1234`), so every character of that account shares the team and a second account
 //!    in the other region gets its own picker instead of inheriting the main's team.
 //!
-//! The character name is only the **fallback key**: it is what older versions saved under, so
-//! the team survived the upgrade, and it covers the frames before arcdps says which account
-//! we are in.
+//! The character name is only the key while arcdps has not said which account we are in (or is
+//! not installed). The key a team is saved under is always the key it is read from, and once the
+//! account is known an entry saved under a character is never read: the per-character memory of
+//! versions up to 0.26.5 is **not migrated** (decision of the player, 2026-11-01).
 //!
 //! **Every entry point has an `_in` variant that takes the configuration by reference.** The
 //! locking wrappers must never run while the caller already holds the configuration:
@@ -20,8 +21,8 @@ use gw2lurker_core::Roster;
 
 use crate::config::Config;
 
-/// Key the team is saved under: the **account** wins; the character is the fallback while
-/// arcdps has not said which account we are in (and the key older versions used).
+/// Key the team is saved under: the **account** wins; the character is the fallback while arcdps
+/// has not said which account we are in, or is not installed.
 pub fn key(account: Option<&str>, character: Option<&str>) -> Option<String> {
     account
         .map(str::trim)
@@ -53,37 +54,42 @@ pub fn selected_in(config: &Config) -> Option<u32> {
 }
 
 /// The actual rule, pure so it can be tested without Nexus: the manual override wins, then the
-/// account entry, then the character entry (what versions before 0.26.5 saved under).
+/// entry under the current key, which is the account (or the character only while arcdps has not
+/// said which account we are in, or is not installed). Once the account is known an entry saved
+/// under a character is never read.
 pub fn resolve(
     manual: Option<u32>,
     roster: &Roster,
     account: Option<&str>,
     character: Option<&str>,
 ) -> Option<u32> {
-    if let Some(team) = manual {
-        return Some(team);
-    }
-    account
-        .and_then(|account| roster.get(account))
-        .or_else(|| character.and_then(|character| roster.get(character)))
+    manual.or_else(|| key(account, character).and_then(|key| roster.get(&key)))
 }
 
 /// Remembers the team for the current account and clears the manual override.
 pub fn remember_in(config: &mut Config, team_id: u32) {
-    let key = current_key();
+    remember_under(config, current_key().as_deref(), team_id);
+}
+
+/// Forgets the team of the current account.
+pub fn forget_in(config: &mut Config) {
+    forget_under(config, current_key().as_deref());
+}
+
+/// The rule behind [`remember_in`], pure so it can be tested: the pick is saved under the same
+/// key [`resolve`] reads, and it replaces a manual override, which would hide it otherwise.
+fn remember_under(config: &mut Config, key: Option<&str>, team_id: u32) {
     config.team_id = None;
     if let Some(key) = key {
-        config.roster.set(&key, team_id);
+        config.roster.set(key, team_id);
     }
 }
 
-/// Forgets the team of the current account, and the old per-character entry with it.
-pub fn forget_in(config: &mut Config) {
-    let account = crate::arc_team::self_account();
-    let character = crate::ffi::character_name();
+/// The rule behind [`forget_in`]: it clears the key [`resolve`] reads and no other.
+fn forget_under(config: &mut Config, key: Option<&str>) {
     config.team_id = None;
-    for key in [account, character].into_iter().flatten() {
-        config.roster.forget(&key);
+    if let Some(key) = key {
+        config.roster.forget(key);
     }
 }
 
@@ -214,14 +220,59 @@ mod tests {
     }
 
     #[test]
-    fn rf03a_a_team_saved_per_character_still_resolves_after_the_upgrade() {
-        // `settings.json` de 0.26.4 y anteriores: la clave era el personaje. Al llegar la cuenta,
-        // la entrada vieja sigue sirviendo hasta que el jugador cambie de equipo.
+    fn rf03a_a_character_entry_is_not_read_once_the_account_is_known() {
+        // Decisión del jugador (2026-11-01): sin migración. Una entrada por personaje de
+        // ≤ 0.26.4 no sirve cuando arcdps ya ha dado la cuenta; solo vale sin arcdps, donde el
+        // personaje es la única clave que hay.
         let mut roster = Roster::default();
         roster.set("Jhoin", 11011);
+
         assert_eq!(
-            resolve(None, &roster, Some("Jhoin.1234"), Some("Jhoin")),
-            Some(11011)
+            resolve(None, &roster, Some(":Jhoin.1234"), Some("Jhoin")),
+            None,
+            "con la cuenta conocida solo cuenta la cuenta"
+        );
+        assert_eq!(
+            resolve(None, &roster, None, Some("Jhoin")),
+            Some(11011),
+            "sin cuenta (sin arcdps) el personaje es la clave"
+        );
+    }
+
+    #[test]
+    fn rf03a_picking_a_team_saves_it_under_the_account_only() {
+        // Con un equipo manual puesto, elegir otro lo sustituye: si no, la elección no se vería.
+        let mut config = Config {
+            team_id: Some(11011),
+            ..Config::default()
+        };
+
+        let key = key(Some(":Jhoin.1234"), Some("Jhoin"));
+        remember_under(&mut config, key.as_deref(), 12014);
+
+        assert_eq!(config.team_id, None);
+        assert_eq!(config.roster.len(), 1, "una sola entrada, la de la cuenta");
+        assert_eq!(config.roster.get(":Jhoin.1234"), Some(12014));
+        assert_eq!(config.roster.get("Jhoin"), None, "nada por personaje");
+    }
+
+    #[test]
+    fn rf03a_forgetting_clears_the_key_that_was_read_and_nothing_else() {
+        let mut config = Config::default();
+        config.roster.set(":Jhoin.1234", 12014);
+        config.roster.set(":Otra.5678", 11011);
+
+        let key = key(Some(":Jhoin.1234"), Some("Jhoin"));
+        forget_under(&mut config, key.as_deref());
+
+        assert_eq!(
+            resolve(None, &config.roster, Some(":Jhoin.1234"), Some("Jhoin")),
+            None
+        );
+        assert_eq!(
+            config.roster.get(":Otra.5678"),
+            Some(11011),
+            "las demás cuentas no se tocan"
         );
     }
 

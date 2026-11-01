@@ -28,7 +28,7 @@ Cada punto de esta lista sale de un fallo real de este proyecto, no de una buena
 3. **Un test del addon no puede tocar Nexus.** `AddonApi::get()` revienta fuera del juego
    (`nexus/src/globals.rs:83`), así que llamar a `get_mumble_link`, `runtime()` o
    `character_name()` dentro de un test es un pánico. La regla va en una función pura y se prueba
-   esa: `team::resolve(manual, roster, character)`, `i18n::resolve(...)`,
+   esa: `team::resolve(manual, roster, account, character)`, `i18n::resolve(...)`,
    `window::opacity_percent(...)`.
 4. **Nada de tests que reimplementen la lógica.** Repetir el `match` de producción en el test no
    prueba nada; hay que llamar al código real. Y si el candado (`Mutex`) es lo que no se puede

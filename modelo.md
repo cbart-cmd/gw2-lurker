@@ -103,7 +103,7 @@ Estado global (en `addon/src/lib.rs` y `worker.rs`):
 
 <!-- GENERADO: no editar debajo; se rehace con scripts/gen_modelo.ps1 -->
 
-Generado el 2026-11-01 23:36 desde el commit `130dabd`.
+Generado el 2026-11-02 00:09 desde el commit `d2ccac1`.
 
 ## Crate `core`
 
@@ -466,7 +466,7 @@ Virtual route of a guild (T-40, RF-32a).
 **Tests (16):** `rf32a_step_zero_locates_a_previously_claimed_home_garrison`, `rf32a_an_alpine_side_keep_requires_the_whole_segment_to_start_north`, `rf32a_a_future_garrison_cannot_be_the_departure_for_earlier_claims`, `rf32a_respawn_uses_the_guild_colour_and_the_official_label_position`, `rf32a_time_ranges_and_map_segments_do_not_change_earlier_departures`, `rf32a_enemy_garrisons_and_eternal_keeps_are_not_home_departures`, `rf32a_desert_uses_its_home_garrison_but_not_the_alpine_side_keep_rule`, `rf32a_missing_colour_or_coordinates_never_fabricates_step_zero`, `rf32a_route_follows_the_claim_order`, `rf32a_a_guild_without_claims_has_no_route`, `rf32a_claim_types_without_context_cannot_identify_a_garrison`, `rf32a_towers_do_not_identify_a_side_keep`, `rf32a_spawn_without_coordinates_remains_unknown`, `rf32a_the_origin_is_always_labelled_as_inferred`, `rf36_playback_shows_the_steps_it_has_reached`, `rf36_progress_goes_from_zero_to_one`
 
 
-### `crates/core/src/select.rs` (364 líneas)
+### `crates/core/src/select.rs` (383 líneas)
 
 Team selection: when the addon has to ask the player which team is theirs (RF-03a).
 
@@ -479,10 +479,10 @@ Team selection: when the addon has to ask the player which team is theirs (RF-03
 - `pub fn of_region_and_color(…)` — Teams of one region and one colour: **one per matchup**, which is what the third step of the picker offers (RF-03a).
 - `pub struct Roster` — The team chosen for each **account**.
 - `impl Roster`
-  - `pub fn get(&self, character: &str) -> Option<u32>` — Team remembered for a character.
-  - `pub fn set(&mut self, character: &str, team_id: u32)` — Remembers the team of a character. An empty name is ignored: without a name the selection could not be told apart from any other.
-  - `pub fn forget(&mut self, character: &str)` — Forgets a character, used when its team is no longer in any live match.
-  - `pub fn len(&self) -> usize` — Characters remembered.
+  - `pub fn get(&self, key: &str) -> Option<u32>` — Team remembered under a key: the account name, or the character name without arcdps.
+  - `pub fn set(&mut self, key: &str, team_id: u32)` — Remembers the team under a key. An empty key is ignored: without a name the selection could not be told apart from any other.
+  - `pub fn forget(&mut self, key: &str)` — Forgets a key.
+  - `pub fn len(&self) -> usize` — Keys remembered.
   - `pub fn is_empty(&self) -> bool` — Whether nobody has chosen a team yet.
 - `pub fn evaluate(saved: Option<u32>, live: &[Match]) -> Selection` — Decides whether the saved team still makes sense.
 - `pub fn evaluate_for(key: &str, roster: &Roster, live: &[Match]) -> Selection` — Same decision, but looking the key (account, or character as fallback) up in the roster first.
@@ -494,7 +494,7 @@ Team selection: when the addon has to ask the player which team is theirs (RF-03
 
 **Usa (interno):** `crate::model`
 
-**Tests (9):** `rf03a_without_saved_team_the_picker_opens`, `rf03a_saved_team_still_playing_is_confirmed`, `rf03a_relinked_team_opens_the_picker_again`, `rf03a_candidates_are_the_three_teams_of_each_match`, `rf03a_the_two_teams_of_a_colour_are_not_confused`, `rf03a_roster_keeps_one_team_per_key`, `rf03b_two_step_picker_groups_by_region_and_matchup`, `rf03a_region_and_colour_narrow_the_picker_to_one_team_per_matchup`, `rf03g_rivals_are_the_other_two_of_my_match`
+**Tests (10):** `rf03a_without_saved_team_the_picker_opens`, `rf03a_saved_team_still_playing_is_confirmed`, `rf03a_relinked_team_opens_the_picker_again`, `rf03a_candidates_are_the_three_teams_of_each_match`, `rf03a_the_two_teams_of_a_colour_are_not_confused`, `rf03a_roster_keeps_one_team_per_key`, `rf03a_roster_is_saved_by_account_and_the_old_map_is_not_read`, `rf03b_two_step_picker_groups_by_region_and_matchup`, `rf03a_region_and_colour_narrow_the_picker_to_one_team_per_matchup`, `rf03g_rivals_are_the_other_two_of_my_match`
 
 
 ### `crates/core/src/teams.rs` (358 líneas)
@@ -716,7 +716,7 @@ Clock times as the player sees them.
 **Tests (2):** `rf19_the_clock_uses_the_players_timezone_and_not_utc`, `rf19_the_same_instant_is_formatted_the_same_way_twice`
 
 
-### `crates/addon/src/config/mod.rs` (550 líneas)
+### `crates/addon/src/config/mod.rs` (551 líneas)
 
 Addon configuration, stored as JSON in the addon directory (RF-41).
 
@@ -767,7 +767,7 @@ Addon configuration, stored as JSON in the addon directory (RF-41).
 **APIs externas:** `nexus::paths::get_addon_dir`, `disco: fs::create_dir_all`, `disco: fs::copy`, `disco: fs::read_to_string`, `disco: fs::rename`, `disco: fs::write`, `serde_json::from_str`, `serde_json::to_string_pretty`
 
 
-### `crates/addon/src/config/tests.rs` (304 líneas)
+### `crates/addon/src/config/tests.rs` (317 líneas)
 
 Tests de la configuración y del estado de las ventanas.
 
@@ -775,7 +775,7 @@ Tests de la configuración y del estado de las ventanas.
 
 **APIs externas:** `http://ejemplo/x.zip`, `https://ejemplo/x.zip`, `https://raw.githubusercontent.com/cbart-cmd/gw2addonreleases/main/gw2_lurker_guilds.zip`, `serde_json::from_str`, `serde_json::to_string`
 
-**Tests (17):** `rf41_settings_live_under_documents_like_the_neighbours`, `rf19a_popup_time_defaults_to_two_seconds_and_clamps`, `rf19a_by_default_my_map_and_the_guilds_i_follow`, `rf41_defaults_are_usable`, `rf41_old_files_without_fields_still_load`, `rf41_out_of_range_values_are_clamped`, `rf20c_an_index_url_without_https_falls_back_to_the_published_one`, `rf20c_the_broken_default_url_repairs_itself`, `rf20b_guild_names_are_stored_in_the_settings_file`, `rf20b_only_the_followed_guilds_keep_their_name_in_the_settings`, `rf20b_settings_canonicalize_old_lowercase_guild_ids`, `rf03b_configured_team_resolves_its_colour`, `rf73_followed_guilds_round_trip`, `rf46_window_state_defaults_are_visible_and_movable`, `rf46_window_state_survives_a_restart`, `rf46_impossible_window_values_are_discarded`, `rf46_unknown_window_key_does_not_panic`
+**Tests (18):** `rf41_settings_live_under_documents_like_the_neighbours`, `rf19a_popup_time_defaults_to_two_seconds_and_clamps`, `rf19a_by_default_my_map_and_the_guilds_i_follow`, `rf41_defaults_are_usable`, `rf41_old_files_without_fields_still_load`, `rf03a_teams_saved_per_character_by_older_versions_are_not_carried_over`, `rf41_out_of_range_values_are_clamped`, `rf20c_an_index_url_without_https_falls_back_to_the_published_one`, `rf20c_the_broken_default_url_repairs_itself`, `rf20b_guild_names_are_stored_in_the_settings_file`, `rf20b_only_the_followed_guilds_keep_their_name_in_the_settings`, `rf20b_settings_canonicalize_old_lowercase_guild_ids`, `rf03b_configured_team_resolves_its_colour`, `rf73_followed_guilds_round_trip`, `rf46_window_state_defaults_are_visible_and_movable`, `rf46_window_state_survives_a_restart`, `rf46_impossible_window_values_are_discarded`, `rf46_unknown_window_key_does_not_panic`
 
 
 ### `crates/addon/src/context.rs` (52 líneas)
@@ -1222,18 +1222,20 @@ Nombres de los clanes que han reclamado algo **en esta sesión**, en `temp.json`
 **Tests (3):** `rf20b_the_session_file_is_written_and_read_back`, `rf20b_session_name_ids_are_normalized`, `rf20b_the_session_never_grows_past_the_cap`
 
 
-### `crates/addon/src/team.rs` (308 líneas)
+### `crates/addon/src/team.rs` (359 líneas)
 
 Which team the current **account** plays for (RF-03a).
 
 **Contenido:**
 
-- `pub fn key(account: Option<&str>, character: Option<&str>) -> Option<String>` — Key the team is saved under: the **account** wins; the character is the fallback while arcdps has not said which account we are in (and the key older versions used).
+- `pub fn key(account: Option<&str>, character: Option<&str>) -> Option<String>` — Key the team is saved under: the **account** wins; the character is the fallback while arcdps has not said which account we are in, or is not installed.
 - `pub fn current_key() -> Option<String>` — Key of the player playing right now, or `None` if neither source has an answer yet.
 - `pub fn selected_in(config: &Config) -> Option<u32>` — Team of the current account, reading an already-locked configuration.
-- `pub fn resolve(…)` — The actual rule, pure so it can be tested without Nexus: the manual override wins, then the account entry, then the character entry (what versions before 0.26.5 saved under).
+- `pub fn resolve(…)` — The actual rule, pure so it can be tested without Nexus: the manual override wins, then the entry under the current key, which is the account (or the character only while arcdps has not said which acc…
 - `pub fn remember_in(config: &mut Config, team_id: u32)` — Remembers the team for the current account and clears the manual override.
-- `pub fn forget_in(config: &mut Config)` — Forgets the team of the current account, and the old per-character entry with it.
+- `pub fn forget_in(config: &mut Config)` — Forgets the team of the current account.
+- `fn remember_under(config: &mut Config, key: Option<&str>, team_id: u32)` — The rule behind [`remember_in`], pure so it can be tested: the pick is saved under the same key [`resolve`] reads, and it replaces a manual override, which would hide it otherwise.
+- `fn forget_under(config: &mut Config, key: Option<&str>)` — The rule behind [`forget_in`]: it clears the key [`resolve`] reads and no other.
 - `pub fn selected() -> Option<u32>` — Team of the current account. Locks the configuration: never call it with a guard alive.
 - `pub fn remember(team_id: u32)` — Remembers the team for the current account. Locks the configuration.
 - `pub fn forget()` — Forgets the team of the current account. Locks the configuration.
@@ -1242,7 +1244,7 @@ Which team the current **account** plays for (RF-03a).
 
 **Usa (interno):** `crate::arc_team`, `crate::config`, `crate::ffi`, `crate::runtime`, `gw2lurker_core::bundled`, `gw2lurker_core::Roster`
 
-**Tests (7):** `rf03f_a_translation_belongs_to_one_team`, `rf03a_override_wins_over_the_roster`, `rf03a_the_team_is_remembered_per_account_and_shared_by_its_characters`, `rf03a_a_team_saved_per_character_still_resolves_after_the_upgrade`, `rf03f_the_players_translation_wins_over_the_bundled_one`, `rf03f_writing_the_automatic_name_is_not_an_override`, `rf03f_the_old_single_alias_is_still_honoured`
+**Tests (9):** `rf03f_a_translation_belongs_to_one_team`, `rf03a_override_wins_over_the_roster`, `rf03a_the_team_is_remembered_per_account_and_shared_by_its_characters`, `rf03a_a_character_entry_is_not_read_once_the_account_is_known`, `rf03a_picking_a_team_saves_it_under_the_account_only`, `rf03a_forgetting_clears_the_key_that_was_read_and_nothing_else`, `rf03f_the_players_translation_wins_over_the_bundled_one`, `rf03f_writing_the_automatic_name_is_not_an_override`, `rf03f_the_old_single_alias_is_still_honoured`
 
 
 ### `crates/addon/src/ui/alerts.rs` (589 líneas)
@@ -1805,7 +1807,7 @@ Off-thread writer for the settings file.
 - `bugs.md` — Bugs — Bandeja de entrada de fallos. **No se borra**: cada bug se queda con su marca. `[x]` cuando creo que está arreglado, con la versión en la que sale el arreglo, para que el jugador pueda comprobarlo y tacharlo del todo si…
 - `Cargo.lock`
 - `Cargo.toml`
-- `CHANGELOG.md` — Changelog — Formato [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/), versionado [SemVer](https://semver.org/lang/es/). no se anotan (eran ~60 líneas en los primeros minutos), y `vigilando` y `deteccion` solo salen cuando…
+- `CHANGELOG.md` — Changelog — Formato [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/), versionado [SemVer](https://semver.org/lang/es/). guarda ahora en `roster.by_account` y el `roster.by_character` de versiones anteriores se ignora (des…
 - `CLAUDE.md` —  — Lee y sigue `AGENTS.md` (instrucciones completas para agentes de IA de este repositorio).
 - `deny.toml` — RUSTSEC-2024-0384 (instant) y RUSTSEC-2024-0436 (paste): avisos de "sin mantenimiento" en crates que arrastra `nexus-rs`. No son vulnerabilidades, están fuera de nuestro control y no podemos actualizarlos por separado: s…
 - `docs/agents/lecciones.md` — Lecciones con contexto (referencia de AGENTS.md) — Texto completo de las reglas que en `AGENTS.md` van en una línea. Cada punto sale de un fallo real. Léelo cuando la tarea toque tests, imgui, el candado `RUNTIME` o `settings.json`; no hace falta cargarlo en cada sesión.

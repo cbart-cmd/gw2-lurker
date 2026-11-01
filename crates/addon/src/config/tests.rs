@@ -93,6 +93,19 @@ fn rf41_old_files_without_fields_still_load() {
 }
 
 #[test]
+fn rf03a_teams_saved_per_character_by_older_versions_are_not_carried_over() {
+    // Decisión del jugador (2026-11-01): sin migración, el equipo se guarda por cuenta desde ahora.
+    let c: Config =
+        serde_json::from_str(r#"{"roster":{"by_character":{":Jhoin.1234":12014,"Jhoin":11011}}}"#)
+            .unwrap();
+    assert!(c.roster.is_empty());
+
+    let json = serde_json::to_string(&c).unwrap();
+    assert!(json.contains("by_account"), "{json}");
+    assert!(!json.contains("by_character"), "{json}");
+}
+
+#[test]
 fn rf41_out_of_range_values_are_clamped() {
     let mut c = Config {
         poll_secs: 1,

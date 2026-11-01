@@ -70,46 +70,49 @@ pub fn of_region_and_color(
 
 /// The team chosen for each **account**.
 ///
-/// Keyed by the account name arcdps reports (`Jhoin.1234`) since 2026-11-01: every character of
-/// an account shares the team, so an alt does not ask again, and a second account gets its own
-/// picker instead of inheriting the main's team. The character name stays as the fallback key
-/// while arcdps has not said which account we are in — and it is the key older versions wrote,
-/// so their entries keep resolving.
+/// Keyed by the account name arcdps reports (`:Jhoin.1234`): every character of an account shares
+/// the team, so an alt does not ask again, and a second account gets its own picker instead of
+/// inheriting the main's team. The character name is only the key while arcdps has not said which
+/// account we are in (or is not installed).
+///
+/// Saved as `by_account`. The `by_character` map that versions up to 0.26.5 wrote is **not**
+/// read, on purpose (the player asked for no migration, 2026-11-01): each account picks its team
+/// once and the entry is the account's from then on.
 #[derive(Debug, Clone, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 #[serde(default)]
 pub struct Roster {
-    by_character: std::collections::BTreeMap<String, u32>,
+    by_account: std::collections::BTreeMap<String, u32>,
 }
 
 impl Roster {
-    /// Team remembered for a character.
-    pub fn get(&self, character: &str) -> Option<u32> {
-        self.by_character.get(character.trim()).copied()
+    /// Team remembered under a key: the account name, or the character name without arcdps.
+    pub fn get(&self, key: &str) -> Option<u32> {
+        self.by_account.get(key.trim()).copied()
     }
 
-    /// Remembers the team of a character. An empty name is ignored: without a name the
-    /// selection could not be told apart from any other.
-    pub fn set(&mut self, character: &str, team_id: u32) {
-        let character = character.trim();
-        if character.is_empty() {
+    /// Remembers the team under a key. An empty key is ignored: without a name the selection
+    /// could not be told apart from any other.
+    pub fn set(&mut self, key: &str, team_id: u32) {
+        let key = key.trim();
+        if key.is_empty() {
             return;
         }
-        self.by_character.insert(character.to_owned(), team_id);
+        self.by_account.insert(key.to_owned(), team_id);
     }
 
-    /// Forgets a character, used when its team is no longer in any live match.
-    pub fn forget(&mut self, character: &str) {
-        self.by_character.remove(character.trim());
+    /// Forgets a key.
+    pub fn forget(&mut self, key: &str) {
+        self.by_account.remove(key.trim());
     }
 
-    /// Characters remembered.
+    /// Keys remembered.
     pub fn len(&self) -> usize {
-        self.by_character.len()
+        self.by_account.len()
     }
 
     /// Whether nobody has chosen a team yet.
     pub fn is_empty(&self) -> bool {
-        self.by_character.is_empty()
+        self.by_account.is_empty()
     }
 }
 
@@ -307,6 +310,22 @@ mod tests {
 
         roster.forget("Alt");
         assert_eq!(roster.len(), 1);
+    }
+
+    #[test]
+    fn rf03a_roster_is_saved_by_account_and_the_old_map_is_not_read() {
+        // Decisión del jugador (2026-11-01): sin migración. El mapa por personaje de ≤ 0.26.5 se
+        // ignora y cada cuenta elige su equipo una vez; desde entonces lo comparten sus personajes.
+        let mut roster = Roster::default();
+        roster.set(":Main.1234", 12014);
+
+        let json = serde_json::to_string(&roster).unwrap();
+        assert!(json.contains("by_account"), "{json}");
+        assert!(!json.contains("by_character"), "{json}");
+
+        let old: Roster = serde_json::from_str(r#"{"by_character":{"Jhoin":11011}}"#).unwrap();
+        assert!(old.is_empty(), "las entradas por personaje no se migran");
+        assert_eq!(old.get("Jhoin"), None);
     }
 
     #[test]

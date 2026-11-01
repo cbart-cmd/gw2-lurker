@@ -72,7 +72,9 @@ clanes seguidos en cualquier mapa, y **solo de estructuras reclamables** (RF-19e
 | M-02 | Id de equipo que solo aparece en `all_worlds.blue` (junto a ids de mundo antiguos) | resolver | Equipo propio = Azul (RF-03b) |
 | M-03 | Id de equipo que no aparece en ningún match vivo | resolver | Sin elección válida: se reabre el selector |
 | M-04 | Mismo equipo, match distinto la semana siguiente, color distinto | resolver | Color nuevo; el color no se persiste (RF-03d) |
-| M-05 | Sin id manual, personaje conocido | `team::resolve` | Manda el roster del personaje |
+| M-05 | Sin id manual, cuenta conocida | `team::resolve` | Manda el roster de la cuenta: todos sus personajes comparten equipo |
+| M-05b | Cuenta conocida y entrada guardada solo por personaje (≤ 0.26.5) | `team::resolve` | No se lee: sin migración, la cuenta elige su equipo una vez (RF-03a) |
+| M-05c | Sin cuenta (arcdps no instalado o aún sin evento), personaje conocido | `team::resolve` | Manda el roster del personaje: es la única clave que hay |
 | M-06 | Id manual distinto del roster | `team::resolve` | Manda el manual |
 
 ## S – Historial de la sesión (antes `store`, hoy memoria: ADR-015)

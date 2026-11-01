@@ -3,6 +3,12 @@ Formato [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/), versionado 
 
 ## [Unreleased]
 ### Cambiado
+- El equipo se guarda **solo por cuenta** y no se migra nada de lo anterior: `settings.json` lo
+  guarda ahora en `roster.by_account` y el `roster.by_character` de versiones anteriores se ignora
+  (desaparece al guardar), así que cada cuenta elige su equipo **una vez** tras actualizar y todos
+  sus personajes lo comparten. Antes, una entrada vieja por personaje seguía resolviendo y el
+  selector volvía a salir al cambiar de personaje. Sin arcdps no hay cuenta, y entonces la clave
+  sigue siendo el personaje.
 - `Nexus.log` escribe bastante menos: los reclamos, cambios de dueño y abandonos de cada sondeo ya
   no se anotan (eran ~60 líneas en los primeros minutos), y `vigilando` y `deteccion` solo salen
   cuando algo cambia en vez de repetirse cada minuto. El latido (`sondeo N`) sale cada cinco

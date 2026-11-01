@@ -383,8 +383,8 @@ fn poll_once(
     assignment: &mut crate::assignment::AssignmentMonitor,
 ) -> Result<(), ApiError> {
     let saved = crate::team::selected();
-    // El personaje manda: la lista por personaje es de RF-03a, así que un alt con otro equipo
-    // tiene que revalidar (una sola vez) al entrar.
+    // La clave es la cuenta (RF-03a): cambiar de personaje dentro de ella no cambia de equipo ni
+    // obliga a revalidar; entrar con otra cuenta sí, una sola vez.
     if identity_changed() {
         crate::detect::forget();
     }

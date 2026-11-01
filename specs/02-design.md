@@ -46,7 +46,7 @@ addon solo avisa de que hace falta reiniciar (ADR-007).
 
 ```
 Mumble (map_id/map_type, identity)  ─┬─> context/gate  -> ¿se sondea? ¿se dibuja?
-                                     └─> team (id de equipo guardado, roster por personaje, arcdps)
+                                     └─> team (id de equipo guardado, roster por cuenta, arcdps)
 worker (hilo propio, cada poll_secs):
    GET /v2/wvw/matches?ids=<una partida>  -> Snapshot -> diff(prev, cur) -> Vec<Event>
    -> Dashboard (Mutex, memoria): historial del ciclo, alertas, claims, colores, nombres
