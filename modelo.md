@@ -103,7 +103,7 @@ Estado global (en `addon/src/lib.rs` y `worker.rs`):
 
 <!-- GENERADO: no editar debajo; se rehace con scripts/gen_modelo.ps1 -->
 
-Generado el 2026-11-01 18:46 desde el commit `1681bbc`.
+Generado el 2026-11-01 19:06 desde el commit `8e2d8d8`.
 
 ## Crate `core`
 
@@ -1803,13 +1803,16 @@ Off-thread writer for the settings file.
 - `README.md` — gw2-lurker — Addon de [Raidcore Nexus](https://raidcore.gg/nexus) para Guild Wars 2, escrito en Rust. Solo funciona en Mundo contra Mundo. (las ruinas nunca avisan), con un aviso emergente opcional.
 - `rust-toolchain.toml` — Se usa "stable" hasta que el spike T-01 compile con éxito. Entonces: fija aquí la versión exacta que funcionó (p. ej. channel = "1.xx.0") y copia ese número en `rust-version` del workspace, para builds reproducibles.
 - `rustfmt.toml`
+- `scripts/bump-version.ps1` — Sube la versión a la vez en Cargo.toml, las dependencias internas de los crates, Cargo.lock y CHANGELOG.md.
 - `scripts/capture_fixtures.sh` — Guarda respuestas reales de la API como fixtures de test. Uso: ./scripts/capture_fixtures.sh <WORLD_ID> ["Nombre de guild a buscar"] Rectángulos de los mapas de WvW (ids tomados del propio match; ADR-011)
 - `scripts/check_bugs.ps1` — Cheap check of the shared bug inbox (AGENTS.md §7).
 - `scripts/check_loc.sh` — Falla si algún .rs supera MAX líneas; avisa a partir de WARN.
 - `scripts/check_size.sh` — Uso: check_size.sh ruta/a/addon.dll (LIMIT_BYTES por defecto 2.5 MB) Objetivo 2.2 MB desde ADR-013 (2026-10-31): el addon no cabía en 1.5 MB con las vistas.
 - `scripts/check_traceability.sh` — Trazabilidad requisito -> prueba (T-03b).
+- `scripts/check_version.sh` — Falla si la versión del workspace, las dependencias internas de los crates y Cargo.lock no coinciden. Lo llama scripts/validate.ps1 como paso `version` (AGENTS.md §3).
 - `scripts/gen_modelo.ps1` — Regenera la parte automática de modelo.md: mapa de ficheros, items, tests y APIs que usa cada uno.
 - `scripts/guild-search.ps1` — Buscador de clanes fuera del juego (T-44, RF-73).
+- `scripts/modelo-descripciones.txt` — Descripciones para modelo.md de los items que no tienen `///` en el código. Formato: ruta|Tipo::item => descripción (Tipo:: solo para métodos de un impl/trait). `pwsh -File scripts/gen_modelo.ps1 -ListMissing` lista lo q…
 - `scripts/pack-guild-index.ps1` — Empaqueta el indice de nombres de clan y lo publica en el repositorio de distribucion (RF-20c).
 - `scripts/poll_match.ps1` — Spike T-02 (Windows / PowerShell): mide la frecuencia real de cambio de /v2/wvw/matches. Uso: .\scripts\poll_match.ps1 -World 1234 [-IntervalSec 10] [-DurationMin 30]
 - `scripts/poll_match.sh` — Spike T-02: mide con qué frecuencia cambia realmente /v2/wvw/matches y qué caché declara. Uso: ./scripts/poll_match.sh <WORLD_ID> [intervalo_s=10] [duracion_min=30]

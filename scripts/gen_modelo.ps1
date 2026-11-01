@@ -189,7 +189,7 @@ function Describe-Other([string]$path) {
             $c = $lines | Where-Object { $_ -match '^\s*(#|::|rem\s)' -and $_ -notmatch '^#!' } | ForEach-Object { $_ -replace '^\s*(#|::|rem)\s?', '' }
             $d = FirstParagraph $c 220
         }
-    } elseif ($p -match '\.(toml|yml|yaml)$') {
+    } elseif ($p -match '\.(toml|yml|yaml|txt)$') {
         $c = $lines | Where-Object { $_ -match '^\s*#' } | ForEach-Object { $_ -replace '^\s*#\s?', '' }
         $d = FirstParagraph $c 220
     }

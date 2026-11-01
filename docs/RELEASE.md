@@ -71,7 +71,8 @@ Para **probar en local** sin publicar nada: `install.bat` (doble clic) o
 tamaño, `MZ` y MD5, y copia `gw2_lurker.dll` a `<juego>\addons`, pidiendo elevación solo si
 hace falta. Se niega a copiar con GW2 abierto, porque el fichero está bloqueado.
 
-1. Subir la versión en `Cargo.toml` y en `CHANGELOG.md`.
+1. Subir la versión: `pwsh -File scripts/bump-version.ps1 -Version x.y.z` (Cargo.toml, las
+   dependencias internas de los crates, Cargo.lock y el bloque `[Unreleased]` de `CHANGELOG.md`).
 2. `cargo fmt --all --check`, `cargo clippy --workspace --all-targets -- -D warnings`,
    `cargo test --workspace`, `bash ./scripts/check_loc.sh`.
 3. `cargo build --release -p gw2lurker-addon` (sin `--target`: la salida va a

@@ -2,9 +2,12 @@
 Formato [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/), versionado [SemVer](https://semver.org/lang/es/).
 
 ## [Unreleased]
+
+## [0.26.3] - 2026-11-01
 ### Corregido
 - El aviso del click-through muestra el atajo actual aunque se cambie en Nexus con el juego
   abierto (antes se quedaba con el que había al cargar el addon).
+- El historial de un clan se pinta de más reciente a más antiguo, en lugar de al revés.
 
 ## [0.26.2] - 2026-11-01
 ### Corregido

@@ -4,7 +4,7 @@
 # agent sessions from pasting hundreds of lines of cargo output into the context.
 #
 # Uso:
-#   pwsh -File scripts/validate.ps1                      # fmt, clippy, loc, traza, tests
+#   pwsh -File scripts/validate.ps1                      # fmt, clippy, loc, traza, version, tests
 #   pwsh -File scripts/validate.ps1 -Release             # además build release y tamaño
 #   pwsh -File scripts/validate.ps1 -Only fmt,clippy     # solo esos pasos
 #   pwsh -File scripts/validate.ps1 -Only test -Package gw2lurker-core -Filter rf22
@@ -13,7 +13,6 @@
 
 [CmdletBinding()]
 param(
-    [ValidateSet('fmt', 'clippy', 'loc', 'trace', 'test', 'release')]
     [string[]]$Only = @(),
     [switch]$Release,
     [string]$Package = '',
@@ -23,6 +22,16 @@ param(
 $ErrorActionPreference = 'Continue'
 $RepoRoot = Split-Path $PSScriptRoot -Parent
 Set-Location $RepoRoot
+
+# `pwsh -File … -Only fmt,clippy` llega como una sola cadena: se separa aquí y se valida a mano
+# (ValidateSet no admite listas separadas por comas al llamar con -File).
+$known = @('fmt', 'clippy', 'loc', 'trace', 'version', 'test', 'release')
+$Only = @($Only | ForEach-Object { $_ -split ',' } | ForEach-Object { $_.Trim() } | Where-Object { $_ })
+$unknown = @($Only | Where-Object { $known -notcontains $_ })
+if ($unknown.Count) {
+    Write-Host "ERROR paso desconocido: $($unknown -join ', '). Válidos: $($known -join ', ')"
+    exit 1
+}
 $LogDir = Join-Path $RepoRoot 'target\validate'
 New-Item -ItemType Directory -Force -Path $LogDir | Out-Null
 
@@ -38,6 +47,7 @@ $steps = [ordered]@{
     clippy  = { cargo clippy --workspace --all-targets -- -D warnings }
     loc     = { & $Bash ./scripts/check_loc.sh }
     trace   = { & $Bash ./scripts/check_traceability.sh }
+    version = { & $Bash ./scripts/check_version.sh }
     test    = { cargo @testArgs }
     release = {
         cargo build --release
@@ -46,7 +56,7 @@ $steps = [ordered]@{
 }
 
 $selected = if ($Only.Count) { $Only } else {
-    $default = @('fmt', 'clippy', 'loc', 'trace', 'test')
+    $default = @('fmt', 'clippy', 'loc', 'trace', 'version', 'test')
     if ($Release) { $default += 'release' }
     $default
 }
@@ -73,6 +83,7 @@ foreach ($name in $selected) {
         }
         'loc' { $detail = "$((Select-String -Path $log -Pattern '^AVISO').Count) avisos >500" }
         'trace' { $detail = (Select-String -Path $log -Pattern '^Trazabilidad:' | Select-Object -First 1).Line }
+        'version' { $detail = (Select-String -Path $log -Pattern '^Versiones:' | Select-Object -First 1).Line }
         'release' { $detail = (Select-String -Path $log -Pattern '^Tama' | Select-Object -First 1).Line }
     }
 

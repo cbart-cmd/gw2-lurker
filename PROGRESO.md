@@ -42,6 +42,22 @@ Reglas:
   worker según la fecha de modificación y la tecla se nombra en el hilo que pide el texto
   (`GetKeyNameTextW` usa la distribución de teclado de ese hilo).
 
+## HECHO – 2026-11-01 · Subir versión en un solo paso · 0.26.3 (sin publicar)
+
+- Subir versión se hacía a mano en cuatro sitios y era fácil dejarse las dependencias internas:
+  ahora `scripts/bump-version.ps1 -Version x.y.z` toca `Cargo.toml` del workspace, la `version` de
+  las dependencias internas en `crates/*/Cargo.toml`, las entradas `gw2lurker-*` de `Cargo.lock`
+  (por texto, sin llamar a cargo) y pasa `[Unreleased]` de `CHANGELOG.md` a la versión con fecha.
+  Es idempotente y tiene `-DryRun`, `-Date` y `-SkipChangelog`.
+- `scripts/check_version.sh` comprueba que los seis sitios coinciden; `validate.ps1` lo corre como
+  paso `version` (también en la pasada por defecto).
+- Trampa: en .NET las regex numeran los grupos **con nombre después** de los anónimos, así que
+  `${2}` no era el cierre de comilla y duplicó bloques de `Cargo.lock`. Se usa `${head}` + literal.
+- De paso, `-Only fmt,version` (la sintaxis que documenta la cabecera) fallaba porque `ValidateSet`
+  no admite la lista con comas al invocar con `-File`; ahora se separa y se valida a mano.
+- `validate.ps1 -Release`: todo OK, 328 tests, DLL 2 197 504 B. Orden del historial de un clan
+  cambiado a más reciente primero en `ui/guilds.rs` (commit `8e2d8d8`, del jugador).
+
 ## HECHO – 2026-11-01 · Atajo del click-through desactualizado (RF-18, sin publicar)
 
 - Bug: el jugador cambió el atajo a Alt+Shift+Ñ en Nexus y el aviso seguía diciendo Ctrl+Shift+Ñ.

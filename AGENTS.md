@@ -91,8 +91,10 @@ un dato que solo da el humano (fixture, captura, medición).
 - Probar en local: `install.bat` o `install.ps1 [-Build] [-DryRun] [-Dest <ruta>]`. Pero Nexus
   sobrescribe la DLL con la publicada al arrancar: para probar en el juego hay que publicar.
 - Idioma: código y comentarios en inglés; UI (con claves i18n, RNF-08), specs y docs en español.
-  Commits convencionales (`feat:`, `fix:`, `docs:`…). Al subir versión, cambia también la
-  `version` de las dependencias internas en `crates/*/Cargo.toml`.
+  Commits convencionales (`feat:`, `fix:`, `docs:`…). Al subir versión: `pwsh -File
+  scripts/bump-version.ps1 -Version x.y.z` toca Cargo.toml, las dependencias internas de
+  `crates/*/Cargo.toml`, `Cargo.lock` y `CHANGELOG.md` a la vez; `validate.ps1` comprueba que
+  no se queden descuadrados.
 - **Publicar**: `pwsh -File scripts/release.ps1 [-DryRun|-VerifyOnly]` en el repo compartido
   `cbart-cmd/gw2addonsreleases`. No lo repitas a mano ni toques ficheros de otros addons; el script
   aplica LFS, MD5, retención y verifica la descarga real. Detalle en `docs/RELEASE.md`.
