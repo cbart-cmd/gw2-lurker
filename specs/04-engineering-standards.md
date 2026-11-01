@@ -77,7 +77,7 @@ tocan Nexus), fixtures JSON reales y tres pruebas de red `#[ignore]`.
 | Tamaño y forma | `scripts/check_size.sh` | La DLL no pasa de 2,5 MB y es un PE x64 válido que exporta el punto de entrada |
 | Aceptación manual | `specs/manual-tests.md` | Todo lo que depende del juego |
 
-**Reglas que ya nos han costado un fallo** (AGENTS §11): el valor esperado sale de los datos;
+**Reglas que ya nos han costado un fallo** (AGENTS §2.12, detalle en `docs/agents/lecciones.md`): el valor esperado sale de los datos;
 un test del `addon` no puede llamar a `AddonApi::get()`; nada de tests que reimplementen la lógica;
 antes de asumir una firma externa, se abre su fuente.
 

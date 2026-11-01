@@ -1,67 +1,71 @@
 # AGENTS.md – Instrucciones para agentes de IA
 
-Proyecto: addon de Nexus (Guild Wars 2) en Rust para Mundo contra Mundo. Avisa de capturas de estructuras, sigue guilds enemigas y dibuja su historial. **Spec-driven**: la spec manda, el código la obedece.
+Addon de Nexus (Guild Wars 2) en Rust para Mundo contra Mundo: avisa de capturas, sigue guilds
+enemigas y dibuja su historial. **Spec-driven**: la spec manda, el código la obedece.
 
-## 1. Lectura obligatoria, en este orden
+## 1. Qué leer (y cuánto)
 
-0. `bugs.md` (**siempre**: antes de empezar, **después de cada paso** y al terminar; ver §9).
-1. `specs/00-constitution.md` – reglas no negociables.
-2. `specs/04-engineering-standards.md` – estilo, límites y CI.
-3. `specs/03-tasks.md` – localiza **la única tarea** que te han pedido.
-4. Los requisitos (`specs/01-requirements.md`) y secciones de `specs/02-design.md` que la tarea cita.
-5. Si la tarea toca `diff`, los filtros de aviso, el historial de la sesión, los nombres de clan o el mapa: `specs/06-diff-scenarios.md`.
-6. `specs/07-spikes.md` → sección **Resultados**: es lo único verificado sobre Nexus y la API real. Lo que no esté ahí no está confirmado.
+El contexto cuesta dinero: **lee secciones, no ficheros enteros**. Busca por ID (`RF-24`, `T-11c`,
+`D-B07`) con `grep` y abre solo el rango que lo contiene.
+
+1. `pwsh -File scripts/check_bugs.ps1` al empezar (§7).
+2. `specs/00-constitution.md` (corto: entero) y `specs/04-engineering-standards.md` si tocas
+   estilo, dependencias, CI o tamaño.
+3. De `specs/01-requirements.md`, `02-design.md` y `03-tasks.md`, **solo** los IDs que cita la tarea.
+4. `specs/06-diff-scenarios.md` si tocas `diff`, filtros de aviso, historial, nombres de clan o mapa.
+5. `specs/07-spikes.md` → solo **Resultados**: es lo único verificado sobre Nexus y la API real.
+6. `PROGRESO.md`: Trampas, Bloqueos y la entrada más reciente. Lo antiguo está en `docs/historial/`.
+7. `CHANGELOG.md`: solo `[Unreleased]`. `docs/agents/lecciones.md` cuando toques tests, imgui,
+   el candado `RUNTIME` o `settings.json`.
 
 ## 2. Reglas de oro
 
-1. **Una tarea por vez.** No adelantes otras, no "aproveches" para refactorizar.
-2. **Tests primero.** Cada test de comportamiento lleva el ID del requisito o escenario en el nombre (`rf10_...`, `d07_...`).
-3. **No inventes la API de Nexus ni la de GW2.** Si necesitas una firma de `nexus-rs` que no está verificada en `07-spikes.md`, lee su código fuente (repositorio `zerthox/nexus-rs`) y cita el fichero. Si no puedes comprobarla, deja el código marcado `// UNVERIFIED(T-xx): motivo` y dilo en tu entrega.
-4. **No cambies la spec por tu cuenta.** Si ves un error o un hueco en la spec, **para y propón** un cambio o un ADR en tu respuesta. Excepción: marcar tareas como hechas en `03-tasks.md`.
-5. **No relajes los controles** (límites de líneas, lints, tamaño de DLL, CI) para que algo pase.
+1. **Una tarea por vez.** No adelantes otras ni "aproveches" para refactorizar.
+2. **Tests primero**, con el ID del requisito o escenario en el nombre (`rf10_…`, `d07_…`).
+3. **No inventes la API de Nexus ni la de GW2.** Firma no verificada en `07-spikes.md` → lee el
+   fuente (`zerthox/nexus-rs`, `~/.cargo/registry/src/…`) y cítalo. Si no puedes:
+   `// UNVERIFIED(T-xx): motivo` y dilo en la entrega.
+4. **No cambies la spec por tu cuenta**: para y propón cambio o ADR. Excepción: marcar tareas hechas.
+5. **No relajes controles** (líneas, lints, tamaño de DLL, CI) para que algo pase.
 6. **Nada de red ni E/S en el hilo de render.**
-7. **Sin `unwrap()`/`expect()` en código de producción**, ni `panic` que cruce la frontera FFI. `unsafe` solo en `crates/addon/src/ffi/`, con `// SAFETY:` en cada bloque.
-8. **Ficheros ≤ 800 líneas** (aviso a las 500). Divide por módulos antes de llegar.
-9. **Dependencias nuevas:** no las añadas sin justificarlas (coste en tamaño de DLL, licencia, mantenimiento) y pedir aprobación.
-10. **Datos inferidos se etiquetan como inferidos** (rutas, claims tardíos). No prometas más de lo que la API da (ADR-001, ADR-005).
-11. **`bugs.md` es un fichero compartido** (petición del usuario, 2026-11-01). Si faltan filas, es porque
-    el usuario las ha borrado: se acepta, no se restauran y no se pregunta por qué. Lo que **nunca** se
-    hace es borrar lo que él haya añadido mientras trabajabas: relee el fichero justo antes de
-    escribirlo y toca solo tus líneas. Vale también para `PROGRESO.md` y para cualquier fichero que el
-    usuario mantenga a mano (ver §9 y §10).
+7. **Sin `unwrap()`/`expect()` en producción** ni `panic` que cruce FFI. `unsafe` solo en
+   `crates/addon/src/ffi/`, con `// SAFETY:` en cada bloque.
+8. **Ficheros ≤ 800 líneas** (aviso a 500). Divide por módulos antes de llegar.
+9. **Dependencias nuevas**: justificadas (tamaño, licencia, mantenimiento) y con aprobación.
+10. **Lo inferido se etiqueta como inferido** (rutas, claims tardíos). ADR-001, ADR-005.
+11. **Nunca** llames a algo que bloquee `RUNTIME` (`runtime()`, `team::selected()`,
+    `team::remember()`, `request_save`) con el candado ya cogido: `Mutex` no es reentrante y el
+    juego se congela. Usa las variantes `*_in(&Config)`. `settings.json` se escribe en
+    `addon::writer`; el render solo llama a `persist_if_changed()`.
+12. **Tests**: el valor esperado sale de la fixture o la API, no de memoria; un test nunca llama a
+    Nexus (`AddonApi::get()` revienta fuera del juego: prueba la función pura); no reimplementes la
+    lógica en el test; red solo con `#[ignore]`; invariantes antes que números mágicos.
+    Detalle y casos reales en `docs/agents/lecciones.md`.
 
-## 3. Flujo de trabajo por tarea
+## 3. Flujo por tarea
 
-0. **Lee `bugs.md`.** Y vuelve a leerlo después de cada paso de esta lista (§9): el usuario
-   apunta fallos mientras trabajas y una entrada nueva no puede esperar a la siguiente sesión.
-1. Resume en 3–5 líneas qué vas a hacer y qué RF/escenarios cubres. Si algo es ambiguo, **pregunta antes de programar**. 
-2. Escribe los tests (deben fallar por la razón correcta).
-3. Implementa lo mínimo para que pasen.
-4. Ejecuta, desde la raíz del repo, y pega la salida resumida:
-   ```
-   cargo fmt --check
-   cargo clippy --workspace --all-targets -- -D warnings
-   ./scripts/check_loc.sh
-   cargo test --workspace
-   ```
-5. Actualiza la documentación afectada (rustdoc, CHANGELOG si es visible para el usuario, `03-tasks.md`).
-6. Entrega con el formato de la sección 5.
-7. Antes de entregar, vuelve a leer `bugs.md` (§9). Si el usuario ha añadido algo mientras trabajabas,
-   **no lo borres**: apúntalo y dilo en la entrega.
+1. Resume en 3–5 líneas qué harás y qué RF/escenarios cubres. Si algo es ambiguo, **pregunta**.
+2. Tests que fallen por la razón correcta → implementación mínima.
+3. Mientras iteras: `pwsh -File scripts/validate.ps1 -Only test -Package <crate> -Filter <id>`.
+4. Al estabilizar, **una** pasada completa: `pwsh -File scripts/validate.ps1` (fmt, clippy, loc,
+   trazabilidad, tests; `-Release` añade build y tamaño). Imprime una línea por paso y deja el log
+   completo en `target\validate\`; abre el log solo si algo falla. Tras un arreglo, repite solo
+   los pasos afectados.
+5. Docs afectadas (rustdoc, `CHANGELOG` si es visible, `03-tasks.md`), entrega (§5) y
+   `check_bugs.ps1` antes de responder.
 
 ## 4. Mapa del repositorio
 
 ```
-crates/core    lógica pura (sin Nexus, sin imgui, sin red). #![forbid(unsafe_code)]
+crates/core    lógica pura (sin Nexus, imgui ni red). #![forbid(unsafe_code)]
 crates/api     cliente HTTP (transporte inyectable) y parseo. #![forbid(unsafe_code)]
-crates/addon   cdylib: integración Nexus + imgui (único sitio con unsafe, en ffi/)
-data/          wvw-teams.json y team-names.json (empaquetados); guild-names.json + su ZIP (no en la DLL)
-specs/         documentación de diseño (no código)
-scripts/       comprobaciones de CI y utilidades (búsqueda de clanes, publicación)
-docs/          documentación de usuario final y de publicación (RELEASE.md)
+crates/addon   cdylib: Nexus + imgui (único unsafe, en ffi/)
+data/          wvw-teams.json y team-names.json (en la DLL); guild-names.json + ZIP (fuera)
+specs/         diseño (no código)          scripts/  CI, validación, publicación
+docs/          usuario, RELEASE.md, agents/ (lecciones) e historial/ (bitácora archivada)
 ```
 
-No hay crate `store`: el historial es de la sesión y vive en memoria (ADR-015).
+No hay crate `store`: el historial es del ciclo de seguimiento y vive en memoria (ADR-015).
 
 ## 5. Formato de entrega
 
@@ -69,154 +73,56 @@ No hay crate `store`: el historial es de la sesión y vive en memoria (ADR-015).
 ## Tarea: T-xx – <título>
 ### Qué se hizo
 ### Requisitos/escenarios cubiertos: RF-.., D-..
-### Cómo verificar (comandos y resultado)
+### Cómo verificar (salida de validate.ps1)
 ### No verificado / UNVERIFIED (si lo hay)
 ### Propuestas de cambio de spec o ADR (si las hay)
 ### Dependencias añadidas (si las hay, con justificación)
 ```
 
-## 6. Cuándo parar y preguntar
+**Para y pregunta** si la tarea contradice la constitución o un ADR, pide una dependencia no
+aprobada o `unsafe` fuera de `ffi/`, solo se puede probar en el juego (dilo; no lo simules), o falta
+un dato que solo da el humano (fixture, captura, medición).
 
-- La tarea contradice la constitución o un ADR.
-- Hace falta una dependencia no aprobada o un `unsafe` fuera de `ffi/`.
-- Necesitas ejecutar algo que solo se puede probar dentro del juego (dilo; no lo simules).
-- Dos requisitos se contradicen o falta un dato que solo el humano puede dar (fixture, captura, medición).
+## 6. Entorno, publicación y CI
 
-## 7. Entorno
+- DLL `x86_64-pc-windows-msvc` (host): `cargo build --release` **sin** `--target` →
+  `target\release\gw2_lurker.dll`. El nombre lo fija `[lib] name = "gw2_lurker"` en
+  `crates/addon/Cargo.toml`; sin él Nexus no la encuentra.
+- Probar en local: `install.bat` o `install.ps1 [-Build] [-DryRun] [-Dest <ruta>]`. Pero Nexus
+  sobrescribe la DLL con la publicada al arrancar: para probar en el juego hay que publicar.
+- Idioma: código y comentarios en inglés; UI (con claves i18n, RNF-08), specs y docs en español.
+  Commits convencionales (`feat:`, `fix:`, `docs:`…). Al subir versión, cambia también la
+  `version` de las dependencias internas en `crates/*/Cargo.toml`.
+- **Publicar**: `pwsh -File scripts/release.ps1 [-DryRun|-VerifyOnly]` en el repo compartido
+  `cbart-cmd/gw2addonsreleases`. No lo repitas a mano ni toques ficheros de otros addons; el script
+  aplica LFS, MD5, retención y verifica la descarga real. Detalle en `docs/RELEASE.md`.
+- **CI**: tras `git push` no se espera. Al final del turno, una consulta del commit exacto:
+  `gh run list --commit <sha> --limit 1 --json status,conclusion,url`. Si falla:
+  `gh run view <id> --log-failed`, y se arregla como una tarea más. Prohibido `gh run watch`
+  salvo petición expresa.
 
-- Target de la DLL: `x86_64-pc-windows-msvc`, que es el del host en Windows. Se compila con `cargo build --release` **sin** `--target`, igual que los proyectos vecinos, para que la DLL quede en `target\release\gw2_lurker.dll`. Pasar `--target` anida la salida en `target\<triple>\release\` y duplica caché sin ganar nada. Si no puedes compilar el addon (p. ej. en Linux), indícalo y limita la verificación a `core`, `api` y `store`.
-- El nombre del fichero lo fija `[lib] name = "gw2_lurker"` en `crates/addon/Cargo.toml`. Sin esa línea Cargo usa el nombre del paquete y produce `gw2lurker_addon.dll`, que Nexus no buscaría.
-- Para probar en local: `install.bat` (doble clic) o `install.ps1 [-Build] [-DryRun] [-Dest <ruta>]`. Copia `gw2_lurker.dll` a `<juego>\addons` verificando tamaño, `MZ` y MD5, y se niega a copiar con GW2 abierto.
-- Idioma: código y comentarios en inglés; textos de UI, specs y commits de documentación en español (con claves i18n, RNF-08).
-- Commits convencionales (`feat:`, `fix:`, `test:`, `docs:`, `refactor:`, `chore:`).
+## 7. Ficheros compartidos con el usuario: `bugs.md` y `PROGRESO.md`
 
-## 8. Publicación (Nexus)
+El usuario los edita a mano, incluso mientras trabajas.
 
-La DLL se distribuye desde **`https://github.com/cbart-cmd/gw2addonsreleases`**, un repositorio **compartido con otros addons**. Procedimiento completo y comprobaciones obligatorias en [`docs/RELEASE.md`](docs/RELEASE.md). Resumen:
-
-- Ficheros propios: `gw2_lurker.dll` + `gw2_lurker.dll.md5` (32 hex en minúsculas, sin BOM ni salto de línea). `update_link` = `https://raw.githubusercontent.com/cbart-cmd/gw2addonsreleases/main/gw2_lurker.dll`.
-- `UpdateProvider::Direct` + `AddonFlags::DisableHotloading` (ver RF-53 y ADR-007).
-- **No tocar** los ficheros de los proyectos hermanos. Etiqueta `gw2-lurker-v<version>` y `--latest=false`.
-- Retención: **release actual + la anterior**; se borra la de dos versiones atrás.
-- Excepción de LFS para nuestra DLL en `.gitattributes` del repo de distribución **antes** de `git add`, o Nexus recibe un puntero de texto en vez de la DLL.
-- Verificar la descarga real (bytes, `MZ`, MD5) desde la URL exacta, no fiarse de un HTTP 200.
-- **Automatizado**: `pwsh -File scripts/release.ps1 -DryRun` (compila y valida sin tocar lo
-  remoto), `pwsh -File scripts/release.ps1` (publica) y `-VerifyOnly` (solo comprueba la URL
-  publicada). No repetir a mano los diez pasos: el script aborta si el blob es un puntero LFS,
-  si el `.md5` no mide 32 bytes o si la descarga no coincide en bytes y MD5.
-- El nombre del fichero sale del `[lib] name` de `crates/addon`: **`gw2_lurker`**, no
-  `gw2lurker_addon`. Si alguien lo cambia, Nexus busca un nombre que ya no existe.
-
-- **Nunca** llames a una función que bloquee `RUNTIME` (`runtime()`, `team::selected()`,
-  `team::remember()`, `request_save`) mientras ya tengas el candado: `std::sync::Mutex` no es
-  reentrante y el juego se congela (pasó el 2026-10-31 al dibujar los ajustes). Usa las
-  variantes `*_in(&Config)` desde dentro del render o de cualquier código que ya lo tenga.
-- La escritura de `settings.json` vive en su propio hilo (`addon::writer`); el render solo
-  llama a `persist_if_changed()`, que está limitado a dos guardados por segundo.
-
-## 9. `bugs.md`: la bandeja de fallos del usuario
-
-`bugs.md`, en la raíz, es donde el usuario apunta fallos en una línea, sin formato.
-
-- **Es un fichero compartido** (petición del usuario, 2026-11-01). Las dos mitades de la regla:
-  - **Si faltan filas, es porque las ha borrado él.** Se acepta sin discusión: no se restauran desde
-    git, no se recrea el fichero y no se le pregunta por qué. El fichero no es del addon, es suyo.
-  - **Nunca borres lo que él añada mientras trabajas.** Puede escribir en `bugs.md` en cualquier
-    momento, incluso entre dos de tus comandos. Relee el fichero **justo antes** de escribir, añade o
-    marca solo tus líneas y comprueba después que el número de entradas es el de antes más las tuyas.
-  - Para escribirlo, usa la herramienta `edit` con un ancla que ya exista. Un reemplazo de PowerShell
-    con comillas dobles se comió 14 entradas el 2026-11-01 sin dar ningún error.
-- **Léelo antes de empezar, después de cada paso y al terminar la tanda.** "Cada paso" es cada
-  test en verde, cada arreglo aplicado, cada versión compilada: se vuelve a abrir el fichero por
-  si el usuario ha apuntado algo nuevo mientras trabajabas. Es obligatorio, no opcional.
-- **No se borra nada.** Cuando creas que un bug está arreglado, **márcalo con `[x]`** y añade
-  `- **Hecho (x.y.z):** qué se cambió y dónde` (petición del usuario, 2026-10-31). El jugador decide
-  si se puede cerrar; borrar su reporte le quita la forma de comprobarlo. Nunca se vacía el fichero
-  ni se recrea.
-- Si el arreglo aún no ha salido en una versión, déjalo en `[ ]` con `- **Pendiente:** …`.
-- Si un bug no se puede reproducir o necesita al usuario (p. ej. hay que probarlo en el juego),
-  déjalo en `[ ]` y añade una línea `- **Pendiente:** …` explicando qué falta.
-- Si el usuario reporta algo que ya está arreglado, dilo en la respuesta con la versión en la que
-  salió; no hay nada que apuntar.
-- Un bug arreglado también se apunta en `PROGRESO.md` (una línea) y, si es visible, en
+- **Si faltan filas, las ha borrado él**: se acepta, no se restauran desde git ni se pregunta.
+- **Nunca borres lo que él añada.** Relee justo antes de escribir, toca solo tus líneas y escribe
+  con la herramienta `edit` y un ancla existente (un reemplazo de PowerShell se comió 14 entradas).
+- `bugs.md`: `scripts/check_bugs.ps1` **al empezar, tras cada hito** (test en verde, arreglo
+  aplicado, versión compilada) **y antes de entregar**. Imprime una línea si no cambió; ábrelo solo
+  si dice `CAMBIADO`. Un bug arreglado se marca `[x]` con `- **Hecho (x.y.z):** qué y dónde`; si no
+  ha salido en versión o requiere el juego, `[ ]` con `- **Pendiente:** …`. Nada se borra. Si ya
+  estaba arreglado, dilo con la versión. Apúntalo también en `PROGRESO.md` y, si es visible, en
   `CHANGELOG.md`.
+- `PROGRESO.md` existe para que otra IA pueda seguir. Entrada `EN CURSO` con el plan **antes** de
+  tocar código; hallazgos y callejones sin salida mientras trabajas; `HECHO` con commits y lo no
+  verificado al cerrar. Lo más reciente arriba; mantén al día **Trampas** y **Bloqueos**. Cuando
+  supere ~30 KB, mueve las entradas antiguas **tal cual** a `docs/historial/`.
 
-## 10. Progreso y continuidad (`PROGRESO.md`)
-`PROGRESO.md`, en la raíz, es la bitácora del trabajo. Existe para que **otra IA pueda
-seguir** si la actual se corta a medias.
+## 8. Gastar menos contexto sin perder calidad
 
-- Al empezar una tarea, escribe una entrada `EN CURSO` con el plan (3–5 líneas) y qué RF
-  cubre **antes** de tocar código.
-- Mientras trabajas, actualízala con hallazgos, decisiones y callejones sin salida: si un
-  experimento falla, eso también se apunta.
-- Al cerrar, pasa la entrada a `HECHO` con los commits y lo que no se pudo verificar.
-- Lo más reciente arriba. No se borran entradas; si algo se revierte, se documenta.
-- **Fichero compartido, como `bugs.md`** (§2.11): si falta alguna entrada porque la ha borrado el
-  usuario, se acepta y no se restaura; si añade una mientras trabajas, no se toca.
-- Mantén al día las secciones **Trampas ya conocidas** y **Bloqueos**: son lo primero que
-  debe leer quien retome el trabajo.
-
-## 11. Tests: reglas que ya nos han costado un fallo
-
-Cada punto de esta lista sale de un fallo real de este proyecto, no de una buena intención.
-
-1. **El valor esperado sale de los datos, no de la memoria.** Antes de escribir un `assert_eq!`,
-   lee la fixture o llama a la API. Fallos reales: supuse que `NA` iba antes que `EU`
-   (alfabéticamente `E` < `N`); supuse `[Red, Blue, Green]` cuando `TeamColor::ALL` es
-   `[Red, Green, Blue]`; supuse tres ids por color en `all_worlds` cuando también lleva ids de
-   mundo antiguos (`2014`, `2101`).
-2. **Mira lo que hay dentro de la fixture.** `crates/api/tests/fixtures/matches_all.json` solo
-   contiene el matchup `2-2`: un test que asuma nueve falla. Si necesitas más, regenérala con
-   `scripts/capture_fixtures.sh`.
-3. **Un test del addon no puede tocar Nexus.** `AddonApi::get()` revienta fuera del juego
-   (`nexus/src/globals.rs:83`), así que llamar a `get_mumble_link`, `runtime()` o
-   `character_name()` dentro de un test es un pánico. La regla va en una función pura y se prueba
-   esa: `team::resolve(manual, roster, character)`, `i18n::resolve(...)`,
-   `window::opacity_percent(...)`.
-4. **Nada de tests que reimplementen la lógica.** Repetir el `match` de producción en el test no
-   prueba nada; hay que llamar al código real. Y si el candado (`Mutex`) es lo que no se puede
-   ejercitar, se prueba la función pura y el candado queda en un envoltorio trivial: un
-   interbloqueo de `Mutex` no reentrante ya congeló el juego el 2026-10-31.
-5. **Antes de asumir una firma o un valor de una API externa, abre el fuente.** `~/.cargo/git/checkouts/…`
-   o `~/.cargo/registry/src/…`, y cita el fichero en el comentario. Ejemplos medidos:
-   `GameData::language` es `Result<GameLanguage, u32>` con `English=0, French=2, German=3,
-   Spanish=4`; `Agent::team` es un `u16` **sin** mapeo verificado a los colores;
-   `event_consume!` exige una `fn`, no una closure.
-6. **Invariantes antes que números mágicos** cuando el dato viene de la API: «ordenado», «sin
-   duplicados», «no vacío», «cada matchup en un bloque», «la suma cuadra». Los números exactos
-   envejecen y rompen el CI sin que haya un fallo real.
-7. **Red solo con `#[ignore]`**, y se lanzan a mano antes de publicar una versión:
-   `cargo test -p gw2lurker-addon -- --ignored`. Existen `live_get_returns_the_match_json` y
-   `live_pipeline_builds_the_dashboard` justo para eso.
-8. **El nombre lleva el id del requisito** (`rf03a_…`, `rnf04_…`); si el requisito no existe,
-   primero se escribe en la spec: `scripts/check_traceability.sh` falla si citas un id que no
-   está.
-9. **Si un test falla, decide primero si está mal el test o el código.** Si el test codificaba
-   una suposición mía, se corrige el test y la suposición se escribe en el mensaje del `assert`;
-   no se toca el código para contentar al test.
-10. **Antes de decir «está probado»**: `cargo fmt --check`,
-    `cargo clippy --workspace --all-targets -- -D warnings`, `cargo test --workspace`,
-    `./scripts/check_loc.sh` y `./scripts/check_traceability.sh`; y si el cambio toca red o el
-    juego, además la prueba `--ignored` correspondiente.
-11. **Escribir de vuelta solo lo que el usuario tocó**, no la copia entera del formulario. Un
-    `Edits` que se vuelca completo cada frame deshace lo que hizo el propio widget en ese mismo
-    frame: con las casillas de *Ventanas*, la `×` de los ajustes se reabría sola. Marca
-    `changed` en el `Edits` y aplica solo eso. Y cuidado con `config.window(key)`: **crea** la
-    entrada si no existe, con `visible = true`, así que pedirla por una ventana cerrada la
-    resucita.
-12. **Los draw lists de imgui son singletons por frame.** `get_window_draw_list()` **panics**
-    (`arcdps-imgui` `draw_list.rs:103`: «You can only load one instance of it!») si ya hay un
-    `DrawListMut` de la ventana vivo. Se pide **una vez** y se pasa por referencia a quien dibuje;
-    pedirlo dentro de un bucle cierra el juego en cuanto hay más de un elemento. Costó un cierre
-    real al abrir la pestaña Mapa (2026-10-31); el `catch_unwind` del render lo dejó en una línea
-    de `Nexus.log` en vez de una pantalla negra.
-
-## 12. CI: lanzar y seguir
-
-- Después de `git push`, **no se espera al pipeline**. Se anuncia ("CI lanzada; puede
-  fallar algo") y se continúa con la siguiente tarea.
-- Prohibido `gh run watch` en primer plano salvo que el usuario lo pida. Un `gh run list`
-  suelto al final del turno basta para saber cómo fue.
-- Cuando llegue el resultado en rojo, se diagnostica con `gh run view --log-failed` y se
-  arregla como una tarea más, sin dramatizar y sin bloquear lo que esté en curso.
-- Si el pipeline tarda más de ~2 minutos es normal: compila Nexus e ImGui desde cero.
+- No re-leas lo que ya tienes; usa `view_range` y `grep` acotado. No vuelques fixtures ni logs.
+- Agrupa cambios coherentes antes de validar; no compiles tras cada línea.
+- Subagentes solo para trabajo grande e independiente, nunca para un comando o una búsqueda.
+- `gh … --json <campos>` antes que herramientas MCP para consultas simples a GitHub.
+- Respuestas al usuario: lo hecho, lo verificado y lo pendiente; sin repetir el plan.
