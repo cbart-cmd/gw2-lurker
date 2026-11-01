@@ -46,14 +46,14 @@ Reglas:
   verificarlos (403 entre carpetas, no redimensiona el viewport): se probaron con Edge del sistema
   y `playwright-core` (hay que reinstalarlo; no queda nada en el repo).
 
-## EN CURSO – 2026-11-02 · Completar B — Estela y publicar para probar
+## HECHO – 2026-11-02 · B — Estela publicada en 0.26.6 para probar
 
 - Petición: retirar el pendiente de audio, aceptar las pruebas anteriores en juego por indicación
   del jugador y completar T-52/T-53. La aceptación previa no sustituye la prueba del nuevo mapa.
 - T-52: dibujo preparado y cacheado, curvas/flechas, revisitas, intervalos, origen y marcas `late`/`gap`.
 - T-53: cronología temporal con ratón/teclado, ventanas inclusivas y reproducción a 700 ms por claim;
   pausa al ocultar Mapa/cambiar clan. Tests puros y medición CPU del render preparado.
-- Validar todo, actualizar docs/versión y publicar con `release.ps1`; comprobar descarga real.
+- Validación y documentación completadas; publicada con `release.ps1`, incluida descarga real.
 - Hallazgos corregidos: 2.000 claims agotaban los índices de 16 bits de imgui; se comparten arcos
   coincidentes y la teselación se adapta a la densidad. La preparación temporal superaba 0,5 ms:
   pasa al worker fuera del candado y se publica en una instantánea coherente con historia/eventos.
@@ -65,7 +65,9 @@ Reglas:
   Un test preexistente de búsqueda con estado global compartido falló una vez en paralelo;
   dos ejecuciones posteriores de la suite completa pasaron. No se altera su comportamiento.
 - `modelo.md` regenerado sin items sin descripción. Audio retirado y pruebas previas aceptadas
-  como decisión del jugador; no se atribuye una nueva ejecución en GW2. Falta publicar y MT-21.
+  como decisión del jugador; no se atribuye una nueva ejecución en GW2. Pendiente MT-21 del mapa nuevo.
+- Código subido: `c5b34de`. Distribución: `f9ddb14`, release `gw2-lurker-v0.26.6`.
+  La URL exacta de Nexus devuelve 2.264.576 B, MZ y MD5 `c05a61df2476b97bdfe6bd27b9b2a67a`.
 
 ## HECHO – 2026-11-02 · RF-03a: aviso de equipo pendiente en todas las pestañas
 
