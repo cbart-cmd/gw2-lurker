@@ -28,8 +28,6 @@ pub enum TeamChange {
     Pick(u32),
     /// The player cleared the selection.
     Clear,
-    /// The player pressed *Save* on the translation: apply it and write the file now.
-    SaveNow,
 }
 
 /// Which region and colour the player has already narrowed down to.
@@ -119,7 +117,7 @@ pub fn body(
     };
     let before = edits.team_id;
 
-    let save_now = draw_body(ui, table, &mut edits, candidates, worlds);
+    draw_body(ui, table, &mut edits, candidates, worlds);
 
     remember_translation(config, edits.translation.as_str(), language);
     config.language = edits.language;
@@ -150,9 +148,6 @@ pub fn body(
 
     set_narrowing(edits.narrowing);
 
-    if save_now {
-        return Some(TeamChange::SaveNow);
-    }
     team_change(before, edits.team_id)
 }
 
@@ -235,7 +230,6 @@ const LABELS: &[&str] = &[
     "Pop-up alerts",
     "Test pop-up",
     "Real map",
-    "Save",
     "Search",
     "Team (any)",
 ];
@@ -255,7 +249,7 @@ fn draw_body(
     edits: &mut Edits,
     candidates: &[Candidate],
     worlds: &std::collections::BTreeMap<u32, String>,
-) -> bool {
+) {
     // imgui puts the label to the right of the widget: cap the widget so the translated labels
     // of a narrow window are not cut off, whatever the language.
     let label_width = label_column(ui);
@@ -319,18 +313,10 @@ fn draw_body(
         &[crate::keybinds::shortcut()],
     ));
 
+    // There used to be a *Save* button here; it wrote the file without any feedback and was
+    // redundant, because `persist_if_changed` already saves every change (report of 2026-11-01).
     ui.separator();
-    let saved = ui.button(i18n::widget("Save"));
-    if saved {
-        // Feedback is deliberately minimal: the button exists so pressing something persists,
-        // and the tooltip says the changes are already applied while editing.
-    }
-    if ui.is_item_hovered() {
-        ui.tooltip_text(i18n::text(
-            "The changes are applied as you edit; this writes them now.",
-        ));
-    }
-    saved
+    ui.text_disabled(i18n::text("Changes are saved automatically."));
 }
 
 /// Estilo y tamaño del texto de las ventanas, y qué se enseña en el widget (RF-19c, RF-60 a RF-63).

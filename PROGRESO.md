@@ -47,6 +47,16 @@ Reglas:
 
 ---
 
+## HECHO – 2026-11-01 · Atajo con «Ñ» y botón *Grabar* (sin publicar)
+
+- `keybinds.rs` traducía el código de escaneo con la tabla US (0x27 = «;»); ahora pide el nombre a
+  Windows con la distribución del jugador (`ffi::keys::layout_key_name`, `GetKeyNameTextW`) y deja la
+  tabla como respaldo. Tests `rf18_*` con teclado español falso y una llamada real con la L.
+- Ajustes: fuera el botón *Grabar* y `TeamChange::SaveNow`; `persist_if_changed` ya guardaba cada
+  cambio. En su lugar, «Los cambios se guardan solos.».
+- No verificado: teclas extendidas (flechas, Insert) en `InputBinds.json` (`UNVERIFIED(RF-18)`), y la
+  «Ñ» en el juego.
+
 ## HECHO – 2026-11-01 · Menos contexto por sesión sin perder controles
 
 - Publicada **0.26.0** (MD5 `18175802c121f071bfd954452b7223fd`, 2 190 336 B), commit `20e5dda`. Al

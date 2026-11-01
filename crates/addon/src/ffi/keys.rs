@@ -14,6 +14,7 @@ extern "system" {
     fn GetAsyncKeyState(v_key: i32) -> i16;
     fn GetForegroundWindow() -> *mut c_void;
     fn GetWindowThreadProcessId(window: *mut c_void, process_id: *mut u32) -> u32;
+    fn GetKeyNameTextW(l_param: i32, buffer: *mut u16, size: i32) -> i32;
 }
 
 #[link(name = "kernel32")]
@@ -37,6 +38,26 @@ pub fn right_ctrl_down() -> bool {
     // SAFETY: `GetAsyncKeyState` only reads the global keyboard state; it takes a value and
     // returns a value, so no pointer, no lifetime and no aliasing is involved.
     unsafe { GetAsyncKeyState(VK_RCONTROL) < 0 }
+}
+
+/// Name of the key with this set-1 scan code **in the player's keyboard layout** (`Ñ` on a
+/// Spanish keyboard where the US table says `;`). `None` if Windows has no name for it.
+///
+/// UNVERIFIED(RF-18): how Nexus encodes extended keys (arrows, Insert…) in `InputBinds.json`;
+/// anything above the low byte is taken as the extended flag.
+pub fn layout_key_name(scan_code: u16) -> Option<String> {
+    let extended = if scan_code > 0xFF { 1 << 24 } else { 0 };
+    let l_param = (i32::from(scan_code & 0xFF) << 16) | extended;
+    let mut buffer = [0u16; 64];
+    // SAFETY: `buffer` is a live, writable array and `size` is its exact length in UTF-16 units,
+    // so Windows never writes past it; the return value is the number of units written
+    // (without the terminator), which is clamped to the buffer before slicing.
+    let written = unsafe { GetKeyNameTextW(l_param, buffer.as_mut_ptr(), buffer.len() as i32) };
+    let written = usize::try_from(written).ok()?.min(buffer.len());
+    if written == 0 {
+        return None;
+    }
+    String::from_utf16(&buffer[..written]).ok()
 }
 
 /// Whether the foreground window belongs to this process, that is, the game has focus.

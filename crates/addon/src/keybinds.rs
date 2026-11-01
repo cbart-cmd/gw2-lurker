@@ -50,7 +50,7 @@ static SLOT: OnceLock<String> = OnceLock::new();
 pub fn remember_shortcut() -> &'static str {
     let described = read_binds()
         .as_deref()
-        .and_then(describe_identifier)
+        .and_then(|json| describe_identifier(json, crate::ffi::keys::layout_key_name))
         .unwrap_or_else(|| UNKNOWN.to_owned());
     log::info!("atajo de Nexus para {IDENTIFIER}: {described}");
     let _ = SLOT.set(described);
@@ -68,16 +68,19 @@ fn read_binds() -> Option<String> {
 }
 
 /// Descripción del atajo de `identifier` dentro del JSON. Pura: se prueba con el fichero real.
-fn describe_identifier(json: &str) -> Option<String> {
+///
+/// `layout` nombra la tecla según la distribución del jugador (en un teclado español el código
+/// 0x27 es «Ñ», no el «;» de la tabla US: informe del 2026-11-01). Si no la conoce, la tabla.
+fn describe_identifier(json: &str, layout: impl Fn(u16) -> Option<String>) -> Option<String> {
     let binds: Vec<Bind> = serde_json::from_str(json).ok()?;
     let found = binds
         .into_iter()
         .find(|bind| bind.identifier == IDENTIFIER)?;
-    Some(describe(&found))
+    Some(describe(&found, layout))
 }
 
 /// `Ctrl+Shift+L` a partir de los modificadores y el código de escaneo.
-fn describe(bind: &Bind) -> String {
+fn describe(bind: &Bind, layout: impl Fn(u16) -> Option<String>) -> String {
     let mut parts: Vec<&str> = Vec::new();
     if bind.ctrl {
         parts.push("Ctrl");
@@ -88,7 +91,9 @@ fn describe(bind: &Bind) -> String {
     if bind.shift {
         parts.push("Shift");
     }
-    let key = key_name(bind.code);
+    let key = layout(bind.code)
+        .filter(|name| !name.trim().is_empty())
+        .or_else(|| key_name(bind.code).map(str::to_owned));
     if parts.is_empty() && key.is_none() {
         return UNKNOWN.to_owned();
     }
@@ -97,13 +102,14 @@ fn describe(bind: &Bind) -> String {
         if !out.is_empty() {
             out.push('+');
         }
-        out.push_str(key);
+        out.push_str(&key);
     }
     out
 }
 
-/// Nombre de la tecla a partir del **código de escaneo** (set 1). `None` si no se conoce, que es
-/// lo que evita inventarse una tecla.
+/// Nombre de la tecla en la distribución **US** a partir del código de escaneo (set 1): solo
+/// cuando Windows no da el de la distribución del jugador. `None` si no se conoce, que es lo
+/// que evita inventarse una tecla.
 fn key_name(code: u16) -> Option<&'static str> {
     Some(match code {
         0x02 => "1",
@@ -190,19 +196,62 @@ mod tests {
       {"Alt": false, "Code": 35, "Ctrl": true, "Identifier": "KB_TOGGLEHIDEUI", "Passthrough": false, "Shift": false, "Type": 1}
     ]"#;
 
+    /// Sin distribución: lo que queda es la tabla US.
+    fn no_layout(_: u16) -> Option<String> {
+        None
+    }
+
+    /// Lo que Windows devuelve con un teclado español para las teclas de la prueba.
+    fn spanish(code: u16) -> Option<String> {
+        match code {
+            0x27 => Some("Ñ".to_owned()),
+            0x26 => Some("L".to_owned()),
+            _ => None,
+        }
+    }
+
     #[test]
     fn rf18_the_shortcut_is_read_from_what_nexus_has_saved() {
         // Lo guardado para nuestro identificador: Ctrl+Shift y el código 39, que es «;» en el set 1
         // —no la L que decía el literal de antes (informe del jugador, 2026-11-01)—.
-        assert_eq!(describe_identifier(REAL).as_deref(), Some("Ctrl+Shift+;"));
+        assert_eq!(
+            describe_identifier(REAL, no_layout).as_deref(),
+            Some("Ctrl+Shift+;")
+        );
+    }
+
+    #[test]
+    fn rf18_the_key_is_named_with_the_players_keyboard_layout() {
+        // El mismo fichero real, en el teclado español del jugador: el código 39 es la «Ñ» que
+        // él pulsa (informe del 2026-11-01: «tiene ctrl+shift+ñ pero me dice ctrl+shift+;»).
+        assert_eq!(
+            describe_identifier(REAL, spanish).as_deref(),
+            Some("Ctrl+Shift+Ñ")
+        );
+        let blank = |_: u16| Some("  ".to_owned());
+        assert_eq!(
+            describe_identifier(REAL, blank).as_deref(),
+            Some("Ctrl+Shift+;"),
+            "un nombre vacío no tapa la tabla"
+        );
+    }
+
+    #[test]
+    fn rf18_windows_names_a_key_in_the_current_layout() {
+        // Llamada real a user32 (no a Nexus): la L está en el mismo sitio en QWERTY, QWERTZ y AZERTY.
+        assert_eq!(
+            crate::ffi::keys::layout_key_name(0x26).as_deref(),
+            Some("L")
+        );
+        assert_eq!(crate::ffi::keys::layout_key_name(0), None);
     }
 
     #[test]
     fn rf18_another_addons_binding_is_not_ours() {
         let only_other = r#"[{"Alt": false, "Code": 35, "Ctrl": true, "Identifier": "KB_TOGGLEHIDEUI", "Shift": false}]"#;
-        assert_eq!(describe_identifier(only_other), None);
-        assert_eq!(describe_identifier("no es json"), None);
-        assert_eq!(describe_identifier("[]"), None);
+        assert_eq!(describe_identifier(only_other, spanish), None);
+        assert_eq!(describe_identifier("no es json", spanish), None);
+        assert_eq!(describe_identifier("[]", spanish), None);
     }
 
     #[test]
@@ -215,7 +264,7 @@ mod tests {
             shift: false,
         };
         assert_eq!(
-            describe(&bind),
+            describe(&bind, no_layout),
             "Ctrl",
             "mejor solo el modificador que una tecla falsa"
         );
@@ -228,7 +277,7 @@ mod tests {
             shift: false,
         };
         assert_eq!(
-            describe(&empty),
+            describe(&empty, no_layout),
             UNKNOWN,
             "sin nada que decir, el identificador"
         );
@@ -243,14 +292,14 @@ mod tests {
             identifier: IDENTIFIER.to_owned(),
             shift: true,
         };
-        assert_eq!(describe(&bind), "Ctrl+Alt+Shift+L");
+        assert_eq!(describe(&bind, spanish), "Ctrl+Alt+Shift+L");
     }
 
     #[test]
     fn rf18_alt_is_read_from_nexuss_saved_binding() {
         let json = r#"[{"Alt":true,"Code":38,"Ctrl":true,"Identifier":"GW2LURKER_CLICK_THROUGH","Shift":true}]"#;
         assert_eq!(
-            describe_identifier(json).as_deref(),
+            describe_identifier(json, no_layout).as_deref(),
             Some("Ctrl+Alt+Shift+L")
         );
     }

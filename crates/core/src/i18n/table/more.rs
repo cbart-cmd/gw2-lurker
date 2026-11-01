@@ -59,7 +59,6 @@ pub const TEXT: &[(&str, [&str; COLUMNS])] = &[
     ("Language", ["Idioma", "Language", "Langue", "Sprache"]),
     ("Team", ["Equipo", "Team", "Équipe", "Team"]),
     ("Translation", ["Traducción", "Translation", "Traduction", "Übersetzung"]),
-    ("Save", ["Grabar", "Save", "Enregistrer", "Speichern"]),
     ("Windows", ["Ventanas", "Windows", "Fenêtres", "Fenster"]),
     (
         "Click-through keeps the mouse for the game. The shortcut {0} brings the window back, and it can be rebound in Nexus.",
@@ -74,12 +73,12 @@ pub const TEXT: &[(&str, [&str; COLUMNS])] = &[
     ("from their side keep", ["desde su fortaleza lateral", "from their side keep", "depuis leur forteresse latérale", "aus ihrer Seitenfestung"]),
     ("from the spawn point", ["desde el punto de reaparición", "from the spawn point", "depuis le point de réapparition", "vom Wiederbelebungspunkt"]),
     (
-        "The changes are applied as you edit; this writes them now.",
+        "Changes are saved automatically.",
         [
-            "Los cambios se aplican al editarlos; esto los escribe ahora.",
-            "The changes are applied as you edit; this writes them now.",
-            "Les changements s'appliquent pendant la saisie ; ceci les enregistre maintenant.",
-            "Änderungen gelten sofort; dies schreibt sie jetzt.",
+            "Los cambios se guardan solos.",
+            "Changes are saved automatically.",
+            "Les changements sont enregistrés automatiquement.",
+            "Änderungen werden automatisch gespeichert.",
         ],
     ),
     (

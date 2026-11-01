@@ -2,6 +2,11 @@
 Formato [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/), versionado [SemVer](https://semver.org/lang/es/).
 
 ## [Unreleased]
+### Corregido
+- El atajo del click-through se nombra con la distribución de teclado del jugador: en un teclado
+  español sale `Ctrl+Shift+Ñ` y no `Ctrl+Shift+;`.
+- Ajustes: se quita el botón *Grabar*, que no hacía nada visible; los cambios ya se guardaban solos y
+  ahora una línea lo dice.
 
 ## [0.26.0] - 2026-11-01
 ### Corregido
