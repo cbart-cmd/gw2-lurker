@@ -39,7 +39,7 @@ Reglas:
 - Publicar: `UpdateProvider::Direct` + `DisableHotloading`, MD5 de 32 hex sin BOM, excepción
   de LFS para la DLL, tag propio con `--latest=false`. Ver `docs/RELEASE.md`.
 
-## EN CURSO – 2026-11-01 · Favoritos coherentes y paso 0 de la ruta
+## HECHO – 2026-11-01 · Favoritos coherentes y paso 0 de la ruta · 0.26.2
 
 - Primero: clic en favorito selecciona su historial sin saltar; botón `i` abre el mapa del último
   claim vigente de la fila, o del último histórico si ya no tiene reclamos (decisión del usuario).
@@ -55,8 +55,11 @@ Reglas:
 - Validación completa correcta: 327 tests; los 4 tests de red ignorados también pasan al lanzarlos
   manualmente. Últimos ajustes de selección y destino revalidados; DLL 0.26.2 de 2 195 456 B.
   El destino usa la fila del fotograma para evitar cambios si el worker actualiza durante el clic.
-- Publicación 0.26.2 autorizada y en curso. El benchmark CPU solo se compila en release; el
-  publicador conserva su flujo y añade commit convencional con trailer de coautoría.
+- Publicada 0.26.2 con `scripts/release.ps1`: código `3c8cbcd`, distribución `5df5125`.
+  Descarga real verificada: MZ, 2 195 456 B y MD5 `89b25637839b54a31dd848c83b51b57d`.
+  Retención: 0.26.2 y 0.26.1; eliminada 0.26.0. `cargo bloat --release --crates` revisado.
+- El benchmark CPU solo se compila en release; el publicador conserva su flujo y añade commit
+  convencional con trailer de coautoría. Pendiente en GW2: clics, avisos, dibujo 0/1 y frame completo.
 
 ## HECHO – 2026-11-01 · Navegación al mapa de un clan (sin publicar; RF-30, RF-71, RF-32a)
 
