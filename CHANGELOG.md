@@ -1,6 +1,17 @@
 # Changelog
 Formato [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/), versionado [SemVer](https://semver.org/lang/es/).
 
+## [0.25.8] - 2026-11-01
+### Corregido
+- **CI en rojo por tres avisos de seguridad de `zip` 2.6.1** (RUSTSEC-2026-0367, -0368 y -0369: bits
+  SUID/SGID y enlaces simbólicos al extraer, todos corregidos en `zip` 9). Actualizado a `zip` 9.2.0.
+  El addon nunca llama a `extract()` —lee las entradas una a una y escribe en una ruta fija—, pero
+  no se silencia un aviso: se actualiza.
+- Consecuencias del salto: **MSRV 1.88** (la 9.x usa edición 2024) y **+58 KB** de DLL (2 083 840 →
+  2 141 696 B, aún bajo el objetivo de 2,2 MB de ADR-013).
+- `CI`: el job de `check_loc.sh` fallaba por `config.rs` con 813 líneas; ya estaba partido en
+  `config/mod.rs` + `config/tests.rs` en el commit anterior.
+
 ## [0.25.7] - 2026-11-01
 ### Corregido
 - **La descarga del índice de nombres fallaba con «no existe».** La URL por defecto tenía una errata

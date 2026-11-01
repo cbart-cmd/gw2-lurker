@@ -10,7 +10,7 @@ Cumplimiento verificado por CI siempre que sea posible. Lo que no se pueda autom
   tests se los saltan con `#![cfg_attr(test, allow(...))]`), `missing_debug_implementations` y
   `unused_qualifications` warn, `unsafe_op_in_unsafe_fn` deny.
 - Nomenclatura estándar de Rust (RFC 430): `snake_case` funciones/módulos, `CamelCase` tipos, `SCREAMING_SNAKE_CASE` constantes.
-- Edición 2021, MSRV en `rust-version` (1.87.0) y fijada también en `rust-toolchain.toml`.
+- Edición 2021, MSRV en `rust-version` (**1.88.0**, por `zip` 9) y toolchain `stable` en `rust-toolchain.toml`.
 - Sin código comentado ni `TODO` sin identificador de tarea (`TODO(T-14): ...`).
 
 ## 2. Tamaño de ficheros y funciones
@@ -32,7 +32,7 @@ Cumplimiento verificado por CI siempre que sea posible. Lo que no se pueda autom
 
 ## 4. Dependencias
 
-- Política de mínimos: cada dependencia nueva requiere justificarse en el PR (coste en tamaño de DLL, mantenimiento, licencia). Dependencias actuales del `addon`: `chrono`, `log`, `serde`, `serde_json`, `nexus`, `gw2lurker-core`, `gw2lurker-api` y **`zip` 2.x** (`default-features = false, features = ["deflate"]`, para descomprimir el índice de nombres; misma caja y misma feature que el addon hermano `gw2-rotation-builds`).
+- Política de mínimos: cada dependencia nueva requiere justificarse en el PR (coste en tamaño de DLL, mantenimiento, licencia). Dependencias actuales del `addon`: `chrono`, `log`, `serde`, `serde_json`, `nexus`, `gw2lurker-core`, `gw2lurker-api` y **`zip` 9.x** (`default-features = false, features = ["deflate"]`, para descomprimir el índice de nombres). Se subió de 2.x a 9.x el 2026-11-01 por tres RUSTSEC sobre `extract()`; el addon no lo usa, pero un aviso no se silencia.
 - `cargo-deny` (licencias, avisos de seguridad, fuentes) y `cargo-audit` en CI, con `deny.toml` en la raíz.
 - Sin runtime asíncrono (`tokio`): el worker es un hilo y el HTTP es **WinHTTP** (servicio del sistema, sin TLS en la DLL).
 - Versiones fijadas con `Cargo.lock` versionado.

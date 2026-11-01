@@ -111,7 +111,9 @@ fn digest(bytes: &[u8]) -> [u8; 16] {
     }
     message.extend_from_slice(&bit_len.to_le_bytes());
 
-    for chunk in message.chunks_exact(64) {
+    // `as_chunks` (1.88) en vez de `chunks_exact`: el mensaje está rellenado a múltiplos de 64, así
+    // que no hay resto que mirar, y clippy lo pide desde que la MSRV lo permite.
+    for chunk in message.as_chunks::<64>().0 {
         let mut words = [0u32; 16];
         for (index, word) in words.iter_mut().enumerate() {
             let start = index * 4;

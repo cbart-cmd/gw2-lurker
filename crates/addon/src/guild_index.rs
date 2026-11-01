@@ -205,13 +205,17 @@ fn unpack(bytes: &[u8], limits: Limits) -> Result<Vec<u8>, String> {
         if file.is_dir() {
             continue;
         }
+        // zip 9 devuelve `Result<Cow<str>>` porque el nombre puede no ser UTF-8.
+        let name = file
+            .name()
+            .map_err(|error| format!("entrada {index} del ZIP: nombre ilegible ({error})"))?
+            .replace('\\', "/");
         if file.is_symlink() {
-            return Err(format!("el ZIP trae un enlace simbólico: {}", file.name()));
+            return Err(format!("el ZIP trae un enlace simbólico: {name}"));
         }
         if file.size() > limits.bytes {
-            return Err(format!("{} descomprime más de lo aceptado", file.name()));
+            return Err(format!("{name} descomprime más de lo aceptado"));
         }
-        let name = file.name().replace('\\', "/");
         if !name.ends_with(ENTRY) {
             continue;
         }
@@ -292,6 +296,25 @@ mod tests {
         assert!(
             message.contains("404") && message.contains("publicado"),
             "«no existe» a secas no dice nada: {message}"
+        );
+    }
+
+    /// El ZIP publicado entero: descargarlo **y** descomprimirlo, que es lo que hace el addon al
+    /// pulsar «Descargar el índice».
+    #[test]
+    #[ignore = "requiere red"]
+    fn live_the_published_zip_unpacks_into_the_index() {
+        let stamp = chrono::Utc::now().timestamp();
+        let transport = WinHttpTransport::default();
+        let bytes = Transport::get(&transport, &cache_busted(DEFAULT_URL, stamp))
+            .expect("descarga del ZIP");
+        let json = unpack(&bytes, Limits::default()).expect("descomprimir el ZIP");
+        let names: std::collections::BTreeMap<String, String> =
+            serde_json::from_slice(&json).expect("el índice es un mapa de nombres");
+        assert!(
+            names.len() > 9_000,
+            "el índice publicado tiene que traer miles de nombres: {}",
+            names.len()
         );
     }
 
