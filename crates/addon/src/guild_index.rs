@@ -201,11 +201,16 @@ mod tests {
 
     /// ZIP en memoria con un fichero; `Stored` para no depender de un compresor al probar.
     fn zip_with(name: &str, content: &[u8]) -> Vec<u8> {
+        zip_with_method(name, content, zip::CompressionMethod::Stored)
+    }
+
+    /// El ZIP que publicamos va **deflate** (PowerShell `CompressionLevel.Optimal`): el lector
+    /// tiene que aceptarlo, no solo el `Stored`.
+    fn zip_with_method(name: &str, content: &[u8], method: zip::CompressionMethod) -> Vec<u8> {
         let mut out = std::io::Cursor::new(Vec::new());
         {
             let mut writer = zip::ZipWriter::new(&mut out);
-            let options = zip::write::SimpleFileOptions::default()
-                .compression_method(zip::CompressionMethod::Stored);
+            let options = zip::write::SimpleFileOptions::default().compression_method(method);
             writer.start_file(name, options).unwrap();
             writer.write_all(content).unwrap();
             writer.finish().unwrap();
@@ -218,6 +223,18 @@ mod tests {
         let json = br#"{"A":"[DG] Die Garde"}"#;
         let packed = zip_with("guild-names.json", json);
         assert_eq!(unpack(&packed, Limits::default()).unwrap(), json.to_vec());
+    }
+
+    #[test]
+    fn rf20_a_deflated_zip_is_read_too() {
+        // Es lo que genera `scripts/pack-guild-index.ps1`: un ZIP comprimido, no almacenado.
+        let json = br#"{"A":"[DG] Die Garde","B":"[YaK] Dolyak Sanctuary"}"#;
+        let packed = zip_with_method("guild-names.json", json, zip::CompressionMethod::Deflated);
+        assert_eq!(
+            unpack(&packed, Limits::default()).unwrap(),
+            json.to_vec(),
+            "un ZIP comprimido tiene que leerse igual que uno almacenado"
+        );
     }
 
     #[test]
