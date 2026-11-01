@@ -39,13 +39,16 @@ Reglas:
 - Publicar: `UpdateProvider::Direct` + `DisableHotloading`, MD5 de 32 hex sin BOM, excepción
   de LFS para la DLL, tag propio con `--latest=false`. Ver `docs/RELEASE.md`.
 
-## EN CURSO – 2026-11-01 · Publicar 0.26.1
+## HECHO – 2026-11-01 · Publicar 0.26.1
 
-- Subir la versión raíz y las dependencias internas a 0.26.1; cerrar CHANGELOG con los dos bugs
-  reportados.
-- Validar con `scripts/validate.ps1 -Release`, publicar únicamente con `scripts/release.ps1` y
-  verificar la descarga real, su tamaño y MD5.
-- Subir el commit de versión y comprobar su CI con una consulta al SHA exacto.
+- Versión raíz y dependencias internas 0.26.1; CHANGELOG cierra los bugs del atajo con «Ñ» y del
+  botón *Grabar*. Commits: `df5cf0e` (versión) y `435c454` (`Cargo.lock`).
+- Validación `scripts/validate.ps1 -Release`: fmt, clippy, LOC, trazabilidad, 310 tests y build
+  correctos; DLL de 2 189 312 B.
+- Publicada con `scripts/release.ps1`: tag `gw2-lurker-v0.26.1`, MD5
+  `1430a2dfc25378f3c4b1c9a5a36b23b4`. La descarga real coincidió en tamaño y MD5; retención eliminó
+  `gw2-lurker-v0.25.15`.
+- La confirmación del atajo «Ñ» requiere probarlo en GW2.
 
 ## Bloqueos
 
