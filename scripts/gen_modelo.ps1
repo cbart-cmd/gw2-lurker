@@ -2,15 +2,31 @@
 .SYNOPSIS
   Regenera la parte automática de modelo.md: mapa de ficheros, items, tests y APIs que usa cada uno.
 .DESCRIPTION
-  Lee los `//!` y `///` del código, así que el mapa es tan bueno como la documentación del fuente.
+  Lee los `//!` y `///` del código. Lo que no tiene `///` se describe con
+  scripts/modelo-descripciones.txt (una línea `ruta|Tipo::item => descripción` por item).
   Conserva lo que haya en modelo.md por encima del marcador <!-- GENERADO --> (índice escrito a mano).
-  Uso: pwsh -File scripts/gen_modelo.ps1
+  Uso: pwsh -File scripts/gen_modelo.ps1 [-ListMissing]
+  -ListMissing: no escribe nada; lista las claves de items sin descripción (para completar el .txt).
 #>
+param([switch]$ListMissing)
 $ErrorActionPreference = 'Stop'
 $root = Split-Path $PSScriptRoot -Parent
 Set-Location $root
 $out = Join-Path $root 'modelo.md'
 $marker = '<!-- GENERADO: no editar debajo; se rehace con scripts/gen_modelo.ps1 -->'
+
+# Descripciones a mano de los items sin `///`.
+$extra = @{}
+$extraPath = Join-Path $PSScriptRoot 'modelo-descripciones.txt'
+if (Test-Path $extraPath) {
+    foreach ($l in Get-Content $extraPath -Encoding utf8) {
+        if ($l -match '^\s*(#|$)') { continue }
+        $k, $v = $l -split ' => ', 2
+        if ($v) { $extra[$k.Trim()] = $v.Trim() }
+    }
+}
+$script:missing = [System.Collections.Generic.List[string]]::new()
+$script:usedKeys = [System.Collections.Generic.HashSet[string]]::new()
 
 function Clip([string]$s, [int]$n = 260) {
     $s = ($s -replace '\s+', ' ').Trim()
@@ -58,6 +74,9 @@ function Describe-Rust([string]$path) {
     $inExtern = $false
     $externLib = ''
     $externFns = @()
+    $relPath = $path -replace '\\', '/'
+    $owner = ''
+    $isTest = $false
     for ($i = 0; $i -lt $prod.Count; $i++) {
         $l = $prod[$i]
         if ($l -match '^\s*#\[link\(name\s*=\s*"([^"]+)"') { $externLib = $Matches[1] }
@@ -68,10 +87,11 @@ function Describe-Rust([string]$path) {
             continue
         }
         if ($l -match '^\s*///\s?(.*)$') { $doc += $Matches[1]; continue }
+        if ($l -match '^\s*#\[test\]') { $isTest = $true; continue }
         if ($l -match '^\s*#\[') { continue }
         $indent = ($l -replace '^(\s*).*', '$1').Length
         $t = $l.Trim()
-        if ($indent -le 4 -and $t -match '^(pub(?:\([^)]*\))?\s+)?((?:const\s+|async\s+|unsafe\s+|extern\s+"[^"]*"\s+)*)(fn|struct|enum|trait|mod|type|static|const|impl|macro_rules!)\s*(.*)$') {
+        if ($indent -le 4 -and $t -cmatch '^(pub(?:\([^)]*\))?\s+)?((?:const\s+|async\s+|unsafe\s+|extern\s+"[^"]*"\s+)*)(fn|struct|enum|trait|mod|type|static|const|impl|macro_rules!)\s*(.*)$') {
             $vis = if ($Matches[1]) { 'pub ' } else { '' }
             $kind = $Matches[3]; $rest = $Matches[4]
             $name = switch ($kind) {
@@ -83,14 +103,28 @@ function Describe-Rust([string]$path) {
                 if ($sig -notmatch '\)') { $sig = ($sig -replace '\($', '') + '(…)' }
                 $name = Clip $sig 110
             }
+            if ($indent -eq 0) {
+                $owner = if ($kind -in 'impl', 'trait') {
+                    # `impl<T> Trait for Type` → `Type`; `impl Type` → `Type`.
+                    $r = ($rest -replace '^<[^>]*>\s*', '') -replace '\s*(\{|where).*$', ''
+                    if ($r -match '\bfor\s+(.+)$') { $r = $Matches[1] }
+                    ($r -replace '<.*$', '').Trim()
+                } else { '' }
+            }
+            $short = if ($kind -eq 'impl') { '' } else { $rest -replace '^(\w+).*$', '$1' }
+            $key = if ($indent -gt 0 -and $owner) { "$relPath|$owner::$short" } else { "$relPath|$short" }
             $skip = ($kind -in 'const', 'static' -and $indent -gt 0 -and -not $doc.Count) -or ($kind -eq 'mod' -and $t -match ';$' -and -not $doc.Count -and $false)
-            if (-not $skip -and -not ($kind -eq 'fn' -and $name -match '^fmt\(' )) {
+            if (-not $skip -and -not $isTest -and -not ($kind -eq 'fn' -and $name -match '^fmt\(' )) {
                 $d = if ($doc.Count) { FirstParagraph $doc 200 } else { '' }
+                if (-not $d -and $kind -notin 'impl', 'mod') {
+                    if ($extra.ContainsKey($key)) { $d = $extra[$key]; [void]$script:usedKeys.Add($key) }
+                    else { $script:missing.Add("$key`t$kind $name") }
+                }
                 $prefix = if ($indent -gt 0) { '  - ' } else { '- ' }
                 $items += "$prefix``$vis$kind $name``" + $(if ($d) { " — $d" } else { '' })
             }
         }
-        if ($t -ne '') { $doc = @() }
+        if ($t -ne '') { $doc = @(); $isTest = $false }
     }
     if ($items.Count) {
         [void]$sb.AppendLine('**Contenido:**')
@@ -147,7 +181,10 @@ function Describe-Other([string]$path) {
         $d = (Clip $h 100) + ' — ' + (FirstParagraph @($body | Where-Object { $_.Trim() -ne '' } | Select-Object -First 3) 220)
     } elseif ($p -match '\.(ps1|sh|bat)$') {
         $syn = $lines | Select-String -Pattern '^\s*\.SYNOPSIS' -Context 0, 3
-        if ($syn) { $d = FirstParagraph ($syn.Context.PostContext | ForEach-Object { $_ }) 220 }
+        if ($syn) {
+            $acc = @(); foreach ($x in $syn.Context.PostContext) { if ($x -match '^\s*\.') { break }; $acc += $x }
+            $d = FirstParagraph $acc 220
+        }
         else {
             $c = $lines | Where-Object { $_ -match '^\s*(#|::|rem\s)' -and $_ -notmatch '^#!' } | ForEach-Object { $_ -replace '^\s*(#|::|rem)\s?', '' }
             $d = FirstParagraph $c 220
@@ -180,6 +217,13 @@ foreach ($crate in 'core', 'api', 'addon') {
 [void]$sections.AppendLine()
 $files | Where-Object { $_ -notlike 'crates/*' -and $_ -notlike 'docs/historial/*' -and $_ -notlike 'data/*' } | Sort-Object | ForEach-Object { [void]$sections.AppendLine((Describe-Other $_)) }
 
+if ($ListMissing) {
+    $script:missing
+    "sin descripción: $($script:missing.Count)"
+    $extra.Keys | Where-Object { -not $script:usedKeys.Contains($_) } | ForEach-Object { "clave obsoleta: $_" }
+    return
+}
+
 $head = ''
 if (Test-Path $out) {
     $all = Get-Content $out -Raw -Encoding utf8
@@ -187,4 +231,6 @@ if (Test-Path $out) {
     if ($at -ge 0) { $head = $all.Substring(0, $at) } else { $head = $all.TrimEnd() + "`n`n" }
 }
 [System.IO.File]::WriteAllText($out, $head + $sections.ToString(), [System.Text.UTF8Encoding]::new($false))
-"modelo.md: $([Math]::Round((Get-Item $out).Length / 1KB)) KB"
+"modelo.md: $([Math]::Round((Get-Item $out).Length / 1KB)) KB · items sin descripción: $($script:missing.Count)"
+$stale = @($extra.Keys | Where-Object { -not $script:usedKeys.Contains($_) })
+if ($stale.Count) { "claves obsoletas en modelo-descripciones.txt: $($stale -join ', ')" }

@@ -7,10 +7,14 @@ ficha de cada fichero) y abre solo ese rango.
 - La parte de arriba (hasta el marcador `GENERADO`) está escrita a mano: arquitectura, hilos, flujo
   de datos y síntomas.
 - La de abajo se regenera con `pwsh -File scripts/gen_modelo.ps1` a partir de los `//!` y `///`
-  del código. Hazlo tras cambios de estructura (ficheros, funciones o tipos nuevos). Para cada
-  fichero da: qué hace, sus items (función, tipo, método) con su doc, de qué módulos internos
-  depende, qué APIs externas toca (Nexus, Win32, GW2 API, disco, hilos, imgui) y sus tests.
-- Una función sin descripción es una función sin `///`: su nombre y su firma son lo que hay.
+  del código; lo que no tiene `///` toma su descripción de `scripts/modelo-descripciones.txt`.
+  Hazlo tras cambios de estructura (ficheros, funciones o tipos nuevos). Para cada
+  fichero da: qué hace, sus items (función, tipo, método, constante) con su descripción, de qué
+  módulos internos depende, qué APIs externas toca (Nexus, Win32, GW2 API, disco, hilos, imgui) y
+  sus tests (los tests se listan por nombre, que ya dice qué comprueban).
+- Todos los items tienen descripción. El generador dice cuántos quedan sin ella; si sale > 0,
+  `pwsh -File scripts/gen_modelo.ps1 -ListMissing` da las claves y se añaden al `.txt` (o un `///`
+  en el código, que tiene prioridad).
 - La spec manda sobre este fichero (`specs/`); este solo dice **dónde** está cada cosa.
 
 ## Arquitectura en una pantalla
@@ -99,7 +103,7 @@ Estado global (en `addon/src/lib.rs` y `worker.rs`):
 
 <!-- GENERADO: no editar debajo; se rehace con scripts/gen_modelo.ps1 -->
 
-Generado el 2026-11-01 18:40 desde el commit `25dd2a5`.
+Generado el 2026-11-01 18:46 desde el commit `1681bbc`.
 
 ## Crate `core`
 
@@ -113,7 +117,7 @@ Which captures deserve an alert (RF-19, RF-19a).
 
 - `pub struct Structures` — Which structures deserve an alert.
 - `impl Default for Structures`
-  - `fn default() -> Self`
+  - `fn default() -> Self` — Por defecto avisa de los cuatro tipos de estructura: campamento, torre, fortaleza y castillo.
 - `impl Structures`
   - `pub fn wants(self, kind: ObjectiveType) -> bool` — Whether a change of owner of this kind of objective is worth an alert.
 - `pub struct Filter` — What the player wants to be told about.
@@ -156,7 +160,7 @@ Snapshot lifecycle: baseline and match change (RF-03d, RF-04, RF-26).
 - `pub enum Event` — What the application needs to know after a poll.
 - `pub struct DiffConfig` — Tuning for the differ.
 - `impl Default for DiffConfig`
-  - `fn default() -> Self`
+  - `fn default() -> Self` — Intervalo de sondeo por defecto de 30 s; de él sale el umbral de hueco (3 intervalos).
 - `impl DiffConfig`
   - `pub const GAP_FACTOR` — Multiple of the interval above which a hole counts as a gap (RF-26).
   - `pub fn gap_threshold(&self) -> Duration` — Threshold as a duration.
@@ -177,34 +181,15 @@ Snapshot lifecycle: baseline and match change (RF-03d, RF-04, RF-26).
 
 **Contenido:**
 
-- `const MATCH`
-- `fn parsed() -> Match`
-- `fn at(offset_secs: i64) -> DateTime<Utc>`
-- `fn snap(match_id: &str, offset_secs: i64) -> Snapshot`
-- `fn differ() -> Differ`
+- `const MATCH` — Fixture real `match_2-2.json` del crate api, incrustada con `include_str!`.
+- `fn parsed() -> Match` — Deserializa la fixture `MATCH` a `Match`.
+- `fn at(offset_secs: i64) -> DateTime<Utc>` — Instante fijo (época 1 800 000 000 s) más `offset_secs`; da tiempos deterministas a los tests.
+- `fn snap(match_id: &str, offset_secs: i64) -> Snapshot` — `Snapshot` de la fixture con otro id de partida y tomada en `at(offset_secs)`.
+- `fn differ() -> Differ` — `Differ` nuevo con la configuración por defecto.
 - `fn lifecycle(events: &[Event]) -> Vec<Event>` — Lifecycle events only: the late claims a baseline carries are checked separately (RF-25).
-- `fn late_claims(events: &[Event]) -> usize`
+- `fn late_claims(events: &[Event]) -> usize` — Cuenta los `Event::Claim` marcados `late` (reclamos ya existentes al hacer la línea base).
 - `const FIXTURE_CLAIMS` — The fixture carries 41 claims, so every baseline must discover exactly that many.
-- `fn rf25_late_claims_carry_the_real_claimed_at()`
-- `fn rf04_first_snapshot_is_a_session_baseline()`
-- `fn rf04_snapshot_inside_the_interval_triggers_nothing()`
-- `fn rf03d_match_change_resets_the_baseline()`
-- `fn rf26_gap_above_three_intervals_is_reported()`
-- `fn rf25_a_gap_does_not_duplicate_claims_already_in_history()`
-- `fn rf26_exactly_three_intervals_is_not_a_gap()`
-- `fn rf26_gap_threshold_follows_the_configured_interval()`
-- `fn rf04_reset_makes_the_next_snapshot_a_baseline_again()`
-- `fn t06_snapshot_from_match_flattens_every_objective()`
-- `fn objective<'a>(s: &'a mut Snapshot, id: &str) -> &'a mut MatchObjective`
-- `fn rf10_owner_change_emits_a_flip_with_the_real_time()`
-- `fn rf21_new_claim_uses_claimed_at()`
-- `fn rf22_replaced_claim_emits_unclaim_then_claim()`
-- `fn rf22_reclaim_by_the_same_guild_emits_unclaim_then_claim()`
-- `fn rf22_flip_after_claim_emits_unclaim_for_the_stale_claim()`
-- `fn rf25_expired_claim_is_not_added_to_a_baseline()`
-- `fn rf22_released_claim_emits_only_unclaim()`
-- `fn rf04_baseline_after_a_gap_reports_no_flips()`
-- `fn t07_changes_are_ordered_by_objective_then_by_kind()`
+- `fn objective<'a>(s: &'a mut Snapshot, id: &str) -> &'a mut MatchObjective` — Acceso mutable a un objetivo del snapshot por id, para preparar casos.
 
 **APIs externas:** `serde_json::from_str`
 
@@ -220,9 +205,9 @@ Guilds the user follows, treated as favourites (RF-73).
 - `pub const MAX_FOLLOWED` — How many guilds can be followed at once.
 - `pub struct FollowList` — Ordered, duplicate-free list of followed guild ids.
 - `impl <'de> Deserialize<'de> for FollowList`
-  - `fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>`
+  - `fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>` — Lee la lista de clanes seguidos de settings.json normalizando cada id (mayúsculas/guiones) y quitando duplicados.
 - `pub fn normalize_guild_id(id: &str) -> Option<String>` — Converts a guild UUID to uppercase canonical `8-4-4-4-12` form.
-- `fn canonical_guild_id(id: &str) -> String`
+- `fn canonical_guild_id(id: &str) -> String` — Id de clan normalizado; si no tiene forma de GUID, lo deja tal cual.
 - `impl FollowList`
   - `pub fn new() -> Self` — Empty list.
   - `pub fn contains(&self, guild: &str) -> bool` — Whether the guild is followed.
@@ -262,7 +247,7 @@ When the addon may draw and poll (RF-01, RF-02, RF-02a).
 - `pub struct Gate` — Decision for the current frame.
 - `impl Gate`
   - `const CONFIG_ONLY` — The overlay is there but the worker stays quiet.
-  - `fn hidden(reason: Hidden) -> Self`
+  - `fn hidden(reason: Hidden) -> Self` — Estado de la puerta con la UI oculta y sin sondeo, guardando el motivo (`Hidden`).
   - `pub fn settings_available(&self) -> bool` — Whether the settings window may still be opened (RF-02 keeps it available).
 - `pub fn evaluate(state: GameState) -> Gate` — Evaluates the gate. Order matters: the loading screen wins over any map data.
 
@@ -277,9 +262,9 @@ Translation table (RF-44).
 
 - `pub const COLUMNS` — Columns per entry, in this order.
 - `const ES` — Position of each language inside an entry.
-- `const EN`
-- `const FR`
-- `const DE`
+- `const EN` — Índice de la columna inglesa en la tabla de traducciones.
+- `const FR` — Índice de la columna francesa en la tabla de traducciones.
+- `const DE` — Índice de la columna alemana en la tabla de traducciones.
 - `pub enum Language` — Language of the interface.
 - `impl Language`
   - `pub const ALL` — All languages, in the table order.
@@ -366,7 +351,7 @@ Claim-centric view models: what is claimed right now across the matchup (RF-70),
 - `pub fn split_by_map(rows: &[ClaimRow], current: MapRole) -> (Vec<ClaimRow>, Vec<ClaimRow>)` — Splits a guild's claims into "the map the player is on" and "the rest" (RF-72).
 - `pub fn guild_timeline(rows: &[ClaimRow], guild: &str) -> Vec<ClaimRow>` — Rows of one guild, oldest first (the order the route needs).
 - `pub fn guild_timeline_with_current(…)` — Include still-visible claims even if their original history row was evicted (RF-71, RF-72).
-- `fn sort_timeline(out: &mut [ClaimRow])`
+- `fn sort_timeline(out: &mut [ClaimRow])` — Ordena filas de reclamo de la más antigua a la más reciente (desempate por id de objetivo) para el historial.
 
 **Usa (interno):** `crate::model`
 
@@ -395,7 +380,7 @@ Serde model of the public WvW endpoints of the GW2 API.
 - `impl MapRole`
   - `pub fn from_map_id(map_id: u32) -> Self` — Role of a WvW map by its Mumble `map_id`.
 - `pub struct MatchObjective` — One objective as it appears inside a match snapshot.
-- `fn normalize_claimed_guild_id<'de, D>(deserializer: D) -> Result<Option<String>, D::Error>`
+- `fn normalize_claimed_guild_id<'de, D>(deserializer: D) -> Result<Option<String>, D::Error>` — Deserializador de `claimed_by`: normaliza el id del clan que manda la API para que coincida con el de los seguidos.
 - `impl MatchObjective`
   - `pub fn is_high_value(&self) -> bool` — High value per RF-30b: derived from scoring data, never from a hard-coded list.
   - `pub fn is_unclaimed(&self) -> bool` — Whether it is claimable and currently unclaimed (RF-27b).
@@ -471,10 +456,10 @@ Virtual route of a guild (T-40, RF-32a).
 - `pub fn visible_steps(steps: usize, progress: f32) -> usize` — Cuántos pasos de la ruta se han «reproducido» con una fracción `progress` de 0 a 1 (RF-36).
 - `pub fn progress(elapsed: f32, seconds: f32) -> f32` — Fracción de la ruta reproducida tras `elapsed` segundos de una reproducción de `seconds`.
 - `pub fn build<'a>(rows: &'a [ClaimRow], guild: &str) -> Option<Route<'a>>` — Builds chronological observations; locating an origin additionally requires [`with_origin`].
-- `fn ordered<'a>(…)`
-- `fn build_claims<'a>(mine: &[&'a ClaimRow]) -> Option<Route<'a>>`
-- `fn locate_origin(…)`
-- `fn origin_point(…)`
+- `fn ordered<'a>(…)` — Reclamos de un clan, filtrados opcionalmente por mapa y por fecha mínima, ordenados por `claimed_at` (los pasos de la ruta).
+- `fn build_claims<'a>(mine: &[&'a ClaimRow]) -> Option<Route<'a>>` — Convierte los reclamos ordenados en una `Route` sin origen (un paso por reclamo); `None` si no hay ninguno.
+- `fn locate_origin(…)` — Infiere el paso 0 (RF-32a): color del clan y, por prioridad, garri propia aún suya, Bahía/Colinas si toda la ruta va al norte (alpinos) o el respawn de su equipo.
+- `fn origin_point(…)` — Posición del paso 0 a partir del objetivo: `coord` exacta o, si se permite, `label_coord` marcada como aproximada (los spawns no tienen `coord`).
 
 **Usa (interno):** `crate::matchup`, `crate::model`
 
@@ -523,10 +508,10 @@ Team identity and the bundled `data/wvw-teams.json` table (ADR-010).
 - `pub struct TeamName` — One translation entry.
 - `impl TeamName`
   - `pub fn get(&self, language: &str) -> Option<&str>` — Translation for a two-letter language code, if there is one.
-- `struct NamesFile`
+- `struct NamesFile` — Forma del JSON `team-names.json` incrustado: nombres de equipo por id.
 - `pub fn translations() -> &'static BTreeMap<String, TeamName>` — Translations by English name, parsed once.
 - `pub struct TeamEntry` — One entry of the table.
-- `struct File`
+- `struct File` — Forma del JSON `wvw-teams.json` incrustado: lista de equipos.
 - `pub struct TeamTable` — Id -> name table for WvW teams.
 - `impl TeamTable`
   - `pub fn parse(json: &str) -> Result<Self, serde_json::Error>` — Parses the bundled table format. Unknown fields are ignored on purpose so the script can add metadata without breaking older builds.
@@ -582,15 +567,15 @@ HTTP client for the public GW2 API and its response parsing.
 - `struct World` — One entry of `/v2/worlds`: the old servers, still in `all_worlds` for compatibility.
 - `enum TeamRef` — The team of a guild in `/v2/wvw/guilds/:region`, which arrives as text.
 - `impl TeamRef`
-  - `fn into_id(self) -> Option<u32>`
+  - `fn into_id(self) -> Option<u32>` — Id de equipo venga como número o como texto en el JSON de la API; `None` si el texto no es un número.
 - `pub fn looks_like_guild_id(id: &str) -> bool` — Whether a string has the shape of a guild id: 32 hexadecimal digits, with or without dashes.
 - `fn looks_like_match_id(id: &str) -> bool` — `<region>-<tier>`, like `2-2`.
 - `fn looks_like_language(lang: &str) -> bool` — Language supported by the addon: `es`, `en`, `fr` or `de`.
 - `fn url_encode(text: &str) -> String` — Percent-encodes a query value: guild names have spaces, accents and apostrophes.
-- `fn parse<T: for<'de> Deserialize<'de>>(body: &[u8]) -> Result<T, ApiError>`
+- `fn parse<T: for<'de> Deserialize<'de>>(body: &[u8]) -> Result<T, ApiError>` — Deserializa el cuerpo de una respuesta; un JSON inválido se convierte en `ApiError::Parse`.
 - `pub struct Backoff` — Exponential retry with a cap, shared by the polling worker (RNF-04).
 - `impl Default for Backoff`
-  - `fn default() -> Self`
+  - `fn default() -> Self` — Backoff exponencial de 2 s a 5 min.
 - `impl Backoff`
   - `pub fn new(base_ms: u64, cap_ms: u64) -> Self` — Creates a backoff with the given base and cap, both in milliseconds.
   - `pub fn reset(&mut self)` — Resets after a successful request.
@@ -618,9 +603,9 @@ Alert lines: the events of the session turned into something the widget can draw
 - `pub const MAX_ALERTS` — How many events the dashboard keeps. The widget only shows the last few minutes; the rest is so the log window can show the session.
 - `const LATE_GRACE` — How recent a claim found at a baseline has to be to still deserve an alert.
 - `impl Dashboard`
-  - `pub fn push_alert(&mut self, event: Event)`
+  - `pub fn push_alert(&mut self, event: Event)` — Añade un evento a la lista de avisos (salvo línea base y huecos) con la hora de recepción, recortando a `MAX_ALERTS`.
   - `pub fn recent_alerts(…)` — Recent events as ready-to-draw lines, **newest first** (RF-19), already filtered.
-  - `fn alert_line(&self, event: &Event, received: DateTime<Utc>) -> Option<AlertLine>`
+  - `fn alert_line(&self, event: &Event, received: DateTime<Utc>) -> Option<AlertLine>` — Traduce un `Event` del diff a la línea de aviso de la UI: nombre del objetivo, mapa (rol por el prefijo del id), tipo, clan y colores.
 - `pub enum AlertKind` — What happened, for the alert widget.
 - `pub struct AlertLine` — One line of the alert widget.
 - `pub struct Received` — An event and the instant this addon learnt about it.
@@ -636,7 +621,7 @@ Which team the player is on, as arcdps sees it (RF-03a).
 
 - `static SELF_TEAM` — arcdps team of the local player; `-1` until arcdps reports it.
 - `pub fn subscribe()` — Subscribes to arcdps' self-join event. Must be called from `load`.
-- `fn on_self_join(payload: Option<&nexus::event::arc::AgentUpdate>)`
+- `fn on_self_join(payload: Option<&nexus::event::arc::AgentUpdate>)` — Callback del evento de ArcDPS «self join»: guarda el equipo del jugador en `SELF_TEAM`.
 - `pub fn self_team_tag() -> Option<u16>` — Opaque arcdps team tag of the local player, if arcdps has reported one.
 - `pub fn describe() -> String` — Tag as text for the log, so a bug report can say which side arcdps thought we were on.
 
@@ -649,16 +634,16 @@ Detects scheduled WvW team reassignment without polling global match data every 
 
 **Contenido:**
 
-- `const TIMER_TTL`
-- `const RETRY_AFTER_ERROR`
-- `const OVERVIEW_TTL`
-- `pub struct AssignmentMonitor`
+- `const TIMER_TTL` — Cada cuánto se vuelven a pedir los temporizadores de reasignación (30 min).
+- `const RETRY_AFTER_ERROR` — Espera tras un fallo al pedir los temporizadores (60 s).
+- `const OVERVIEW_TTL` — Mínimo entre dos consultas del listado de partidas activas tras pasar la hora de reasignación (60 s).
+- `pub struct AssignmentMonitor` — Estado del vigilante de reasignación de equipos: horas límite NA/EU y cuándo puede volver a preguntar.
 - `impl AssignmentMonitor`
-  - `pub fn rotation_confirmed<T: Transport>(…)`
-  - `pub fn reset_after_rotation(&mut self)`
-  - `fn refresh_timers<T: Transport>(…)`
-- `pub fn reset_tracking_for_assignment(…)`
-- `fn parse_deadline(value: &str) -> Result<DateTime<Utc>, ApiError>`
+  - `pub fn rotation_confirmed<T: Transport>(…)` — `true` si la reasignación de la región del match ya pasó y el match vigilado ya no está entre los activos (`/v2/wvw/matches` sin ids).
+  - `pub fn reset_after_rotation(&mut self)` — Olvida horas límite y esperas para empezar de cero tras una reasignación.
+  - `fn refresh_timers<T: Transport>(…)` — Pide los temporizadores de reasignación a la API (como mucho cada 30 min; 60 s tras un error) y guarda las horas NA/EU.
+- `pub fn reset_tracking_for_assignment(…)` — Si cambió el match tras la reasignación, reinicia diff, vigilante y ciclo de seguimiento del Dashboard (historial y avisos). Devuelve si reinició.
+- `fn parse_deadline(value: &str) -> Result<DateTime<Utc>, ApiError>` — Fecha RFC 3339 de un temporizador a UTC; error de parseo si no es válida.
 
 **Usa (interno):** `crate::worker`, `gw2lurker_core::diff`
 
@@ -669,13 +654,13 @@ Detects scheduled WvW team reassignment without polling global match data every 
 
 **Contenido:**
 
-- `static STOPPING`
-- `static HANDLES`
-- `fn handles() -> &'static Mutex<Vec<JoinHandle<()>>>`
-- `pub fn spawn(name: &str, task: impl FnOnce() + Send + 'static) -> io::Result<()>`
-- `pub fn is_stopping() -> bool`
-- `pub fn stop_all()`
-- `fn log_join_failure(handle: JoinHandle<()>)`
+- `static STOPPING` — Bandera de apagado: una vez puesta no se lanzan más tareas.
+- `static HANDLES` — Acceso perezoso a `HANDLES`.
+- `fn handles() -> &'static Mutex<Vec<JoinHandle<()>>>` — Acceso perezoso a `HANDLES`.
+- `pub fn spawn(name: &str, task: impl FnOnce() + Send + 'static) -> io::Result<()>` — Lanza una tarea con nombre en su propio hilo, la registra y limpia las terminadas; falla si el addon se está apagando.
+- `pub fn is_stopping() -> bool` — Si el addon se está descargando; las tareas largas lo consultan para salir antes.
+- `pub fn stop_all()` — Marca el apagado y espera (join) a todas las tareas registradas.
+- `fn log_join_failure(handle: JoinHandle<()>)` — Hace join de un hilo y registra en el log si terminó con pánico.
 
 
 ### `crates/addon/src/catalog.rs` (460 líneas)
@@ -685,24 +670,24 @@ The static catalogues of the API: objectives, maps and guild names.
 **Contenido:**
 
 - `const GUILD_LOOKUPS_PER_POLL` — How many guild names are resolved per poll.
-- `STATIC _DATA_RETRY`
-- `struct GuildLookupFailures`
+- `const STATIC_DATA_RETRY` — Espera mínima antes de reintentar mapas o mundos que fallaron (60 s).
+- `struct GuildLookupFailures` — Registro de ids de clan cuya consulta falló: permanentes (404) y reintentables con su backoff.
 - `impl GuildLookupFailures`
-  - `fn should_skip(&self, id: &str, now: Instant) -> bool`
-  - `fn record(&mut self, id: &str, error: &ApiError, now: Instant)`
-  - `fn resolved(&mut self, id: &str)`
-- `fn guild_lookup_failures() -> &'static Mutex<GuildLookupFailures>`
-- `fn static_data_retry_due(last_attempt: Option<Instant>, now: Instant) -> bool`
+  - `fn should_skip(&self, id: &str, now: Instant) -> bool` — Si no hay que pedir ese clan ahora (fallo permanente o aún en espera).
+  - `fn record(&mut self, id: &str, error: &ApiError, now: Instant)` — Apunta un fallo: los reintentables programan el siguiente intento con backoff; el resto queda permanente.
+  - `fn resolved(&mut self, id: &str)` — Borra cualquier fallo de un clan que ya se resolvió.
+- `fn guild_lookup_failures() -> &'static Mutex<GuildLookupFailures>` — Acceso perezoso al registro global de fallos de clanes.
+- `fn static_data_retry_due(last_attempt: Option<Instant>, now: Instant) -> bool` — Si ya toca reintentar un catálogo estático (nunca intentado o hace ≥ 60 s).
 - `pub fn guild_label(info: &gw2lurker_api::GuildInfo) -> String` — `[TAG] Nombre`, the way the game shows a guild.
 - `pub fn resolve_guild_names(…)` — Names of the guilds in the matchup: from **this session's file** (`temp.json`), from the settings, then from the API.
 - `pub fn world_names(api: &Api<WinHttpTransport>) -> std::collections::BTreeMap<u32, String>` — Names of the old servers, fetched once per session.
-  - `struct WorldCache`
+  - `struct WorldCache` — Caché de nombres de mundo (`/v2/worlds`) y hora del último intento.
 - `pub fn maps_for(api: &Api<WinHttpTransport>) -> Vec<gw2lurker_core::WvwMap>` — The four WvW maps, fetched once per session (they never change). `None` means the API has not answered yet: the map tab says so instead of drawing an empty box, and the next attempt follows a short re…
-  - `struct MapCache`
-- `pub fn objectives_for(api: &Api<WinHttpTransport>) -> Result<Vec<ObjectiveInfo>, String>`
+  - `struct MapCache` — Caché de los cuatro mapas WvW (`/v2/maps`) y hora del último intento.
+- `pub fn objectives_for(api: &Api<WinHttpTransport>) -> Result<Vec<ObjectiveInfo>, String>` — Objetivos WvW (`/v2/wvw/objectives`) en el idioma activo; se piden una vez por sesión y al cambiar de idioma.
 - `pub fn tiles_dir() -> Option<std::path::PathBuf>` — Directory of the map tiles inside the addon's folder.
 - `const TILE_CONTINENT` — Continent and floor of the WvW maps on the tile server.
-- `const TILE_FLOOR`
+- `const TILE_FLOOR` — Planta del servidor de teselas usada para los mapas WvW («1»).
 - `pub fn tile_path(x: u32, y: u32) -> Option<std::path::PathBuf>` — File of one tile. The name has every coordinate so a cache can be inspected by hand, and the continent is in it too: a tile of another continent is not the same tile.
 - `pub fn tile_url(x: u32, y: u32) -> String` — URL of one tile on the official tile server.
 - `fn forget_stale_tiles(keep_prefix: &str)` — Deletes tiles saved by older versions, whose names did not carry the continent.
@@ -739,23 +724,23 @@ Addon configuration, stored as JSON in the addon directory (RF-41).
 - `pub enum LanguagePreference` — Language preference (RF-44). `Auto` follows the game language.
 - `pub struct WindowState` — Per-window UI state (RF-46).
 - `impl Default for WindowState`
-  - `fn default() -> Self`
+  - `fn default() -> Self` — Ventana visible, sin plegar, sin bloquear, sin click-through, opacidad 0,9 y sin posición/tamaño guardados.
 - `impl WindowState`
-  - `fn sanitize(&mut self)`
+  - `fn sanitize(&mut self)` — Corrige valores imposibles de settings.json: opacidad a 0–1, posición o tamaño no finitos fuera y tamaño mínimo 120×60.
 - `pub const POLL_SECS_MIN` — Fastest poll the addon allows, in seconds.
 - `pub const POLL_SECS_DEFAULT` — Interval used when the player has not chosen one.
 - `pub const POPUP_SECS_MAX` — Longest a pop-up may stay on screen, in seconds (RF-19a).
 - `pub const POPUP_SECS_DEFAULT` — Cuánto dura el aviso emergente cuando el jugador no ha tocado nada.
-- `pub struct Config`
+- `pub struct Config` — Todo lo que se guarda en settings.json: equipo y traducciones, sondeo, avisos, popup, mapa, clanes seguidos y nombres, ventanas, idioma, tema.
 - `pub enum Theme` — Estilo de las ventanas del addon (RF-60, RF-61).
 - `pub enum WidgetBackground` — Fondo del widget (RF-63).
 - `pub struct AlertKinds` — Qué se enseña en el widget y en el pop-up (RF-19c).
 - `impl Default for AlertKinds`
-  - `fn default() -> Self`
+  - `fn default() -> Self` — Por defecto avisa de cambios de color, reclamos y pérdidas de reclamo.
 - `impl AlertKinds`
   - `pub fn shows(&self, kind: crate::worker::AlertKind) -> bool` — Whether a line of this kind is shown (RF-19c).
 - `impl Default for Config`
-  - `fn default() -> Self`
+  - `fn default() -> Self` — Configuración inicial: sin equipo, sondeo y popup por defecto, mapa real activado, índice de clanes por defecto y ventanas por defecto.
 - `impl Config`
   - `pub fn window(&mut self, key: &str) -> &mut WindowState` — State of one window, created with defaults the first time it is asked for.
   - `pub fn custom_name(&self, team_id: u32, language: &str) -> Option<&str>` — Name the user gave `team_id` in this language, if any.
@@ -783,26 +768,6 @@ Addon configuration, stored as JSON in the addon directory (RF-41).
 ### `crates/addon/src/config/tests.rs` (304 líneas)
 
 Tests de la configuración y del estado de las ventanas.
-
-**Contenido:**
-
-- `fn rf41_settings_live_under_documents_like_the_neighbours()`
-- `fn rf19a_popup_time_defaults_to_two_seconds_and_clamps()`
-- `fn rf19a_by_default_my_map_and_the_guilds_i_follow()`
-- `fn rf41_defaults_are_usable()`
-- `fn rf41_old_files_without_fields_still_load()`
-- `fn rf41_out_of_range_values_are_clamped()`
-- `fn rf20c_an_index_url_without_https_falls_back_to_the_published_one()`
-- `fn rf20c_the_broken_default_url_repairs_itself()`
-- `fn rf20b_guild_names_are_stored_in_the_settings_file()`
-- `fn rf20b_only_the_followed_guilds_keep_their_name_in_the_settings()`
-- `fn rf20b_settings_canonicalize_old_lowercase_guild_ids()`
-- `fn rf03b_configured_team_resolves_its_colour()`
-- `fn rf73_followed_guilds_round_trip()`
-- `fn rf46_window_state_defaults_are_visible_and_movable()`
-- `fn rf46_window_state_survives_a_restart()`
-- `fn rf46_impossible_window_values_are_discarded()`
-- `fn rf46_unknown_window_key_does_not_panic()`
 
 **Usa (interno):** `crate::ADDON_DIR`, `crate::guild_index`, `gw2lurker_core::Match`
 
@@ -832,12 +797,12 @@ Dónde está jugando el jugador, según el juego (RF-03a).
 **Contenido:**
 
 - `type Detection` — When the last detection ran and what came out of it.
-- `const RETRY_AFTER_MISSING_DATA`
-- `fn slot() -> &'static Mutex<Detection>`
+- `const RETRY_AFTER_MISSING_DATA` — Espera antes de reintentar la detección del equipo cuando faltaban datos (60 s).
+- `fn slot() -> &'static Mutex<Detection>` — Acceso perezoso a la última detección (instante y resultado).
 - `pub fn due() -> bool` — Whether the nine matchups have to be asked for: **once per load**, not every quarter of an hour.
-- `fn retry_due(at: Instant, now: Instant) -> bool`
+- `fn retry_due(at: Instant, now: Instant) -> bool` — Si han pasado 60 s desde el último intento de detección.
 - `pub fn forget()` — Forgets the last sweep, so the next poll asks for the nine matchups again.
-- `pub fn cached() -> Option<Detected>`
+- `pub fn cached() -> Option<Detected>` — Último equipo/match detectado desde el juego, si lo hay, sin volver a calcularlo.
 - `pub fn detect_in(live: &[Match], saved: Option<u32>) -> Option<Detected>` — Asks Mumble which shard the player is on and looks it up in every matchup.
 
 **Usa (interno):** `crate::ffi`, `gw2lurker_core::detect`, `gw2lurker_core::model`
@@ -866,22 +831,22 @@ Minimal HTTP GET over WinHTTP (no third-party client, no TLS inside the DLL).
 
 **Contenido:**
 
-- `type Handle`
+- `type Handle` — Handle opaco de WinHTTP (`HINTERNET`).
 - `fn wide(text: &str) -> Vec<u16>` — WinHTTP wants UTF-16 with a terminating NUL.
-- `const ACCESS_TYPE_DEFAULT_PROXY`
-- `const FLAG_SECURE`
-- `const QUERY_STATUS_CODE`
-- `const QUERY_FLAG_NUMBER`
-- `const MAX_BODY`
+- `const ACCESS_TYPE_DEFAULT_PROXY` — `WINHTTP_ACCESS_TYPE_DEFAULT_PROXY`: usa el proxy configurado del sistema.
+- `const FLAG_SECURE` — `WINHTTP_FLAG_SECURE`: la petición va por HTTPS.
+- `const QUERY_STATUS_CODE` — `WINHTTP_QUERY_STATUS_CODE`: pide el código HTTP de la respuesta.
+- `const QUERY_FLAG_NUMBER` — `WINHTTP_QUERY_FLAG_NUMBER`: devuelve la cabecera como número.
+- `const MAX_BODY` — Tamaño máximo aceptado de una respuesta (8 MB); más se trata como error.
 - `struct Owned` — RAII wrapper so no handle leaks on an early return.
 - `impl Owned`
-  - `fn new(handle: Handle, what: &str) -> Result<Self, ApiError>`
+  - `fn new(handle: Handle, what: &str) -> Result<Self, ApiError>` — Envuelve un handle de WinHTTP recién creado; si es nulo devuelve error de transporte con el último error del sistema.
 - `impl Drop for Owned`
-  - `fn drop(&mut self)`
+  - `fn drop(&mut self)` — Cierra el handle con `WinHttpCloseHandle` una sola vez.
 - `fn split_url(url: &str) -> Result<(bool, &str, u16, &str), ApiError>` — Splits a URL into `(secure, host, port, path)`.
 - `pub fn get(url: &str, timeout_ms: i32) -> Result<(u16, Vec<u8>), ApiError>` — Performs the GET and returns `(status, body)`.
-- `fn query_status(request: Handle) -> Result<u16, ApiError>`
-- `fn error_message(call: &str) -> String`
+- `fn query_status(request: Handle) -> Result<u16, ApiError>` — Lee el código de estado HTTP de una petición respondida (`WinHttpQueryHeaders`).
+- `fn error_message(call: &str) -> String` — Texto «<llamada> falló: <error del SO>» con `GetLastError`.
 
 **Usa (interno):** `gw2lurker_api::ApiError`
 
@@ -937,8 +902,8 @@ Where the addon keeps its data.
 **Contenido:**
 
 - `struct Guid` — `FOLDERID_Documents` = `{FDD39AD0-238F-46AF-ADB4-6C85480369C7}`.
-- `const FOLDERID_DOCUMENTS`
-- `const KF_FLAG_DEFAULT`
+- `const FOLDERID_DOCUMENTS` — GUID de la carpeta Documentos del usuario para `SHGetKnownFolderPath`.
+- `const KF_FLAG_DEFAULT` — Flags por defecto de `SHGetKnownFolderPath` (0).
 - `pub fn documents() -> Option<PathBuf>` — The user's Documents folder, honouring a OneDrive redirect.
 
 **APIs externas:** `Win32: SHGetKnownFolderPath (shell32)`, `Win32: CoTaskMemFree (ole32)`
@@ -956,21 +921,21 @@ Descarga del índice de nombres de clan (`guild-names.json`) desde el repositori
 - `const MD5_SUFFIX` — Sufijo del hash publicado junto al ZIP (`x.zip` → `x.zip.md5`).
 - `const ENTRY` — Nombre que se busca dentro del ZIP.
 - `const MAX_ENTRIES` — Topes de lo que se acepta descomprimir de un ZIP que no controlamos.
-- `const MAX_BYTES`
+- `const MAX_BYTES` — Tamaño máximo descomprimido del índice de clanes (64 MB), contra ZIP bomba.
 - `pub enum Status` — What the settings window shows.
-- `static STATUS`
-- `fn slot() -> &'static Mutex<Status>`
+- `static STATUS` — Estado de la descarga del índice de clanes que muestra Ajustes.
+- `fn slot() -> &'static Mutex<Status>` — Acceso perezoso a `STATUS`.
 - `pub fn status() -> Status` — Current state, copied so the window never holds the lock while drawing.
-- `fn set_status(status: Status)`
+- `fn set_status(status: Status)` — Cambia el estado de la descarga del índice.
 - `pub fn ensure_present()` — Descarga el índice si no está en disco. Se llama una vez al cargar el addon.
 - `pub fn download(url: String) -> bool` — Pide una descarga en su propio hilo. Devuelve `false` si ya hay una en marcha.
 - `fn run(url: &str) -> Result<usize, String>` — Descarga, verifica y descomprime. Corre en el hilo de la descarga.
 - `pub fn cache_busted(url: &str, stamp: i64) -> String` — URL con un parámetro de versión para **saltarse la caché del CDN**.
-- `fn verify_published_md5(bytes: &[u8], published: &[u8]) -> Result<(), String>`
+- `fn verify_published_md5(bytes: &[u8], published: &[u8]) -> Result<(), String>` — Compara el MD5 del ZIP descargado con el publicado; si no coincide o no se puede leer, no se instala.
 - `fn describe(error: &gw2lurker_api::ApiError) -> String` — Mensaje del fallo de descarga, con el 404 explicado (es el que más veces se ve).
 - `struct Limits` — Limits accepted while unpacking, so a hostile archive cannot fill the disk.
 - `impl Default for Limits`
-  - `fn default() -> Self`
+  - `fn default() -> Self` — Límites por defecto al descomprimir: 64 entradas y 64 MB.
 - `fn unpack(bytes: &[u8], limits: Limits) -> Result<Vec<u8>, String>` — Bytes of `guild-names.json` inside the archive. Pure, so it can be tested with a fixture.
 
 **Usa (interno):** `crate::background`, `crate::config`, `crate::md5`, `crate::names`, `crate::net`, `gw2lurker_api::ApiError`, `gw2lurker_api::Transport`
@@ -986,9 +951,9 @@ Language resolution for the UI (RF-44, RF-45).
 
 **Contenido:**
 
-- `static PREFERENCE`
+- `static PREFERENCE` — Convierte `PREFERENCE` en `LanguagePreference`.
 - `pub fn set_preference(preference: LanguagePreference)` — Updates the cached language preference without taking the runtime configuration lock.
-- `fn preference() -> LanguagePreference`
+- `fn preference() -> LanguagePreference` — Convierte `PREFERENCE` en `LanguagePreference`.
 - `pub fn active() -> Language` — Language that must be used right now.
 - `pub fn effective() -> Language` — Saved preference unless it is *Auto*, then the best source available, then English.
 - `fn resolve(preference: LanguagePreference, sources: [Option<Language>; 3]) -> Language` — Precedence between the saved preference and the sources, most reliable first.
@@ -997,7 +962,7 @@ Language resolution for the UI (RF-44, RF-45).
 - `pub fn widget(key: &'static str) -> String` — Translated text with a stable imgui id, for windows and labels whose state must survive a language change.
 - `pub fn format(key: &'static str, args: &[&str]) -> String` — Translated text with `{0}`, `{1}`… replaced.
 - `pub fn format_api_error(error: &ApiError) -> String` — API errors are translated when displayed, not when produced on a background thread.
-- `fn format_api_error_for(language: Language, error: &ApiError) -> String`
+- `fn format_api_error_for(language: Language, error: &ApiError) -> String` — Mensaje traducido de un `ApiError` (red, HTTP, parseo, no encontrado) en el idioma dado.
 - `pub fn register_translations_once()` — Registers our strings in Nexus so its own UI can show them in the user's language.
 
 **Usa (interno):** `crate::config`, `crate::ffi`, `crate::lang`, `gw2lurker_api::ApiError`, `gw2lurker_core::i18n`
@@ -1018,18 +983,18 @@ La combinación de teclas que **Nexus tiene guardada** para el atajo del addon (
 - `struct Bind` — Una entrada de `InputBinds.json`.
 - `struct Shown` — Lo último leído del fichero y su descripción. `pending` es una lectura nueva que aún no se ha convertido en texto: se convierte en el hilo que llama a [`shortcut`].
 - `impl Shown`
-  - `fn new() -> Self`
+  - `fn new() -> Self` — Estado inicial vacío: sin descripción y sin lectura pendiente.
   - `fn current(&mut self, layout: impl Fn(u16) -> Option<String>) -> &str` — Aplica la lectura pendiente, si la hay, y devuelve la descripción vigente.
-- `static SHOWN`
-- `static WATCH`
+- `static SHOWN` — Descripción vigente del atajo y lectura pendiente de traducir a texto.
+- `static WATCH` — Vigilante de `InputBinds.json` (ruta y fecha); lo crea `remember_shortcut` y lo usa `refresh`.
 - `pub fn shortcut() -> String` — Descripción del atajo según lo último que Nexus ha guardado. No toca el disco.
 - `pub fn remember_shortcut()` — Lee `InputBinds.json` por primera vez y deja la ruta para [`refresh`]. Se llama desde `load` y nunca desde el render.
 - `pub fn refresh()` — Vuelve a leer el atajo si Nexus ha reescrito el fichero. La llama el worker, nunca el render.
-- `fn store(read: Option<Bind>)`
+- `fn store(read: Option<Bind>)` — Deja una lectura nueva del atajo como pendiente en `SHOWN`.
 - `fn binds_path() -> Option<PathBuf>` — `addons/Nexus/InputBinds.json` dentro de la carpeta del juego.
 - `struct Watch` — Vigila la fecha de modificación del fichero para leerlo solo cuando cambia.
 - `impl Watch`
-  - `fn new(path: PathBuf) -> Self`
+  - `fn new(path: PathBuf) -> Self` — Vigilante para una ruta, aún sin fecha conocida (la primera consulta siempre lee).
   - `fn poll(&mut self) -> Option<Option<Bind>>` — `None` si el fichero no ha cambiado desde la última vez; si no, nuestro atajo tal como está ahora (`Some(None)` si ya no está o no se puede leer).
 - `fn find_bind(json: &str) -> Option<Bind>` — Nuestro atajo dentro del JSON de Nexus.
 - `fn describe_identifier(json: &str, layout: impl Fn(u16) -> Option<String>) -> Option<String>` — Descripción del atajo de `identifier` dentro del JSON. Pura: se prueba con el fichero real.
@@ -1055,10 +1020,10 @@ Where the interface language comes from (RF-44).
 - `fn on_language(payload: Option<&nexus::event::extras::Language>)` — Extras sends the current language right after initialization, so this also covers startup.
 - `pub fn from_extras() -> Option<Language>` — Game client language as reported by Extras, if it has told us yet.
 - `pub fn from_nexus_settings() -> Option<Language>` — Nexus language, read once from its own files.
-- `fn read_nexus_language() -> Option<Language>`
-- `struct NexusSettings`
+- `fn read_nexus_language() -> Option<Language>` — Idioma de Nexus: lee `Nexus/Settings.json` y busca en `Nexus/Locales` el código de ese nombre visible.
+- `struct NexusSettings` — Parte de `Nexus/Settings.json` que interesa: el idioma.
 - `fn parse_settings_language(json: &str) -> Option<String>` — Display name Nexus has stored (`"Español"`), trimmed.
-- `struct LocaleFile`
+- `struct LocaleFile` — Fichero de `Nexus/Locales`: código del idioma y nombre visible.
 - `fn locale_identifier(dir: &std::path::Path, display: &str) -> Option<String>` — Two-letter identifier of the locale whose display name matches, e.g. `Español` → `es`.
 
 **Usa (interno):** `gw2lurker_core::i18n`
@@ -1109,19 +1074,19 @@ Raidcore Nexus addon (cdylib).
 - `pub fn persist_if_changed()` — Persists the configuration when it changed, at most twice a second.
 - `pub fn loaded_version() -> &'static str` — Version loaded in this session, from the crate metadata.
 - `static LOADED_DLL` — Size and modification time of our own DLL, taken at load.
-- `const DLL_CHECK_INTERVAL`
-- `struct DllWatch`
+- `const DLL_CHECK_INTERVAL` — Cada cuánto se mira si la DLL en disco cambió (10 s).
+- `struct DllWatch` — Vigilante de la DLL: última comprobación y ruta si ya se detectó que en disco hay otra versión.
 - `impl DllWatch`
-  - `fn should_check(&mut self, now: std::time::Instant) -> bool`
-  - `fn observe(…)`
-- `static DLL_WATCH`
+  - `fn should_check(&mut self, now: std::time::Instant) -> bool` — Si toca comprobar la DLL (han pasado 10 s y no se detectó antes un cambio).
+  - `fn observe(…)` — Compara tamaño y fecha de la DLL cargada con la de disco; marca y devuelve `true` la primera vez que difieren.
+- `static DLL_WATCH` — Instancia global del vigilante de la DLL.
 - `fn own_dll_path() -> Option<std::path::PathBuf>` — Path of the DLL Nexus put on disk: `<juego>/addons/gw2_lurker.dll`.
-- `fn dll_fingerprint(path: &std::path::Path) -> Option<(u64, std::time::SystemTime)>`
+- `fn dll_fingerprint(path: &std::path::Path) -> Option<(u64, std::time::SystemTime)>` — Huella de un fichero: tamaño y fecha de modificación.
 - `fn remember_loaded_dll()` — Remembers the DLL as it was at load, so a later change can be noticed (RF-50).
 - `pub fn check_dll_update()` — Checks for a replacement from the worker thread, at most once every ten seconds.
 - `pub fn stale_dll() -> Option<String>` — Whether Nexus has replaced the file on disk since this session started.
-- `fn load()`
-- `fn unload()`
+- `fn load()` — Arranque del addon (Nexus): carga settings.json (modo seguro si está roto), idioma, huella de la DLL, atajo, índice de clanes, suscripciones, writer, UI y worker.
+- `fn unload()` — Descarga: para el worker, guarda la configuración vigente (writer o guardado directo) y deja constancia en el log.
 - `pub fn config() -> &'static config::Config` — Configuration as it was loaded: what the worker reads, never changes.
 
 **Usa (interno):** `crate::load`, `crate::unload`, `gw2lurker_core::i18n`
@@ -1139,8 +1104,8 @@ MD5 en hexadecimal, para verificar lo que se descarga.
 
 - `pub fn hex(bytes: &[u8]) -> String` — MD5 de `bytes`, en 32 caracteres hexadecimales en minúsculas.
 - `pub fn parse(text: &str) -> Option<String>` — Hash of some text written as a `.md5` file: 32 hex digits, with or without a line ending.
-- `const SHIFTS`
-- `fn digest(bytes: &[u8]) -> [u8; 16]`
+- `const SHIFTS` — Rotaciones por ronda del algoritmo MD5 (RFC 1321).
+- `fn digest(bytes: &[u8]) -> [u8; 16]` — MD5 de unos bytes (RFC 1321, implementación propia para no añadir dependencias).
 
 **Tests (2):** `rf20_md5_matches_the_published_vectors`, `rf20_a_published_md5_is_read_with_or_without_a_line_ending`
 
@@ -1153,17 +1118,17 @@ MD5 en hexadecimal, para verificar lo que se descarga.
 
 - `pub const FILE` — Fichero del índice dentro de la carpeta del addon.
 - `static INDEX_LEN` — Cuántos nombres tiene el índice, para que la ventana lo diga sin leer el fichero.
-- `static INDEX_IO`
+- `static INDEX_IO` — Candado que serializa lecturas y escrituras de `guild-names.json` en disco.
 - `pub fn path() -> Option<PathBuf>` — Ruta del fichero, o `None` si la carpeta del addon no está disponible.
 - `pub fn exists() -> bool` — Whether the index is on disk. `false` means the download has to bring it.
 - `pub fn index_len() -> usize` — Size of the index, as last seen by a reader or a writer. `0` means «not read yet».
 - `pub fn read() -> BTreeMap<String, String>` — Reads the index. **Call it from a thread that is not the render one**, and drop the result when the search is done: it is several thousand entries.
 - `fn read_at(path: &std::path::Path) -> BTreeMap<String, String>` — [`read`] from a given file.
-- `fn normalize_names(names: BTreeMap<String, String>) -> BTreeMap<String, String>`
+- `fn normalize_names(names: BTreeMap<String, String>) -> BTreeMap<String, String>` — Normaliza los ids de un mapa id→nombre; si dos ids normalizan igual, gana el primero.
 - `pub fn search_in(…)` — Clanes del índice cuya etiqueta (nombre o tag) contiene `needle`, sin distinguir mayúsculas.
 - `fn starts_with_needle(label: &str, needle: &str) -> bool` — Whether the name (not the tag) begins with what the player typed.
 - `pub fn matches_text(label: &str, id: &str, needle: &str) -> bool` — Whether an entry matches what the player typed. Pure, so the rule can be tested.
-- `fn matches_normalized_text(label: &str, id: &str, needle: &str) -> bool`
+- `fn matches_normalized_text(label: &str, id: &str, needle: &str) -> bool` — Coincidencia de búsqueda: el nombre contiene el texto o el id empieza por él (en minúsculas); texto vacío no coincide.
 - `pub fn append_async(entries: Vec<(String, String)>)` — Añade nombres que faltaban al índice, en su propio hilo.
 - `pub fn append(entries: &[(String, String)]) -> std::io::Result<usize>` — Adds the entries the index did not have yet and writes it back. Returns how many were new.
 - `pub fn append_at(path: &std::path::Path, entries: &[(String, String)]) -> std::io::Result<usize>` — [`append`] against a given file, so it can be tested without touching the player's index.
@@ -1184,9 +1149,9 @@ MD5 en hexadecimal, para verificar lo que se descarga.
 
 - `pub struct WinHttpTransport` — Transport backed by the WinHTTP service that ships with Windows.
 - `impl Default for WinHttpTransport`
-  - `fn default() -> Self`
+  - `fn default() -> Self` — Transporte WinHTTP con 10 s de timeout.
 - `impl Transport for WinHttpTransport`
-  - `fn get(&self, url: &str) -> Result<Vec<u8>, ApiError>`
+  - `fn get(&self, url: &str) -> Result<Vec<u8>, ApiError>` — GET por WinHTTP: 2xx devuelve el cuerpo, 404 `NotFound` y el resto `ApiError::Status`.
 
 **Usa (interno):** `crate::ffi`, `gw2lurker_api::Transport`
 
@@ -1203,18 +1168,18 @@ Guild search for the follow selector (T-44).
 - `const MAX_HITS` — Hits kept per search.
 - `const TEAMS_TTL` — How long the guild → team map is considered fresh (it only changes at reset).
 - `pub struct Hit` — One guild found by the search.
-- `pub enum Failure`
+- `pub enum Failure` — Fallo de una búsqueda de clanes: de la API o interno.
 - `impl From<ApiError> for Failure`
-  - `fn from(error: ApiError) -> Self`
+  - `fn from(error: ApiError) -> Self` — Convierte un `ApiError` en `Failure::Api`.
 - `pub enum State` — What the window draws while the thread works.
 - `impl State`
   - `pub fn hits(&self) -> &[Hit]` — Hits on screen right now, whatever the state: lo que se puede clicar mientras se busca.
-- `static STATE`
-- `fn slot() -> &'static Mutex<State>`
+- `static STATE` — Estado de la búsqueda en curso (inactiva, buscando, resultados o error).
+- `fn slot() -> &'static Mutex<State>` — Acceso perezoso a `STATE`.
 - `pub fn snapshot() -> State` — Current state, copied so the window never holds the lock while drawing.
 - `pub fn start(region: Region, team: Option<u32>, text: String, mode: Mode) -> bool` — Starts a search on its own thread. Returns `false` if one is already running.
 - `pub enum Mode` — What a search is allowed to do.
-- `fn run(region: Region, team: Option<u32>, text: &str, mode: Mode) -> Result<Vec<Hit>, Failure>`
+- `fn run(region: Region, team: Option<u32>, text: &str, mode: Mode) -> Result<Vec<Hit>, Failure>` — Busca un clan (en su hilo): primero en el índice local `guild-names.json`; en modo API además `/v2/guild/search`, `/v2/guild/:id` y `/v2/wvw/guilds/:region` para marcar si es del equipo.
 - `type TeamCache` — Guild → team of a region, with the moment it was fetched.
 - `fn teams_of(…)` — Guild → team of a region, cached because the answer is ~280 KB and only changes at reset.
 
@@ -1231,12 +1196,12 @@ Nombres de los clanes que han reclamado algo **en esta sesión**, en `temp.json`
 
 - `pub const FILE` — Fichero de la sesión dentro de la carpeta del addon.
 - `pub const MAX_NAMES` — Tope de seguridad: una sesión muy larga no debe dejar un fichero enorme.
-- `static SLOT`
-- `fn slot() -> &'static Mutex<BTreeMap<String, String>>`
+- `static SLOT` — Acceso perezoso a `SLOT`.
+- `fn slot() -> &'static Mutex<BTreeMap<String, String>>` — Acceso perezoso a `SLOT`.
 - `pub fn path() -> Option<PathBuf>` — Ruta del fichero, o `None` si la carpeta del addon no está disponible.
 - `pub fn reset()` — Vacía la sesión y **borra** el fichero: se llama al cargar el addon, así que cada vez que se entra al juego se empieza de cero.
 - `pub fn all() -> BTreeMap<String, String>` — Copia de lo que hay en la sesión, para publicarlo con el dashboard.
-- `fn normalize_names(names: &BTreeMap<String, String>) -> BTreeMap<String, String>`
+- `fn normalize_names(names: &BTreeMap<String, String>) -> BTreeMap<String, String>` — Copia un mapa id→nombre con los ids normalizados (gana el primero si chocan).
 - `pub fn merge(names: &BTreeMap<String, String>) -> bool` — Añade los nombres que faltaban. Devuelve `true` si creció (y hay que escribir el fichero).
 - `pub fn save() -> std::io::Result<usize>` — Escribe la sesión en `temp.json`. Devuelve cuántos nombres hay.
 - `pub fn save_to(path: &std::path::Path, names: &BTreeMap<String, String>) -> std::io::Result<()>` — [`save`] contra una ruta dada, para poder probarlo sin tocar los ficheros del jugador.
@@ -1298,7 +1263,7 @@ Alert widget (T-13, RF-19): the recent captures and claims, newest first.
 - `const GREY` — Neutral grey: everything that is not the map or an owner colour.
 - `fn map_piece(…)` — The map of an alert, **short and in its own colour**: «Eternos» in grey, «Azul», «Verde» and «Rojo» in the colour of their borderland, which is how the player says it (request of 2026-10-31). `None` w…
 - `fn team_colour(colour: TeamColor) -> [f32; 4]` — Color de equipo, el mismo que en el mapa y en el historial (RF-62).
-- `fn colour_label(colour: TeamColor, language: gw2lurker_core::i18n::Language) -> &'static str`
+- `fn colour_label(colour: TeamColor, language: gw2lurker_core::i18n::Language) -> &'static str` — Nombre traducido de un color de equipo (Rojo/Verde/Azul).
 
 **Usa (interno):** `crate::clock`, `crate::config`, `crate::i18n`, `crate::worker`, `gw2lurker_core::i18n`, `gw2lurker_core::MapRole`, `gw2lurker_core::model`, `super::icons`, `super::theme`
 
@@ -1315,23 +1280,23 @@ Followed guilds selector (T-44).
 
 - `const MAX_SESSION_ROWS` — How many guilds the current-tracking-cycle shortcut offers.
 - `static SEARCH_TEXT` — What the player typed in the search box. Session state on purpose: it is a tool, not a setting.
-- `fn text_slot() -> std::sync::MutexGuard<'static, String>`
+- `fn text_slot() -> std::sync::MutexGuard<'static, String>` — Texto del buscador de clanes de la pestaña Clanes (persistente entre fotogramas).
 - `static PENDING_REMOVE` — Guild waiting for a *yes* before it stops being followed.
-- `fn pending_remove() -> std::sync::MutexGuard<'static, Option<String>>`
+- `fn pending_remove() -> std::sync::MutexGuard<'static, Option<String>>` — Clan pendiente de confirmar para dejar de seguir.
 - `const REMOVE_WIDTH` — Width reserved on the right of each followed row for the `×`.
-- `pub enum Action`
-- `fn followed_action(guild: &str, row_clicked: bool, map_clicked: bool) -> Option<Action>`
+- `pub enum Action` — Qué pidió el jugador en un favorito: ver su historial (`Select`) o abrir su ruta en Mapa (`ShowOnMap`).
+- `fn followed_action(guild: &str, row_clicked: bool, map_clicked: bool) -> Option<Action>` — Decide la acción de una fila de favorito: el botón `i` gana sobre el clic en el nombre.
 - `pub fn followed_section(…)` — Guilds the player follows, with a `×` to stop following each one.
 - `pub fn add_section(…)` — Ways of following a new guild: what claimed something this session, and the search.
 - `fn label(names: &BTreeMap<String, String>, id: &str) -> String` — `[TAG] Nombre` when it is known, the raw id otherwise.
 - `pub fn add_followed(…)` — Guarda en los ajustes el nombre que ya se conoce de un clan al que se empieza a seguir, y devuelve la entrada que hay que enseñarle al índice (`names::append_async`).
-- `fn remember_name(…)`
+- `fn remember_name(…)` — Guarda en la config el nombre conocido de un clan al seguirlo y devuelve lo guardado.
 - `fn session_block(…)` — Guilds that claimed something during this tracking cycle: one click and they are followed.
 - `fn search_block(…)` — Buscador de clanes: **índice local primero** —subcadena, sin red— y el API como extra.
 - `const LOCAL_DELAY` — Cuánto tiene que estar quieto el texto antes de buscar en el índice.
 - `struct Typing` — Lo que el jugador lleva escrito y si ya se buscó: sin esto, el fotograma siguiente al de una búsqueda volvería a lanzarla, y otra vez cada [`LOCAL_DELAY`].
-- `static KEYSTROKE`
-- `fn typing() -> std::sync::MutexGuard<'static, Typing>`
+- `static KEYSTROKE` — Último texto tecleado en el buscador y cuándo, para buscar tras una pausa (debounce).
+- `fn typing() -> std::sync::MutexGuard<'static, Typing>` — Acceso perezoso a `KEYSTROKE`.
 - `fn typing_settled(needle: &str) -> bool` — Whether the text has stopped changing long enough to search it, and has not been searched yet.
 - `fn mark_searched()` — Marca el texto como «ya buscado» para que no se repita hasta que cambie.
 - `fn note_typing(needle: &str)` — Reinicia el reloj porque el jugador acaba de pedir una búsqueda con Enter o el botón.
@@ -1354,14 +1319,14 @@ Guilds of the matchup and the history of the chosen one (T-37, T-38; RF-71, RF-7
 - `pub const KEY` — Translation key (and stable id) of this window.
 - `static SELECTED` — Guild whose history is on screen. Session state, like the other view filters.
 - `pub enum Action` — What the player did in the window this frame.
-- `pub struct Context`
-- `fn selected() -> Option<String>`
+- `pub struct Context` — Contexto de la lista de clanes: mapa actual del jugador y desde cuándo hay historial.
+- `fn selected() -> Option<String>` — Clan seleccionado cuyo historial se muestra debajo.
 - `pub fn selected_guild() -> Option<String>` — Guild whose history is on screen, if any. The map tab draws its route (T-16).
 - `pub fn select(guild: &str)` — Selects a guild from outside this tab: an alert line or the list of followed guilds was clicked, and the route of that guild is what the player wants to see (request of 2026-10-31).
-- `fn set_selected(guild: Option<String>)`
+- `fn set_selected(guild: Option<String>)` — Cambia (o quita) el clan seleccionado.
 - `pub fn body(…)` — Body of the *Guilds* tab. `history` is the current tracking cycle filtered by guild.
-- `fn draw_group(ui: &Ui, heading: &'static str, rows: &[gw2lurker_core::matchup::ClaimRow])`
-- `fn map_label(role: MapRole) -> &'static str`
+- `fn draw_group(ui: &Ui, heading: &'static str, rows: &[gw2lurker_core::matchup::ClaimRow])` — Dibuja un bloque del historial con título: hora, objetivo y mapa de cada reclamo.
+- `fn map_label(role: MapRole) -> &'static str` — Nombre traducido de un mapa por su rol (Eternos, alpinos, desierto).
 
 **Usa (interno):** `crate::clock`, `crate::i18n`, `gw2lurker_core::matchup`
 
@@ -1404,7 +1369,7 @@ Simplified map of one WvW map (T-14, RF-30).
 - `pub const KEY` — Translation key (and stable id) of this tab.
 - `const MAP_HEIGHT` — Height of the drawing area when the map has no usable proportions.
 - `const MIN_MAP_HEIGHT` — Smallest and biggest height the map may take when it keeps its real proportions.
-- `const MAX_MAP_HEIGHT`
+- `const MAX_MAP_HEIGHT` — Altura máxima del lienzo del mapa (620 px).
 - `const UNCLAIMED` — Grey of an objective nobody holds.
 - `const FOLLOWED_RING` — Ring drawn around the objectives of a followed guild (RF-31).
 - `pub struct View` — Everything the map tab draws, gathered by the caller (`ui::draw_tabs`).
@@ -1418,7 +1383,7 @@ Simplified map of one WvW map (T-14, RF-30).
 - `const MIN_TILE_BYTES` — Smallest file that can be a tile: anything less is a download in progress.
 - `const TILE_RETRY` — How long a tile that failed is left alone before trying again.
 - `fn failures() -> &'static std::sync::Mutex<BTreeMap<(u32, u32), std::time::Instant>>` — When each tile failed last, so neither the budget nor the log repeats it every frame.
-- `fn failed_recently(x: u32, y: u32) -> bool`
+- `fn failed_recently(x: u32, y: u32) -> bool` — Si la descarga de esa tesela falló hace menos de `TILE_RETRY` (no reintentar aún).
 - `fn remember_failure(x: u32, y: u32) -> bool` — Marks the tile as failed. Returns `true` when it was already failing (so the log says it once).
 - `fn draw_frame(list: &nexus::imgui::DrawListMut<'_>, origin: [f32; 2], size: [f32; 2], name: &str)` — Border and name over whatever the background is.
 - `fn draw_background(…)` — Dark board with a grid and the map name: no textures (ADR-002), but the objectives are not floating on nothing either (report of 2026-10-31). The real map is [`draw_tiles`].
@@ -1428,15 +1393,15 @@ Simplified map of one WvW map (T-14, RF-30).
 - `fn detail_line(…)` — Una línea con lo que dice el hover, **sin el nombre del sitio**: el jugador ya sabe dónde está y el nombre alargaba la caja hasta tapar los objetivos vecinos (petición del jugador, 2026-11-01).
 - `const MAP_COMBO_WIDTH` — Ancho del desplegable de mapa. Antes ocupaba todo el ancho de la ventana para enseñar cuatro palabras («Eternos», «Alpino azul»…) y dejaba sin sitio al de clan (petición del jugador, 2026-11-01).
 - `const GUILD_COMBO_WIDTH` — Ancho del desplegable de clan: `[TAG] Nombre` no cabe en menos.
-- `fn draw_selector(ui: &Ui, role: &mut MapRole, here: Option<MapRole>, maps: &[WvwMap])`
+- `fn draw_selector(ui: &Ui, role: &mut MapRole, here: Option<MapRole>, maps: &[WvwMap])` — Desplegable de mapa (Eternos/alpinos/desierto): omite los que aún no llegaron de la API y resalta en azul el mapa donde está el jugador.
 - `fn guild_choices(…)` — Los clanes del desplegable: primero los que sigue el jugador (en el orden en que los añadió) y después los que han reclamado algo **en la sesión**, el más reciente primero, sin repetir los que ya sale…
 - `fn draw_guild_choice(…)` — Desplegable de clan, al lado del de mapa. Devuelve el que el jugador acaba de elegir, si hay uno.
 - `const GUILDS_IN_MENU` — Cuántos clanes **no seguidos** ofrece el desplegable del mapa.
 - `fn label_of(names: &BTreeMap<String, String>, guild: &str) -> String` — `[TAG] Nombre` cuando se conoce, el id si no.
 - `fn is_drawable(kind: ObjectiveType) -> bool` — Objectives worth drawing: the ones that score (RF-30a hides ruins, mercenaries and spawns).
-- `fn has_high_value_ring(state: Option<&ObjectiveState>) -> bool`
-- `fn resolved_map_role(role: MapRole, here: Option<MapRole>) -> MapRole`
-- `fn draw_objective(…)`
+- `fn has_high_value_ring(state: Option<&ObjectiveState>) -> bool` — Si el objetivo merece el anillo de alto valor.
+- `fn resolved_map_role(role: MapRole, here: Option<MapRole>) -> MapRole` — Mapa a mostrar: el elegido o, si no hay, el del jugador o Eternos.
+- `fn draw_objective(…)` — Dibuja un objetivo en el mapa: círculo del color del dueño con tamaño por tipo, anillo de alto valor y marca de clan seguido.
 - `fn colour_rgba(colour: TeamColor) -> [f32; 4]` — Los colores de equipo salen del mismo sitio en todo el addon (RF-62).
 - `pub fn map_label(role: MapRole) -> &'static str` — El nombre del mapa en el idioma activo: lo comparten la pestaña y la cabecera del widget.
 - `mod tests`
@@ -1454,12 +1419,12 @@ Ruta inferida de un clan y su reproducción (T-16, RF-32, RF-36).
 
 - `pub fn range_choice(ui: &Ui) -> Option<i64>` — Time window of the route, in minutes; `None` is the whole session (T-16).
 - `pub struct RouteCanvas` — Numbered, directed path of the chosen guild on this map (T-16, RF-32).
-- `pub struct RouteNode`
+- `pub struct RouteNode` — Punto de la ruta ya en pantalla: posición, número de paso, si es el origen y hora.
 - `impl RouteNode`
-  - `pub fn label(&self) -> String`
-- `pub fn route_nodes(…)`
-- `pub fn draw_route(…)`
-- `fn draw_origin_connector(list: &nexus::imgui::DrawListMut<'_>, from: [f32; 2], to: [f32; 2])`
+  - `pub fn label(&self) -> String` — Etiqueta del nodo: número de paso, o «0/n» si el origen coincide con el paso n.
+- `pub fn route_nodes(…)` — Pasa la ruta (origen y pasos con coordenadas) a puntos de pantalla, hasta el paso reproducido si hay animación.
+- `pub fn draw_route(…)` — Dibuja la ruta: conector discontinuo 0→1, líneas entre pasos y marcadores numerados (el 0 hueco).
+- `fn draw_origin_connector(list: &nexus::imgui::DrawListMut<'_>, from: [f32; 2], to: [f32; 2])` — Línea discontinua acotada (≤ 128 trazos) del origen al primer paso; ignora coordenadas no finitas.
 - `const PLAYBACK_SECS` — Cuánto dura una reproducción completa de la ruta, en segundos (RF-36).
 - `static PLAYBACK` — Estado de la reproducción: desde cuándo corre, o `None` si está parada (RF-36).
 - `pub fn playback_control(ui: &Ui, steps: usize) -> Option<usize>` — Play/pausa de la ruta y cuántos pasos hay que dibujar, `None` para dibujarla entera.
@@ -1477,25 +1442,6 @@ Ruta inferida de un clan y su reproducción (T-16, RF-32, RF-36).
 ### `crates/addon/src/ui/map/tests.rs` (471 líneas)
 
 Tests of the map tab: projection, hover, tiles and proportions.
-
-**Contenido:**
-
-- `fn rf32a_the_drawn_route_includes_zero_and_keeps_claim_numbering()`
-- `fn rf30_the_map_keeps_the_real_proportions()`
-- `fn rf32_the_heading_is_the_last_jump_and_only_when_it_means_something()`
-- `fn rf30_the_closest_objective_wins_the_hover()`
-- `fn rf30_only_the_inside_of_the_board_has_hover()`
-- `fn rf30a_scoring_objectives_are_the_only_ones_drawn()`
-- `fn rf30b_missing_objective_state_does_not_get_a_high_value_ring()`
-- `fn rf30_the_unknown_map_defaults_to_center_before_drawing_the_selector()`
-- `fn rf30_the_hover_says_who_and_when_and_leaves_the_name_out()`
-- `fn rf30_the_hover_without_a_claim_only_says_unclaimed()`
-- `fn rf30b_an_objective_owned_without_claim_keeps_its_colour_on_the_hover()`
-- `fn rf31_the_guild_menu_is_the_followed_ones_and_then_the_latest_five()`
-- `fn rf31_the_guild_menu_without_anything_to_offer_is_empty()`
-- `fn rf35_a_route_that_crosses_maps_says_jump_to()`
-- `fn rf32_the_cross_map_summary_lists_claims_without_inventing_an_origin()`
-- `fn rnf01_origin_route_preparation_cpu_budget()`
 
 **Usa (interno):** `crate::clock`, `crate::worker`, `gw2lurker_core::i18n`, `gw2lurker_core::Match`, `gw2lurker_core::matchup`, `gw2lurker_core::route`, `gw2lurker_core::RouteOrigin`, `gw2lurker_core::RouteStep`, `super::route`
 
@@ -1516,9 +1462,9 @@ Matchup claims view (T-36, RF-70): what is claimed right now, grouped by map.
   - `pub fn accepts(&self, row: &ClaimRow, follow: &gw2lurker_core::FollowList) -> bool` — Whether a row survives the filters. `follow` is only consulted when the box is ticked.
 - `pub fn rows_of<'a>(…)` — Rows of one map, in the order the API gave them.
 - `pub fn body(…)` — Body of the *Map* tab. `state` is gone with the window: it lives in the widget now (T-42).
-- `fn draw_filters(ui: &Ui, filters: &mut Filters)`
-- `fn draw_row(ui: &Ui, row: &ClaimRow, names: &std::collections::BTreeMap<String, String>)`
-- `fn map_label(role: MapRole) -> &'static str`
+- `fn draw_filters(ui: &Ui, filters: &mut Filters)` — Casillas de filtro de la lista de reclamos: alto valor, campamentos, torres, fortalezas y clanes seguidos.
+- `fn draw_row(ui: &Ui, row: &ClaimRow, names: &std::collections::BTreeMap<String, String>)` — Una fila de reclamo: hora, objetivo y clan, teñida del color del dueño.
+- `fn map_label(role: MapRole) -> &'static str` — Nombre traducido de un mapa por su rol.
 
 **Usa (interno):** `crate::clock`, `crate::i18n`, `gw2lurker_core::FollowList`, `gw2lurker_core::matchup`, `gw2lurker_core::model`, `super::theme`
 
@@ -1552,8 +1498,8 @@ Windows of the addon. Every one of them goes through [`window::draw`] (RF-46).
 - `pub const LOCK_SHORTCUT` — Shortcut registered by default for bringing the window back.
 - `const VK_L` — Virtual-key code of `L`, which is what Nexus' keybind API takes.
 - `static LOCK_TOGGLE` — Set by the keybind handler and consumed by the render callback.
-- `fn on_lock_keybind(_identifier: &str, is_release: bool)`
-- `fn take_lock_toggle() -> bool`
+- `fn on_lock_keybind(_identifier: &str, is_release: bool)` — Callback del atajo de Nexus: al pulsar (no al soltar) pide alternar el click-through.
+- `fn take_lock_toggle() -> bool` — Consume la petición del atajo (la lee y la pone a falso).
 - `fn reveal(config: &mut crate::config::Config) -> bool` — Brings the window back: shown, not click-through, and not collapsed.
 - `pub fn toggle_click_through(config: &mut crate::config::Config) -> bool` — Turns click-through on or off, and returns the new state.
 - `pub fn register()` — Registers the render callbacks. Must be called from `load`, never per frame.
@@ -1564,8 +1510,8 @@ Windows of the addon. Every one of them goes through [`window::draw`] (RF-46).
 - `fn draw_tabs(…)` — Draws the tab bar and the body of the tab the player picked. The last tab is the settings.
 - `fn snap_to_current(shown: usize, last: usize, jump: usize) -> bool` — Whether entering the *Map* tab has to snap the drawing to the map the player is on.
 - `const TAB_MAP` — Tab index of the *Map* tab inside [`TABS`].
-- `fn map_notice() -> std::sync::MutexGuard<'static, Option<String>>`
-- `fn draw_map_notice(ui: &nexus::imgui::Ui, data: &Tabbed)`
+- `fn map_notice() -> std::sync::MutexGuard<'static, Option<String>>` — Clan del aviso «no hay eventos registrados», si hay uno abierto.
+- `fn draw_map_notice(ui: &nexus::imgui::Ui, data: &Tabbed)` — Dibuja el aviso de clan sin eventos (con «desde cuándo» y botón para cerrarlo).
 - `static LAST_TAB` — Tab drawn on the previous frame, `usize::MAX` for «none». Session state, like the map choice.
 - `static WANT_TAB` — Tab the widget has to switch to on this frame, `usize::MAX` for «stay where the player is».
 - `fn map_choice() -> std::sync::MutexGuard<'static, MapRole>` — Which map the *Map* tab draws: the session's choice, `Unknown` until the player picks one.
@@ -1584,8 +1530,8 @@ Map navigation rules, independent of Nexus and imgui (RF-30, RF-71).
 
 **Contenido:**
 
-- `pub fn pending_tab_after_draw(shown: usize, requested: usize) -> usize`
-- `pub fn request_guild_map(…)`
+- `pub fn pending_tab_after_draw(shown: usize, requested: usize) -> usize` — Mantiene la pestaña pedida hasta que se ha dibujado; entonces la suelta (`usize::MAX`).
+- `pub fn request_guild_map(…)` — Ir al mapa de un clan: con mapa conocido fija mapa y pestaña Mapa; sin él no cambia de pestaña y deja el aviso.
 
 **Usa (interno):** `gw2lurker_core::MapRole`, `super::TAB_MAP`
 
@@ -1601,7 +1547,7 @@ El aviso emergente (RF-19a): encima de la pantalla, **de uno en uno**.
 - `pub static TEST_POPUP_UNTIL` — When the *Test pop-up* button of the settings wants a fake alert on screen (milliseconds).
 - `pub fn start_test_popup()` — Shows a fake pop-up for a few seconds, so it can be placed without waiting for a capture.
 - `pub fn draw(…)` — Pop-up with what just happened, on top of the screen (RF-19a).
-- `fn popup_lines(…)`
+- `fn popup_lines(…)` — Líneas del popup: la de prueba (si hay) encima de la real, con su opacidad.
 - `fn queue_slot() -> std::sync::MutexGuard<'static, alerts::PopupQueue>` — The one pop-up at a time (RF-19a): session state, not a setting.
 - `fn test_popup_line(now: chrono::DateTime<chrono::Utc>) -> Option<crate::worker::AlertLine>` — A fake line while the settings ask for one, so the pop-up can be placed at will.
 
@@ -1621,33 +1567,33 @@ Settings window (T-17, T-30): the team picker, language, polling interval and al
 - `pub const KEY` — Translation key (and stable id) of this window.
 - `pub enum TeamChange` — A change to the team selection, decided here and applied by the caller.
 - `struct Narrowing` — Which region and colour the player has already narrowed down to.
-- `static NARROWING`
-- `fn narrowing() -> Narrowing`
-- `fn set_narrowing(value: Narrowing)`
+- `static NARROWING` — Lee `NARROWING`.
+- `fn narrowing() -> Narrowing` — Lee `NARROWING`.
+- `fn set_narrowing(value: Narrowing)` — Guarda `NARROWING`.
 - `struct Edits` — Working copy of everything this window can edit.
 - `pub fn body(…)` — Body of the *Settings* tab: the whole form, without window chrome (T-42).
 - `pub fn draw_inline(…)` — Draws the settings inline, without window chrome.
-- `fn team_change(before: Option<u32>, now: Option<u32>) -> Option<TeamChange>`
+- `fn team_change(before: Option<u32>, now: Option<u32>) -> Option<TeamChange>` — Qué cambió en el equipo elegido: quitarlo, elegir otro o nada.
 - `fn initial_narrowing(…)` — Where the narrowing starts: the saved team's own region and colour when we know them, and otherwise the region of the first candidate, so the picker is never a blank wall.
 - `const POPUP_MAX_SECS` — Everything the label of a control can say, so the control never eats the label.
 - `const POPUP_DEFAULT_SECS` — Lo que dura cada aviso del pop-up cuando se activa (segundos). El mismo defecto que en `config`, para que encenderlo desde aquí no ponga una duración distinta a la de fábrica.
-- `const LABELS`
+- `const LABELS` — Etiquetas de los controles de Ajustes; con ellas se mide la columna de etiquetas en el idioma activo.
 - `fn label_column(ui: &Ui) -> f32` — Width of the widest label of the form, in the current language, plus a margin.
-- `fn draw_body(…)`
+- `fn draw_body(…)` — Cuerpo de Ajustes: región, color, equipo, traducción, idioma, sondeo, avisos, popup, ventana y mapa.
 - `fn draw_theme(ui: &Ui, edits: &mut Edits)` — Estilo y tamaño del texto de las ventanas, y qué se enseña en el widget (RF-19c, RF-60 a RF-63).
 - `fn draw_alert_filters(ui: &Ui, edits: &mut Edits)` — Which maps and guilds deserve an alert (RF-19a), plus how long the pop-up lasts.
 - `fn draw_guild_index(ui: &Ui, edits: &mut Edits)` — Índice de nombres de clan: estado y descarga (RF-20).
-- `fn draw_region(ui: &Ui, edits: &mut Edits, candidates: &[Candidate])`
-- `fn draw_colour(ui: &Ui, edits: &mut Edits)`
-- `fn draw_team(…)`
+- `fn draw_region(ui: &Ui, edits: &mut Edits, candidates: &[Candidate])` — Desplegable de región (Europa/Norteamérica); ambas siempre elegibles aunque aún no haya equipos.
+- `fn draw_colour(ui: &Ui, edits: &mut Edits)` — Desplegable de color de equipo, cada opción teñida de su color.
+- `fn draw_team(…)` — Desplegable de equipo filtrado por región y color, con mundos y traducción propia del jugador.
 - `fn worlds_label(ids: &[u32], worlds: &std::collections::BTreeMap<u32, String>) -> String` — ` · Lutgardis, Vabbi` con los mundos antiguos del equipo, o vacío si no se saben.
 - `fn initial_translation(…)` — The translation the field starts with: what the player saved, or the automatic name.
 - `fn remember_translation(config: &mut crate::config::Config, written: &str, language: &str)` — Stores what the player left in the field. Writing the automatic name back is not an override: the configuration drops the entry so the bundled translations keep applying.
-- `fn draw_language(ui: &Ui, edits: &mut Edits)`
-- `fn draw_scope(ui: &Ui, edits: &mut Edits)`
-- `fn region_label(region: Region) -> &'static str`
-- `fn region_code(region: Region) -> &'static str`
-- `fn colour_label(colour: TeamColor) -> &'static str`
+- `fn draw_language(ui: &Ui, edits: &mut Edits)` — Desplegable de idioma (automático, español, inglés, francés, alemán).
+- `fn draw_scope(ui: &Ui, edits: &mut Edits)` — Desplegable de alcance de avisos: solo el mapa actual o todos los del emparejamiento.
+- `fn region_label(region: Region) -> &'static str` — Nombre traducido de una región.
+- `fn region_code(region: Region) -> &'static str` — Código corto de región («eu»/«na») para ids de widget.
+- `fn colour_label(colour: TeamColor) -> &'static str` — Nombre traducido de un color de equipo.
 - `fn colour_rgba(colour: TeamColor) -> [f32; 4]` — Same colours as the in-game WvW panel, so the list is recognisable at a glance.
 - `mod tests`
 
@@ -1662,13 +1608,7 @@ Tests of the settings window: the picker, the label column and the translated na
 
 **Contenido:**
 
-- `fn candidate(team_id: u32, match_id: &str, color: TeamColor) -> Candidate`
-- `fn rf03a_narrowing_starts_at_the_saved_team()`
-- `fn rf03a_both_regions_are_always_offered()`
-- `fn rf03a_the_colour_is_offered_before_any_data()`
-- `fn rf03a_narrowing_is_remembered_between_frames()`
-- `fn rf03f_the_field_starts_with_the_automatic_translation()`
-- `fn rf03a_three_steps_bring_the_list_down_to_a_handful()`
+- `fn candidate(team_id: u32, match_id: &str, color: TeamColor) -> Candidate` — Crea un `Candidate` de prueba con equipo, match y color.
 
 **Usa (interno):** `crate::config`, `gw2lurker_core::bundled`
 
@@ -1681,10 +1621,10 @@ La línea de estado de la ventana: salud del sondeo, partida, equipo y origen de
 
 **Contenido:**
 
-- `pub fn draw_health(…)`
+- `pub fn draw_health(…)` — Bloque de estado: salud del sondeo, mapa del jugador, equipo (del juego o configurado), región y equipos del match, última actualización.
 - `pub fn colour_label(colour: TeamColor) -> &'static str` — Nombre del color del equipo, el mismo que usa el panel de WvW del juego.
 - `pub fn region_of(match_id: &str) -> Option<gw2lurker_core::model::Region>` — Region of a matchup id: `1-x` is North America and `2-x` is Europe.
-- `fn region_of_matchup(match_id: &str) -> &'static str`
+- `fn region_of_matchup(match_id: &str) -> &'static str` — «NA»/«EU»/«?» según el prefijo del id del match.
 
 **Usa (interno):** `crate::clock`, `crate::config`, `crate::context`, `crate::i18n`, `crate::keybinds`, `crate::loaded_version`, `crate::runtime`, `crate::stale_dll`, `crate::team`, `crate::worker`, `gw2lurker_core::model`, `gw2lurker_core::select`
 
@@ -1719,10 +1659,10 @@ Shared window contract (RF-46).
 - `const MIN_SIZE` — Smallest window the user can shrink.
 - `const MIN_BODY_HEIGHT` — Smallest body region, so a window shrunk to nothing still has somewhere to draw.
 - `const CLOSE_WIDTH` — Width reserved for the close button.
-- `pub struct WindowAppearance`
-- `fn default_position(slot: usize) -> [f32; 2]`
+- `pub struct WindowAppearance` — Aspecto compartido de las ventanas: tema, escala de fuente y fondo.
+- `fn default_position(slot: usize) -> [f32; 2]` — Posición inicial escalonada por ventana para que no se solapen.
 - `pub fn draw(…)` — Draws one window and returns `false` when the user closed it this frame.
-- `fn clamp_size(size: [f32; 2]) -> [f32; 2]`
+- `fn clamp_size(size: [f32; 2]) -> [f32; 2]` — Limita el tamaño de ventana entre `MIN_SIZE` y 4096 px.
 - `fn bg_alpha(opacity: f32, background: crate::config::WidgetBackground) -> f32` — Opacidad del fondo de la ventana según el ajuste (RF-63).
 - `pub fn covers(position: Option<[f32; 2]>, size: Option<[f32; 2]>, point: [f32; 2]) -> bool` — Whether a point falls inside a window drawn at `position` with that `size`.
 - `pub fn frame(…)` — Rectangle a window occupies, resolved the same way [`draw`] resolves it.
@@ -1756,31 +1696,31 @@ Polling worker (T-11c, RF-20, RNF-04, RNF-05).
 - `pub enum Health` — Health of the polling, shown in the UI (RF-26).
 - `pub struct Dashboard` — What the UI reads. Small on purpose: the render callback must never touch the raw match.
 - `impl Dashboard`
-  - `pub fn reset_tracking_cycle(&mut self, at: DateTime<Utc>)`
+  - `pub fn reset_tracking_cycle(&mut self, at: DateTime<Utc>)` — Empieza un ciclo de seguimiento nuevo: vacía match, reclamos, estados, clanes, historial y avisos, y apunta desde cuándo.
   - `pub fn guild_history(&self, guild: &str) -> Vec<ClaimRow>` — Claims of one guild during the current tracking cycle, in the order they happened (RF-72).
   - `pub fn last_map_of(&self, guild: &str) -> Option<MapRole>` — Latest current claim's map, or the last historical one when nothing is held (RF-71).
   - `pub fn session_guilds(&self) -> Vec<(String, usize, Option<DateTime<Utc>>)>` — Guilds that hold something right now: the ones that claimed during this tracking cycle plus the ones already holding an objective at its baseline (ADR-012).
   - `pub fn objective_name(&self, id: &str) -> Option<&str>` — Human name of an objective, for the alert lines (T-13).
   - `pub fn objective_kind(&self, id: &str) -> gw2lurker_core::ObjectiveType` — Kind of an objective, for the drawing of the alert lines (T-47).
-- `static DASHBOARD`
+- `static DASHBOARD` — El `Dashboard` global que escribe el worker y lee el render.
 - `pub fn dashboard() -> MutexGuard<'static, Dashboard>` — Reads the dashboard. Hold the guard only while formatting what is needed.
 - `pub fn set_may_poll(allowed: bool)` — Tells the worker whether it may poll this frame. Called from the render callback.
 - `pub fn set_teams_needed(needed: bool)` — Tells the worker the team picker is on screen, so it fetches the list of live teams even when polling is not allowed (the settings window also opens outside WvW).
 - `fn teams_needed() -> bool` — Whether the UI asked for the team list a moment ago.
 - `pub fn start()` — Starts the worker. Idempotent: a second call does nothing.
 - `pub fn stop()` — Asks the worker to stop and waits for it to leave.
-- `fn run()`
+- `fn run()` — Bucle del hilo worker: fuera de WvW solo refresca equipos y nombres; en WvW sondea, aplica backoff ante errores y duerme el intervalo.
 - `const TEAMS_TTL` — How long the team list fetched outside WvW stays valid. Teams only change at reset.
-- `fn teams_stale(last: &mut Option<Instant>) -> bool`
+- `fn teams_stale(last: &mut Option<Instant>) -> bool` — Si la lista de equipos ya caducó (`TEAMS_TTL`) o nunca se pidió.
 - `const NAMES_TTL` — How long the guild names resolved outside WvW stay fresh (names do not change).
-- `fn names_stale(last: &mut Option<Instant>) -> bool`
+- `fn names_stale(last: &mut Option<Instant>) -> bool` — Si los nombres de clanes seguidos ya caducaron (`NAMES_TTL`) o nunca se pidieron.
 - `fn publish_teams(live: &[Match], selected: Option<u32>)` — Fills the dashboard with the teams of the live matches, and nothing else.
-- `fn started_degraded(health: &Health) -> DateTime<Utc>`
-- `fn retry_delay(backoff: &mut Backoff, error: &ApiError) -> Duration`
+- `fn started_degraded(health: &Health) -> DateTime<Utc>` — Desde cuándo está degradado: conserva la hora si ya lo estaba; si no, ahora.
+- `fn retry_delay(backoff: &mut Backoff, error: &ApiError) -> Duration` — Espera tras un error: backoff si es reintentable; si no, lo reinicia y no espera.
 - `fn sleep(total: Duration)` — Sleeps in slices so `stop()` and a gate change are noticed quickly.
-- `fn poll_once(…)`
+- `fn poll_once(…)` — Un sondeo: comprueba la reasignación, decide qué partidas pedir, detecta el equipo, hace diff y vuelca reclamos, historial y avisos al Dashboard.
 - `fn needs_all_now(picker: bool, detect_due: bool, all_stale: bool) -> bool` — Whether this poll has to ask for the nine matchups (~400 KB) or just for one match (~44 KB).
-- `fn should_skip_poll(…)`
+- `fn should_skip_poll(…)` — Si saltar este sondeo: sin match conocido solo se busca con `ids=all` cuando ha pasado su enfriamiento.
 - `fn all_stale() -> bool` — Whether the nine matchups were fetched longer than [`ALL_MATCHUPS_TTL`] ago.
 - `fn character_changed() -> bool` — Whether the character changed since the last poll, which re-arms the one sweep of the nine matchups: the roster is per character (RF-03a).
 - `fn remember_all()` — Remembers that this poll fetched the nine matchups.
@@ -1790,10 +1730,10 @@ Polling worker (T-11c, RF-20, RNF-04, RNF-05).
 - `fn watched_match_id() -> Option<String>` — The match the poll is watching, from the last one published (cheap: one clone of an id).
 - `fn fetch_live(…)` — Runs the plan. Every fallback ends in `ids=all`: it is the only request that can find a match whose id or team we no longer know.
 - `fn fetch_by_team(api: &Api<WinHttpTransport>, polled: Option<u32>) -> Result<Vec<Match>, ApiError>` — The match of a team, or every matchup when that team no longer plays (the ladder reshuffled, so the picker has to offer the live teams again).
-- `fn matching_team_or_all(live: Vec<Match>, polled: Option<u32>) -> Vec<Match>`
+- `fn matching_team_or_all(live: Vec<Match>, polled: Option<u32>) -> Vec<Match>` — De todas las partidas, solo la del equipo sondeado si aparece; si no, todas.
 - `fn history_row(…)` — Turns a claim event into a history row, resolving name, kind and owner from the snapshot.
-- `fn current_match<'a>(live: &'a [Match], id: Option<&str>) -> Option<&'a Match>`
-- `fn selected_match_id(selection: &Selection) -> Option<&str>`
+- `fn current_match<'a>(live: &'a [Match], id: Option<&str>) -> Option<&'a Match>` — La partida con ese id dentro de las recibidas.
+- `fn selected_match_id(selection: &Selection) -> Option<&str>` — Id del match si la selección de equipo está confirmada.
 - `mod tests`
 
 **Usa (interno):** `crate::alerts`, `crate::assignment`, `crate::background`, `crate::catalog`, `crate::check_dll_update`, `crate::config`, `crate::detect`, `crate::diagnostics`, `crate::ffi`, `crate::keybinds`, `crate::net`, `crate::runtime`, `crate::session_names`, `crate::team`, `gw2lurker_core::Candidate`, `gw2lurker_core::diff`, `gw2lurker_core::DiffConfig`, `gw2lurker_core::matchup`, `gw2lurker_core::model`, `gw2lurker_core::ObjectiveType`, `gw2lurker_core::select`, `gw2lurker_core::WvwMap`
@@ -1808,26 +1748,6 @@ Tests of the polling worker.
 **Contenido:**
 
 - `fn any_map() -> gw2lurker_core::AlertFilter` — Filtro de «todos los mapas», para los tests que no van de filtros.
-- `fn live_pipeline_builds_the_dashboard()` — Full data path against the live API: WinHTTP + parse + the core view models. Ignored by default because CI must not depend on the network.
-- `fn rf03a_the_picker_asks_for_every_matchup_but_not_on_every_poll()`
-- `fn rf03a_a_poll_without_a_known_team_or_match_does_not_fetch_all()`
-- `fn rnf02_only_the_watched_match_is_polled_at_the_configured_cadence()`
-- `fn rf03a_the_poll_asks_for_the_team_the_game_gave()`
-- `fn rf03a_only_a_confirmed_selection_has_a_match_to_watch()`
-- `fn rf03a_a_team_lookup_reuses_the_full_response_when_the_team_is_missing()`
-- `fn rf24_assignment_reset_clears_history_and_alerts_and_sets_new_boundary()`
-- `fn rf03d_confirmed_assignment_change_resets_the_differ_and_tracking_state()`
-- `fn rf03d_expired_timer_does_not_reset_tracking_while_match_is_active()`
-- `fn rf25_a_restart_does_not_show_yesterday()`
-- `fn rf21_a_followed_guild_is_told_when_the_claim_is_fresh()`
-- `fn rf25_late_claim_grace_uses_when_the_addon_received_it()`
-- `fn rf25_a_restart_does_not_refill_the_log_with_yesterdays_claims()`
-- `fn t02_the_poll_asks_for_the_match_it_already_knows()`
-- `fn rf25_the_history_starts_with_what_is_already_claimed()`
-- `fn t51_clicking_a_guild_knows_its_last_map()`
-- `fn rf19_alerts_are_bounded_and_skip_baselines()`
-- `fn rf38_an_alert_says_which_kind_of_objective_it_is_about()`
-- `fn rnf04_worker_uses_shared_api_backoff_only_for_retryable_errors()`
 
 **Usa (interno):** `crate::alerts`, `crate::assignment`, `gw2lurker_core::AlertFilter`, `gw2lurker_core::BaselineReason`, `gw2lurker_core::diff`, `gw2lurker_core::DiffConfig`, `gw2lurker_core::FollowList`, `gw2lurker_core::ObjectiveType`, `gw2lurker_core::TeamColor`
 
@@ -1848,8 +1768,8 @@ Off-thread writer for the settings file.
   - `pub fn request(&self, config: &Config) -> bool` — Queues a save without blocking the caller.
   - `pub fn finish(self, last: &Config)` — Writes the last value, then stops the thread.
 - `impl std::fmt::Debug for Writer`
-- `fn run(rx: &Receiver<Config>)`
-- `fn run_with(rx: &Receiver<Config>, mut save: impl FnMut(&Config) -> io::Result<()>)`
+- `fn run(rx: &Receiver<Config>)` — Bucle del hilo writer con el guardado real de settings.json.
+- `fn run_with(rx: &Receiver<Config>, mut save: impl FnMut(&Config) -> io::Result<()>)` — Recibe configuraciones, se queda solo con la última pendiente (coalescencia) y la guarda; los fallos van al log.
 
 **Usa (interno):** `crate::config`
 
@@ -1877,6 +1797,7 @@ Off-thread writer for the settings file.
 - `install.bat` — Copia gw2_lurker.dll a la carpeta addons de Guild Wars 2 con doble clic. Argumentos opcionales: install.bat -Build (tests + compilacion antes de copiar) install.bat -DryRun (solo dice que haria)
 - `install.ps1` — Compila (opcional) e instala el addon gw2_lurker.dll en la carpeta addons de Guild Wars 2.
 - `LICENSE`
+- `modelo.md` — Modelo del código: dónde tocar cuando algo falla — Mapa del repositorio para localizar el código sin leerlo entero. **Uso:** busca con `grep` el síntoma en la tabla de abajo o el nombre del fichero o de la función (`### \`crates/...` abre la ficha de cada fichero) y abre…
 - `PRODUCT.md` — PRODUCT.md — Contexto de producto para las herramientas de diseño (`impeccable`). Escrito a partir del brief del usuario y de la spec; **las suposiciones están marcadas**. **gw2-lurker**: addon para Guild Wars 2 (WvW) que avisa de ca…
 - `PROGRESO.md` — Progreso: gw2-lurker — Bitácora para continuar el trabajo, incluso si quien lo retoma no es la misma IA ni la misma sesión. **Lo más reciente va arriba.** Cada entrada dice qué se pretendía, qué se hizo, cómo se verificó y qué quedó pendiente.
 - `README.md` — gw2-lurker — Addon de [Raidcore Nexus](https://raidcore.gg/nexus) para Guild Wars 2, escrito en Rust. Solo funciona en Mundo contra Mundo. (las ruinas nunca avisan), con un aviso emergente opcional.
@@ -1887,6 +1808,7 @@ Off-thread writer for the settings file.
 - `scripts/check_loc.sh` — Falla si algún .rs supera MAX líneas; avisa a partir de WARN.
 - `scripts/check_size.sh` — Uso: check_size.sh ruta/a/addon.dll (LIMIT_BYTES por defecto 2.5 MB) Objetivo 2.2 MB desde ADR-013 (2026-10-31): el addon no cabía en 1.5 MB con las vistas.
 - `scripts/check_traceability.sh` — Trazabilidad requisito -> prueba (T-03b).
+- `scripts/gen_modelo.ps1` — Regenera la parte automática de modelo.md: mapa de ficheros, items, tests y APIs que usa cada uno.
 - `scripts/guild-search.ps1` — Buscador de clanes fuera del juego (T-44, RF-73).
 - `scripts/pack-guild-index.ps1` — Empaqueta el indice de nombres de clan y lo publica en el repositorio de distribucion (RF-20c).
 - `scripts/poll_match.ps1` — Spike T-02 (Windows / PowerShell): mide la frecuencia real de cambio de /v2/wvw/matches. Uso: .\scripts\poll_match.ps1 -World 1234 [-IntervalSec 10] [-DurationMin 30]
