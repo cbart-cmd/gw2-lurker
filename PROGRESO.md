@@ -42,7 +42,15 @@ Reglas:
   worker según la fecha de modificación y la tecla se nombra en el hilo que pide el texto
   (`GetKeyNameTextW` usa la distribución de teclado de ese hilo).
 
-## HECHO – 2026-11-01 · La pestaña Mapa abre sin clan elegido (RF-71, sin publicar)
+## HECHO – 2026-11-01 · Publicada la 0.26.4
+
+- Release `gw2-lurker-v0.26.4`, MD5 `b4536bef9dae5b6f0c38732493bda61d` (2 199 552 B), verificado
+  con la descarga real. Retención: quedan 0.26.4 y 0.26.3; borrada la 0.26.2.
+- Entra lo de la pestaña *Mapa*: abre en el mapa del jugador y sin clan elegido, la entrada
+  «No guild» en el desplegable y el salto arreglado al volver a mano.
+- Pendiente de probar en GW2 (es lo que el jugador va a hacer con esta versión).
+
+## HECHO – 2026-11-01 · La pestaña Mapa abre sin clan elegido (RF-71)
 
 - Petición del jugador: al entrar a mano en *Mapa* (sin venir de clicar un clan) debe ponerse en su
   mapa, con el desplegable de clan vacío, y verse todo lo que reclaman los clanes que sigue.
