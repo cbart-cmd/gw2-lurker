@@ -9,18 +9,22 @@
   para publicarlo con el dashboard y se volvía a escribir cuando aparecía un nombre nuevo. El
   jugador lo notó: «importante no estar leyendo guild-names.json todo el rato».
 - **Decisión:**
-  1. **`settings.json` es la fuente de los nombres que se dibujan.** `Config::guild_names`
-     (`id → "[TAG] Nombre"`) guarda el nombre la primera vez que se resuelve y no se vuelve a
-     pedir: los nombres de clan no cambian. Es un mapa pequeño (unos 60 bytes por clan seguido o
-     visto) en un fichero que ya se reescribe solo.
-  2. **`guild-names.json` es solo el índice de búsqueda.** No se lee al arrancar, no se tiene en
+  1. **`settings.json` es la fuente de los nombres de los clanes que sigues.** `Config::guild_names`
+     (`id → "[TAG] Nombre"`) guarda **solo** los seguidos (`≤ MAX_FOLLOWED`): son los que hay que
+     nombrar fuera de WvW, donde no hay sondeo. Al dejar de seguir uno, su nombre sale; al cargar,
+     `sanitize` descarta los que no sean de un clan seguido (petición del jugador, 2026-11-01: «no
+     puede crecer indefinidamente»).
+  2. **Los nombres de la sesión viven en memoria.** Los de los clanes que han reclamado algo desde
+     que se arrancó el juego se guardan en un mapa del proceso y se van con él: no se escriben en
+     ningún fichero.
+  3. **`guild-names.json` es solo el índice de búsqueda.** No se lee al arrancar, no se tiene en
      memoria y no se toca en el render: lo lee el hilo de la búsqueda, lo filtra por subcadena y
      lo suelta.
-  3. **Se distribuye como ZIP** (`gw2_lurker_guilds.zip` + `.md5`) en el repositorio de
+  4. **Se distribuye como ZIP** (`gw2_lurker_guilds.zip` + `.md5`) en el repositorio de
      distribución, y el addon lo descarga **la primera vez** que no lo encuentra y **a petición**
      desde los ajustes, con URL configurable. Antes de escribir nada se comprueba el MD5
      publicado. Mismo mecanismo que el `data.zip` del addon hermano `gw2-rotation-builds`.
-  4. **Al empezar a seguir un clan que no está en el índice**, su nombre se resuelve por API y se
+  5. **Al empezar a seguir un clan que no está en el índice**, su nombre se resuelve por API y se
      añade al índice (en un hilo corto, lectura-mezcla-escritura) para que la próxima búsqueda lo
      encuentre.
 - **Consecuencias:**

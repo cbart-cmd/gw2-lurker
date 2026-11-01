@@ -1,6 +1,14 @@
 # Changelog
 Formato [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/), versionado [SemVer](https://semver.org/lang/es/).
 
+## [0.25.5] - 2026-11-01
+### Cambiado
+- **`settings.json` ya no guarda todos los nombres de clan.** Solo los de los clanes que siguen
+  (10 como mucho, `MAX_FOLLOWED`); los de los clanes que han reclamado algo en la sesión viven en
+  memoria y se van al reiniciar el juego. Al dejar de seguir un clan se borra su nombre, y al
+  cargar se descarta cualquiera que no sea de un clan seguido (limpieza automática del fichero:
+  el del jugador pasa de 51 nombres a 7).
+
 ## [0.25.4] - 2026-11-01
 ### Corregido
 - **El primer clic en un resultado del buscador de clanes no añadía el clan.** Clicar la fila

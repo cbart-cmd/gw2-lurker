@@ -152,12 +152,13 @@ pub struct Config {
     /// Guild names are not translated by the game, so the only translations that can exist are
     /// the player's own: they win over the API name and are never overwritten by it.
     pub guild_labels: BTreeMap<String, String>,
-    /// `[TAG] Nombre` of the guilds the addon has already resolved, per guild id (RF-20).
+    /// `[TAG] Nombre` de **los clanes que sigue el jugador**, por id de clan (RF-20b).
     ///
-    /// Es lo que se dibuja en pantalla y lo que evita volver a pedir un nombre: los nombres de
-    /// clan no cambian nunca. Vive aquí, en `settings.json`, y **no** en `guild-names.json`: ese
-    /// fichero es solo el índice de búsqueda por texto y no se tiene en memoria (petición del
-    /// jugador, 2026-11-01).
+    /// Solo los seguidos, a propósito (petición del jugador, 2026-11-01): son diez como mucho y
+    /// tienen que verse también fuera de WvW, donde no hay sondeo. Los nombres de los clanes que
+    /// han reclamado algo en la sesión viven en **memoria** y se van al reiniciar el juego; el
+    /// índice grande (`guild-names.json`) es solo la caché de la búsqueda por texto y no se copia
+    /// aquí. `Config::sanitize` limpia cualquier nombre que no sea de un clan seguido.
     pub guild_names: BTreeMap<String, String>,
     /// Dónde se descarga el índice de nombres de clan (RF-20). Vacío = la URL publicada.
     pub guild_index_url: String,
@@ -346,6 +347,19 @@ impl Config {
         };
         for state in self.windows.values_mut() {
             state.sanitize();
+        }
+        // Solo los clanes que se siguen tienen nombre guardado (petición del jugador, 2026-11-01):
+        // los de la sesión viven en memoria y el índice de búsqueda no se copia aquí. Así el
+        // fichero no crece sin freno, y de paso limpia lo que versiones anteriores dejaron.
+        let followed: std::collections::BTreeSet<String> =
+            self.followed.iter().map(str::to_owned).collect();
+        let before = self.guild_names.len();
+        self.guild_names.retain(|id, _| followed.contains(id));
+        if self.guild_names.len() != before {
+            log::info!(
+                "ajustes: {} nombres de clan de la sesión descartados (solo se guardan los seguidos)",
+                before - self.guild_names.len()
+            );
         }
         // Una URL vacía o sin https no se acepta: la descarga del índice la rechazaría y el
         // jugador vería un error que no puede arreglar desde la ventana.
@@ -658,6 +672,26 @@ mod tests {
             back.guild_names
                 .get("6C45F3C8-F21C-EF11-81AB-8B4A188BDE13")
                 .map(String::as_str),
+            Some("[YaK] Dolyak Sanctuary")
+        );
+    }
+
+    #[test]
+    fn rf20b_only_the_followed_guilds_keep_their_name_in_the_settings() {
+        // Petición del jugador (2026-11-01): en `settings.json` solo los nombres de los clanes que
+        // sigue; los de la sesión, en memoria, para que el fichero no crezca sin freno.
+        let mut c = Config::default();
+        c.followed.add("SEGUIDO");
+        c.guild_names
+            .insert("SEGUIDO".to_owned(), "[YaK] Dolyak Sanctuary".to_owned());
+        c.guild_names
+            .insert("DE_PASO".to_owned(), "[DB] Die Barbaren".to_owned());
+        c.guild_names
+            .insert("OTRO".to_owned(), "[DG] Die Garde".to_owned());
+        c.sanitize();
+        assert_eq!(c.guild_names.len(), 1, "{:?}", c.guild_names);
+        assert_eq!(
+            c.guild_names.get("SEGUIDO").map(String::as_str),
             Some("[YaK] Dolyak Sanctuary")
         );
     }

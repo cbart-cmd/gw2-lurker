@@ -416,7 +416,8 @@ fn draw_tabs(
                     // los ajustes (petición de 2026-10-31).
                     let team = crate::team::selected_in(config);
                     let session = crate::worker::dashboard().session_guilds();
-                    clicked = follow::followed_section(ui, &mut config.followed, data.names);
+                    clicked =
+                        follow::followed_section(ui, &mut config.followed, &mut config.guild_names);
                     follow::add_section(
                         ui,
                         &mut config.followed,

@@ -199,3 +199,7 @@ busco clan, lo encuentro, clico para añadir en el bastion, y en vez de guardar 
   botón). Y `State::Searching` **conserva los resultados anteriores**, así que la lista sigue en
   pantalla —y clicable— mientras llega la nueva. Test `t44_the_results_on_screen_survive_a_new_search`.
 - **Pendiente:** confirmarlo en el juego.
+## [x] `settings.json` guarda todos los nombres de clan y crece sin freno (2026-11-01)
+«no me gusta que guardes todos los nombres en settings.json. tienen que estar los de los clanes que sigo, y los que han reclamado en la sesión desde que reinicie el juego, pero no puede crecer indefinidamente»
+- **Hecho (0.25.5):** `settings.json` guarda **solo los clanes que sigues** (10 como mucho, `MAX_FOLLOWED`), que son los que hay que nombrar fuera de WvW. Los de los clanes que han reclamado algo **en esta sesión** pasan a un mapa **en memoria** y se van al reiniciar. Al dejar de seguir un clan se borra su nombre del fichero, y al cargar se descarta cualquier nombre que no sea de un clan seguido: tu fichero pasa de **51 nombres a 7** en el próximo arranque.
+- **Pendiente:** verlo tras reiniciar el juego.

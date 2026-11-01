@@ -135,8 +135,11 @@ El click-through se alterna desde la configuración, desde las opciones de Nexus
 - GWT: *Given* un nombre ambiguo, *When* la búsqueda devuelve varias guilds, *Then* el usuario elige entre candidatos con nombre y tag.
 - GWT: *Given* una guild seguida, *When* se resuelve el match, *Then* la UI muestra el equipo al que pertenece según `/v2/wvw/guilds/:region` y si es propio o enemigo.
 
-**RF-20b (M)** El nombre de un clan (`[TAG] Nombre`) se guarda **en `settings.json`** la primera vez que se resuelve y no se vuelve a pedir: los nombres de clan no cambian. `guild-names.json` es **solo** el índice de búsqueda por texto y **no se tiene en memoria**: se lee en el hilo de la búsqueda, se filtra y se suelta. El hilo de render nunca lo lee ni lo clona (petición del jugador, 2026-11-01: «importante no estar leyendo guild names.json todo el rato»).
-- Corolario: ninguna ventana puede depender del índice para dibujar un nombre; lo que no esté en `settings.json` se muestra como id hasta que el worker lo resuelva.
+**RF-20b (M)** Los nombres de clan se guardan en **dos sitios distintos**, y ninguno de ellos crece sin freno (petición del jugador, 2026-11-01: «tienen que estar los de los clanes que sigo, y los que han reclamado en la sesión, pero no puede crecer indefinidamente»):
+- **`settings.json`** (`guild_names`): **solo los clanes que se siguen** (`≤ MAX_FOLLOWED`). Son los que hay que poder nombrar fuera de WvW, cuando no hay sondeo (Bastión del Armisticio). Al dejar de seguir un clan, su nombre sale del fichero; al cargar se descarta cualquier nombre que no sea de un clan seguido.
+- **Memoria**: los nombres de los clanes que han reclamado algo en **esta sesión**. Se pierden al reiniciar el juego, que es lo que el jugador quiere: no son datos permanentes.
+- **`guild-names.json`** es **solo** el índice de búsqueda por texto, no se tiene en memoria: se lee en el hilo de la búsqueda, se filtra y se suelta. El hilo de render nunca lo lee ni lo clona.
+- GWT: *Given* siete clanes seguidos y cincuenta nombres resueltos en la sesión, *When* se cierra el juego, *Then* `settings.json` guarda siete nombres, no cincuenta.
 
 **RF-20c (M)** El índice de nombres se **distribuye** como ZIP (`gw2_lurker_guilds.zip`) junto a su `.md5` en el repositorio de distribución, y el addon lo descarga **la primera vez que arranca** (si no está en disco) y **a petición**, con la URL configurable en los ajustes. Antes de escribir nada se comprueba el MD5 publicado; si no coincide, no se instala.
 - Es el mismo mecanismo que el addon hermano `gw2-rotation-builds` usa para su `data.zip` (descargar → verificar MD5 → descomprimir).

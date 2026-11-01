@@ -34,24 +34,42 @@ pub fn guild_label(info: &gw2lurker_api::GuildInfo) -> String {
     }
 }
 
-/// Names of the guilds in the matchup: from the settings file, then from the API.
+/// Names of the guilds in the matchup: from **memory** (this session), then from the API.
 ///
-/// Returns the map so the caller publishes it with the dashboard and the UI never has to take a
-/// second lock to label a row. What is already known lives in `settings.json`
-/// (`Config::guild_names`) and a new name is written there once: guild names never change, so it
-/// is never asked again (report of 2026-11-01). The big `guild-names.json` index is **not** read
-/// here — that one is only for the text search.
+/// Two different places, on purpose (petición del jugador, 2026-11-01):
+///
+/// - **`settings.json`** guarda **solo los clanes que sigues** (`Config::guild_names`). Son diez
+///   como mucho y tienen que verse también fuera de WvW, cuando no hay sondeo.
+/// - **La memoria** guarda los de los clanes que han reclamado algo **en esta sesión**. Se van al
+///   reiniciar el juego y no crecen sin freno en el fichero de ajustes, que es lo que pasaba antes.
+///
+/// El índice grande `guild-names.json` **no** se lee aquí: es solo la caché de la búsqueda por
+/// texto. Returns the map so the caller publishes it with the dashboard.
 pub fn resolve_guild_names(
     api: &Api<WinHttpTransport>,
     guilds: &[GuildSummary],
     followed: &gw2lurker_core::FollowList,
 ) -> std::collections::BTreeMap<String, String> {
+    /// Nombres resueltos en esta sesión (memoria, nunca disco).
+    fn session() -> &'static Mutex<std::collections::BTreeMap<String, String>> {
+        static SESSION: OnceLock<Mutex<std::collections::BTreeMap<String, String>>> =
+            OnceLock::new();
+        SESSION.get_or_init(|| Mutex::new(Default::default()))
+    }
+
     static FAILED: OnceLock<Mutex<std::collections::HashSet<String>>> = OnceLock::new();
     let failed = FAILED.get_or_init(|| Mutex::new(Default::default()));
     let mut failed = failed.lock().unwrap_or_else(|error| error.into_inner());
 
-    let mut known = crate::runtime().guild_names.clone();
-    let before = known.len();
+    let saved = crate::runtime().guild_names.clone();
+    let mut known = saved.clone();
+    known.extend(
+        session()
+            .lock()
+            .unwrap_or_else(|error| error.into_inner())
+            .iter()
+            .map(|(id, label)| (id.clone(), label.clone())),
+    );
 
     // The followed guilds first: they are the ones the player sees by name in the settings and
     // in the alerts, and they were being left as raw ids because only the guilds that had
@@ -81,16 +99,30 @@ pub fn resolve_guild_names(
     }
     failed.retain(|id| !known.contains_key(id));
 
-    if known.len() != before {
-        // A `settings.json`, que es donde el jugador y la ventana leen los nombres: antes se
-        // volcaban en el índice de búsqueda y el render acababa clonando 9 900 entradas cada
-        // sondeo (queja del jugador, 2026-11-01). Se **mezcla**, no se sustituye: el render puede
-        // haber añadido un nombre en este mismo fotograma.
+    // Todo lo resuelto se queda en memoria hasta reiniciar el juego.
+    *session().lock().unwrap_or_else(|error| error.into_inner()) = known.clone();
+
+    // Y a los ajustes solo van los clanes que se siguen: la lista de seguidos manda, y lo que ya
+    // no se sigue se quita (así el fichero no crece nunca más allá de `MAX_FOLLOWED`).
+    {
         let mut config = crate::runtime();
-        for (id, label) in &known {
-            config.guild_names.insert(id.clone(), label.clone());
+        let followed_now: std::collections::BTreeSet<String> =
+            config.followed.iter().map(str::to_owned).collect();
+        let mut wanted: std::collections::BTreeMap<String, String> = config
+            .guild_names
+            .iter()
+            .filter(|(id, _)| followed_now.contains(*id))
+            .map(|(id, label)| (id.clone(), label.clone()))
+            .collect();
+        for id in &followed_now {
+            if let Some(label) = known.get(id) {
+                wanted.insert(id.clone(), label.clone());
+            }
         }
-        crate::request_save(&config);
+        if wanted != config.guild_names {
+            config.guild_names = wanted;
+            crate::request_save(&config);
+        }
     }
     known
 }

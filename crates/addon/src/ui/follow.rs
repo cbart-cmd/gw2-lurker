@@ -65,10 +65,14 @@ const REMOVE_WIDTH: f32 = 24.0;
 ///
 /// It lives in the *Guilds* tab and not in the settings: following a guild is something you
 /// decide while looking at the match, not a preference you go hunting for (report of 2026-10-31).
+///
+/// `names` is the **saved** map (`Config::guild_names`): al dejar de seguir un clan se quita
+/// también su nombre de los ajustes, porque ahí solo se guardan los que sigues (petición del
+/// jugador, 2026-11-01).
 pub fn followed_section(
     ui: &Ui,
     follow: &mut FollowList,
-    names: &BTreeMap<String, String>,
+    names: &mut BTreeMap<String, String>,
 ) -> Option<String> {
     let count = format!("{}/{MAX_FOLLOWED}", follow.len());
     ui.text(i18n::format("Followed guilds ({0})", &[&count]));
@@ -129,6 +133,8 @@ pub fn followed_section(
     drop(pending);
     if let Some(guild) = remove {
         follow.remove(&guild);
+        // Su nombre tampoco se queda en los ajustes: ahí solo viven los de los clanes seguidos.
+        names.remove(&guild);
     }
     chosen
 }
