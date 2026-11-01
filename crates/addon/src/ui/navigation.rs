@@ -12,6 +12,41 @@ pub(super) fn pending_tab_after_draw(shown: usize, requested: usize) -> usize {
     }
 }
 
+/// Clan cuya ruta dibuja la pestaña *Mapa*, si hay alguno elegido.
+///
+/// Estado propio de esa pestaña y no el de *Clanes*: entrar a mano deja el desplegable vacío para
+/// ver todo lo que reclaman los clanes que sigues, sin borrar el clan abierto en la otra pestaña.
+fn guild_choice_state() -> std::sync::MutexGuard<'static, Option<String>> {
+    static CHOICE: std::sync::OnceLock<std::sync::Mutex<Option<String>>> =
+        std::sync::OnceLock::new();
+    CHOICE
+        .get_or_init(|| std::sync::Mutex::new(None))
+        .lock()
+        .unwrap_or_else(|error| error.into_inner())
+}
+
+/// Clan cuya ruta dibuja la pestaña *Mapa*, si hay alguno elegido.
+pub(super) fn guild_choice() -> Option<String> {
+    guild_choice_state().clone()
+}
+
+/// Fija o vacía el clan de la pestaña *Mapa* (`None` = sin ruta, solo el anillo de los seguidos).
+pub(super) fn set_guild_choice(guild: Option<&str>) {
+    *guild_choice_state() = guild.map(str::to_owned);
+}
+
+/// Lo elegido en el desplegable de clan → clan a dibujar.
+///
+/// La entrada «No guild» del desplegable llega como cadena vacía, que es no elegir ninguno: sin
+/// ruta y con el anillo de los clanes seguidos como única marca.
+pub(super) fn guild_from_pick(pick: &str) -> Option<String> {
+    if pick.is_empty() {
+        None
+    } else {
+        Some(pick.to_owned())
+    }
+}
+
 pub(super) fn request_guild_map(
     guild: &str,
     target: Option<MapRole>,
@@ -142,5 +177,20 @@ mod tests {
         )
         .is_some());
         assert_eq!(pending_tab_after_draw(TAB_MAP, requested), usize::MAX);
+    }
+
+    #[test]
+    fn rf71_entering_the_map_tab_by_hand_leaves_no_guild_chosen() {
+        set_guild_choice(Some("1DB147F0"));
+        assert_eq!(guild_choice().as_deref(), Some("1DB147F0"));
+        // El snap de entrada (mod.rs) vacía la elección: mapa del jugador y sin ruta.
+        set_guild_choice(None);
+        assert_eq!(guild_choice(), None);
+        assert_eq!(
+            guild_from_pick(""),
+            None,
+            "la entrada «No guild» del desplegable no dibuja ruta"
+        );
+        assert_eq!(guild_from_pick("1DB147F0").as_deref(), Some("1DB147F0"));
     }
 }

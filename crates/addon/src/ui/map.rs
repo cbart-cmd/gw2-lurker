@@ -17,6 +17,8 @@ use nexus::imgui::{ComboBox, Selectable, StyleColor, Ui};
 
 use crate::i18n;
 
+use super::navigation;
+
 mod route;
 
 use route::{draw_route, playback_control, range_choice, RouteCanvas};
@@ -105,7 +107,13 @@ pub fn body(ui: &Ui, view: &View<'_>, role: &mut MapRole, here: Option<MapRole>)
     // Desplegable de clan justo al lado del de mapa: los que sigues primero y después los últimos
     // que han reclamado algo, para no tener que ir a la pestaña *Clanes* a buscarlos (petción del
     // jugador, 2026-11-01). Elegir uno dibuja su ruta, igual que clicarlo en esa pestaña.
-    let chosen = draw_guild_choice(ui, follow, guild_names, guild, session_guilds);
+    let pick = draw_guild_choice(ui, follow, guild_names, guild, session_guilds);
+    // El desplegable manda sobre su propio estado: «No guild» lo vacía y el resto elige la ruta.
+    if let Some(pick) = pick.as_deref() {
+        let next = navigation::guild_from_pick(pick);
+        navigation::set_guild_choice(next.as_deref());
+    }
+    let chosen = pick.and_then(|pick| navigation::guild_from_pick(&pick));
 
     let Some(map) = maps
         .iter()
@@ -670,6 +678,14 @@ fn draw_guild_choice(
     ComboBox::new(i18n::widget("Guild"))
         .preview_value(preview)
         .build(ui, || {
+            // Primera entrada: volver a no elegir ninguno. Sin ella el desplegable no se vaciaba
+            // y la ruta se quedaba pegada al mapa (petición del jugador, 2026-11-01).
+            if Selectable::new(format!("{}###noguild", i18n::text("No guild")))
+                .selected(current.is_none())
+                .build(ui)
+            {
+                chosen = Some(String::new());
+            }
             if choices.is_empty() {
                 ui.text_disabled(i18n::text("None yet"));
                 return;

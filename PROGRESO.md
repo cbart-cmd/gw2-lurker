@@ -42,6 +42,21 @@ Reglas:
   worker según la fecha de modificación y la tecla se nombra en el hilo que pide el texto
   (`GetKeyNameTextW` usa la distribución de teclado de ese hilo).
 
+## HECHO – 2026-11-01 · La pestaña Mapa abre sin clan elegido (RF-71, sin publicar)
+
+- Petición del jugador: al entrar a mano en *Mapa* (sin venir de clicar un clan) debe ponerse en su
+  mapa, con el desplegable de clan vacío, y verse todo lo que reclaman los clanes que sigue.
+- El mapa ya se ponía en el del jugador (`snap_to_current` + `resolved_map_role`); lo que fallaba
+  era el desplegable: tomaba el clan de la pestaña *Clanes* (`guilds::selected_guild()`), así que
+  al volver seguía elegido y dibujaba su ruta.
+- `navigation.rs`: estado propio del mapa (`guild_choice`/`set_guild_choice`) y
+  `guild_from_pick`, que convierte la entrada «No guild» (cadena vacía) en «sin ruta». Test
+  `rf71_entering_the_map_tab_by_hand_leaves_no_guild_chosen`.
+- `map.rs`: el desplegable estrena entrada «No guild» (antes no había forma de vaciarlo) y aplica
+  la elección a ese estado. `mod.rs`: el snap de entrada vacía la elección y un clic de la pestaña
+  *Clanes* o de un aviso la fija, así los dos sitios siguen en sintonía.
+- `validate.ps1 -Release`: todo OK, 329 tests, DLL 2 199 552 B.
+
 ## HECHO – 2026-11-01 · Publicada la 0.26.3
 
 - Release `gw2-lurker-v0.26.3` en `cbart-cmd/gw2addonsreleases`, MD5

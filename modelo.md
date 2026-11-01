@@ -103,7 +103,7 @@ Estado global (en `addon/src/lib.rs` y `worker.rs`):
 
 <!-- GENERADO: no editar debajo; se rehace con scripts/gen_modelo.ps1 -->
 
-Generado el 2026-11-01 19:06 desde el commit `8e2d8d8`.
+Generado el 2026-11-01 21:20 desde el commit `6495842`.
 
 ## Crate `core`
 
@@ -1359,7 +1359,7 @@ Objective glyphs drawn with primitives: the little drawing inside the team-colou
 **Tests (5):** `rf30_the_four_objectives_that_score_have_their_own_drawing`, `rf30_each_objective_is_told_apart_by_its_drawing_and_not_only_by_colour`, `rf30_a_tower_is_taller_than_a_camp_and_a_keep_wider_than_a_tower`, `rf38_a_generic_kind_still_gets_a_mark`, `rf38_the_glyph_is_centred_where_it_was_asked_to_be`
 
 
-### `crates/addon/src/ui/map.rs` (775 líneas)
+### `crates/addon/src/ui/map.rs` (791 líneas)
 
 Simplified map of one WvW map (T-14, RF-30).
 
@@ -1406,7 +1406,7 @@ Simplified map of one WvW map (T-14, RF-30).
 - `pub fn map_label(role: MapRole) -> &'static str` — El nombre del mapa en el idioma activo: lo comparten la pestaña y la cabecera del widget.
 - `mod tests`
 
-**Usa (interno):** `crate::catalog`, `crate::clock`, `crate::i18n`, `gw2lurker_core::i18n`, `gw2lurker_core::matchup`, `gw2lurker_core::model`, `gw2lurker_core::project`, `gw2lurker_core::route`, `super::icons`, `super::theme`
+**Usa (interno):** `crate::catalog`, `crate::clock`, `crate::i18n`, `gw2lurker_core::i18n`, `gw2lurker_core::matchup`, `gw2lurker_core::model`, `gw2lurker_core::project`, `gw2lurker_core::route`, `super::icons`, `super::navigation`, `super::theme`
 
 **APIs externas:** `nexus::imgui`, `nexus::imgui::DrawListMut`, `nexus::imgui::TextureId`, `nexus::texture::get_texture_or_create_from_file`, `disco: fs::metadata`, `imgui::DrawListMut`, `imgui::TextureId`, `imgui (dibuja con &Ui)`
 
@@ -1473,7 +1473,7 @@ Matchup claims view (T-36, RF-70): what is claimed right now, grouped by map.
 **Tests (6):** `rf73_the_claims_view_can_show_only_followed_guilds`, `rf30b_high_value_is_the_tick_of_this_snapshot_not_the_kind`, `rf70_all_kinds_are_visible_by_default`, `rf70_kind_filters_remove_rows`, `rf70_high_value_hides_camps_but_keeps_castles`, `rf70_rows_are_grouped_by_map`
 
 
-### `crates/addon/src/ui/mod.rs` (747 líneas)
+### `crates/addon/src/ui/mod.rs` (751 líneas)
 
 Windows of the addon. Every one of them goes through [`window::draw`] (RF-46).
 
@@ -1524,18 +1524,22 @@ Windows of the addon. Every one of them goes through [`window::draw`] (RF-46).
 **Tests (5):** `rf30_the_map_tab_opens_on_the_map_i_am_on`, `rf18_the_shortcut_turns_click_through_on_and_off`, `rf18_the_shortcut_brings_the_window_back`, `rf46_click_through_does_not_reopen_a_closed_widget`, `t42_the_settings_are_the_last_tab`
 
 
-### `crates/addon/src/ui/navigation.rs` (146 líneas)
+### `crates/addon/src/ui/navigation.rs` (196 líneas)
 
 Map navigation rules, independent of Nexus and imgui (RF-30, RF-71).
 
 **Contenido:**
 
 - `pub fn pending_tab_after_draw(shown: usize, requested: usize) -> usize` — Mantiene la pestaña pedida hasta que se ha dibujado; entonces la suelta (`usize::MAX`).
+- `fn guild_choice_state() -> std::sync::MutexGuard<'static, Option<String>>` — Clan cuya ruta dibuja la pestaña *Mapa*, si hay alguno elegido.
+- `pub fn guild_choice() -> Option<String>` — Clan cuya ruta dibuja la pestaña *Mapa*, si hay alguno elegido.
+- `pub fn set_guild_choice(guild: Option<&str>)` — Fija o vacía el clan de la pestaña *Mapa* (`None` = sin ruta, solo el anillo de los seguidos).
+- `pub fn guild_from_pick(pick: &str) -> Option<String>` — Lo elegido en el desplegable de clan → clan a dibujar.
 - `pub fn request_guild_map(…)` — Ir al mapa de un clan: con mapa conocido fija mapa y pestaña Mapa; sin él no cambia de pestaña y deja el aviso.
 
 **Usa (interno):** `gw2lurker_core::MapRole`, `super::TAB_MAP`
 
-**Tests (5):** `rf30_a_guild_jump_waits_until_the_map_tab_is_drawn`, `rf71_a_guild_without_events_keeps_the_tab_and_map`, `rf71_a_guild_jump_chooses_its_map_and_clears_the_notice`, `rf71_an_empty_guild_cancels_an_earlier_pending_jump`, `rf32a_a_non_favourite_guild_opens_its_last_claim_map_with_a_route`
+**Tests (6):** `rf30_a_guild_jump_waits_until_the_map_tab_is_drawn`, `rf71_a_guild_without_events_keeps_the_tab_and_map`, `rf71_a_guild_jump_chooses_its_map_and_clears_the_notice`, `rf71_an_empty_guild_cancels_an_earlier_pending_jump`, `rf32a_a_non_favourite_guild_opens_its_last_claim_map_with_a_route`, `rf71_entering_the_map_tab_by_hand_leaves_no_guild_chosen`
 
 
 ### `crates/addon/src/ui/popup.rs` (140 líneas)

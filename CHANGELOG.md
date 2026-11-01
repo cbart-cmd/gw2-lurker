@@ -2,6 +2,11 @@
 Formato [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/), versionado [SemVer](https://semver.org/lang/es/).
 
 ## [Unreleased]
+### Añadido
+- La pestaña *Mapa* abre en el mapa en el que estás y con el desplegable de clan vacío: se ven los
+  reclamos de todos los clanes que sigues (anillo y TAG) y la ruta solo si eliges un clan.
+- El desplegable de clan del mapa tiene una entrada «No guild» para quitar la ruta sin salir de la
+  pestaña.
 
 ## [0.26.3] - 2026-11-01
 ### Corregido

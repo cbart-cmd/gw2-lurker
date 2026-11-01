@@ -419,8 +419,11 @@ fn draw_tabs(
                             if let Some(here) = data.current {
                                 *map_choice() = here;
                             }
+                            // Entrar a mano en *Mapa* deja el desplegable de clan vacío: se ve
+                            // todo lo que reclaman los clanes que sigues, sin ruta de nadie.
+                            navigation::set_guild_choice(None);
                         }
-                        let selected = guilds::selected_guild();
+                        let selected = navigation::guild_choice();
                         let history = selected
                             .as_deref()
                             .map(|guild| crate::worker::dashboard().guild_history(guild))
@@ -555,6 +558,7 @@ fn draw_tabs(
             &mut map_notice(),
         ) {
             guilds::select(&guild);
+            navigation::set_guild_choice(Some(&guild));
         }
         WANT_TAB.store(requested, Ordering::Relaxed);
     }
