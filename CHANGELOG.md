@@ -2,6 +2,8 @@
 Formato [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/), versionado [SemVer](https://semver.org/lang/es/).
 
 ## [Unreleased]
+
+## [0.26.1] - 2026-11-01
 ### Corregido
 - El atajo del click-through se nombra con la distribución de teclado del jugador: en un teclado
   español sale `Ctrl+Shift+Ñ` y no `Ctrl+Shift+;`.

@@ -39,6 +39,14 @@ Reglas:
 - Publicar: `UpdateProvider::Direct` + `DisableHotloading`, MD5 de 32 hex sin BOM, excepción
   de LFS para la DLL, tag propio con `--latest=false`. Ver `docs/RELEASE.md`.
 
+## EN CURSO – 2026-11-01 · Publicar 0.26.1
+
+- Subir la versión raíz y las dependencias internas a 0.26.1; cerrar CHANGELOG con los dos bugs
+  reportados.
+- Validar con `scripts/validate.ps1 -Release`, publicar únicamente con `scripts/release.ps1` y
+  verificar la descarga real, su tamaño y MD5.
+- Subir el commit de versión y comprobar su CI con una consulta al SHA exacto.
+
 ## Bloqueos
 
 - **T-01, T-02b, T-25**: requieren ejecutar dentro de GW2 (carga, click-through, tamaño de
@@ -163,4 +171,3 @@ Reglas:
   falten = filas que él borró.
 
 > Entradas anteriores a 0.25.13: [docs/historial/progreso-hasta-0.25.13.md](docs/historial/progreso-hasta-0.25.13.md).
-
