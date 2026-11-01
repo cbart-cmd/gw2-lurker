@@ -250,3 +250,12 @@ busco clan, lo encuentro, clico para añadir en el bastion, y en vez de guardar 
   `[PEST] Please excuse the silly tactics`. Al añadir uno desde ahí, su nombre se guarda en los ajustes
   y se le enseña al índice, así que la próxima búsqueda por texto lo encuentra.
 - **Pendiente:** verlo en el juego.
+
+## [x] ajustes por defecto de una instalación nueva (2026-11-01)
+«para nuevas instalaciones, ajustes por defecto de "avisar de" que sea "mi mapa" y "clanes que sigo", campamentos, torres, fortalezas y castillos, y 15 segundos de aviso emergente»
+- **Hecho (0.25.12):** «avisar de» arranca con **«el mapa en el que estoy»** y **«los clanes que
+  sigo»** marcados y los **cuatro mapas fijos desmarcados**; campamentos, torres, fortalezas/garitas y
+  castillos vienen marcados (las ruinas nunca avisan). El **aviso emergente dura 15 s** en vez de 2.
+- Solo afecta a instalaciones nuevas o a quien no tenga esos campos guardados: tus ajustes actuales no
+  se tocan.
+- **Pendiente:** verlo con un `settings.json` limpio (o borrando las claves `alerts` y `popup_secs`).

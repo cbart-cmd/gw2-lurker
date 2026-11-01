@@ -13,6 +13,20 @@ Reglas:
 
 ---
 
+## HECHO – 2026-11-01 · Ajustes por defecto de una instalación nueva (0.25.12)
+
+- Petición del jugador: en «avisar de», de fábrica solo **«el mapa en el que estoy»** y **«los clanes
+  que sigo»** (con las cuatro estructuras), y el aviso emergente a **15 s**.
+- `AlertFilter::default()` deja los cuatro mapas fijos en `false`; `current_map` y `followed` siguen
+  en `true`, igual que las cuatro estructuras (`Structures::default`).
+- Nuevo `config::POPUP_SECS_DEFAULT = 15.0`; `Config::default()` y el «al encenderlo» de la ventana
+  lo usan. Antes el de la ventana era 5 y el de fábrica 2: dos números distintos para lo mismo.
+- **Lo guardado no se toca**: `#[serde(default)]` solo rellena lo que falta, así que el fichero del
+  jugador conserva sus casillas y sus segundos.
+- Tests ajustados a la intención nueva: `rf19a_by_default_only_my_map_and_the_guilds_i_follow` (core)
+  y `rf19a_by_default_my_map_and_the_guilds_i_follow` (config). Los tests del worker que no van de
+  filtros piden ahora «todos los mapas» con un helper `any_map()`, para no depender del defecto.
+
 ## HECHO – 2026-11-01 · Desplegable de clan en la pestaña Mapa (0.25.11)
 
 - Petición del jugador: el desplegable de mapa ocupaba todo el ancho «y no hace falta tanto»; al

@@ -1,6 +1,15 @@
 # Changelog
 Formato [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/), versionado [SemVer](https://semver.org/lang/es/).
 
+## [0.25.12] - 2026-11-01
+### Cambiado
+- **Ajustes por defecto de una instalación nueva** (petición del jugador): en «avisar de» vienen
+  marcados **«el mapa en el que estoy»** y **«los clanes que sigo»**, con campamentos, torres,
+  fortalezas/garitas y castillos; los **cuatro mapas fijos ya no vienen marcados** (llenaban la lista
+  con cosas de mapas en los que el jugador no estaba).
+- **El aviso emergente dura 15 s por defecto** en vez de 2, que se iba antes de poder leerlo.
+- Los ajustes guardados no cambian: esto solo afecta a quien no los tenga todavía.
+
 ## [0.25.11] - 2026-11-01
 ### Añadido
 - **Desplegable de clan en la pestaña *Mapa***, al lado del de mapa: primero los clanes que sigues

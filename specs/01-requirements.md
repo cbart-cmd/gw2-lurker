@@ -114,9 +114,11 @@ El click-through **no tiene casilla en los ajustes** (se quitó el 2026-11-01: e
 
 **RF-19 (M)** Cada línea deberá mostrar: icono/forma de tipo de objetivo, texto, mapa y antigüedad ("hace 2 min"), con color según el equipo implicado y distinción por tipo de alerta (pérdida, claim de guild seguida, informativa). No se usará solo el color para distinguirlas.
 
-**RF-19a (M)** El usuario elegirá **de qué se le avisa**, con casillas independientes y **todas marcadas por defecto**: Eternos, Alpino azul, Alpino verde, Desierto rojo, «el mapa en el que estoy» y «los clanes que sigo».
+**RF-19a (M)** El usuario elegirá **de qué se le avisa**, con casillas independientes: Eternos, Alpino azul, Alpino verde, Desierto rojo, «el mapa en el que estoy» y «los clanes que sigo».
+- **Por defecto (2026-11-01, petición del jugador):** marcados **«el mapa en el que estoy»** y **«los clanes que sigo»**, y **desmarcados los cuatro mapas fijos**. Antes venían marcados los cuatro, y eso llenaba la lista de cosas de mapas en los que el jugador no estaba.
 - Un **clan seguido** avisa en **cualquier** mapa del emparejamiento, esté el jugador donde esté.
-- Además hay un **aviso emergente** que desaparece tras `popup_secs` segundos (por defecto **2**, rango **0–20**; `0` lo desactiva), mientras el aviso **sigue en la lista** del widget, que conserva hasta 50 líneas (`max_lines` configura cuántas se ven). Los claims descubiertos en el baseline (`late`) no hacen pop-up, salvo que sean de un clan seguido y de los últimos 10 minutos.
+- Además hay un **aviso emergente** que desaparece tras `popup_secs` segundos (por defecto **15**, rango **0–20**; `0` lo desactiva), mientras el aviso **sigue en la lista** del widget, que conserva hasta 50 líneas (`max_lines` configura cuántas se ven). Los claims descubiertos en el baseline (`late`) no hacen pop-up, salvo que sean de un clan seguido y de los últimos 10 minutos.
+- Las cuatro estructuras (campamento, torre, fortaleza/garita y castillo) vienen marcadas; ruinas y mercenarios nunca avisan (RF-19e).
 - Hay un interruptor «**solo los clanes que sigo**» (`only_followed`) que manda sobre las casillas de mapa: con él marcado, lo demás no cuenta.
 - El mapa actual sale del `map_id` de Mumble: 38 Eternos, 95 alpino verde, 96 alpino azul, 1099 desierto. Cualquier otro (Cañón, salón, PvE) no cuenta como «mapa actual».
 

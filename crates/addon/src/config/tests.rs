@@ -18,7 +18,7 @@ fn rf41_settings_live_under_documents_like_the_neighbours() {
 
 #[test]
 fn rf19a_popup_time_defaults_to_two_seconds_and_clamps() {
-    assert_eq!(Config::default().popup_secs, 2.0);
+    assert_eq!(Config::default().popup_secs, POPUP_SECS_DEFAULT);
     let mut c = Config {
         popup_secs: 30.0,
         ..Config::default()
@@ -51,14 +51,22 @@ fn rf19a_popup_time_defaults_to_two_seconds_and_clamps() {
         ..Config::default()
     };
     c.sanitize();
-    assert_eq!(c.popup_secs, 2.0);
+    assert_eq!(c.popup_secs, POPUP_SECS_DEFAULT);
 }
 
 #[test]
-fn rf19a_every_alert_source_is_enabled_by_default() {
+fn rf19a_by_default_my_map_and_the_guilds_i_follow() {
+    // Petición del jugador (2026-11-01): de fábrica, «el mapa en el que estoy» y «los clanes que
+    // sigo», más las cuatro estructuras. Los cuatro mapas fijos vienen desmarcados.
     let filter = Config::default().alerts;
-    assert!(filter.ebg && filter.blue && filter.green && filter.red);
     assert!(filter.current_map && filter.followed);
+    assert!(!filter.ebg && !filter.blue && !filter.green && !filter.red);
+    assert!(
+        filter.structures.camp
+            && filter.structures.tower
+            && filter.structures.keep
+            && filter.structures.castle
+    );
 }
 
 #[test]

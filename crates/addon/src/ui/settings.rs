@@ -215,8 +215,9 @@ fn initial_narrowing(
 /// porque, de uno en uno, cinco se quedaban cortos (informe de 2026-10-31).
 const POPUP_MAX_SECS: f32 = crate::config::POPUP_SECS_MAX;
 
-/// Lo que dura cada aviso del pop-up cuando se activa (segundos).
-const POPUP_DEFAULT_SECS: f32 = 5.0;
+/// Lo que dura cada aviso del pop-up cuando se activa (segundos). El mismo defecto que en
+/// `config`, para que encenderlo desde aquí no ponga una duración distinta a la de fábrica.
+const POPUP_DEFAULT_SECS: f32 = crate::config::POPUP_SECS_DEFAULT;
 
 const LABELS: &[&str] = &[
     "Region",

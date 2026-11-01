@@ -86,12 +86,17 @@ pub struct Filter {
 }
 
 impl Default for Filter {
+    /// Por defecto se avisa de **lo del mapa en el que estás y de los clanes que sigues**, con las
+    /// cuatro estructuras marcadas (petición del jugador, 2026-11-01). Antes venían marcados también
+    /// los cuatro mapas fijos, y eso llenaba la lista de cosas de mapas en los que el jugador no
+    /// estaba: quien quiera seguirlos los marca, y quien quiera solo sus clanes tiene
+    /// [`Self::only_followed`].
     fn default() -> Self {
         Self {
-            ebg: true,
-            blue: true,
-            green: true,
-            red: true,
+            ebg: false,
+            blue: false,
+            green: false,
+            red: false,
             current_map: true,
             followed: true,
             only_followed: false,
@@ -161,26 +166,52 @@ mod tests {
     }
 
     #[test]
-    fn rf19_by_default_everything_is_told() {
+    fn rf19a_by_default_only_my_map_and_the_guilds_i_follow() {
+        // Petición del jugador (2026-11-01): «avisar de» arranca con el mapa en el que estoy y los
+        // clanes que sigo, más las cuatro estructuras. Los mapas fijos vienen **desmarcados**.
         let filter = Filter::default();
         let follow = FollowList::default();
+        assert!(filter.current_map, "el mapa en el que estoy, marcado");
+        assert!(filter.followed, "los clanes que sigo, marcado");
         for role in [
             MapRole::Center,
             MapRole::BlueHome,
             MapRole::GreenHome,
             MapRole::RedHome,
         ] {
+            assert!(!filter.wants_role(role), "{role:?} no se marca por defecto");
             assert!(
-                filter.notify(role, Some("OTRA"), &follow, None, ObjectiveType::Camp),
-                "{role:?} debería avisar por defecto"
+                !filter.notify(role, Some("OTRA"), &follow, None, ObjectiveType::Camp),
+                "sin estar en ese mapa y sin seguir al clan, no avisa: {role:?}"
             );
+        }
+        // Donde sí estoy, avisa.
+        assert!(filter.notify(
+            MapRole::Center,
+            Some("OTRA"),
+            &follow,
+            Some(MapRole::Center),
+            ObjectiveType::Camp
+        ));
+        // Y las cuatro estructuras vienen marcadas.
+        for kind in [
+            ObjectiveType::Camp,
+            ObjectiveType::Tower,
+            ObjectiveType::Keep,
+            ObjectiveType::Castle,
+        ] {
+            assert!(filter.structures.wants(kind), "{kind:?} avisa por defecto");
         }
     }
 
     #[test]
     fn rf19_unticking_a_map_silences_only_that_map() {
+        // Los cuatro mapas marcados a mano: el defecto ya no los trae (RF-19a, 2026-11-01).
         let filter = Filter {
             ebg: false,
+            blue: true,
+            green: true,
+            red: true,
             current_map: false,
             ..Filter::default()
         };
@@ -443,7 +474,7 @@ mod tests {
             MapRole::Center,
             Some("OTRA"),
             &FollowList::default(),
-            None,
+            Some(MapRole::Center),
             ObjectiveType::Unknown
         ));
     }

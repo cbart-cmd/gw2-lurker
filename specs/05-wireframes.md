@@ -49,10 +49,10 @@ muestra el id. La identidad es el **id de equipo**: nombres y colores cambian ca
 │ Ámbito de alertas: ◉ mapa en el que estoy ○ …              │
 │ Avisar de: [x] Campamentos [x] Torres [x] Fortalezas y     │
 │            garris [x] Castillos                           │
-│            [x] Eternos [x] Alpino azul [x] Verde [x] Rojo  │
+│            [ ] Eternos [ ] Alpino azul [ ] Verde [ ] Rojo  │
 │            [x] el mapa en el que estoy [x] clanes que sigo │
 │            [ ] solo los clanes que sigo                    │
-│ Segundos del aviso emergente: [2.0 s]   [x] Avisos activos │
+│ Segundos del aviso emergente: [15.0 s]  [x] Avisos activos │
 │ Widget: líneas [5]  opacidad [85]%  texto [1.0x]          │
 │         [x] Ventana visible   [x] Posición bloqueada       │
 │         (el click-through se pone con clic derecho)        │

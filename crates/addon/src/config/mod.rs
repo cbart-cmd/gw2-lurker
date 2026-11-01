@@ -115,6 +115,12 @@ pub const POLL_SECS_DEFAULT: u32 = 5;
 /// save and the player saw it «lost» after restarting (report of 2026-11-01).
 pub const POPUP_SECS_MAX: f32 = 20.0;
 
+/// Cuánto dura el aviso emergente cuando el jugador no ha tocado nada.
+///
+/// Quince segundos: con 2 se iba antes de que diera tiempo a leerlo en mitad de un fight
+/// (petición del jugador, 2026-11-01).
+pub const POPUP_SECS_DEFAULT: f32 = 15.0;
+
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(default)]
 pub struct Config {
@@ -256,7 +262,7 @@ impl Default for Config {
             poll_secs: POLL_SECS_DEFAULT,
             alert_scope: AlertScope::default(),
             alerts: gw2lurker_core::AlertFilter::default(),
-            popup_secs: 2.0,
+            popup_secs: POPUP_SECS_DEFAULT,
             popup_enabled: true,
             map_tiles: true,
             guild_labels: BTreeMap::new(),

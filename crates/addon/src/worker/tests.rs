@@ -5,6 +5,23 @@
 use super::*;
 use crate::alerts::MAX_ALERTS;
 
+/// Filtro de «todos los mapas», para los tests que no van de filtros.
+///
+/// Desde el 2026-11-01 el defecto solo avisa del **mapa en el que estás** y de los clanes que
+/// sigues; estos tests pasan `current: None` (no se sabe dónde está el jugador), así que piden los
+/// cuatro mapas a propósito para poder mirar lo que de verdad prueban: los `late`, el nombre del
+/// objetivo, etc.
+fn any_map() -> gw2lurker_core::AlertFilter {
+    gw2lurker_core::AlertFilter {
+        ebg: true,
+        blue: true,
+        green: true,
+        red: true,
+        current_map: false,
+        ..gw2lurker_core::AlertFilter::default()
+    }
+}
+
 /// Full data path against the live API: WinHTTP + parse + the core view models.
 /// Ignored by default because CI must not depend on the network.
 #[test]
@@ -96,7 +113,7 @@ fn rf25_a_restart_does_not_show_yesterday() {
         late: false,
     });
 
-    let filter = gw2lurker_core::AlertFilter::default();
+    let filter = any_map();
     let follow = gw2lurker_core::FollowList::new();
     let lines = board.recent_alerts(&filter, &follow, None, 50);
 
@@ -119,7 +136,7 @@ fn rf21_a_followed_guild_is_told_when_the_claim_is_fresh() {
 
     let mut follow = gw2lurker_core::FollowList::new();
     follow.add("1DB147F0");
-    let filter = gw2lurker_core::AlertFilter::default();
+    let filter = any_map();
 
     let lines = board.recent_alerts(&filter, &follow, None, 50);
     assert_eq!(
@@ -147,7 +164,7 @@ fn rf25_a_restart_does_not_refill_the_log_with_yesterdays_claims() {
 
     let mut follow = gw2lurker_core::FollowList::new();
     follow.add("1DB147F0");
-    let filter = gw2lurker_core::AlertFilter::default();
+    let filter = any_map();
     assert!(
         board.recent_alerts(&filter, &follow, None, 50).is_empty(),
         "el registro empieza vacío en cada sesión"
@@ -304,7 +321,7 @@ fn rf38_an_alert_says_which_kind_of_objective_it_is_about() {
     });
 
     let follow = gw2lurker_core::FollowList::new();
-    let lines = board.recent_alerts(&gw2lurker_core::AlertFilter::default(), &follow, None, 50);
+    let lines = board.recent_alerts(&any_map(), &follow, None, 50);
     assert_eq!(lines.len(), 2);
     let known = lines
         .iter()
