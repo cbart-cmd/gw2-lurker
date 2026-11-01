@@ -182,6 +182,27 @@ fn label(names: &BTreeMap<String, String>, id: &str) -> String {
 ///
 /// Puro a propósito: escribir en el índice cuesta leer y reescribir 675 KB, así que aquí solo se
 /// decide **qué** guardar y el hilo se lanza fuera, en la UI.
+/// Añade un clan a los seguidos y guarda el nombre que ya se conoce (RF-20, RF-73).
+///
+/// Lo usan los dos `+` de la interfaz —la lista de la sesión y la lista de clanes—, para que
+/// seguir un clan no deje su nombre sin guardar en `settings.json` ni obligue a pedirlo otra vez.
+pub fn add_followed(
+    follow: &mut FollowList,
+    known: &BTreeMap<String, String>,
+    saved: &mut BTreeMap<String, String>,
+    guild: &str,
+) {
+    // `add` falla si ya se sigue o si la lista está llena: en ninguno de los dos casos hay que
+    // tocar los nombres.
+    if !follow.add(guild) {
+        return;
+    }
+    let learned = remember_name(known, saved, guild);
+    if !learned.is_empty() {
+        crate::names::append_async(learned);
+    }
+}
+
 fn remember_name(
     known: &BTreeMap<String, String>,
     saved: &mut BTreeMap<String, String>,
@@ -230,13 +251,7 @@ fn session_block(
         }
     }
     if let Some(guild) = add {
-        follow.add(&guild);
-        // El nombre que ya se conoce se guarda con el clan (los ajustes solo llevan los seguidos) y
-        // se le enseña al índice, para no tener que volver a pedirlo nunca.
-        let learned = remember_name(known, saved, &guild);
-        if !learned.is_empty() {
-            crate::names::append_async(learned);
-        }
+        add_followed(follow, known, saved, &guild);
     }
 }
 

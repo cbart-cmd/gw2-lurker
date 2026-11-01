@@ -4,15 +4,17 @@
 //! recent claim, and — when one is selected — its history during this session, split between the
 //! map the player is on and the rest.
 //!
-//! The star marks a guild as followed (RF-73): a followed guild raises alerts on every map of
-//! the matchup, which is the point of following one. Nothing here touches the network; the
-//! worker resolves the rows.
+//! Cada fila lleva dos botones, porque clicar la fila no decía qué hacía (petición del jugador,
+//! 2026-11-01): `+` la sigue (RF-73) e `i` enseña su ruta inferida **en el mapa**, que es donde se
+//! dibuja; la ruta ya no se escribe en texto en esta pestaña.
+//!
+//! Nothing here touches the network; the worker resolves the rows.
 
 use std::sync::Mutex;
 
 use gw2lurker_core::matchup::GuildSummary;
 use gw2lurker_core::{FollowList, MapRole};
-use nexus::imgui::Ui;
+use nexus::imgui::{StyleColor, Ui};
 
 use crate::i18n;
 
@@ -25,8 +27,11 @@ static SELECTED: Mutex<Option<String>> = Mutex::new(None);
 /// What the player did in the window this frame.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Action {
-    /// Follow or stop following this guild.
-    ToggleFollow(String),
+    /// `+`: start following the guild (RF-73). Never stops following one: that is the `×` of the
+    /// followed list, which asks first.
+    Follow(String),
+    /// `i`: show its inferred route on the *Map* tab, where it is drawn (RF-32, RF-33).
+    ShowOnMap(String),
 }
 
 fn selected() -> Option<String> {
@@ -96,9 +101,21 @@ pub fn body(
                 let chosen = selected();
                 for summary in guilds {
                     let followed = follow.contains(&summary.guild);
-                    let star = if followed { "*" } else { "-" };
-                    if ui.small_button(format!("{star}###follow{}", summary.guild)) {
-                        action = Some(Action::ToggleFollow(summary.guild.clone()));
+                    // Dos botones por fila, porque clicar la fila no decía qué hacía (petición del
+                    // jugador, 2026-11-01). `+` sigue al clan; si ya se sigue, el `*` es estado y no
+                    // un botón (pulsarlo no hace nada a propósito: quitar se hace con la `×` de la
+                    // lista de seguidos, que pregunta antes). Ocupa lo mismo que el `+`, así que las
+                    // filas no se desalinean.
+                    if followed {
+                        let _dim = ui.push_style_color(StyleColor::Text, [0.55, 0.57, 0.6, 1.0]);
+                        ui.small_button(format!("*###already{}", summary.guild));
+                    } else if ui.small_button(format!("+###add{}", summary.guild)) {
+                        action = Some(Action::Follow(summary.guild.clone()));
+                    }
+                    ui.same_line();
+                    // `i`: la inferencia se ve en el mapa, no en un texto debajo de esta lista.
+                    if ui.small_button(format!("i###info{}", summary.guild)) {
+                        action = Some(Action::ShowOnMap(summary.guild.clone()));
                     }
                     ui.same_line();
 
@@ -160,17 +177,6 @@ pub fn body(
             Some(role) => gw2lurker_core::matchup::split_by_map(&rows, role),
             None => (Vec::new(), rows.clone()),
         };
-        if let Some(route) = gw2lurker_core::build_route(&rows, &chosen) {
-            // ADR-005: the path is inferred from claims, and the window says so.
-            ui.text_disabled(i18n::text(
-                "Route inferred from claims; it is not the real path.",
-            ));
-            ui.text(format!(
-                "{} -> {}",
-                i18n::text(route_reason(route.origin)),
-                route_steps(&route, &rows, i18n::effective())
-            ));
-        }
         draw_group(ui, "Current map", &here);
         draw_group(ui, "Other maps", &elsewhere);
     }
@@ -190,58 +196,6 @@ fn draw_group(ui: &Ui, heading: &'static str, rows: &[gw2lurker_core::matchup::C
     }
 }
 
-/// La ruta en texto, con un **«salto a <mapa>»** cuando los pasos cambian de mapa (RF-35).
-///
-/// La ruta se construye por mapa, así que el salto no está en los pasos: se deduce de los claims,
-/// que sí llevan el mapa en el id del objetivo.
-fn route_steps(
-    route: &gw2lurker_core::Route,
-    rows: &[gw2lurker_core::matchup::ClaimRow],
-    language: gw2lurker_core::i18n::Language,
-) -> String {
-    let mut parts: Vec<String> = Vec::new();
-    let mut map: Option<MapRole> = None;
-    for step in &route.steps {
-        let step_map = rows
-            .iter()
-            .find(|row| row.objective_id == step.objective_id)
-            .map(|row| row.map_role);
-        if let Some(role) = step_map {
-            if map.is_some_and(|previous| previous != role) {
-                parts.push(gw2lurker_core::i18n::f(
-                    language,
-                    "jump to {0}",
-                    &[map_label_in(role, language)],
-                ));
-            }
-            map = Some(role);
-        }
-        parts.push(step.name.clone());
-    }
-    parts.join(" -> ")
-}
-
-fn route_reason(origin: gw2lurker_core::RouteOrigin) -> &'static str {
-    match origin {
-        gw2lurker_core::RouteOrigin::Garrison => "from their keep",
-        gw2lurker_core::RouteOrigin::SideKeep => "from their side keep",
-        gw2lurker_core::RouteOrigin::Spawn => "from the spawn point",
-    }
-}
-
-/// Nombre del mapa en el idioma que se pase: las pruebas no pueden leer el idioma activo, porque
-/// eso pasa por la API de Nexus y revienta fuera del juego.
-fn map_label_in(role: MapRole, language: gw2lurker_core::i18n::Language) -> &'static str {
-    use gw2lurker_core::i18n::t;
-    match role {
-        MapRole::Center => t(language, "Eternals"),
-        MapRole::BlueHome => t(language, "Blue alpine"),
-        MapRole::GreenHome => t(language, "Green alpine"),
-        MapRole::RedHome => t(language, "Red desert"),
-        MapRole::Unknown => t(language, "Unknown map"),
-    }
-}
-
 fn map_label(role: MapRole) -> &'static str {
     match role {
         MapRole::Center => i18n::text("Eternals"),
@@ -255,50 +209,6 @@ fn map_label(role: MapRole) -> &'static str {
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    #[test]
-    fn rf35_a_route_that_crosses_maps_says_jump_to() {
-        // Tres pasos, el último en otro mapa: entre el segundo y el tercero tiene que aparecer el
-        // salto (RF-35).
-        let row = |objective_id: &str, role: MapRole| gw2lurker_core::matchup::ClaimRow {
-            map_id: 38,
-            map_role: role,
-            objective_id: objective_id.to_owned(),
-            name: None,
-            kind: gw2lurker_core::ObjectiveType::Tower,
-            owner: None,
-            guild: "AAAA".to_owned(),
-            claimed_at: None,
-            points_tick: 0,
-        };
-        let rows = vec![
-            row("38-10", MapRole::Center),
-            row("38-20", MapRole::Center),
-            row("96-30", MapRole::BlueHome),
-        ];
-        let step = |id: &str| gw2lurker_core::route::Step {
-            name: id.to_owned(),
-            objective_id: id.to_owned(),
-            at: None,
-        };
-        let route = gw2lurker_core::Route {
-            origin: gw2lurker_core::RouteOrigin::Spawn,
-            steps: vec![step("38-10"), step("38-20"), step("96-30")],
-        };
-
-        let text = route_steps(&route, &rows, gw2lurker_core::i18n::Language::Es);
-        assert_eq!(text.matches("38-10").count(), 1, "{text}");
-        assert!(
-            text.contains("salto a"),
-            "el cambio de mapa se anuncia: {text}"
-        );
-        let jump = text.find("salto a").expect("hay salto");
-        assert!(
-            jump > text.find("38-20").expect("paso 2")
-                && jump < text.find("96-30").expect("paso 3"),
-            "el salto va entre los dos pasos: {text}"
-        );
-    }
 
     #[test]
     fn rf72_the_selection_survives_a_frame_and_can_be_cleared() {

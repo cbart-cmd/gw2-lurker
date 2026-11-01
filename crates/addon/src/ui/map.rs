@@ -21,6 +21,9 @@ mod route;
 
 use route::{draw_route, playback_control, range_choice, RouteCanvas};
 
+/// La ruta inferida en texto, que se pinta junto al mapa (RF-33, RF-35).
+pub(crate) use route::summary;
+
 /// Translation key (and stable id) of this tab.
 pub const KEY: &str = "Map";
 

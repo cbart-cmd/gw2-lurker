@@ -3,6 +3,8 @@
 //! Aparte de `map.rs` para que ese fichero quepa en el límite de 800 líneas (AGENTS.md §2.7):
 //! el mapa dibuja el tablero y los objetivos; esto, el camino que se deduce de sus reclamos.
 
+use gw2lurker_core::i18n::t;
+
 use super::*;
 
 /// Time window of the route, in minutes; `None` is the whole session (T-16).
@@ -167,6 +169,75 @@ pub(super) fn playback_control(ui: &Ui, steps: usize) -> Option<usize> {
             ui.text_disabled(format!("{:.0} %", fraction * 100.0));
             Some(gw2lurker_core::route::visible_steps(steps, fraction))
         }
+    }
+}
+
+/// Resumen en texto de la ruta inferida, para ponerlo **al lado del mapa** (RF-32, RF-33, RF-35).
+///
+/// Vivía debajo de la lista de clanes y el jugador no sabía qué hacía clicar una fila (petición del
+/// 2026-11-01): ahora la ruta se dibuja en el mapa y aquí queda solo la línea que la explica,
+/// incluido el «salto a <mapa>» cuando sigue en otro mapa.
+pub(crate) fn summary(
+    rows: &[ClaimRow],
+    guild: &str,
+    language: gw2lurker_core::i18n::Language,
+) -> Option<String> {
+    let route = gw2lurker_core::build_route(rows, guild)?;
+    Some(format!(
+        "{} -> {}",
+        t(language, route_reason(route.origin)),
+        route_steps(&route, rows, language)
+    ))
+}
+
+/// La ruta en texto, con un **«salto a <mapa>»** cuando los pasos cambian de mapa (RF-35).
+///
+/// La ruta se construye por mapa, así que el salto no está en los pasos: se deduce de los claims,
+/// que sí llevan el mapa en el id del objetivo.
+pub(super) fn route_steps(
+    route: &gw2lurker_core::Route,
+    rows: &[ClaimRow],
+    language: gw2lurker_core::i18n::Language,
+) -> String {
+    let mut parts: Vec<String> = Vec::new();
+    let mut map: Option<MapRole> = None;
+    for step in &route.steps {
+        let step_map = rows
+            .iter()
+            .find(|row| row.objective_id == step.objective_id)
+            .map(|row| row.map_role);
+        if let Some(role) = step_map {
+            if map.is_some_and(|previous| previous != role) {
+                parts.push(gw2lurker_core::i18n::f(
+                    language,
+                    "jump to {0}",
+                    &[map_label_in(role, language)],
+                ));
+            }
+            map = Some(role);
+        }
+        parts.push(step.name.clone());
+    }
+    parts.join(" -> ")
+}
+
+pub(super) fn route_reason(origin: gw2lurker_core::RouteOrigin) -> &'static str {
+    match origin {
+        gw2lurker_core::RouteOrigin::Garrison => "from their keep",
+        gw2lurker_core::RouteOrigin::SideKeep => "from their side keep",
+        gw2lurker_core::RouteOrigin::Spawn => "from the spawn point",
+    }
+}
+
+/// Nombre del mapa en el idioma que se pase: las pruebas no pueden leer el idioma activo, porque
+/// eso pasa por la API de Nexus y revienta fuera del juego.
+fn map_label_in(role: MapRole, language: gw2lurker_core::i18n::Language) -> &'static str {
+    match role {
+        MapRole::Center => t(language, "Eternals"),
+        MapRole::BlueHome => t(language, "Blue alpine"),
+        MapRole::GreenHome => t(language, "Green alpine"),
+        MapRole::RedHome => t(language, "Red desert"),
+        MapRole::Unknown => t(language, "Unknown map"),
     }
 }
 

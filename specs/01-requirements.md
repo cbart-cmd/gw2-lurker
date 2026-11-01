@@ -193,8 +193,10 @@ El click-through **no tiene casilla en los ajustes** (se quitó el 2026-11-01: e
 **RF-70 (M)** El addon ofrecerá una vista **"Claims del matchup"** con lo reclamado en **los cuatro mapas** del match, agrupado por mapa y con filtros por tipo y por equipo. Cada fila muestra objetivo, guild (tag), dueño y antigüedad del claim.
 - GWT: *Given* el match `2-2` con 41 claims, *When* se abre la vista, *Then* aparecen los 41 agrupados por mapa, incluidos los de mapas donde no está el jugador.
 
-**RF-71 (M)** El addon mostrará una **lista de guilds con claim** ordenada por el claim **más reciente** primero, con el número de objetivos que tienen, el mapa del último claim y su hora. Un clic selecciona la guild (RF-72).
+**RF-71 (M)** El addon mostrará una **lista de guilds con claim** ordenada por el claim **más reciente** primero, con el número de objetivos que tienen, el mapa del último claim y su hora. Un clic selecciona la guild (RF-72). Cada fila lleva además dos botones, porque clicar la fila no decía qué hacía (petición del jugador, 2026-11-01): `+` para **seguir** la guild (RF-73), que solo aparece si no se sigue ya, e `i` para ver su **ruta inferida en la pestaña *Mapa*** (RF-32, RF-33), donde se dibuja. La ruta **no** se escribe en texto en esta pestaña; el resumen en texto y el «salto a `<mapa>`» de RF-35 viven junto al dibujo del mapa.
 - GWT: *Given* una guild con 5 claims antiguos y otra con 1 claim de hace 30 s, *When* se abre la lista, *Then* la segunda aparece primera.
+- GWT: *Given* una guild de la lista que no se sigue, *When* se pulsa `+`, *Then* pasa a seguida, su nombre se guarda en `settings.json` y en la lista de seguidos aparece con su `×`; si ya se seguía, la fila enseña `*` en el sitio del `+` y no hay botón que quite desde aquí.
+- GWT: *Given* una guild con reclamos en la sesión, *When* se pulsa `i`, *Then* se abre la pestaña *Mapa* en el último mapa donde reclamó, con su ruta dibujada y el resumen debajo.
 
 **RF-72 (M)** Al seleccionar una guild se verá su **historial**, separando lo reclamado en el mapa en el que está el jugador **ahora** de lo reclamado en los **demás mapas**, con el rango temporal de RF-32.
 

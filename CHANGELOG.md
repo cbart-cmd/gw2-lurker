@@ -1,6 +1,17 @@
 # Changelog
 Formato [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/), versionado [SemVer](https://semver.org/lang/es/).
 
+## [0.25.14] - 2026-11-01
+### Cambiado
+- **La lista de clanes del widget lleva dos botones por fila** (petición del jugador): `+` para seguir
+  el clan —solo aparece si no lo sigues ya— e `i` para ver su ruta. Clicar la fila no decía qué hacía:
+  ahora cada acción tiene su botón, y clicar la fila sigue enseñando el historial (RF-72).
+- **La ruta inferida ya no se escribe en texto debajo de la lista**: `i` lleva el mapa al último sitio
+  donde reclamó el clan y allí está el dibujo. El resumen en texto («desde su fortaleza -> A -> salto a
+  X -> B», con el salto de mapa de RF-35) se pinta junto al mapa, no en la pestaña *Clanes*.
+- Si ya sigues al clan, en el sitio del `+` aparece `*`: es estado, no un botón. Quitar se hace con la
+  `×` de la lista de seguidos, que pregunta antes.
+
 ## [0.25.13] - 2026-11-01
 ### Arreglado
 - **El mapa pintaba «sin reclamar» objetivos que sí tenían dueño** (informe del jugador): el color de

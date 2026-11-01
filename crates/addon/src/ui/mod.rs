@@ -401,11 +401,16 @@ fn draw_tabs(
                         &mut map_choice(),
                         data.current,
                     );
-                    if !history.is_empty() {
-                        // ADR-005: la ruta es una deducción, y se dice siempre.
-                        ui.text_disabled(i18n::text(
-                            "Route inferred from claims; it is not the real path.",
-                        ));
+                    if let Some(guild) = selected.as_deref() {
+                        // ADR-005: la ruta es una deducción y se dice siempre; RF-35: si sigue en
+                        // otro mapa, el resumen lo anuncia. Va aquí, junto al dibujo, porque la
+                        // pestaña *Clanes* ya no la escribe (petición del jugador, 2026-11-01).
+                        if let Some(summary) = map::summary(&history, guild, i18n::effective()) {
+                            ui.text_disabled(i18n::text(
+                                "Route inferred from claims; it is not the real path.",
+                            ));
+                            ui.text(summary);
+                        }
                     }
                     // The list is the same data as the map, one click away: during a fight the
                     // text is faster to read than the picture.
@@ -443,7 +448,7 @@ fn draw_tabs(
                         &session,
                     );
                     ui.separator();
-                    if let Some(guilds::Action::ToggleFollow(guild)) = guilds::body(
+                    match guilds::body(
                         ui,
                         data.guilds,
                         data.names,
@@ -452,7 +457,15 @@ fn draw_tabs(
                         data.current,
                         |guild| crate::worker::dashboard().guild_history(guild),
                     ) {
-                        config.followed.toggle(&guild);
+                        Some(guilds::Action::Follow(guild)) => follow::add_followed(
+                            &mut config.followed,
+                            data.names,
+                            &mut config.guild_names,
+                            &guild,
+                        ),
+                        // `i`: la ruta se dibuja en el mapa, con el resto de la inferencia.
+                        Some(guilds::Action::ShowOnMap(guild)) => clicked = Some(guild),
+                        None => {}
                     }
                 }
                 3 => {

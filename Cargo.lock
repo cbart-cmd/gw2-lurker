@@ -225,7 +225,7 @@ dependencies = [
 
 [[package]]
 name = "gw2lurker-addon"
-version = "0.25.13"
+version = "0.25.14"
 dependencies = [
  "chrono",
  "gw2lurker-api",
@@ -239,7 +239,7 @@ dependencies = [
 
 [[package]]
 name = "gw2lurker-api"
-version = "0.25.13"
+version = "0.25.14"
 dependencies = [
  "gw2lurker-core",
  "serde",
@@ -248,7 +248,7 @@ dependencies = [
 
 [[package]]
 name = "gw2lurker-core"
-version = "0.25.13"
+version = "0.25.14"
 dependencies = [
  "chrono",
  "serde",

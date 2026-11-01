@@ -13,6 +13,28 @@ Reglas:
 
 ---
 
+## HECHO – 2026-11-01 · Lista de clanes: `+` para seguir e `i` para ver la ruta en el mapa (0.25.14)
+
+- Petición del jugador: en la pestaña *Clanes*, la lista ordenada por reclamo no decía qué hacía
+  clicar una fila. Quiere dos botones: `+` (seguir, si no lo está ya) e `i` (información), y que la
+  inferencia se vea **en el mapa** y no en texto debajo de la lista.
+- `guilds::Action` pasa de `ToggleFollow` a `Follow` (solo añade; quitar es la `×` de la lista de
+  seguidos, que pregunta antes) y `ShowOnMap`, que reutiliza el camino que ya existía: seleccionar el
+  clan, llevar el mapa al último donde reclamó y saltar a la pestaña *Mapa*.
+- Si ya se sigue, en el sitio del `+` va un `*` atenuado: ocupa lo mismo (filas alineadas) y pulsarlo
+  no hace nada a propósito.
+- **La ruta en texto se muda**: `route_steps` y `route_reason` salen de `ui/guilds.rs` a
+  `ui/map/route.rs`, con `summary(rows, guild, language)`; la pestaña *Mapa* pinta el resumen debajo
+  del dibujo. RF-35 («salto a `<mapa>`») sigue cubierto y su test se ha movido a `ui/map/tests.rs`,
+  junto al de `summary`. `map.rs` reexporta `summary` como `pub(crate)` para no engordar el fichero
+  (está en 755 líneas).
+- Nuevo `follow::add_followed`, que usan los dos `+` de la interfaz (lista de la sesión y lista de
+  clanes): añade, guarda el nombre conocido en `settings.json` y se lo enseña al índice. Si el clan ya
+  se seguía o la lista está llena, no toca nada.
+- Spec: RF-71 con los dos botones y tres GWT nuevos. `bugs.md`: **el jugador había vaciado el
+  fichero** (solo quedaba la cabecera); no se ha restaurado nada de git y solo se ha añadido la
+  entrada de hoy.
+
 ## HECHO – 2026-11-01 · `bugs.md` como fichero compartido (regla nueva)
 
 - Petición del jugador: si él borra filas de `bugs.md`, es cosa suya y **no se restauran**; lo que no se

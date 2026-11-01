@@ -3,6 +3,7 @@
 //! Kept out of `map.rs` so the tab stays under the 800-line limit (AGENTS.md §2.7).
 
 use super::route::heading;
+use super::route::route_steps;
 use super::*;
 
 #[test]
@@ -230,4 +231,89 @@ fn rf31_the_guild_menu_is_the_followed_ones_and_then_the_latest_five() {
 fn rf31_the_guild_menu_without_anything_to_offer_is_empty() {
     let choices = guild_choices(&FollowList::default(), &[], GUILDS_IN_MENU);
     assert!(choices.is_empty(), "{choices:?}");
+}
+
+#[test]
+fn rf35_a_route_that_crosses_maps_says_jump_to() {
+    // Tres pasos, el último en otro mapa: entre el segundo y el tercero tiene que aparecer el
+    // salto (RF-35). El resumen se pinta ahora junto al mapa y no debajo de la lista de clanes
+    // (petición del jugador, 2026-11-01), así que el test vive aquí.
+    let row = |objective_id: &str, role: MapRole| ClaimRow {
+        map_id: 38,
+        map_role: role,
+        objective_id: objective_id.to_owned(),
+        name: None,
+        kind: ObjectiveType::Tower,
+        owner: None,
+        guild: "AAAA".to_owned(),
+        claimed_at: None,
+        points_tick: 0,
+    };
+    let rows = vec![
+        row("38-10", MapRole::Center),
+        row("38-20", MapRole::Center),
+        row("96-30", MapRole::BlueHome),
+    ];
+    let step = |id: &str| gw2lurker_core::route::Step {
+        name: id.to_owned(),
+        objective_id: id.to_owned(),
+        at: None,
+    };
+    let route = gw2lurker_core::Route {
+        origin: gw2lurker_core::RouteOrigin::Spawn,
+        steps: vec![step("38-10"), step("38-20"), step("96-30")],
+    };
+
+    let text = route_steps(&route, &rows, gw2lurker_core::i18n::Language::Es);
+    assert_eq!(text.matches("38-10").count(), 1, "{text}");
+    assert!(
+        text.contains("salto a"),
+        "el cambio de mapa se anuncia: {text}"
+    );
+    let jump = text.find("salto a").expect("hay salto");
+    assert!(
+        jump > text.find("38-20").expect("paso 2") && jump < text.find("96-30").expect("paso 3"),
+        "el salto va entre los dos pasos: {text}"
+    );
+}
+
+#[test]
+fn rf32_the_route_summary_says_the_origin_and_the_steps() {
+    // La línea que acompaña al dibujo empieza por el origen inferido y sigue con los pasos
+    // (ADR-005): es la única forma de leer la ruta sin adivinar por qué empieza donde empieza.
+    let row = |objective_id: &str, at: &str| ClaimRow {
+        map_id: 38,
+        map_role: MapRole::Center,
+        objective_id: objective_id.to_owned(),
+        name: Some(objective_id.to_owned()),
+        kind: ObjectiveType::Camp,
+        owner: None,
+        guild: "AAAA".to_owned(),
+        claimed_at: Some(
+            chrono::DateTime::parse_from_rfc3339(at)
+                .expect("fecha")
+                .with_timezone(&chrono::Utc),
+        ),
+        points_tick: 2,
+    };
+    let rows = vec![
+        row("38-1", "2026-11-01T10:00:00Z"),
+        row("38-2", "2026-11-01T10:05:00Z"),
+    ];
+
+    use gw2lurker_core::i18n::{t, Language};
+    assert_eq!(
+        summary(&[], "AAAA", Language::Es),
+        None,
+        "sin reclamos no hay ruta que contar"
+    );
+    let line = summary(&rows, "AAAA", Language::Es).expect("hay ruta");
+    assert_eq!(
+        line,
+        format!(
+            "{} -> 38-1 -> 38-2",
+            t(Language::Es, "from the spawn point")
+        ),
+        "origen inferido y pasos en orden temporal"
+    );
 }
