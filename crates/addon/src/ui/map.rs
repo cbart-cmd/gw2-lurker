@@ -502,7 +502,7 @@ fn detail_line(
             .cloned()
             .unwrap_or_else(|| row.guild.clone());
         parts.push(if follow.contains(&row.guild) {
-            format!("★ {name}")
+            format!("* {name}")
         } else {
             name
         });

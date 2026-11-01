@@ -393,12 +393,12 @@ pub const TEXT: &[(&str, [&str; COLUMNS])] = &[
         ],
     ),
     (
-        "Downloading the index…",
+        "Downloading the index...",
         [
-            "Descargando el índice…",
-            "Downloading the index…",
-            "Téléchargement de l'index…",
-            "Index wird geladen…",
+            "Descargando el índice...",
+            "Downloading the index...",
+            "Téléchargement de l'index...",
+            "Index wird geladen...",
         ],
     ),
     (
@@ -477,7 +477,7 @@ pub const TEXT: &[(&str, [&str; COLUMNS])] = &[
             "Beim Start des Addons bereits beansprucht",
         ],
     ),
-    ("{0}: {1} → {2}", ["{0}: {1} → {2}", "{0}: {1} → {2}", "{0} : {1} → {2}", "{0}: {1} → {2}"]),
+    ("{0}: {1} -> {2}", ["{0}: {1} -> {2}", "{0}: {1} -> {2}", "{0} : {1} -> {2}", "{0}: {1} -> {2}"]),
     (
         "{0} claimed by {1}",
         [

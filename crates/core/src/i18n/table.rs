@@ -20,8 +20,8 @@ pub const TEXT: &[(&str, [&str; COLUMNS])] = &[
         ["WvW Lurker", "WvW Lurker", "WvW Lurker", "WvW Lurker"],
     ),
     (
-        "Loading…",
-        ["Cargando…", "Loading…", "Chargement…", "Wird geladen…"],
+        "Loading...",
+        ["Cargando...", "Loading...", "Chargement...", "Wird geladen..."],
     ),
     (
         "Map {0} (type {1})",
@@ -281,7 +281,7 @@ pub const TEXT: &[(&str, [&str; COLUMNS])] = &[
             "La API busca una palabra por prefijo: «Raven», no «avenous».",
             "The API searches one word by prefix: «Raven», not «avenous».",
             "L'API cherche un mot par préfixe : « Raven », pas « avenous ».",
-            "Die API sucht ein Wort als Präfix: „Raven“, nicht „avenous“.",
+            "Die API sucht ein Wort als Präfix: «Raven», nicht «avenous».",
         ],
     ),
     (
@@ -293,7 +293,7 @@ pub const TEXT: &[(&str, [&str; COLUMNS])] = &[
             "Teil des Namens eingeben und suchen.",
         ],
     ),
-    ("Searching…", ["Buscando…", "Searching…", "Recherche…", "Suche läuft…"]),
+    ("Searching...", ["Buscando...", "Searching...", "Recherche...", "Suche läuft..."]),
     (
         "Search failed: {0}",
         ["La búsqueda falló: {0}", "Search failed: {0}", "Échec de la recherche : {0}", "Suche fehlgeschlagen: {0}"],

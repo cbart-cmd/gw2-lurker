@@ -170,3 +170,22 @@ ejemplo, pongo europa y busco dolyak  y dice uqe no existe. pero sí exxiste, es
   el resto de `ui/mod.rs`: las demás llamadas a `crate::runtime()` están **fuera** del candado
   (callbacks del menú, pestaña «Clanes» y `draw_openers`).
 - **Pendiente:** que el jugador confirme que ya no se cuelga al abrir el widget con la 0.24.2.
+
+## [ ] no coge nombre de clan al añadir
+busco clan, lo encuentro, clico para añadir en el bastion, y en vez de guardar id + nobmre y mostrar el nombre, guarda el id y hasta que no llegas a uin mapa de verdad y pasan unos segundos no vbusca le nombre. el comportamiento debe ser el mismo en cuakquier mapa, si añado un clan se guarda id + nombre y SIEMPRE en todas partes SE MUETERA EL NOMBRE DEL CLAN y no el id
+![alt text](image.png)
+## [x] un «?» en los avisos en lugar de una flecha (2026-11-01)
+«en la ventana de avisos, a veces pone un “?” que creo que quería ser una flecha o similares. pasa en varios avisos»
+- **Causa (0.25.2):** el atlas de fuentes de Nexus solo trae latín básico y latino-1. La línea del
+  cambio de dueño usaba la flecha Unicode U+2192, así que **todas** las de tipo *flip* enseñaban «?»
+  donde iba la flecha. En el mismo caso estaban los puntos suspensivos tipográficos (Buscando… /
+  Descargando el índice…), las estrellas de la pestaña Clanes y las comillas alemanas „ “. Se
+  comprobó que sí se dibujan `·` y `×` (latino-1), que acota el problema a lo que queda fuera de
+  latino-1.
+- **Hecho (0.25.2):** las flechas pasan a `->`, los puntos suspensivos a `...`, las estrellas a
+  `*`/`-` y las comillas alemanas a « », y el «estás aquí» del mapa actual se dice con la clave
+  `you are here` en vez de una flecha. Nuevo test `rf44_the_table_stays_inside_latin_1`: falla si
+  alguien mete en la tabla de textos un carácter fuera de latino-1, para que no vuelva.
+- **Pendiente:** verlo en el juego. Los nombres de clan que devuelve el API sí pueden traer cirílico
+  o emoji: esos seguirán saliendo como «?» porque no hay glifo en la fuente, y el addon no puede
+  añadir un atlas propio sin meter una fuente en la DLL.

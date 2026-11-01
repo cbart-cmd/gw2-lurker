@@ -13,6 +13,22 @@ Reglas:
 
 ---
 
+## HECHO – 2026-11-01 · El «?» de la ventana de avisos: glifos fuera de latino-1 (0.25.2)
+
+- El jugador vio un «?» donde iba una flecha en algunas líneas de aviso. No era un fallo de datos:
+  el atlas de fuentes de Nexus solo trae latín básico y latino-1, así que `→` (U+2192) se dibuja como
+  «?». Lo delata que `·` (U+00B7) y `×` (U+00D7), que el addon ya usaba, sí se ven: el corte está
+  exactamente en latino-1.
+- Afectaba a todo lo que quedaba fuera: flechas de los avisos y de la ruta (`→`, `←`), puntos
+  suspensivos tipográficos (`…` en «Buscando…» y «Descargando el índice…»), estrellas de la pestaña
+  Clanes (`★`/`☆`) y las comillas alemanas (`„ “`) de una ayuda del buscador.
+- Arreglo: `->`, `<-`→ texto «estás aquí», `...`, `*`/`-`, « ». Y un **test de invariante**
+  (`rf44_the_table_stays_inside_latin_1`) que recorre toda la tabla de textos y falla con cualquier
+  carácter por encima de U+00FF: es la forma de que esto no vuelva en la siguiente clave que alguien
+  escriba.
+- Límite conocido: los nombres de clan vienen del API y pueden traer cirílico o emoji; esos seguirán
+  saliendo como «?» salvo que metamos una fuente propia en la DLL (descartado por tamaño, §2.9).
+- Verificación: 245 tests, clippy/fmt limpios.
 ## HECHO – 2026-11-01 · Cuelgue mío (0.24.2), avisos solo de estructuras y el índice fuera de memoria (0.25.0)
 
 - **0.24.2 — el cuelgue del jugador a las 00:40 era mío.** El aviso naranja de «partida congelada»

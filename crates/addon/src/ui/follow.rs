@@ -270,7 +270,7 @@ fn search_block(
             ));
         }
         crate::search::State::Searching => {
-            ui.text_disabled(i18n::text("Searching…"));
+            ui.text_disabled(i18n::text("Searching..."));
         }
         crate::search::State::Failed(error) => {
             ui.text_disabled(i18n::format("Search failed: {0}", &[&error]));
@@ -293,7 +293,7 @@ fn search_block(
             }
             for hit in hits.iter() {
                 // La estrella marca lo que sigues.
-                let star = if follow.contains(&hit.id) { "★ " } else { "" };
+                let star = if follow.contains(&hit.id) { "* " } else { "" };
                 let text = match hit.team {
                     Some(team) => format!(
                         "{star}{}  ·  {}###hit{}",

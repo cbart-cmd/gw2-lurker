@@ -471,7 +471,7 @@ fn draw_guild_index(ui: &Ui, edits: &mut Edits) {
             }
         }
         crate::guild_index::Status::Downloading => {
-            ui.text_disabled(i18n::text("Downloading the index…"));
+            ui.text_disabled(i18n::text("Downloading the index..."));
         }
         crate::guild_index::Status::Done(count) => {
             ui.text_disabled(i18n::format(

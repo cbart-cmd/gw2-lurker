@@ -96,7 +96,7 @@ pub fn body(
                 let chosen = selected();
                 for summary in guilds {
                     let followed = follow.contains(&summary.guild);
-                    let star = if followed { "★" } else { "☆" };
+                    let star = if followed { "*" } else { "-" };
                     if ui.small_button(format!("{star}###follow{}", summary.guild)) {
                         action = Some(Action::ToggleFollow(summary.guild.clone()));
                     }
@@ -105,7 +105,7 @@ pub fn body(
                     let when = summary.last_at.map(crate::clock::clock).unwrap_or_default();
                     let here = match summary.last_map {
                         Some((_, role)) if Some(role) == current => {
-                            format!(" ← {}", map_label(role))
+                            format!("  ·  {} ({})", map_label(role), i18n::text("you are here"))
                         }
                         Some((_, role)) => format!(" · {}", map_label(role)),
                         None => String::new(),
@@ -166,7 +166,7 @@ pub fn body(
                 "Route inferred from claims; it is not the real path.",
             ));
             ui.text(format!(
-                "{} → {}",
+                "{} -> {}",
                 i18n::text(route_reason(route.origin)),
                 route_steps(&route, &rows, i18n::effective())
             ));
@@ -218,7 +218,7 @@ fn route_steps(
         }
         parts.push(step.name.clone());
     }
-    parts.join(" → ")
+    parts.join(" -> ")
 }
 
 fn route_reason(origin: gw2lurker_core::RouteOrigin) -> &'static str {

@@ -7,3 +7,4 @@
 .vscode/
 *.log
 /data/guild-names.json
+image*.png

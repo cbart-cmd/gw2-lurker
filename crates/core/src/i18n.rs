@@ -164,6 +164,29 @@ mod tests {
     }
 
     #[test]
+    fn rf44_the_table_stays_inside_latin_1() {
+        // El atlas de fuentes de Nexus trae latín básico y latino-1, y nada más: una flecha
+        // (`→`), un punto suspensivo (`…`) o una estrella (`★`) se dibujan como «?». El jugador
+        // lo vio en la ventana de avisos el 2026-11-01 («a veces pone un ? que creía que era una
+        // flecha»), así que la tabla se queda en ASCII + latino-1 y esto lo impide volver.
+        let latin1 = |text: &str| text.chars().all(|character| character <= '\u{00ff}');
+        for (key, cells) in entries() {
+            assert!(
+                latin1(key),
+                "la clave «{key}» tiene un carácter fuera de latino-1"
+            );
+            for language in Language::ALL {
+                let cell = cells[language.index()];
+                assert!(
+                    latin1(cell),
+                    "«{cell}» ({}) tiene un carácter fuera de latino-1",
+                    language.code()
+                );
+            }
+        }
+    }
+
+    #[test]
     fn rf44_keys_are_unique() {
         let all: Vec<(&str, [&str; COLUMNS])> = entries().collect();
         for index in 0..all.len() {

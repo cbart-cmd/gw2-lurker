@@ -313,7 +313,10 @@ fn spans(line: &AlertLine, language: gw2lurker_core::i18n::Language) -> Vec<(Str
                 )),
                 None => out.push((t(language, "Unclaimed").to_owned(), GREY)),
             }
-            out.push((" → ".to_owned(), GREY));
+            // ASCII a propósito: el atlas de fuentes de Nexus solo trae latín básico y
+            // latino-1, así que una flecha Unicode (`→`) se dibuja como «?» (informe del
+            // jugador, 2026-11-01: «a veces pone un ? que creía que era una flecha»).
+            out.push((" -> ".to_owned(), GREY));
             match line.to {
                 Some(colour) => out.push((
                     colour_label(colour, language).to_owned(),
@@ -524,7 +527,7 @@ mod tests {
     fn rf19_a_flip_names_both_colours() {
         let text = text_of(&line(AlertKind::Flip, Some(TeamColor::Blue), None));
         assert!(text.contains("Zanja de Mendon"), "{text}");
-        assert!(text.contains('→'), "se ve de quién a quién: {text}");
+        assert!(text.contains("->"), "se ve de quién a quién: {text}");
         assert_eq!(text.matches("Azul").count(), 1, "azul es el nuevo dueño");
     }
 
