@@ -622,7 +622,10 @@ fn draw_health(ui: &nexus::imgui::Ui, config: &mut crate::config::Config, data: 
                 .num_minutes()
                 .max(0);
             if minutes >= 5 {
-                let secs = crate::runtime().poll_secs.to_string();
+                // Del `config` que ya tiene el candado, **nunca** de `crate::runtime()`: pedirlo
+                // aquí volvía a bloquear el mismo mutex no reentrante y congelaba el juego
+                // (crash del jugador, 2026-11-01 00:40; es el mismo fallo del 2026-10-31).
+                let secs = config.poll_secs.to_string();
                 let _tint =
                     ui.push_style_color(nexus::imgui::StyleColor::Text, [1.0, 0.75, 0.3, 1.0]);
                 ui.text_wrapped(i18n::format(

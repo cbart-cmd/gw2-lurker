@@ -1,8 +1,15 @@
 # Changelog
 Formato [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/), versionado [SemVer](https://semver.org/lang/es/).
 
-## [0.24.1] - 2026-11-01
-### Añadido
+## [0.24.2] - 2026-11-01
+### Corregido
+- **Cuelgue del juego al abrir el widget** (crash del jugador, 00:40). El aviso de «partida
+  congelada» de la 0.24.1 pedía el candado de la configuración dentro de una función que **ya lo
+  tenía**: `std::sync::Mutex` no es reentrante y el hilo de render se quedaba esperándose a sí
+  mismo. Ahora lee el intervalo de la configuración que ya trae la función. Es el mismo fallo que
+  congeló el juego el 2026-10-31, esta vez dentro de `draw_health`.
+
+## [0.24.1] - 2026-11-01### Añadido
 - **Aviso de partida congelada**: cuando la API de ArenaNet repite la misma copia de la partida
   durante 5 minutos o más, el widget lo dice en naranja con los minutos y el intervalo de sondeo.
   El 2026-11-01 la partida `1-1` devolvió durante **20 minutos** exactamente los mismos puntos y
