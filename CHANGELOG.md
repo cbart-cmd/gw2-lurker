@@ -1,6 +1,11 @@
 # Changelog
 Formato [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/), versionado [SemVer](https://semver.org/lang/es/).
 
+## [0.25.1] - 2026-11-01
+### Cambiado
+- El buscador de clanes pone **primero los nombres que empiezan** por lo escrito (sin contar el
+  [TAG]): con «DIE» salen antes *Die Gäng*, *Die Wiener* o *Die Garde* que *Never Die*.
+
 ## [0.25.0] - 2026-11-01
 ### Añadido
 - **Avisos solo de estructuras** (RF-19e): casillas para campamentos, torres, fortalezas/garitas y

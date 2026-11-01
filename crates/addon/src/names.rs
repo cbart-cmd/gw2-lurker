@@ -91,10 +91,21 @@ pub fn search_in(
         .filter(|(id, label)| matches_text(label, id, &needle))
         .map(|(id, label)| (id.clone(), label.clone()))
         .collect();
-    // Los más cortos primero: quien busca «die» quiere *Die Garde*, no un nombre de 40 letras.
-    out.sort_by_key(|(id, label)| (label.len(), id.clone()));
+    // Primero los que **empiezan** por lo escrito (sin contar el `[TAG]`), y entre ellos los más
+    // cortos: quien busca «die» quiere *Die Gäng* y *Die Garde* antes que *Never Die*
+    // (2026-11-01). Después el resto por longitud, que sigue siendo más útil que el orden del id.
+    out.sort_by_key(|(id, label)| (!starts_with_needle(label, &needle), label.len(), id.clone()));
     out.truncate(limit);
     out
+}
+
+/// Whether the name (not the tag) begins with what the player typed.
+fn starts_with_needle(label: &str, needle: &str) -> bool {
+    let name = match label.split_once("] ") {
+        Some((_, name)) => name,
+        None => label,
+    };
+    name.to_lowercase().starts_with(needle)
 }
 
 /// Whether an entry matches what the player typed. Pure, so the rule can be tested.
@@ -203,6 +214,28 @@ mod tests {
         assert_eq!(
             labels[0], "[DG] Die Garde",
             "primero el nombre más corto: {labels:?}"
+        );
+    }
+
+    #[test]
+    fn t44_names_that_start_with_the_text_come_before_the_rest() {
+        // Con «die» el jugador quiere *Die …* delante de *Never Die*, aunque el otro sea más corto.
+        let mut names = BTreeMap::new();
+        names.insert("A".into(), "[ND] Never Die".into());
+        names.insert("B".into(), "[GÄNG] Die Gäng".into());
+        names.insert("C".into(), "[DB] Die Barbaren".into());
+        let found: Vec<String> = search_in(&names, "die", 5)
+            .into_iter()
+            .map(|(_, label)| label)
+            .collect();
+        assert_eq!(
+            found,
+            vec![
+                "[GÄNG] Die Gäng".to_owned(),
+                "[DB] Die Barbaren".to_owned(),
+                "[ND] Never Die".to_owned(),
+            ],
+            "los que empiezan por «die» primero y, entre ellos, el más corto"
         );
     }
 
