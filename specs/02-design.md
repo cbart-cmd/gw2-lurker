@@ -100,6 +100,18 @@ JSON-lines, un fichero por mes: `history/2026-10.jsonl`. Una línea por evento:
 - Retención: `prune` elimina ficheros mensuales antiguos y recorta por tamaño.
 - Configuración aparte: `config.json` (mundo, ajustes, guilds seguidas).
 
+### 6b. Lo que sí se guarda hoy (ADR-015, ADR-016)
+
+- **`settings.json`**: ajustes, ventanas, `followed` y **`guild_names`** (`id → "[TAG] Nombre"`).
+  Es la fuente de todos los nombres que se dibujan: un nombre resuelto no se vuelve a pedir y se
+  ve también fuera de WvW (Bastión del Armisticio).
+- **`guild-names.json`**: solo el índice de búsqueda por texto (~9 900 nombres). **No se tiene en
+  memoria**: lo lee el hilo del buscador, lo filtra y lo suelta. Se distribuye como
+  `gw2_lurker_guilds.zip` + `.md5` en el repositorio compartido y el addon lo descarga la primera
+  vez o a petición (`crate::guild_index`).
+- **Nada de historial en disco** (ADR-015): vive en memoria mientras el addon está cargado.
+- **Mapa**: las teselas se cachean en `tiles/` (`crate::catalog::ensure_tiles`).
+
 ## 7. Mapa simplificado (ADR-002)
 
 - Sin texturas: cada mapa se dibuja como un rectángulo con fondo liso.

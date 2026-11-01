@@ -21,3 +21,6 @@ Requisitos que solo se pueden comprobar con GW2 + Nexus (referenciados por la tr
 | MT-15 | RF-03d | Primer día tras el reset semanal | Color de equipo correcto, sin avalancha de alertas |
 | MT-16 | RF-03a/g | Elegir mundo y comparar con el panel de WvW del juego | El selector muestra `nombre (id)`; los rivales mostrados coinciden con los del juego |
 | MT-17 | RF-37 | Activar fondo con teselas | El fondo carga sin bloquear el render; se puede desactivar |
+| MT-18 | RF-19e | Todas las casillas de estructuras marcadas, capturar ruinas y un campamento | Solo sale el campamento; las ruinas no avisan ni en la lista ni en el pop-up |
+| MT-19 | RF-20c | Borrar `guild-names.json` de la carpeta del addon y arrancar el juego | El índice se descarga solo (Ajustes dice cuántos nombres) y el buscador encuentra «a new» y «DIE» |
+| MT-20 | RF-20b/d | Seguir un clan que no esté en el índice, reiniciar y mirar `settings.json` | El nombre está en `guild_names` (no en el índice) y no se vuelve a pedir |
