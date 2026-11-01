@@ -24,6 +24,11 @@ Proyecto: addon de Nexus (Guild Wars 2) en Rust para Mundo contra Mundo. Avisa d
 8. **Ficheros ≤ 800 líneas** (aviso a las 500). Divide por módulos antes de llegar.
 9. **Dependencias nuevas:** no las añadas sin justificarlas (coste en tamaño de DLL, licencia, mantenimiento) y pedir aprobación.
 10. **Datos inferidos se etiquetan como inferidos** (rutas, claims tardíos). No prometas más de lo que la API da (ADR-001, ADR-005).
+11. **`bugs.md` es un fichero compartido** (petición del usuario, 2026-11-01). Si faltan filas, es porque
+    el usuario las ha borrado: se acepta, no se restauran y no se pregunta por qué. Lo que **nunca** se
+    hace es borrar lo que él haya añadido mientras trabajabas: relee el fichero justo antes de
+    escribirlo y toca solo tus líneas. Vale también para `PROGRESO.md` y para cualquier fichero que el
+    usuario mantenga a mano (ver §9 y §10).
 
 ## 3. Flujo de trabajo por tarea
 
@@ -41,7 +46,8 @@ Proyecto: addon de Nexus (Guild Wars 2) en Rust para Mundo contra Mundo. Avisa d
    ```
 5. Actualiza la documentación afectada (rustdoc, CHANGELOG si es visible para el usuario, `03-tasks.md`).
 6. Entrega con el formato de la sección 5.
-7. Bugs-md es un archivo compartido. Si se borran filas, es porque el usuario las ha borrado. Así que no es un problema. Pero si añade algo mientras trabajas en solucionar bugs, NO borres las filas que el usuario haya añadido. 
+7. Antes de entregar, vuelve a leer `bugs.md` (§9). Si el usuario ha añadido algo mientras trabajabas,
+   **no lo borres**: apúntalo y dilo en la entrega.
 
 ## 4. Mapa del repositorio
 
@@ -112,6 +118,14 @@ La DLL se distribuye desde **`https://github.com/cbart-cmd/gw2addonsreleases`**,
 
 `bugs.md`, en la raíz, es donde el usuario apunta fallos en una línea, sin formato.
 
+- **Es un fichero compartido** (petición del usuario, 2026-11-01). Las dos mitades de la regla:
+  - **Si faltan filas, es porque las ha borrado él.** Se acepta sin discusión: no se restauran desde
+    git, no se recrea el fichero y no se le pregunta por qué. El fichero no es del addon, es suyo.
+  - **Nunca borres lo que él añada mientras trabajas.** Puede escribir en `bugs.md` en cualquier
+    momento, incluso entre dos de tus comandos. Relee el fichero **justo antes** de escribir, añade o
+    marca solo tus líneas y comprueba después que el número de entradas es el de antes más las tuyas.
+  - Para escribirlo, usa la herramienta `edit` con un ancla que ya exista. Un reemplazo de PowerShell
+    con comillas dobles se comió 14 entradas el 2026-11-01 sin dar ningún error.
 - **Léelo antes de empezar, después de cada paso y al terminar la tanda.** "Cada paso" es cada
   test en verde, cada arreglo aplicado, cada versión compilada: se vuelve a abrir el fichero por
   si el usuario ha apuntado algo nuevo mientras trabajabas. Es obligatorio, no opcional.
@@ -137,6 +151,8 @@ seguir** si la actual se corta a medias.
   experimento falla, eso también se apunta.
 - Al cerrar, pasa la entrada a `HECHO` con los commits y lo que no se pudo verificar.
 - Lo más reciente arriba. No se borran entradas; si algo se revierte, se documenta.
+- **Fichero compartido, como `bugs.md`** (§2.11): si falta alguna entrada porque la ha borrado el
+  usuario, se acepta y no se restaura; si añade una mientras trabajas, no se toca.
 - Mantén al día las secciones **Trampas ya conocidas** y **Bloqueos**: son lo primero que
   debe leer quien retome el trabajo.
 

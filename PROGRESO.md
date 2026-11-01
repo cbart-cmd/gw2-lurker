@@ -13,6 +13,18 @@ Reglas:
 
 ---
 
+## HECHO – 2026-11-01 · `bugs.md` como fichero compartido (regla nueva)
+
+- Petición del jugador: si él borra filas de `bugs.md`, es cosa suya y **no se restauran**; lo que no se
+  puede hacer es borrar lo que él añada mientras se trabaja en un arreglo.
+- Escrito en tres sitios para que no se pierda: regla de oro **§2.11**, paso **§3.7** (sustituye la
+  nota suelta que había ahí) y **§9** con las dos mitades de la regla y la técnica de escritura
+  (`edit` con ancla existente, comprobar el número de entradas después; el reemplazo de PowerShell se
+  comió 14 entradas el 2026-11-01 sin error). También un apunte en **§10** para `PROGRESO.md` y una
+  cabecera nueva en el propio `bugs.md`.
+- Esto **anula** la restauración desde git que se hizo el 2026-10-31: a partir de ahora, filas que
+  falten = filas que él borró.
+
 ## HECHO – 2026-11-01 · El mapa coloreaba solo los objetivos reclamados (0.25.13)
 
 - Informe del jugador: «Puesto avanzado abrasado» pasó a rojo (aviso `AZUL -> ROJO`, 11:01:41) y el

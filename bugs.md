@@ -4,6 +4,10 @@ Bandeja de entrada de fallos. **No se borra**: cada bug se queda con su marca. `
 está arreglado, con la versión en la que sale el arreglo, para que el jugador pueda comprobarlo y
 tacharlo del todo si quiere.
 
+**Fichero compartido** (2026-11-01). El jugador puede borrar filas cuando quiera: si falta alguna, es
+cosa suya y no se restaura. Lo que no se hace nunca es borrar lo que él añada mientras se trabaja en
+otro arreglo: se relee el fichero antes de escribirlo y cada uno toca solo sus líneas.
+
 Formato:
 
 ```
