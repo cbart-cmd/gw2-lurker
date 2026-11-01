@@ -13,6 +13,20 @@ Reglas:
 
 ---
 
+## HECHO – 2026-11-01 · Español y francés de los equipos desde la lista de la wiki (0.25.3)
+
+- El jugador pasó una instantánea de `wiki.guildwars2.com/wiki/API:2/wvw/guilds/:region`
+  (2025-11-15) que, al final, trae la **lista estática de los 27 equipos con `{en, de, es, fr}`**:
+  es la primera fuente con traducciones oficiales que aparece (la API devuelve 404 y gw2mists solo
+  tiene inglés).
+- Se completaron **15 valores en 13 equipos** que tenían el inglés de relleno, y se **mantuvieron**
+  los que ya tenían traducción propia. Dos de la wiki traen errata y **no** se copiaron:
+  `Prisón de Abaddon` (falta la i) y `Ravn de la pierre de sang` (falta la i de *Ravin*).
+- Se añadió `Cathedral of Blood` (11010 en la wiki; hoy *Ruined Cathedral of Blood*) para que el
+  nombre resuelva si vuelve.
+- **Sin tocar a propósito:** el alemán difiere en 7 equipos entre gw2mists y la wiki; el jugador
+  pidió solo español y francés. Queda anotado en `07-spikes.md` para decidirlo.
+- Verificación: `data/team-names.json` parsea, 246 tests en verde, 0.25.3 publicada.
 ## HECHO – 2026-11-01 · El «?» de la ventana de avisos: glifos fuera de latino-1 (0.25.2)
 
 - El jugador vio un «?» donde iba una flecha en algunas líneas de aviso. No era un fallo de datos:

@@ -1,7 +1,7 @@
 {
-  "note": "Traducciones de los nombres de equipo, indexadas por el nombre ingles (los ids rotan cada temporada y los nombres no). Ingles y aleman: gw2mists.com (/en/teams y /de/teams, 2026-10-31). Espanol y frances: data/equipos.xlsx cuando el nombre esta en la hoja; si no, el nombre ingles para que el jugador lo traduzca en los ajustes. Las traducciones propias del jugador (settings.json) mandan siempre.",
-  "source": "https://gw2mists.com/en/teams/eu, https://gw2mists.com/de/teams/eu, https://gw2mists.com/en/teams/na, https://gw2mists.com/de/teams/na, data/equipos.xlsx",
-  "updated_at": "2026-10-31T19:50:00Z",
+  "note": "Traducciones de los nombres de equipo, indexadas por el nombre ingles (los ids rotan cada temporada y los nombres no). Ingles y aleman: gw2mists.com (/en/teams y /de/teams, 2026-10-31). Espanol y frances: la lista de equipos de la wiki (API:2/wvw/guilds/:region, instantanea del 2025-11-15) cuando el nombre aparece alli; si no, lo que hubiera del Excel o el nombre ingles para que el jugador lo traduzca en los ajustes. Las traducciones propias del jugador (settings.json) mandan siempre. Se edita a mano.",
+  "source": "https://gw2mists.com/en/teams/eu, https://gw2mists.com/de/teams/eu, https://gw2mists.com/en/teams/na, https://gw2mists.com/de/teams/na, https://wiki.guildwars2.com/wiki/API:2/wvw/guilds/:region (lista de equipos en/es/fr/de)",
+  "updated_at": "2026-11-01T00:50:00Z",
   "normalized": true,
   "names": {
     "Abaddon's Prison": {
@@ -22,6 +22,12 @@
       "de": "Blutstein-Schlucht",
       "source": "gw2mists+spreadsheet"
     },
+    "Cathedral of Blood": {
+      "es": "Catedral de la Sangre",
+      "fr": "Cathédrale sanglante",
+      "de": "Kathedrale des Blutes",
+      "source": "wiki"
+    },
     "De Molish Post": {
       "es": "De Molish Post",
       "fr": "De Molish Post",
@@ -29,16 +35,16 @@
       "source": "english-fallback"
     },
     "Domain of Anguish": {
-      "es": "Domain of Anguish",
-      "fr": "Domain of Anguish",
+      "es": "Dominio de la Angustia",
+      "fr": "Domaine de l'angoisse",
       "de": "Domäne der Pein",
-      "source": "gw2mists+spreadsheet"
+      "source": "gw2mists+wiki"
     },
     "Domain of Torment": {
       "es": "Dominio del Tormento",
-      "fr": "Domain of Torment",
+      "fr": "Domaine du tourment",
       "de": "Domäne der Qual",
-      "source": "gw2mists+spreadsheet"
+      "source": "gw2mists+wiki"
     },
     "Dragrimmar": {
       "es": "Dragrimmar",
@@ -95,10 +101,10 @@
       "source": "english-fallback"
     },
     "Hall of Judgment": {
-      "es": "Hall of Judgment",
-      "fr": "Hall of Judgment",
+      "es": "Sala del Juicio",
+      "fr": "Hall de jugement",
       "de": "Halle des Urteils",
-      "source": "gw2mists+spreadsheet"
+      "source": "gw2mists+wiki"
     },
     "Kormir's Library": {
       "es": "Biblioteca de Kormir",
@@ -114,9 +120,9 @@
     },
     "Lutgardis Conservatory": {
       "es": "Invernadero de Lutgardis",
-      "fr": "Lutgardis Conservatory",
+      "fr": "Conservatoire de Lutgardis",
       "de": "Lutgardis-Konservatorium",
-      "source": "gw2mists+spreadsheet"
+      "source": "gw2mists+wiki"
     },
     "Melandru's Dome": {
       "es": "Cúpula de Melandru",
@@ -144,9 +150,9 @@
     },
     "Mosswood": {
       "es": "Bosquemusgoso",
-      "fr": "Mosswood",
+      "fr": "Bois moussu",
       "de": "Mooswald",
-      "source": "gw2mists+spreadsheet"
+      "source": "gw2mists+wiki"
     },
     "Palawadan": {
       "es": "Palawadan",
@@ -155,10 +161,10 @@
       "source": "gw2mists+spreadsheet"
     },
     "Rall's Rest": {
-      "es": "Rall's Rest",
-      "fr": "Rall's Rest",
+      "es": "Descanso de Rall",
+      "fr": "Repos de Rall",
       "de": "Ralls Rast",
-      "source": "gw2mists+spreadsheet"
+      "source": "gw2mists+wiki"
     },
     "Ruined Cathedral of Blood": {
       "es": "Catedral de las Ruinas de Sangre",
@@ -168,15 +174,15 @@
     },
     "Silent Woods": {
       "es": "Bosques Silenciosos",
-      "fr": "Silent Woods",
+      "fr": "Forêt silencieuse",
       "de": "Stille Wälder",
-      "source": "gw2mists+spreadsheet"
+      "source": "gw2mists+wiki"
     },
     "Skrittsburgh": {
-      "es": "Skrittsburgh",
+      "es": "Skrittsburgo",
       "fr": "Skrittsburgh",
       "de": "Skrittsburg",
-      "source": "gw2mists+spreadsheet"
+      "source": "gw2mists+wiki"
     },
     "Temple of Febe": {
       "es": "Templo de Febe",
@@ -186,21 +192,21 @@
     },
     "Throne of Balthazar": {
       "es": "Trono de Balthazar",
-      "fr": "Throne of Balthazar",
+      "fr": "Trône de Balthazar",
       "de": "Thron Balthasars",
-      "source": "gw2mists+spreadsheet"
+      "source": "gw2mists+wiki"
     },
     "Tombs of Drascir": {
       "es": "Tumbas de Drascir",
-      "fr": "Tombs of Drascir",
+      "fr": "Tombes de Drascir",
       "de": "Gräber von Drascir",
-      "source": "gw2mists+spreadsheet"
+      "source": "gw2mists+wiki"
     },
     "Yohlon Haven": {
-      "es": "Yohlon Haven",
-      "fr": "Yohlon Haven",
+      "es": "Puerto de Yohlon",
+      "fr": "Havre de Yohlon",
       "de": "Zuflucht von Yohlon",
-      "source": "gw2mists+spreadsheet"
+      "source": "gw2mists+wiki"
     }
   }
 }

@@ -1,6 +1,17 @@
 # Changelog
 Formato [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/), versionado [SemVer](https://semver.org/lang/es/).
 
+## [0.25.3] - 2026-11-01
+### Cambiado
+- **Nombres de equipo en español y francés completados** con la lista estática de la wiki
+  (`API:2/wvw/guilds/:region`, instantánea del 2025-11-15). 15 valores en 13 equipos que estaban
+  en inglés de relleno: *Descanso de Rall*, *Sala del Juicio*, *Puerto de Yohlon*, *Skrittsburgo*,
+  *Dominio de la Angustia*, *Repos de Rall*, *Hall de jugement*, *Forêt silencieuse*,
+  *Havre de Yohlon*, *Domaine du tourment*, *Trône de Balthazar*, *Tombes de Drascir*,
+  *Bois moussu*, *Domaine de l'angoisse* y *Conservatoire de Lutgardis*.
+- Añadido `Cathedral of Blood` (es *Catedral de la Sangre*, fr *Cathédrale sanglante*), el nombre
+  que la wiki da al equipo `11010`; hoy se llama *Ruined Cathedral of Blood* y el pool conserva los
+  dos para que resuelva si el nombre vuelve.
 ## [0.25.2] - 2026-11-01
 ### Corregido
 - **Un «?» donde iba una flecha en la ventana de avisos.** La fuente de Nexus solo trae latín básico

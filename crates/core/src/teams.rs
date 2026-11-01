@@ -250,6 +250,32 @@ mod tests {
     }
 
     #[test]
+    fn rf44_spanish_and_french_come_from_the_wiki_list() {
+        // La lista estática de `API:2/wvw/guilds/:region` (wiki, instantánea del 2025-11-15) es la
+        // única fuente con traducciones oficiales de equipo. Estos son los valores que estaban en
+        // inglés de relleno y se completaron el 2026-11-01.
+        let table = bundled();
+        assert_eq!(table.name_in("es", 11002), Some("Descanso de Rall"));
+        assert_eq!(table.name_in("fr", 11002), Some("Repos de Rall"));
+        assert_eq!(table.name_in("es", 11006), Some("Sala del Juicio"));
+        assert_eq!(table.name_in("fr", 11006), Some("Hall de jugement"));
+        assert_eq!(table.name_in("es", 11004), Some("Puerto de Yohlon"));
+        assert_eq!(table.name_in("fr", 11004), Some("Havre de Yohlon"));
+        assert_eq!(table.name_in("es", 12005), Some("Dominio de la Angustia"));
+        assert_eq!(
+            table.name_in("fr", 12005),
+            Some("Domaine de l'angoisse"),
+            "el francés con apóstrofo no se escapa ni se corta"
+        );
+        assert_eq!(
+            table.name_in("fr", 11011),
+            Some("Conservatoire de Lutgardis"),
+            "11011 es Lutgardis, no Great House Aviary (12014)"
+        );
+        assert_eq!(table.name_in("fr", 12003), Some("Forêt silencieuse"));
+    }
+
+    #[test]
     fn rf44_german_comes_from_gw2mists_and_not_from_the_spreadsheet() {
         // El jugador pidió (2026-10-31) los nombres en alemán de gw2mists: el Excel decía
         // «Grenths Tor» y la web dice «Grenths Tür», que es lo que se ve en el juego.
