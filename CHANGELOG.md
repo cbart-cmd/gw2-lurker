@@ -1,6 +1,14 @@
 # Changelog
 Formato [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/), versionado [SemVer](https://semver.org/lang/es/).
 
+## [0.25.6] - 2026-11-01
+### Cambiado
+- **Los nombres de la sesión van a `temp.json`**, no a memoria: el jugador prefiere un fichero
+  temporal que **se borra y regenera en cada arranque** (tope de 500 entradas) a tenerlos en el
+  proceso. `settings.json` sigue guardando solo los de los clanes que sigue.
+- `temp.json` está en la carpeta del addon, junto a `settings.json`, y no se versiona en ningún
+  sitio: es del juego, no del repo.
+
 ## [0.25.5] - 2026-11-01
 ### Cambiado
 - **`settings.json` ya no guarda todos los nombres de clan.** Solo los de los clanes que siguen

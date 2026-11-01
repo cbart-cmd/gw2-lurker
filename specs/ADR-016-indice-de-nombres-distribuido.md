@@ -14,9 +14,11 @@
      nombrar fuera de WvW, donde no hay sondeo. Al dejar de seguir uno, su nombre sale; al cargar,
      `sanitize` descarta los que no sean de un clan seguido (petición del jugador, 2026-11-01: «no
      puede crecer indefinidamente»).
-  2. **Los nombres de la sesión viven en memoria.** Los de los clanes que han reclamado algo desde
-     que se arrancó el juego se guardan en un mapa del proceso y se van con él: no se escriben en
-     ningún fichero.
+  2. **Los nombres de la sesión viven en `temp.json`.** Los de los clanes que han reclamado algo
+     desde que se arrancó el juego se escriben en `temp.json`, que **se borra al cargar el addon**:
+     no son datos permanentes y así no duran más que el propio juego (petición del jugador,
+     2026-11-01: «un temp.json que se regenere cada vez que entras en el juego»). Tope de 500
+     entradas.
   3. **`guild-names.json` es solo el índice de búsqueda.** No se lee al arrancar, no se tiene en
      memoria y no se toca en el render: lo lee el hilo de la búsqueda, lo filtra por subcadena y
      lo suelta.

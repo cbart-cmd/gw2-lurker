@@ -24,6 +24,7 @@ mod md5;
 mod names;
 mod net;
 mod search;
+mod session_names;
 mod team;
 mod ui;
 mod worker;
@@ -200,6 +201,7 @@ fn load() {
 
     log::info!("WvW Lurker: {}", arc_team::describe());
     keybinds::remember_shortcut();
+    session_names::reset();
     guild_index::ensure_present();
     lang::subscribe();
     arc_team::subscribe();

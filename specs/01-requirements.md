@@ -137,7 +137,7 @@ El click-through se alterna desde la configuración, desde las opciones de Nexus
 
 **RF-20b (M)** Los nombres de clan se guardan en **dos sitios distintos**, y ninguno de ellos crece sin freno (petición del jugador, 2026-11-01: «tienen que estar los de los clanes que sigo, y los que han reclamado en la sesión, pero no puede crecer indefinidamente»):
 - **`settings.json`** (`guild_names`): **solo los clanes que se siguen** (`≤ MAX_FOLLOWED`). Son los que hay que poder nombrar fuera de WvW, cuando no hay sondeo (Bastión del Armisticio). Al dejar de seguir un clan, su nombre sale del fichero; al cargar se descarta cualquier nombre que no sea de un clan seguido.
-- **Memoria**: los nombres de los clanes que han reclamado algo en **esta sesión**. Se pierden al reiniciar el juego, que es lo que el jugador quiere: no son datos permanentes.
+- **`temp.json`** (en la carpeta del addon): los nombres de los clanes que han reclamado algo en **esta sesión**. Se **regenera en cada arranque** (se borra al cargar el addon) y tiene un tope de 500 entradas, así que no se guarda «para siempre» ni crece sin freno. El jugador lo pidió así el 2026-11-01: «llévalo a un temp.json que se regenere cada vez que entras en el juego».
 - **`guild-names.json`** es **solo** el índice de búsqueda por texto, no se tiene en memoria: se lee en el hilo de la búsqueda, se filtra y se suelta. El hilo de render nunca lo lee ni lo clona.
 - GWT: *Given* siete clanes seguidos y cincuenta nombres resueltos en la sesión, *When* se cierra el juego, *Then* `settings.json` guarda siete nombres, no cincuenta.
 
