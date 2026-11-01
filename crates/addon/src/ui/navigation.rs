@@ -12,6 +12,27 @@ pub(super) fn pending_tab_after_draw(shown: usize, requested: usize) -> usize {
     }
 }
 
+/// ¿Toca saltar al mapa del jugador al dibujar la pestaña *Mapa*?
+///
+/// `shown` es la pestaña dibujada este fotograma, `last` la del anterior, `jump_frame` el fotograma
+/// del último clic de clan que pidió el mapa (`None` si no hubo) y `frame` el actual. Se salta
+/// **solo** al entrar desde otra pestaña y **solo** si no se viene de clicar un clan en ese mismo
+/// momento: la ruta de un clan se dibuja donde reclamó, no en el mapa del jugador.
+///
+/// La ventana es de un fotograma a propósito. Antes se miraba «¿queda una pestaña pedida?», y esa
+/// marca se quedaba viva mientras imgui tardase en cambiar de pestaña: al volver a *Mapa* a mano
+/// parecía que se venía de un clic de clan y no se saltaba al mapa del jugador (informe del
+/// jugador, 2026-11-01).
+pub(super) fn entering_by_hand(
+    shown: usize,
+    last: usize,
+    jump_frame: Option<u64>,
+    frame: u64,
+) -> bool {
+    let just_jumped = jump_frame.is_some_and(|at| frame <= at.saturating_add(1));
+    shown == TAB_MAP && last != TAB_MAP && !just_jumped
+}
+
 /// Clan cuya ruta dibuja la pestaña *Mapa*, si hay alguno elegido.
 ///
 /// Estado propio de esa pestaña y no el de *Clanes*: entrar a mano deja el desplegable vacío para
@@ -76,9 +97,35 @@ mod tests {
             pending, TAB_MAP,
             "imgui has not drawn the requested tab yet"
         );
-        assert!(!super::super::snap_to_current(TAB_MAP, 2, pending));
+        assert!(
+            !entering_by_hand(TAB_MAP, 2, Some(7), 8),
+            "llegar por un clic de clan no salta al mapa del jugador"
+        );
         assert_eq!(pending_tab_after_draw(TAB_MAP, pending), usize::MAX);
         assert_eq!(pending_tab_after_draw(2, usize::MAX), usize::MAX);
+    }
+
+    #[test]
+    fn rf30_returning_to_the_map_tab_by_hand_snaps_to_the_players_map() {
+        // Informe del jugador (2026-11-01): tras un clic de clan, cambiar de pestaña y volver a
+        // *Mapa* se quedaba en el mapa del clan. Un clic del fotograma 7 no puede mandar en el 37.
+        assert!(
+            !entering_by_hand(TAB_MAP, 2, Some(7), 8),
+            "el fotograma del salto dibuja el mapa del clan"
+        );
+        assert!(
+            entering_by_hand(TAB_MAP, 2, Some(7), 37),
+            "volver a mano tiene que saltar al mapa del jugador"
+        );
+        assert!(
+            entering_by_hand(TAB_MAP, 0, None, 37),
+            "sin clic de clan, siempre"
+        );
+        assert!(
+            !entering_by_hand(TAB_MAP, TAB_MAP, None, 37),
+            "quedarse en la pestaña no cambia el mapa elegido a mano"
+        );
+        assert!(!entering_by_hand(3, 0, None, 37), "solo la pestaña Mapa");
     }
 
     #[test]
@@ -168,7 +215,10 @@ mod tests {
             &mut notice,
         ));
         requested = pending_tab_after_draw(2, requested);
-        assert!(!super::super::snap_to_current(TAB_MAP, 2, requested));
+        assert!(
+            !entering_by_hand(TAB_MAP, 2, Some(7), 8),
+            "el salto del clan manda en ese fotograma"
+        );
         assert_eq!(map, expected_map, "not the player's map");
         assert!(super::super::map::summary(
             &board.guild_history(&guild),

@@ -103,7 +103,7 @@ Estado global (en `addon/src/lib.rs` y `worker.rs`):
 
 <!-- GENERADO: no editar debajo; se rehace con scripts/gen_modelo.ps1 -->
 
-Generado el 2026-11-01 21:20 desde el commit `6495842`.
+Generado el 2026-11-01 21:25 desde el commit `01dd744`.
 
 ## Crate `core`
 
@@ -1473,7 +1473,7 @@ Matchup claims view (T-36, RF-70): what is claimed right now, grouped by map.
 **Tests (6):** `rf73_the_claims_view_can_show_only_followed_guilds`, `rf30b_high_value_is_the_tick_of_this_snapshot_not_the_kind`, `rf70_all_kinds_are_visible_by_default`, `rf70_kind_filters_remove_rows`, `rf70_high_value_hides_camps_but_keeps_castles`, `rf70_rows_are_grouped_by_map`
 
 
-### `crates/addon/src/ui/mod.rs` (751 líneas)
+### `crates/addon/src/ui/mod.rs` (761 líneas)
 
 Windows of the addon. Every one of them goes through [`window::draw`] (RF-46).
 
@@ -1508,11 +1508,12 @@ Windows of the addon. Every one of them goes through [`window::draw`] (RF-46).
 - `fn draw_widget(ui: &nexus::imgui::Ui)` — Draws the only window: a tab bar and the body of the selected tab (T-42).
 - `pub struct Tabbed` — Everything the tabs draw, gathered once per frame.
 - `fn draw_tabs(…)` — Draws the tab bar and the body of the tab the player picked. The last tab is the settings.
-- `fn snap_to_current(shown: usize, last: usize, jump: usize) -> bool` — Whether entering the *Map* tab has to snap the drawing to the map the player is on.
 - `const TAB_MAP` — Tab index of the *Map* tab inside [`TABS`].
 - `fn map_notice() -> std::sync::MutexGuard<'static, Option<String>>` — Clan del aviso «no hay eventos registrados», si hay uno abierto.
 - `fn draw_map_notice(ui: &nexus::imgui::Ui, data: &Tabbed)` — Dibuja el aviso de clan sin eventos (con «desde cuándo» y botón para cerrarlo).
 - `static LAST_TAB` — Tab drawn on the previous frame, `usize::MAX` for «none». Session state, like the map choice.
+- `static FRAME` — Fotograma actual del widget. Sirve para que un clic de clan mande solo en el fotograma siguiente y no deje una marca viva que se coma los saltos posteriores al mapa del jugador.
+- `static GUILD_JUMP_AT` — Fotograma del último clic de clan que abrió la pestaña *Mapa*, `u64::MAX` si no hubo.
 - `static WANT_TAB` — Tab the widget has to switch to on this frame, `usize::MAX` for «stay where the player is».
 - `fn map_choice() -> std::sync::MutexGuard<'static, MapRole>` — Which map the *Map* tab draws: the session's choice, `Unknown` until the player picks one.
 - `fn draw_openers(ui: &nexus::imgui::Ui)` — One line with the state of the worker and the configured team (RF-02, RF-46).
@@ -1524,13 +1525,14 @@ Windows of the addon. Every one of them goes through [`window::draw`] (RF-46).
 **Tests (5):** `rf30_the_map_tab_opens_on_the_map_i_am_on`, `rf18_the_shortcut_turns_click_through_on_and_off`, `rf18_the_shortcut_brings_the_window_back`, `rf46_click_through_does_not_reopen_a_closed_widget`, `t42_the_settings_are_the_last_tab`
 
 
-### `crates/addon/src/ui/navigation.rs` (196 líneas)
+### `crates/addon/src/ui/navigation.rs` (246 líneas)
 
 Map navigation rules, independent of Nexus and imgui (RF-30, RF-71).
 
 **Contenido:**
 
 - `pub fn pending_tab_after_draw(shown: usize, requested: usize) -> usize` — Mantiene la pestaña pedida hasta que se ha dibujado; entonces la suelta (`usize::MAX`).
+- `pub fn entering_by_hand(…)` — ¿Toca saltar al mapa del jugador al dibujar la pestaña *Mapa*?
 - `fn guild_choice_state() -> std::sync::MutexGuard<'static, Option<String>>` — Clan cuya ruta dibuja la pestaña *Mapa*, si hay alguno elegido.
 - `pub fn guild_choice() -> Option<String>` — Clan cuya ruta dibuja la pestaña *Mapa*, si hay alguno elegido.
 - `pub fn set_guild_choice(guild: Option<&str>)` — Fija o vacía el clan de la pestaña *Mapa* (`None` = sin ruta, solo el anillo de los seguidos).
@@ -1539,7 +1541,7 @@ Map navigation rules, independent of Nexus and imgui (RF-30, RF-71).
 
 **Usa (interno):** `gw2lurker_core::MapRole`, `super::TAB_MAP`
 
-**Tests (6):** `rf30_a_guild_jump_waits_until_the_map_tab_is_drawn`, `rf71_a_guild_without_events_keeps_the_tab_and_map`, `rf71_a_guild_jump_chooses_its_map_and_clears_the_notice`, `rf71_an_empty_guild_cancels_an_earlier_pending_jump`, `rf32a_a_non_favourite_guild_opens_its_last_claim_map_with_a_route`, `rf71_entering_the_map_tab_by_hand_leaves_no_guild_chosen`
+**Tests (7):** `rf30_a_guild_jump_waits_until_the_map_tab_is_drawn`, `rf30_returning_to_the_map_tab_by_hand_snaps_to_the_players_map`, `rf71_a_guild_without_events_keeps_the_tab_and_map`, `rf71_a_guild_jump_chooses_its_map_and_clears_the_notice`, `rf71_an_empty_guild_cancels_an_earlier_pending_jump`, `rf32a_a_non_favourite_guild_opens_its_last_claim_map_with_a_route`, `rf71_entering_the_map_tab_by_hand_leaves_no_guild_chosen`
 
 
 ### `crates/addon/src/ui/popup.rs` (140 líneas)
@@ -1792,7 +1794,7 @@ Off-thread writer for the settings file.
 - `bugs.md` — Bugs — Bandeja de entrada de fallos. **No se borra**: cada bug se queda con su marca. `[x]` cuando creo que está arreglado, con la versión en la que sale el arreglo, para que el jugador pueda comprobarlo y tacharlo del todo si…
 - `Cargo.lock`
 - `Cargo.toml`
-- `CHANGELOG.md` — Changelog — Formato [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/), versionado [SemVer](https://semver.org/lang/es/). abierto (antes se quedaba con el que había al cargar el addon). sustituirlo por el mapa del jugador d…
+- `CHANGELOG.md` — Changelog — Formato [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/), versionado [SemVer](https://semver.org/lang/es/). de un clan, se quedaba en el mapa del clan: la marca de «vengo de un clic de clan» seguía viva mientr…
 - `CLAUDE.md` —  — Lee y sigue `AGENTS.md` (instrucciones completas para agentes de IA de este repositorio).
 - `deny.toml` — RUSTSEC-2024-0384 (instant) y RUSTSEC-2024-0436 (paste): avisos de "sin mantenimiento" en crates que arrastra `nexus-rs`. No son vulnerabilidades, están fuera de nuestro control y no podemos actualizarlos por separado: s…
 - `docs/agents/lecciones.md` — Lecciones con contexto (referencia de AGENTS.md) — Texto completo de las reglas que en `AGENTS.md` van en una línea. Cada punto sale de un fallo real. Léelo cuando la tarea toque tests, imgui, el candado `RUNTIME` o `settings.json`; no hace falta cargarlo en cada sesión.

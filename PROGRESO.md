@@ -56,6 +56,12 @@ Reglas:
   la elección a ese estado. `mod.rs`: el snap de entrada vacía la elección y un clic de la pestaña
   *Clanes* o de un aviso la fija, así los dos sitios siguen en sintonía.
 - `validate.ps1 -Release`: todo OK, 329 tests, DLL 2 199 552 B.
+- **Trampa (informe del jugador, 2026-11-01):** «vengo de un clic de clan» se decidía con
+  `WANT_TAB != TAB_MAP`, y esa marca vive hasta que la pestaña se dibuja. Si imgui no cambia de
+  pestaña en un fotograma, al volver a *Mapa* a mano parecía que se venía de un clan y no se
+  saltaba al mapa del jugador. Ahora manda un fotograma: `FRAME`/`GUILD_JUMP_AT` y
+  `navigation::entering_by_hand`, con ventana de un fotograma. Test
+  `rf30_returning_to_the_map_tab_by_hand_snaps_to_the_players_map`.
 
 ## HECHO – 2026-11-01 · Publicada la 0.26.3
 

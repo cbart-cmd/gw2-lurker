@@ -395,6 +395,9 @@ fn draw_tabs(
     // until the last ones were unreachable. With the scroll policy it draws the little arrows in
     // the bar, which is the «...» that was asked for (report of 2026-10-31).
     let jump = WANT_TAB.load(Ordering::Relaxed);
+    // Fotograma del widget: un clic de clan solo manda en el fotograma siguiente, sin dejar una
+    // marca viva que impida saltar al mapa del jugador al volver a *Mapa* a mano.
+    let frame = FRAME.fetch_add(1, Ordering::Relaxed) + 1;
     // Pestaña que se dibuja este fotograma: imgui solo ejecuta el contenido de la elegida.
     let mut shown = usize::MAX;
     if let Some(_bar) = TabBar::new("###gw2lurker_tabs")
@@ -415,7 +418,14 @@ fn draw_tabs(
                         clicked = alerts::body(ui, data.alerts, data.now);
                     }
                     1 => {
-                        if snap_to_current(index, LAST_TAB.load(Ordering::Relaxed), jump) {
+                        let jump_at = GUILD_JUMP_AT.load(Ordering::Relaxed);
+                        let entering = navigation::entering_by_hand(
+                            index,
+                            LAST_TAB.load(Ordering::Relaxed),
+                            (jump_at != u64::MAX).then_some(jump_at),
+                            frame,
+                        );
+                        if entering {
                             if let Some(here) = data.current {
                                 *map_choice() = here;
                             }
@@ -559,6 +569,7 @@ fn draw_tabs(
         ) {
             guilds::select(&guild);
             navigation::set_guild_choice(Some(&guild));
+            GUILD_JUMP_AT.store(frame, Ordering::Relaxed);
         }
         WANT_TAB.store(requested, Ordering::Relaxed);
     }
@@ -566,16 +577,6 @@ fn draw_tabs(
     LAST_TAB.store(shown, Ordering::Relaxed);
 
     change
-}
-
-/// Whether entering the *Map* tab has to snap the drawing to the map the player is on.
-///
-/// `shown` es la pestaña dibujada este fotograma, `last` la del anterior y `jump` la que el widget
-/// ha pedido seleccionar (clic de clan). Se salta al mapa del jugador **solo** al entrar desde
-/// otra pestaña y **solo** si no se viene de seleccionar un clan: la ruta de un clan se dibuja en
-/// el mapa donde reclamó, no en el del jugador.
-fn snap_to_current(shown: usize, last: usize, jump: usize) -> bool {
-    shown == TAB_MAP && last != TAB_MAP && jump != TAB_MAP
 }
 
 /// Tab index of the *Map* tab inside [`TABS`].
@@ -612,6 +613,13 @@ fn draw_map_notice(ui: &nexus::imgui::Ui, data: &Tabbed) {
 
 /// Tab drawn on the previous frame, `usize::MAX` for «none». Session state, like the map choice.
 static LAST_TAB: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(usize::MAX);
+
+/// Fotograma actual del widget. Sirve para que un clic de clan mande solo en el fotograma
+/// siguiente y no deje una marca viva que se coma los saltos posteriores al mapa del jugador.
+static FRAME: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+
+/// Fotograma del último clic de clan que abrió la pestaña *Mapa*, `u64::MAX` si no hubo.
+static GUILD_JUMP_AT: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(u64::MAX);
 
 /// Tab the widget has to switch to on this frame, `usize::MAX` for «stay where the player is».
 ///
@@ -660,28 +668,30 @@ mod tests {
     #[test]
     fn rf30_the_map_tab_opens_on_the_map_i_am_on() {
         // Petición del jugador (2026-11-01): al entrar en *Mapa* desde otra pestaña se abre el mapa
-        // en el que está, que es el que le importa; pero si llega por clicar un clan (`jump`), manda
-        // el mapa de ese clan (RF-32a).
-        let none = usize::MAX;
+        // en el que está, que es el que le importa; pero si llega por clicar un clan, manda el mapa
+        // de ese clan (RF-32a). La regla vive en `navigation::entering_by_hand`.
         assert!(
-            snap_to_current(TAB_MAP, 0, none),
+            navigation::entering_by_hand(TAB_MAP, 0, None, 5),
             "entrar desde Alertas tiene que saltar al mapa del jugador"
         );
         assert!(
-            snap_to_current(TAB_MAP, 4, none),
+            navigation::entering_by_hand(TAB_MAP, 4, None, 5),
             "entrar desde Ajustes también"
         );
         assert!(
-            snap_to_current(TAB_MAP, none, none),
+            navigation::entering_by_hand(TAB_MAP, usize::MAX, None, 5),
             "al abrir el widget por primera vez, el mapa del jugador"
         );
         assert!(
-            !snap_to_current(TAB_MAP, TAB_MAP, none),
+            !navigation::entering_by_hand(TAB_MAP, TAB_MAP, None, 5),
             "quedarse en la pestaña no cambia el mapa elegido a mano"
         );
-        assert!(!snap_to_current(3, 0, none), "solo la pestaña Mapa");
         assert!(
-            !snap_to_current(TAB_MAP, 2, TAB_MAP),
+            !navigation::entering_by_hand(3, 0, None, 5),
+            "solo la pestaña Mapa"
+        );
+        assert!(
+            !navigation::entering_by_hand(TAB_MAP, 2, Some(4), 5),
             "un clic de clan abre el mapa del clan, no el del jugador"
         );
     }
