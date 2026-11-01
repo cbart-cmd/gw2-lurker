@@ -102,6 +102,16 @@ pub const TEXT: &[(&str, [&str; COLUMNS])] = &[
             "Beobachtung seit {0}",
         ],
     ),
+    (
+        "No events recorded for {0} since session start or the last team reassignment.",
+        [
+            "No hay eventos registrados para {0} desde el inicio de sesión o la última reasignación de equipos.",
+            "No events recorded for {0} since session start or the last team reassignment.",
+            "Aucun événement enregistré pour {0} depuis le début de la session ou la dernière réaffectation des équipes.",
+            "Keine Ereignisse für {0} seit Sitzungsbeginn oder der letzten Team-Neuzuweisung aufgezeichnet.",
+        ],
+    ),
+    ("Dismiss", ["Cerrar aviso", "Dismiss", "Fermer l'avis", "Hinweis schließen"]),
     ("None yet", ["Ninguno todavía", "None yet", "Aucun pour l'instant", "Noch keiner"]),
     (
         "Search a guild",

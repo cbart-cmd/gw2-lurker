@@ -39,6 +39,20 @@ Reglas:
 - Publicar: `UpdateProvider::Direct` + `DisableHotloading`, MD5 de 32 hex sin BOM, excepción
   de LFS para la DLL, tag propio con `--latest=false`. Ver `docs/RELEASE.md`.
 
+## HECHO – 2026-11-01 · Navegación al mapa de un clan (sin publicar; RF-30, RF-71, RF-32a)
+
+- `ui/navigation.rs` conserva el salto pendiente hasta que imgui dibuja Mapa. El acceso manual
+  aplica el mapa del jugador antes del dibujo, no después de sobrescribir el mapa del clan.
+- Sin eventos, no se cambia la pestaña ni la selección: aviso traducido a es/en/fr/de con la hora
+  de inicio del seguimiento y botón para cerrarlo. El selector de clan del mapa pasa por la misma
+  validación que favoritos, avisos, registro e información del clan.
+- Tres regresiones fallaron con las reglas anteriores; tras el arreglo, 315 tests correctos,
+  4 ignorados. `validate.ps1`: fmt, clippy, LOC, trazabilidad y tests correctos.
+- Prueba con `match_2-2.json`: clan no favorito, mapa del último claim y resumen de ruta disponibles.
+  Sin red, E/S, nuevas dependencias ni consultas adicionales por fotograma al historial.
+- Commit: `fix: conserva el mapa del clan al abrir su ruta`. Pendiente: publicar y comprobar la
+  navegación y el aviso dentro de GW2. Anotado en `bugs.md`, README y CHANGELOG.
+
 ## HECHO – 2026-11-01 · Publicar 0.26.1
 
 - Versión raíz y dependencias internas 0.26.1; CHANGELOG cierra los bugs del atajo con «Ñ» y del

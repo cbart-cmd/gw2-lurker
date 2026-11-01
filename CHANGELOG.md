@@ -2,6 +2,11 @@
 Formato [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/), versionado [SemVer](https://semver.org/lang/es/).
 
 ## [Unreleased]
+### Corregido
+- Abrir la ruta de un clan lleva al último mapa donde reclamó, también si no es favorito, sin
+  sustituirlo por el mapa del jugador durante el cambio de pestaña.
+- Si no hay eventos registrados para el clan, se conserva la pestaña y se muestra un aviso con
+  el inicio del ciclo de seguimiento. El selector de clan del mapa usa la misma validación.
 
 ## [0.26.1] - 2026-11-01
 ### Corregido

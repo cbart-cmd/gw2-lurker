@@ -9,6 +9,7 @@ mod guilds;
 mod icons;
 mod map;
 mod matchup;
+mod navigation;
 mod popup;
 mod settings;
 mod status;
@@ -387,6 +388,7 @@ fn draw_tabs(
 
     // The status of the worker, above the tabs: it is what tells a bug from a quiet matchup.
     status::draw_health(ui, config, data);
+    draw_map_notice(ui, data);
     ui.separator();
 
     // Scroll instead of shrinking: with six tabs in a narrow window imgui used to squeeze them
@@ -413,13 +415,18 @@ fn draw_tabs(
                         clicked = alerts::body(ui, data.alerts, data.now);
                     }
                     1 => {
+                        if snap_to_current(index, LAST_TAB.load(Ordering::Relaxed), jump) {
+                            if let Some(here) = data.current {
+                                *map_choice() = here;
+                            }
+                        }
                         let selected = guilds::selected_guild();
                         let history = selected
                             .as_deref()
                             .map(|guild| crate::worker::dashboard().guild_history(guild))
                             .unwrap_or_default();
                         let session = crate::worker::dashboard().session_guilds();
-                        map::body(
+                        clicked = map::body(
                             ui,
                             &map::View {
                                 states: data.states,
@@ -518,30 +525,30 @@ fn draw_tabs(
             });
         }
     }
-    // El cambio de pestaña dura un fotograma: al siguiente manda el jugador.
-    if jump != usize::MAX {
-        WANT_TAB.store(usize::MAX, Ordering::Relaxed);
-    }
+    // SET_SELECTED can take effect on a later frame; keep the request until its tab is drawn.
+    WANT_TAB.store(
+        navigation::pending_tab_after_draw(shown, jump),
+        Ordering::Relaxed,
+    );
 
     // Un clan clicado selecciona su ruta y lleva el mapa al último donde reclamó algo, que es lo
     // que se está pidiendo al clicar (petición de 2026-10-31). Además se cambia a la pestaña
     // *Mapa*, donde está esa ruta: antes había que ir a mano y parecía que el clic no hacía nada.
     if let Some(guild) = clicked {
-        guilds::select(&guild);
-        if let Some(role) = crate::worker::dashboard().last_map_of(&guild) {
-            *map_choice() = role;
+        let target = crate::worker::dashboard().last_map_of(&guild);
+        let mut requested = WANT_TAB.load(Ordering::Relaxed);
+        if navigation::request_guild_map(
+            &guild,
+            target,
+            &mut map_choice(),
+            &mut requested,
+            &mut map_notice(),
+        ) {
+            guilds::select(&guild);
         }
-        WANT_TAB.store(TAB_MAP, Ordering::Relaxed);
+        WANT_TAB.store(requested, Ordering::Relaxed);
     }
 
-    // Al **entrar** en *Mapa* desde otra pestaña se abre el mapa en el que está el jugador, salvo
-    // que se llegue por un clic de clan, que abre el de ese clan (petición del jugador,
-    // 2026-11-01). Así, si cambia de mapa en el juego, lo ve al ir a la pestaña.
-    if snap_to_current(shown, LAST_TAB.load(Ordering::Relaxed), jump) {
-        if let Some(here) = data.current {
-            *map_choice() = here;
-        }
-    }
     LAST_TAB.store(shown, Ordering::Relaxed);
 
     change
@@ -559,6 +566,35 @@ fn snap_to_current(shown: usize, last: usize, jump: usize) -> bool {
 
 /// Tab index of the *Map* tab inside [`TABS`].
 const TAB_MAP: usize = 1;
+
+fn map_notice() -> std::sync::MutexGuard<'static, Option<String>> {
+    static NOTICE: std::sync::Mutex<Option<String>> = std::sync::Mutex::new(None);
+    NOTICE.lock().unwrap_or_else(|error| error.into_inner())
+}
+
+fn draw_map_notice(ui: &nexus::imgui::Ui, data: &Tabbed) {
+    let mut notice = map_notice();
+    let Some(guild) = notice.as_deref() else {
+        return;
+    };
+    let name = data.names.get(guild).map(String::as_str).unwrap_or(guild);
+    {
+        let _warning = ui.push_style_color(nexus::imgui::StyleColor::Text, [1.0, 0.75, 0.3, 1.0]);
+        ui.text_wrapped(i18n::format(
+            "No events recorded for {0} since session start or the last team reassignment.",
+            &[name],
+        ));
+    }
+    if let Some(since) = data.history_since {
+        ui.text(i18n::format(
+            "Tracking since {0}",
+            &[&crate::clock::clock(since)],
+        ));
+    }
+    if ui.small_button(i18n::widget("Dismiss")) {
+        *notice = None;
+    }
+}
 
 /// Tab drawn on the previous frame, `usize::MAX` for «none». Session state, like the map choice.
 static LAST_TAB: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(usize::MAX);

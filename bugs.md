@@ -19,3 +19,9 @@ Formato:
 
 Estado: `[ ]` pendiente · `[x]` arreglado según el addon (a falta de que el jugador lo confirme).
 
+## [ ] Abrir la ruta de un clan lleva al mapa del jugador (2026-11-01)
+- Al abrir un clan no favorito, Mapa mostraba el mapa del jugador en vez del último mapa con
+  reclamos del clan. Sin eventos, también cambiaba de pestaña sin dar explicación.
+- **Pendiente:** arreglo implementado en `ui/navigation.rs`, `ui/mod.rs` y `ui/map.rs`: conservar
+  el salto hasta dibujar Mapa y validar que haya eventos; de lo contrario, mostrar un aviso.
+  Falta publicar y comprobar la navegación y el aviso dentro de GW2.

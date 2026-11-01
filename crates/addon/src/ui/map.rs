@@ -72,7 +72,7 @@ pub struct View<'a> {
 /// Body of the *Map* tab.
 ///
 /// The route is always captioned as inferred (ADR-005); the caption lives next to the drawing.
-pub fn body(ui: &Ui, view: &View<'_>, role: &mut MapRole, here: Option<MapRole>) {
+pub fn body(ui: &Ui, view: &View<'_>, role: &mut MapRole, here: Option<MapRole>) -> Option<String> {
     let View {
         states,
         names,
@@ -105,24 +105,19 @@ pub fn body(ui: &Ui, view: &View<'_>, role: &mut MapRole, here: Option<MapRole>)
     // Desplegable de clan justo al lado del de mapa: los que sigues primero y después los últimos
     // que han reclamado algo, para no tener que ir a la pestaña *Clanes* a buscarlos (petción del
     // jugador, 2026-11-01). Elegir uno dibuja su ruta, igual que clicarlo en esa pestaña.
-    if let Some(chosen) = draw_guild_choice(ui, follow, guild_names, guild, session_guilds) {
-        super::guilds::select(&chosen);
-        if let Some(role_of_last) = crate::worker::dashboard().last_map_of(&chosen) {
-            *role = role_of_last;
-        }
-    }
+    let chosen = draw_guild_choice(ui, follow, guild_names, guild, session_guilds);
 
     let Some(map) = maps
         .iter()
         .find(|map| MapRole::from_map_id(map.id) == *role)
     else {
         ui.text_disabled(i18n::text("No map data yet"));
-        return;
+        return chosen;
     };
     let frame = Frame::of(map);
     if !frame.is_usable() {
         ui.text_disabled(i18n::text("No map data yet"));
-        return;
+        return chosen;
     }
 
     let width = ui.content_region_avail()[0].max(140.0);
@@ -262,6 +257,7 @@ pub fn body(ui: &Ui, view: &View<'_>, role: &mut MapRole, here: Option<MapRole>)
     if hover_text.is_none() {
         ui.text_disabled(i18n::text("Point at an objective to see who holds it"));
     }
+    chosen
 }
 
 /// Tamaño en pantalla del mapa, con la **proporción real** de `continent_rect`.

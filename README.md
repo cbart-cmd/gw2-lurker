@@ -13,6 +13,11 @@ funciona en Mundo contra Mundo.
   descarga solo la primera vez.
 - **Una sola ventana con pestañas**: Avisos · Mapa · Clanes · Registro · Ajustes.
 
+Al entrar directamente en **Mapa** se muestra el mapa actual del jugador. Al abrir la ruta de
+un clan (también uno no favorito) se muestra el último mapa donde reclamó, con su **ruta inferida**.
+Si no hay eventos del clan desde el inicio de sesión o la última reasignación de equipos, no se
+cambia de pestaña: aparece un aviso con la hora de inicio del seguimiento.
+
 > Limitaciones honestas: la API pública de GW2 **no** expone el estado «bajo ataque» ni guarda
 > historial, y a veces **congela una partida entera** durante minutos (el addon lo avisa en naranja).
 > El historial es **de la sesión**: al reiniciar el juego empieza de cero (ADR-012, ADR-015). Las
