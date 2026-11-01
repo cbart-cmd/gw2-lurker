@@ -56,6 +56,11 @@ pub struct View<'a> {
     pub real_map: bool,
     /// What the guild chosen in the *Guilds* tab claimed this session, for the route (T-16).
     pub history: &'a [ClaimRow],
+    /// Clan cuya ruta se está dibujando, si hay uno elegido.
+    pub guild: Option<&'a str>,
+    /// Clanes que han reclamado algo en la sesión, **el más reciente primero**
+    /// (`Dashboard::session_guilds`). Alimentan el desplegable de clan de esta pestaña.
+    pub session_guilds: &'a [(String, usize, Option<chrono::DateTime<chrono::Utc>>)],
 }
 
 /// Body of the *Map* tab.
@@ -71,6 +76,8 @@ pub fn body(ui: &Ui, view: &View<'_>, role: &mut MapRole, here: Option<MapRole>)
         opacity,
         real_map,
         history,
+        guild,
+        session_guilds,
     } = *view;
 
     // Once per session: if the tab ever takes the game down, this is the line that says with
@@ -89,6 +96,15 @@ pub fn body(ui: &Ui, view: &View<'_>, role: &mut MapRole, here: Option<MapRole>)
     }
 
     draw_selector(ui, role, here, maps);
+    // Desplegable de clan justo al lado del de mapa: los que sigues primero y después los últimos
+    // que han reclamado algo, para no tener que ir a la pestaña *Clanes* a buscarlos (petción del
+    // jugador, 2026-11-01). Elegir uno dibuja su ruta, igual que clicarlo en esa pestaña.
+    if let Some(chosen) = draw_guild_choice(ui, follow, guild_names, guild, session_guilds) {
+        super::guilds::select(&chosen);
+        if let Some(role_of_last) = crate::worker::dashboard().last_map_of(&chosen) {
+            *role = role_of_last;
+        }
+    }
 
     let Some(map) = maps
         .iter()
@@ -527,11 +543,20 @@ fn detail_line(
     parts.join("  ·  ")
 }
 
+/// Ancho del desplegable de mapa. Antes ocupaba todo el ancho de la ventana para enseñar cuatro
+/// palabras («Eternos», «Alpino azul»…) y dejaba sin sitio al de clan (petición del jugador,
+/// 2026-11-01).
+const MAP_COMBO_WIDTH: f32 = 120.0;
+
+/// Ancho del desplegable de clan: `[TAG] Nombre` no cabe en menos.
+const GUILD_COMBO_WIDTH: f32 = 210.0;
+
 fn draw_selector(ui: &Ui, role: &mut MapRole, here: Option<MapRole>, maps: &[WvwMap]) {
     let current = map_label(*role);
     if here.is_some() && *role == MapRole::Unknown {
         *role = here.unwrap_or(MapRole::Center);
     }
+    let _width = ui.push_item_width(MAP_COMBO_WIDTH);
     ComboBox::new(i18n::widget("Map"))
         .preview_value(current)
         .build(ui, || {
@@ -561,6 +586,85 @@ fn draw_selector(ui: &Ui, role: &mut MapRole, here: Option<MapRole>, maps: &[Wvw
                 }
             }
         });
+}
+
+/// Los clanes del desplegable: primero los que sigue el jugador (en el orden en que los añadió) y
+/// después los que han reclamado algo **en la sesión**, el más reciente primero, sin repetir los
+/// que ya salen arriba.
+fn guild_choices(
+    follow: &FollowList,
+    session: &[(String, usize, Option<chrono::DateTime<chrono::Utc>>)],
+    limit: usize,
+) -> Vec<String> {
+    let mut out: Vec<String> = follow.iter().map(str::to_owned).collect();
+    for (guild, ..) in session {
+        if out.len() >= follow.len() + limit {
+            break;
+        }
+        if !out.iter().any(|known| known == guild) {
+            out.push(guild.clone());
+        }
+    }
+    out
+}
+
+/// Desplegable de clan, al lado del de mapa. Devuelve el que el jugador acaba de elegir, si hay uno.
+///
+/// La ventana de la pestaña es estrecha: si no caben los dos, el de clan baja a la línea siguiente
+/// en vez de salirse por la derecha.
+fn draw_guild_choice(
+    ui: &Ui,
+    follow: &FollowList,
+    names: &BTreeMap<String, String>,
+    current: Option<&str>,
+    session: &[(String, usize, Option<chrono::DateTime<chrono::Utc>>)],
+) -> Option<String> {
+    let choices = guild_choices(follow, session, GUILDS_IN_MENU);
+    let preview = current
+        .map(|guild| label_of(names, guild))
+        .unwrap_or_else(|| i18n::text("No guild").to_owned());
+
+    // Al lado del de mapa si cabe; si la ventana está estrecha, se baja de línea en vez de salirse.
+    let remaining = ui.content_region_avail()[0];
+    if remaining >= GUILD_COMBO_WIDTH.min(160.0) {
+        ui.same_line();
+    }
+    let mut chosen = None;
+    let _width = ui.push_item_width(GUILD_COMBO_WIDTH);
+    ComboBox::new(i18n::widget("Guild"))
+        .preview_value(preview)
+        .build(ui, || {
+            if choices.is_empty() {
+                ui.text_disabled(i18n::text("None yet"));
+                return;
+            }
+            for guild in &choices {
+                let followed = follow.contains(guild);
+                let star = if followed { "* " } else { "" };
+                let text = format!("{star}{}###guild{guild}", label_of(names, guild));
+                if Selectable::new(text)
+                    .selected(current == Some(guild.as_str()))
+                    .build(ui)
+                {
+                    chosen = Some(guild.clone());
+                }
+            }
+        });
+    chosen
+}
+
+/// Cuántos clanes **no seguidos** ofrece el desplegable del mapa.
+///
+/// Cinco: es un atajo para el clan que acaba de reclamar, no un listado (petición del jugador,
+/// 2026-11-01: «y justo después los últimos 5 que han reclamado algo»).
+const GUILDS_IN_MENU: usize = 5;
+
+/// `[TAG] Nombre` cuando se conoce, el id si no.
+fn label_of(names: &BTreeMap<String, String>, guild: &str) -> String {
+    names
+        .get(guild)
+        .cloned()
+        .unwrap_or_else(|| guild.to_owned())
 }
 
 /// Objectives worth drawing: the ones that score (RF-30a hides ruins, mercenaries and spawns).

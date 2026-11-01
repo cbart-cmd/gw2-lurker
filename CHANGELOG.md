@@ -1,6 +1,17 @@
 # Changelog
 Formato [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/), versionado [SemVer](https://semver.org/lang/es/).
 
+## [0.25.11] - 2026-11-01
+### Añadido
+- **Desplegable de clan en la pestaña *Mapa***, al lado del de mapa: primero los clanes que sigues
+  (con `*`) y después los **cinco últimos** que han reclamado algo en la sesión, sin repetir. Elegir
+  uno dibuja su ruta y lleva el mapa al último sitio donde reclamó, igual que clicarlo en la pestaña
+  *Clanes* — así no hay que cambiar de pestaña para buscarle.
+
+### Cambiado
+- El desplegable de mapa ocupa **120 px** en vez de todo el ancho: solo enseña cuatro palabras y
+  dejaba sin sitio al de clan.
+
 ## [0.25.10] - 2026-11-01
 ### Corregido
 - **«Con algo reclamado ahora» enseñaba ids de clan en vez de nombres.** A esa lista se le pasaba

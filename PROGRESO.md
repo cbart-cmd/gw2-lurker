@@ -13,6 +13,22 @@ Reglas:
 
 ---
 
+## HECHO – 2026-11-01 · Desplegable de clan en la pestaña Mapa (0.25.11)
+
+- Petición del jugador: el desplegable de mapa ocupaba todo el ancho «y no hace falta tanto»; al
+  lado quería uno de clan con los que sigue y «justo después los últimos 5 que han reclamado algo»,
+  para no tener que ir a la pestaña *Clanes* a buscarles.
+- `map::View` lleva ahora `guild` (el elegido, de `guilds::selected_guild`) y `session_guilds`
+  (`Dashboard::session_guilds`, ya ordenado por reclamo más reciente). `draw_guild_choice` dibuja el
+  combo a 210 px, con `*` en los seguidos; `guild_choices` es la regla pura y tiene test.
+- Elegir un clan hace lo mismo que clicarlo en la pestaña *Clanes*: `guilds::select` + llevar el mapa
+  al último sitio donde reclamó (`last_map_of`), que es lo que se está pidiendo al elegirlo.
+- El combo de mapa pasa a 120 px con `ui.push_item_width`: `arcdps-imgui` 0.8 no tiene
+  `ComboBox::width` (leído en `combo_box.rs`), así que el ancho se pone por el item.
+- Claves nuevas en la tabla: `Guild` y `No guild`.
+- Tests `rf31_the_guild_menu_is_the_followed_ones_and_then_the_latest_five` y
+  `rf31_the_guild_menu_without_anything_to_offer_is_empty`.
+
 ## HECHO – 2026-11-01 · «Con algo reclamado ahora» enseñaba ids (0.25.10)
 
 - Informe del jugador con captura: la lista de la pestaña *Clanes* mostraba

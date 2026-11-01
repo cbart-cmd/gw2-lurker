@@ -373,9 +373,12 @@ fn draw_tabs(
                     clicked = alerts::body(ui, data.alerts, data.now);
                 }
                 1 => {
-                    let history = guilds::selected_guild()
-                        .map(|guild| crate::worker::dashboard().guild_history(&guild))
+                    let selected = guilds::selected_guild();
+                    let history = selected
+                        .as_deref()
+                        .map(|guild| crate::worker::dashboard().guild_history(guild))
                         .unwrap_or_default();
+                    let session = crate::worker::dashboard().session_guilds();
                     map::body(
                         ui,
                         &map::View {
@@ -387,6 +390,8 @@ fn draw_tabs(
                             opacity: config.window(WIDGET).opacity,
                             real_map: config.map_tiles,
                             history: &history,
+                            guild: selected.as_deref(),
+                            session_guilds: &session,
                         },
                         &mut map_choice(),
                         data.current,

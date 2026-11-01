@@ -361,6 +361,8 @@ pub const TEXT: &[(&str, [&str; COLUMNS])] = &[
         ["Fortalezas y garris", "Keeps and garrisons", "Fortresses et garnisons", "Festen und Garnisonen"],
     ),
     ("Castles", ["Castillos", "Castles", "Châteaux", "Burgen"]),
+    ("Guild", ["Clan", "Guild", "Guilde", "Gilde"]),
+    ("No guild", ["Sin clan", "No guild", "Aucune guilde", "Kein Clan"]),
     (
         "Only structures a guild can claim raise an alert: ruins and mercenary camps never do.",
         [

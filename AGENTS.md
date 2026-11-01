@@ -29,7 +29,7 @@ Proyecto: addon de Nexus (Guild Wars 2) en Rust para Mundo contra Mundo. Avisa d
 
 0. **Lee `bugs.md`.** Y vuelve a leerlo después de cada paso de esta lista (§9): el usuario
    apunta fallos mientras trabajas y una entrada nueva no puede esperar a la siguiente sesión.
-1. Resume en 3–5 líneas qué vas a hacer y qué RF/escenarios cubres. Si algo es ambiguo, **pregunta antes de programar**.
+1. Resume en 3–5 líneas qué vas a hacer y qué RF/escenarios cubres. Si algo es ambiguo, **pregunta antes de programar**. 
 2. Escribe los tests (deben fallar por la razón correcta).
 3. Implementa lo mínimo para que pasen.
 4. Ejecuta, desde la raíz del repo, y pega la salida resumida:
@@ -41,6 +41,7 @@ Proyecto: addon de Nexus (Guild Wars 2) en Rust para Mundo contra Mundo. Avisa d
    ```
 5. Actualiza la documentación afectada (rustdoc, CHANGELOG si es visible para el usuario, `03-tasks.md`).
 6. Entrega con el formato de la sección 5.
+7. Es un archivo compartido. Si se borran filas, es porque el usuario las ha borrado. Así que no es un problema. Pero si añade algo mientras trabajas en solucionar bugs, NO borres las filas que el usuario haya añadido. 
 
 ## 4. Mapa del repositorio
 

@@ -231,6 +231,15 @@ busco clan, lo encuentro, clico para añadir en el bastion, y en vez de guardar 
   Está en `ui::map::detail_line`; los nombres siguen en la pestaña *Clanes* (historial y ruta).
 - **Pendiente:** verlo en el juego.
 
+## [x] en el mapa, un desplegable de clan al lado del de mapa (2026-11-01)
+«el desplegable de mapa es muy ancho, no hace falta tanto, y al lado poner desplegable de clan y salgan los clanes que sigo y justo después los últimos 5 que han reclamado algo; así no tengo que ir a la pestaña de clanes para buscarles»
+- **Hecho (0.25.11):** el de mapa baja a **120 px** y al lado aparece uno de clan (210 px) con los
+  **seguidos primero** (marcados con `*`) y después los **cinco últimos** que han reclamado en la
+  sesión, sin repetir. Elegir uno dibuja su ruta y lleva el mapa al último sitio donde reclamó, igual
+  que clicarlo en la pestaña *Clanes*.
+- Si la ventana es muy estrecha, el desplegable de clan baja a la línea siguiente en vez de salirse.
+- **Pendiente:** verlo en el juego.
+
 ## [x] «con algo reclamado ahora» enseña el id y no el nombre (2026-11-01)
 «widget, "con algo reclamado ahora" no muestra nombres sino el id. debería ir al json a buscar los nombres.»
 - **Causa:** a esa lista se le pasaba **solo** el mapa de `settings.json`, donde únicamente están los

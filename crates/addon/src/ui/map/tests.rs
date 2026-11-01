@@ -155,3 +155,45 @@ fn rf30_the_hover_without_a_claim_only_says_unclaimed() {
     let line = detail_line(None, &BTreeMap::new(), &FollowList::default(), Language::Es);
     assert_eq!(line, t(Language::Es, "Unclaimed"));
 }
+#[test]
+fn rf31_the_guild_menu_is_the_followed_ones_and_then_the_latest_five() {
+    // Petición del jugador (2026-11-01): en la pestaña Mapa, los clanes que sigue y justo después
+    // los últimos cinco que han reclamado algo. `session` llega ordenada por reclamo más reciente.
+    let mut follow = FollowList::default();
+    follow.add("SEGUIDO1");
+    follow.add("SEGUIDO2");
+    let session: Vec<(String, usize, Option<chrono::DateTime<chrono::Utc>>)> = vec![
+        ("RECIENTE1".to_owned(), 3, None),
+        ("SEGUIDO1".to_owned(), 2, None),
+        ("RECIENTE2".to_owned(), 1, None),
+        ("RECIENTE3".to_owned(), 1, None),
+        ("RECIENTE4".to_owned(), 1, None),
+        ("RECIENTE5".to_owned(), 1, None),
+        ("VIEJO".to_owned(), 9, None),
+    ];
+
+    let choices = guild_choices(&follow, &session, GUILDS_IN_MENU);
+    assert_eq!(
+        choices,
+        vec![
+            "SEGUIDO1", // los seguidos primero, en el orden en que se añadieron
+            "SEGUIDO2",
+            "RECIENTE1", // y después los últimos, sin repetir el que ya salía arriba
+            "RECIENTE2",
+            "RECIENTE3",
+            "RECIENTE4",
+            "RECIENTE5",
+        ],
+        "el sexto más reciente se queda fuera: son cinco"
+    );
+    assert!(
+        !choices.iter().any(|guild| guild == "VIEJO"),
+        "un clan viejo con muchos claims no entra por número de claims: manda la hora"
+    );
+}
+
+#[test]
+fn rf31_the_guild_menu_without_anything_to_offer_is_empty() {
+    let choices = guild_choices(&FollowList::default(), &[], GUILDS_IN_MENU);
+    assert!(choices.is_empty(), "{choices:?}");
+}
