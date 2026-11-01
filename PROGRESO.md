@@ -46,6 +46,40 @@ Reglas:
   verificarlos (403 entre carpetas, no redimensiona el viewport): se probaron con Edge del sistema
   y `playwright-core` (hay que reinstalarlo; no queda nada en el repo).
 
+## HECHO – 2026-11-01 · El equipo se guarda solo por cuenta y no se migra nada (RF-03a)
+
+- Petición: `settings.json` «parece guardar el equipo por personaje»; la cuenta ya se recupera (arcdps),
+  así que debe ser la clave. Decisión del jugador: **no migrar datos; a partir de ahora, por cuenta**.
+- Diagnóstico con el `Nexus.log` de 0.26.5: la cuenta llegó a las 21:57:13 y el equipo se resolvió por la
+  clave heredada del personaje 1 (21:58:27). Al cambiar de personaje (22:00:49) el 2 no tenía entrada ni
+  la cuenta tampoco, y el selector estuvo ~80 min hasta que el jugador eligió a mano (23:20), que sí se
+  guardó por cuenta. El guardado ya era por cuenta; confundían dos cosas: `team::resolve` seguía leyendo
+  las entradas por personaje y el campo del fichero se llama `by_character`.
+- Hecho: (1) `Roster` se serializa como `by_account` **sin alias**: el `by_character` de ≤ 0.26.5 se ignora
+  y desaparece en el siguiente guardado (cada cuenta elige su equipo una vez); (2) `team::resolve` lee
+  solo la clave actual (la cuenta; el personaje únicamente si arcdps no ha dado cuenta, es decir, sin
+  arcdps) y `forget` borra esa misma clave; (3) specs, docs y CHANGELOG. Tests `rf03a_…` en `select.rs`,
+  `team.rs` y `config/tests.rs`.
+- Coste conocido: al actualizar, cada cuenta elige su equipo **una vez**, también la que 0.26.5 ya había
+  guardado a las 23:20 (el campo cambia de nombre y no hay alias). La basura de `by_character` (el
+  `"Guild Wars 2"` de un bug del 2026-10-31 y personajes sueltos) desaparece al guardar. Si molesta, el
+  atajo es `#[serde(alias = "by_character")]` en `Roster::by_account`: conserva las cuentas y deja inertes
+  las claves de personaje.
+- Sin arcdps no hay cuenta: la clave sigue siendo el personaje, como antes. Sin cuenta ni personaje
+  (pantalla de selección) `remember` no guarda nada.
+- Specs tocadas **a petición del jugador** («no migres datos»): RF-03a, `02-design.md` (roster por cuenta)
+  y `06-diff-scenarios.md` (M-05 reescrito; M-05b y M-05c nuevos).
+- Tests nuevos o sustituidos: `rf03a_roster_is_saved_by_account_and_the_old_map_is_not_read` (`select.rs`),
+  `rf03a_a_character_entry_is_not_read_once_the_account_is_known`,
+  `rf03a_picking_a_team_saves_it_under_the_account_only`,
+  `rf03a_forgetting_clears_the_key_that_was_read_and_nothing_else` (`team.rs`) y
+  `rf03a_teams_saved_per_character_by_older_versions_are_not_carried_over` (`config/tests.rs`).
+- Verificado: `validate.ps1` completo en verde (fmt, clippy, loc, trazabilidad, versión 0.26.5 en 6
+  sitios, 342 tests pasados, 0 fallidos, 4 ignorados); `modelo.md` regenerado, 0 sin descripción.
+- **No verificado:** el comportamiento dentro del juego. Nexus sobrescribe la DLL con la publicada, así
+  que hay que publicar (0.26.6; llevaría también el recorte de logs, `130dabd`, aún sin publicar).
+- Commit: `c780f04`.
+
 ## HECHO – 2026-11-01 · Bocetos de mejora de la ruta inferida (solo `docs/`, sin tocar código)
 
 - Petición: ideas para mejorar la inferencia de ruta (casos extremos, caminos en vez de rectas) y **4
