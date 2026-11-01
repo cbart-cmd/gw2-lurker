@@ -38,5 +38,8 @@ Estado: `[ ]` pendiente · `[x]` arreglado según el addon (a falta de que el ju
 
 ## [ ] El click-through dice un atajo que ya no es (2026-11-01)
 - Con el atajo cambiado a Alt+Shift+Ñ en Nexus, el aviso decía «Ctrl+Shift+Ñ».
-- **Pendiente:** `keybinds.rs` relee `InputBinds.json` cuando cambia (desde el worker) en vez de
-  solo al cargar. Con test; sin publicar todavía y falta comprobarlo en GW2.
+- **Hecho (0.26.3):** `keybinds.rs` relee `InputBinds.json` cuando cambia la fecha del fichero
+  (`Watch` + `refresh()` desde `worker::sleep`, nunca en el render) y `shortcut()` devuelve el
+  nombre ya resuelto. Test `rf18_a_rebinding_made_while_playing_reaches_the_message`.
+- **Pendiente:** comprobar en GW2 que el aviso nombra la tecla nueva al cambiarla con el juego
+  abierto.

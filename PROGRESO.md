@@ -42,7 +42,17 @@ Reglas:
   worker según la fecha de modificación y la tecla se nombra en el hilo que pide el texto
   (`GetKeyNameTextW` usa la distribución de teclado de ese hilo).
 
-## HECHO – 2026-11-01 · Subir versión en un solo paso · 0.26.3 (sin publicar)
+## HECHO – 2026-11-01 · Publicada la 0.26.3
+
+- Release `gw2-lurker-v0.26.3` en `cbart-cmd/gw2addonsreleases`, MD5
+  `bd625f8c7ed73d5e607c40f69daecf35` (2 197 504 B), el mismo que la DLL de `cargo build --release`
+  de `bcd7d2f`. `release.ps1 -VerifyOnly` descargó y comprobó el fichero publicado.
+- Contenido: el aviso del click-through sigue al `InputBinds.json` real (commit `25dd2a5`) y el
+  historial de un clan se pinta de más reciente a más antiguo (`8e2d8d8`, `ui/guilds.rs`).
+- Retención: quedan 0.26.3 y 0.26.2; la 0.26.1 ya no está en el repo de distribución.
+- Pendiente de prueba en GW2: la tecla nombrada en el aviso y el orden del historial del clan.
+
+## HECHO – 2026-11-01 · Subir versión en un solo paso · 0.26.3
 
 - Subir versión se hacía a mano en cuatro sitios y era fácil dejarse las dependencias internas:
   ahora `scripts/bump-version.ps1 -Version x.y.z` toca `Cargo.toml` del workspace, la `version` de
