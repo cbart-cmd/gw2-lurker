@@ -13,6 +13,21 @@ Reglas:
 
 ---
 
+## HECHO – 2026-11-01 · «Con algo reclamado ahora» enseñaba ids (0.25.10)
+
+- Informe del jugador con captura: la lista de la pestaña *Clanes* mostraba
+  `C3484B97-EC4A-E411-AA1F-AC162DAE275E` en vez de `[PEST] Please excuse the silly tactics`, mientras
+  la lista de abajo sí los enseñaba.
+- **Causa:** a `session_block` se le pasaba `config.guild_names` (solo los clanes **seguidos**, por
+  RF-20b) en vez del mapa que se dibuja —ajustes **+ `temp.json`**—. Los de la sesión no están en los
+  ajustes, así que `label()` caía al id. No hacía falta leer el índice `guild-names.json` en el
+  render: el nombre ya estaba en `temp.json`.
+- Arreglo: `followed_section`/`add_section`/`session_block` reciben **dos** mapas, `known` (lo que se
+  dibuja) y `saved` (lo que se escribe). Al añadir desde la lista, `remember_name` guarda el nombre en
+  los ajustes y devuelve la entrada para el índice. Test `rf20_the_session_list_shows_names_and_not_ids`.
+- `ui/mod.rs` se había ido a 803 líneas con el cambio: la línea de estado pasa a `ui/status.rs`
+  (`draw_health`, `colour_label`, `region_of*`), 530 + 218.
+
 ## HECHO – 2026-11-01 · El hover del mapa, sin nombre y con el alto valor al final (0.25.9)
 
 - Petición del jugador: el nombre del objetivo en el hover del mapa «tapa el resto» y el alto valor

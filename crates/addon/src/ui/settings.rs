@@ -602,7 +602,7 @@ fn draw_team(
                 // nombres de equipo son nuevos y no dicen nada (informe de 2026-10-31). Nada de
                 // «1-1»: la región, en palabras (insistencia del jugador, 2026-10-31).
                 let worlds = worlds_label(&candidate.worlds, worlds);
-                let region = match super::region_of(&candidate.match_id) {
+                let region = match super::status::region_of(&candidate.match_id) {
                     Some(Region::Eu) => region_label(Region::Eu),
                     Some(Region::Na) => region_label(Region::Na),
                     None => "?",

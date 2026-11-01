@@ -230,3 +230,14 @@ busco clan, lo encuentro, clico para añadir en el bastion, y en vez de guardar 
   `Azul  ·  * [YaK] Dolyak Sanctuary  ·  12:31  ·  Alto valor`. Sin claim, solo `Sin reclamar`.
   Está en `ui::map::detail_line`; los nombres siguen en la pestaña *Clanes* (historial y ruta).
 - **Pendiente:** verlo en el juego.
+
+## [x] «con algo reclamado ahora» enseña el id y no el nombre (2026-11-01)
+«widget, "con algo reclamado ahora" no muestra nombres sino el id. debería ir al json a buscar los nombres.»
+- **Causa:** a esa lista se le pasaba **solo** el mapa de `settings.json`, donde únicamente están los
+  clanes que ya sigues; los de la sesión viven en `temp.json`. Como no estaban, `label()` caía al id.
+  El nombre ya estaba cargado: **no hace falta leer el índice `guild-names.json` en el render**, y no
+  se hace (RF-20b).
+- **Hecho (0.25.10):** la lista recibe el mapa que se dibuja (ajustes **+ `temp.json`**) y se ve
+  `[PEST] Please excuse the silly tactics`. Al añadir uno desde ahí, su nombre se guarda en los ajustes
+  y se le enseña al índice, así que la próxima búsqueda por texto lo encuentra.
+- **Pendiente:** verlo en el juego.

@@ -61,18 +61,21 @@ fn pending_remove() -> std::sync::MutexGuard<'static, Option<String>> {
 /// same trick the title bar uses for its own close button.
 const REMOVE_WIDTH: f32 = 24.0;
 
-/// The guilds the player follows, with a `×` to stop following each one.
+/// Guilds the player follows, with a `×` to stop following each one.
 ///
 /// It lives in the *Guilds* tab and not in the settings: following a guild is something you
 /// decide while looking at the match, not a preference you go hunting for (report of 2026-10-31).
 ///
-/// `names` is the **saved** map (`Config::guild_names`): al dejar de seguir un clan se quita
-/// también su nombre de los ajustes, porque ahí solo se guardan los que sigues (petición del
-/// jugador, 2026-11-01).
+/// `known` es el mapa **de lo que se dibuja** (`settings.json` + `temp.json`, ver
+/// [`crate::session_names`]); `saved` es solo `settings.json`, donde vive el nombre de los clanes
+/// que sigues. Se separan porque al dejar de seguir hay que borrar el nombre **de los ajustes**,
+/// pero hasta ese momento el nombre puede venir de la sesión (informe del jugador, 2026-11-01: la
+/// lista enseñaba ids porque solo se le pasaba el mapa de los ajustes).
 pub fn followed_section(
     ui: &Ui,
     follow: &mut FollowList,
-    names: &mut BTreeMap<String, String>,
+    known: &BTreeMap<String, String>,
+    saved: &mut BTreeMap<String, String>,
 ) -> Option<String> {
     let count = format!("{}/{MAX_FOLLOWED}", follow.len());
     ui.text(i18n::format("Followed guilds ({0})", &[&count]));
@@ -91,7 +94,7 @@ pub fn followed_section(
             // 2026-10-31, «pulsar x no lo borra»).
             ui.text_wrapped(i18n::format(
                 "Remove {0} from the guilds you follow?",
-                &[&label(names, guild)],
+                &[&label(known, guild)],
             ));
             if ui.small_button(i18n::widget("Yes, remove it")) {
                 remove = Some(guild.to_owned());
@@ -110,7 +113,7 @@ pub fn followed_section(
         let mut unfollow = false;
         let start = ui.cursor_pos();
         let width = ui.content_region_avail()[0];
-        let row = Selectable::new(format!("{}###followed{guild}", label(names, guild)));
+        let row = Selectable::new(format!("{}###followed{guild}", label(known, guild)));
         if width > REMOVE_WIDTH * 2.0 {
             let row_width = (width - REMOVE_WIDTH - ui.clone_style().item_spacing[0]).max(40.0);
             ui.set_cursor_pos([start[0] + width - REMOVE_WIDTH, start[1]]);
@@ -134,7 +137,7 @@ pub fn followed_section(
     if let Some(guild) = remove {
         follow.remove(&guild);
         // Su nombre tampoco se queda en los ajustes: ahí solo viven los de los clanes seguidos.
-        names.remove(&guild);
+        saved.remove(&guild);
     }
     chosen
 }
@@ -146,7 +149,8 @@ pub fn followed_section(
 pub fn add_section(
     ui: &Ui,
     follow: &mut FollowList,
-    names: &mut BTreeMap<String, String>,
+    known: &BTreeMap<String, String>,
+    saved: &mut BTreeMap<String, String>,
     candidates: &[Candidate],
     my_team: Option<u32>,
     session: &[(String, usize, Option<DateTime<Utc>>)],
@@ -163,9 +167,9 @@ pub fn add_section(
     {
         return;
     }
-    session_block(ui, follow, session, names);
+    session_block(ui, follow, session, known, saved);
     ui.separator();
-    search_block(ui, follow, names, candidates, my_team);
+    search_block(ui, follow, saved, candidates, my_team);
 }
 
 /// `[TAG] Nombre` when it is known, the raw id otherwise.
@@ -173,12 +177,35 @@ fn label(names: &BTreeMap<String, String>, id: &str) -> String {
     names.get(id).cloned().unwrap_or_else(|| id.to_owned())
 }
 
+/// Guarda en los ajustes el nombre que ya se conoce de un clan al que se empieza a seguir, y
+/// devuelve la entrada que hay que enseñarle al índice (`names::append_async`).
+///
+/// Puro a propósito: escribir en el índice cuesta leer y reescribir 675 KB, así que aquí solo se
+/// decide **qué** guardar y el hilo se lanza fuera, en la UI.
+fn remember_name(
+    known: &BTreeMap<String, String>,
+    saved: &mut BTreeMap<String, String>,
+    guild: &str,
+) -> Vec<(String, String)> {
+    let Some(label) = known.get(guild).cloned() else {
+        return Vec::new();
+    };
+    saved.insert(guild.to_owned(), label.clone());
+    vec![(guild.to_owned(), label)]
+}
+
 /// Guilds that claimed something during this session: one click and they are followed.
+///
+/// El nombre sale de `known` —los ajustes **más** `temp.json`—, no solo de los ajustes: estos
+/// clanes no se siguen todavía, así que en `settings.json` no están y la lista enseñaba ids de 36
+/// caracteres (informe del jugador, 2026-11-01). Al añadir uno se guarda su nombre en los ajustes y
+/// se le enseña al índice, para no volver a pedirlo.
 fn session_block(
     ui: &Ui,
     follow: &mut FollowList,
     session: &[(String, usize, Option<DateTime<Utc>>)],
-    names: &BTreeMap<String, String>,
+    known: &BTreeMap<String, String>,
+    saved: &mut BTreeMap<String, String>,
 ) {
     ui.text(i18n::text("Holding something now"));
     // The ten most recent: the list is a shortcut, not an inventory, and it was growing without
@@ -195,7 +222,7 @@ fn session_block(
     let mut add = None;
     for (guild, claims, last) in candidates {
         let when = last.map(crate::clock::clock).unwrap_or_default();
-        let text = format!("{}  ·  {claims} · {when}", label(names, guild));
+        let text = format!("{}  ·  {claims} · {when}", label(known, guild));
         ui.text(text);
         ui.same_line();
         if ui.small_button(format!("+###add{guild}")) {
@@ -204,6 +231,12 @@ fn session_block(
     }
     if let Some(guild) = add {
         follow.add(&guild);
+        // El nombre que ya se conoce se guarda con el clan (los ajustes solo llevan los seguidos) y
+        // se le enseña al índice, para no tener que volver a pedirlo nunca.
+        let learned = remember_name(known, saved, &guild);
+        if !learned.is_empty() {
+            crate::names::append_async(learned);
+        }
     }
 }
 
@@ -220,7 +253,7 @@ fn session_block(
 fn search_block(
     ui: &Ui,
     follow: &mut FollowList,
-    names: &mut BTreeMap<String, String>,
+    saved: &mut BTreeMap<String, String>,
     candidates: &[Candidate],
     my_team: Option<u32>,
 ) {
@@ -326,7 +359,7 @@ fn search_block(
         // preguntar al API, y el índice de búsqueda lo aprende para la próxima vez (petición del
         // jugador, 2026-11-01).
         if let Some(label) = label {
-            names.insert(guild.clone(), label.clone());
+            saved.insert(guild.clone(), label.clone());
             crate::names::append_async(vec![(guild, label)]);
         }
     }
@@ -462,6 +495,44 @@ mod tests {
             !crate::names::matches_text(yak, "6C45F3C8", "waifu"),
             "lo que no coincide no se cuela"
         );
+    }
+
+    #[test]
+    fn rf20_the_session_list_shows_names_and_not_ids() {
+        // Bug del 2026-11-01: a la lista «con algo reclamado ahora» se le pasaba **solo** el mapa de
+        // los ajustes, y esos clanes aún no se siguen, así que en él no están y salían ids de 36
+        // caracteres. El nombre está en el mapa que se dibuja (ajustes + `temp.json`).
+        const ID: &str = "C3484B97-EC4A-E411-AA1F-AC162DAE275E";
+        let mut known = BTreeMap::new();
+        known.insert(
+            ID.to_owned(),
+            "[PEST] Please excuse the silly tactics".to_owned(),
+        );
+        let mut saved: BTreeMap<String, String> = BTreeMap::new();
+
+        assert_eq!(
+            label(&known, ID),
+            "[PEST] Please excuse the silly tactics",
+            "con el mapa de lo que se dibuja, sale el nombre"
+        );
+        assert_eq!(
+            label(&saved, ID),
+            ID,
+            "con solo los ajustes salía el id: es lo que no puede volver a pasar"
+        );
+
+        // Y al empezar a seguirlo, su nombre se queda en los ajustes y se le enseña al índice.
+        let learned = remember_name(&known, &mut saved, ID);
+        assert_eq!(
+            saved.get(ID).map(String::as_str),
+            Some("[PEST] Please excuse the silly tactics")
+        );
+        assert_eq!(learned.len(), 1, "una entrada para el índice");
+        assert_eq!(learned[0].0, ID);
+
+        // De un clan del que no se sabe el nombre no se inventa nada.
+        assert!(remember_name(&known, &mut saved, "OTRO").is_empty());
+        assert!(!saved.contains_key("OTRO"));
     }
 
     #[test]

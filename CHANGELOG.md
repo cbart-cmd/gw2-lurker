@@ -1,6 +1,15 @@
 # Changelog
 Formato [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/), versionado [SemVer](https://semver.org/lang/es/).
 
+## [0.25.10] - 2026-11-01
+### Corregido
+- **«Con algo reclamado ahora» enseñaba ids de clan en vez de nombres.** A esa lista se le pasaba
+  solo el mapa de `settings.json`, donde únicamente están los clanes que ya sigues; los de la sesión
+  viven en `temp.json`. Ahora recibe el mapa que se dibuja (ajustes + `temp.json`), así que sale
+  `[PEST] Please excuse the silly tactics` y no `C3484B97-EC4A-…`. Al añadir uno desde esa lista, su
+  nombre se guarda en los ajustes y se le enseña al índice.
+- `ui/mod.rs` llegó a 803 líneas: la línea de estado pasa a `ui/status.rs`.
+
 ## [0.25.9] - 2026-11-01
 ### Cambiado
 - **El hover del mapa ya no dice el nombre del objetivo** y el alto valor pasa al final de la línea:
