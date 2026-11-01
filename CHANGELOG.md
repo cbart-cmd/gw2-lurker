@@ -2,6 +2,8 @@
 Formato [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/), versionado [SemVer](https://semver.org/lang/es/).
 
 ## [Unreleased]
+
+## [0.26.4] - 2026-11-01
 ### Corregido
 - Volver a la pestaña *Mapa* a mano abre el mapa en el que estás. Antes, después de abrir el mapa
   de un clan, se quedaba en el mapa del clan: la marca de «vengo de un clic de clan» seguía viva
