@@ -233,8 +233,10 @@ fn search_block(
             "Searches the guilds the addon already knows, plus one hit from the API.",
         ));
     }
-    let typed = ui.is_item_deactivated_after_edit();
-    go |= typed;
+    // Sin `is_item_deactivated_after_edit`: clicar una fila de resultados desactiva el campo, y eso
+    // lanzaba otra búsqueda en el mismo fotograma del clic, vaciaba la lista y el clic se perdía
+    // (informe del jugador, 2026-11-01: «el primer clic no añade el clan»). Al escribir ya busca
+    // el debounce; aquí solo Enter y el botón.
     ui.same_line();
     go |= ui.button(i18n::widget("Search"));
 
@@ -263,50 +265,53 @@ fn search_block(
     }
 
     let mut add: Option<(String, Option<String>)> = None;
-    match crate::search::snapshot() {
+    let state = crate::search::snapshot();
+    match &state {
         crate::search::State::Idle => {
             ui.text_disabled(i18n::text(
                 "Type part of the name; the list updates as you type.",
             ));
         }
-        crate::search::State::Searching => {
+        crate::search::State::Searching(_) => {
             ui.text_disabled(i18n::text("Searching..."));
         }
         crate::search::State::Failed(error) => {
-            ui.text_disabled(i18n::format("Search failed: {0}", &[&error]));
+            ui.text_disabled(i18n::format("Search failed: {0}", &[error]));
         }
-        crate::search::State::Done(hits) => {
-            if hits.is_empty() && needle.len() >= 2 {
-                let cached = crate::names::index_len();
-                if cached == 0 {
-                    // Sin índice solo queda el API, que devuelve uno y por el principio del
-                    // nombre: se dice, en vez de dejar la ventana vacía (informe de 2026-10-31).
-                    ui.text_wrapped(i18n::text(
-                        "There is no index of guild names yet: only the API is searched, and it returns one guild at most. Download the index from the settings.",
-                    ));
-                } else {
-                    ui.text_wrapped(i18n::format(
-                        "Nothing matches in the index ({0} guilds). The API returns one guild at most, and only when the text starts its name.",
-                        &[&cached.to_string()],
-                    ));
-                }
-            }
-            for hit in hits.iter() {
-                // La estrella marca lo que sigues.
-                let star = if follow.contains(&hit.id) { "* " } else { "" };
-                let text = match hit.team {
-                    Some(team) => format!(
-                        "{star}{}  ·  {}###hit{}",
-                        hit.label,
-                        team_label(team),
-                        hit.id
-                    ),
-                    None => format!("{star}{}###hit{}", hit.label, hit.id),
-                };
-                if Selectable::new(text).build(ui) {
-                    add = Some((hit.id.clone(), Some(hit.label.clone())));
-                }
-            }
+        crate::search::State::Done(_) => {}
+    }
+    // Los resultados se dibujan en **todos** los estados que los tengan, también mientras hay una
+    // búsqueda en marcha: si desaparecieran, el clic del jugador caería en el aire.
+    let hits = state.hits();
+    if hits.is_empty() && needle.len() >= 2 && matches!(state, crate::search::State::Done(_)) {
+        let cached = crate::names::index_len();
+        if cached == 0 {
+            // Sin índice solo queda el API, que devuelve uno y por el principio del nombre: se
+            // dice, en vez de dejar la ventana vacía (informe de 2026-10-31).
+            ui.text_wrapped(i18n::text(
+                "There is no index of guild names yet: only the API is searched, and it returns one guild at most. Download the index from the settings.",
+            ));
+        } else {
+            ui.text_wrapped(i18n::format(
+                "Nothing matches in the index ({0} guilds). The API returns one guild at most, and only when the text starts its name.",
+                &[&cached.to_string()],
+            ));
+        }
+    }
+    for hit in hits {
+        // La estrella marca lo que sigues.
+        let star = if follow.contains(&hit.id) { "* " } else { "" };
+        let text = match hit.team {
+            Some(team) => format!(
+                "{star}{}  ·  {}###hit{}",
+                hit.label,
+                team_label(team),
+                hit.id
+            ),
+            None => format!("{star}{}###hit{}", hit.label, hit.id),
+        };
+        if Selectable::new(text).build(ui) {
+            add = Some((hit.id.clone(), Some(hit.label.clone())));
         }
     }
     if let Some((guild, label)) = add {

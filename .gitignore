@@ -7,3 +7,5 @@
 .vscode/
 *.log
 image*.png
+# Temporal del jugador: lo borro yo y no se repone.
+/data/equipos.xlsx

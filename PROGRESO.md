@@ -15,6 +15,10 @@ Reglas:
 
 ## HECHO – 2026-11-01 · El índice vuelve a `data/` (y el ZIP con él)
 
+- **`data/equipos.xlsx` está borrado A PROPÓSITO** (el jugador lo usó una sola vez para rellenar
+  `team-names.json` y no lo quiere; lo dijo el 2026-10-31 y otra vez el 2026-11-01, enfadado porque
+  lo repuse). **No se repone**: está en `.gitignore` con esa nota. Si alguna vez hiciera falta, se
+  pregunta antes de recuperarlo.
 - **Error mío, y queda apuntado como trampa:** al pasar el índice a "solo caché de búsqueda"
   quité del repo `data/guild-names.json` —que había generado el jugador— y lo añadí a
   `.gitignore`. Nadie me lo pidió: al contrario, AGENTS §9 dice que no se borra lo del jugador sin

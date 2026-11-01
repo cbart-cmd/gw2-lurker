@@ -49,9 +49,23 @@ pub struct Hit {
 pub enum State {
     #[default]
     Idle,
-    Searching,
+    /// Búsqueda en marcha. **Guarda los resultados anteriores**: si se vaciara la lista, el clic
+    /// que el jugador acaba de hacer caería en el aire, porque la fila desaparecería en el mismo
+    /// fotograma en el que se pulsa (informe del jugador, 2026-11-01: «el primer clic no añade el
+    /// clan, tengo que darle otra vez»).
+    Searching(Vec<Hit>),
     Done(Vec<Hit>),
     Failed(String),
+}
+
+impl State {
+    /// Hits on screen right now, whatever the state: lo que se puede clicar mientras se busca.
+    pub fn hits(&self) -> &[Hit] {
+        match self {
+            State::Searching(hits) | State::Done(hits) => hits,
+            State::Idle | State::Failed(_) => &[],
+        }
+    }
 }
 
 static STATE: OnceLock<Mutex<State>> = OnceLock::new();
@@ -76,10 +90,12 @@ pub fn snapshot() -> State {
 pub fn start(region: Region, team: Option<u32>, text: String, mode: Mode) -> bool {
     {
         let mut state = slot().lock().unwrap_or_else(|error| error.into_inner());
-        if matches!(*state, State::Searching) {
+        if matches!(*state, State::Searching(_)) {
             return false;
         }
-        *state = State::Searching;
+        // Los resultados que hay en pantalla se quedan: mientras llega la nueva búsqueda la lista
+        // sigue siendo clicable (ver [`State::Searching`]).
+        *state = State::Searching(state.hits().to_vec());
     }
 
     let spawned = std::thread::Builder::new()
@@ -231,7 +247,7 @@ mod tests {
 
     #[test]
     fn t44_a_search_is_not_started_on_top_of_another() {
-        *slot().lock().unwrap() = State::Searching;
+        *slot().lock().unwrap() = State::Searching(Vec::new());
 
         assert!(!start(
             Region::Eu,
@@ -239,7 +255,41 @@ mod tests {
             "lord".to_owned(),
             Mode::Local
         ));
-        assert_eq!(snapshot(), State::Searching, "el estado no se pisa");
+        assert_eq!(
+            snapshot(),
+            State::Searching(Vec::new()),
+            "el estado no se pisa"
+        );
+
+        *slot().lock().unwrap() = State::Idle;
+    }
+
+    #[test]
+    fn t44_the_results_on_screen_survive_a_new_search() {
+        // El clic del jugador caía en el aire: al lanzar otra búsqueda la lista se vaciaba en el
+        // mismo fotograma del clic, así que el primer clic no añadía el clan y hacía falta un
+        // segundo (informe de 2026-11-01).
+        let hit = Hit {
+            id: "114D20B6-6E89-4432-982C-C77B58F57460".to_owned(),
+            label: "[YaK] Dolyak Sanctuary".to_owned(),
+            team: None,
+            matches_team: true,
+        };
+        *slot().lock().unwrap() = State::Done(vec![hit.clone()]);
+
+        {
+            // Lo mismo que hace `start` antes de lanzar el hilo, sin lanzarlo: un test no toca
+            // disco ni red.
+            let mut state = slot().lock().unwrap();
+            let previous = state.hits().to_vec();
+            *state = State::Searching(previous);
+        }
+
+        assert_eq!(
+            snapshot().hits(),
+            &[hit],
+            "los resultados siguen en pantalla (y clicables) mientras se busca"
+        );
 
         *slot().lock().unwrap() = State::Idle;
     }

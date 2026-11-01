@@ -189,3 +189,13 @@ busco clan, lo encuentro, clico para añadir en el bastion, y en vez de guardar 
 - **Pendiente:** verlo en el juego. Los nombres de clan que devuelve el API sí pueden traer cirílico
   o emoji: esos seguirán saliendo como «?» porque no hay glifo en la fuente, y el addon no puede
   añadir un atlas propio sin meter una fuente en la DLL.
+## [x] en el buscador, el primer clic no añade el clan (2026-11-01)
+«me da la sensación que tras buscar, el primer clic que hago al clan no lo añade, tengo que darle otra vez»
+- **No era sensación.** Clicar una fila de resultados **desactiva el campo de texto**, y eso se
+  estaba usando como señal de «busca ya»: en el mismo fotograma del clic se lanzaba otra búsqueda,
+  el estado pasaba a *buscando* y la lista se sustituía por «Buscando...»; el clic caía en el vacío.
+  El segundo clic funcionaba porque el campo ya estaba sin foco.
+- **Hecho (0.25.4):** perder el foco ya no busca (busca el debounce mientras escribes, o Enter /
+  botón). Y `State::Searching` **conserva los resultados anteriores**, así que la lista sigue en
+  pantalla —y clicable— mientras llega la nueva. Test `t44_the_results_on_screen_survive_a_new_search`.
+- **Pendiente:** confirmarlo en el juego.

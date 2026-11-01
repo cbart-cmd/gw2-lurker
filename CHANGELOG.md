@@ -1,6 +1,13 @@
 # Changelog
 Formato [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/), versionado [SemVer](https://semver.org/lang/es/).
 
+## [0.25.4] - 2026-11-01
+### Corregido
+- **El primer clic en un resultado del buscador de clanes no añadía el clan.** Clicar la fila
+  desactivaba el campo de texto, eso lanzaba otra búsqueda en el mismo fotograma y la lista se
+  sustituía por «Buscando...»: el clic caía en el vacío. Ahora perder el foco no busca, y los
+  resultados siguen en pantalla (y clicables) mientras se busca.
+
 ## [0.25.3] - 2026-11-01
 ### Cambiado
 - **Nombres de equipo en español y francés completados** con la lista estática de la wiki
