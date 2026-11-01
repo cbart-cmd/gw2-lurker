@@ -34,6 +34,10 @@ Reglas:
 - Spec: RF-71 con los dos botones y tres GWT nuevos. `bugs.md`: **el jugador había vaciado el
   fichero** (solo quedaba la cabecera); no se ha restaurado nada de git y solo se ha añadido la
   entrada de hoy.
+- Publicado en **0.25.14** (MD5 `7e8b2c863e832a3287986498620f2ac2`) e **instalado** en el juego.
+  `cargo fmt --check`, `clippy -D warnings`, 263 tests, `check_loc.sh` y `check_traceability.sh`: todo
+  en verde.
+- **No verificado:** verlo en el juego (los botones y el salto de pestaña no se pueden probar fuera).
 
 ## HECHO – 2026-11-01 · `bugs.md` como fichero compartido (regla nueva)
 
