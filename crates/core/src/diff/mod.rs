@@ -8,6 +8,7 @@ use std::collections::BTreeMap;
 use chrono::{DateTime, Duration, Utc};
 use serde::{Deserialize, Serialize};
 
+use crate::matchup::claim_holds;
 use crate::model::{Match, MatchObjective, TeamColor};
 
 /// One poll result, flattened so the diff does not care about map grouping.
@@ -162,7 +163,10 @@ impl Differ {
             events.push(Event::Baseline { reason });
             // RF-25: a baseline is when we discover the claims that already exist. All of
             // them are recorded with their real `claimed_at`, flagged as late.
-            late_claims(&snapshot, &mut events);
+            let previous = (reason == BaselineReason::Gap)
+                .then_some(self.prev.as_ref())
+                .flatten();
+            late_claims(&snapshot, previous, &mut events);
         } else if let Some(prev) = &self.prev {
             // A baseline never produces flips: there is nothing to compare against (RF-04).
             flips_and_claims(prev, &snapshot, &mut events);
@@ -174,15 +178,27 @@ impl Differ {
 }
 
 /// Every claim visible in a baseline snapshot, ordered by objective id (RF-25).
-fn late_claims(snapshot: &Snapshot, out: &mut Vec<Event>) {
+fn late_claims(snapshot: &Snapshot, previous: Option<&Snapshot>, out: &mut Vec<Event>) {
     for (id, objective) in &snapshot.objectives {
-        if let Some(guild) = &objective.claimed_by {
-            out.push(Event::Claim {
-                objective: id.clone(),
-                guild: guild.clone(),
-                at: objective.claimed_at.unwrap_or(snapshot.taken_at),
-                late: true,
-            });
+        if claim_holds(objective) {
+            if let Some(guild) = &objective.claimed_by {
+                let already_recorded = previous
+                    .and_then(|snapshot| snapshot.objectives.get(id))
+                    .is_some_and(|before| {
+                        claim_holds(before)
+                            && before.claimed_by.as_deref() == Some(guild)
+                            && before.claimed_at == objective.claimed_at
+                    });
+                if already_recorded {
+                    continue;
+                }
+                out.push(Event::Claim {
+                    objective: id.clone(),
+                    guild: guild.clone(),
+                    at: objective.claimed_at.unwrap_or(snapshot.taken_at),
+                    late: true,
+                });
+            }
         }
     }
 }
@@ -208,8 +224,10 @@ fn flips_and_claims(prev: &Snapshot, cur: &Snapshot, out: &mut Vec<Event>) {
             });
         }
 
-        match (before.claimed_by.as_deref(), now.claimed_by.as_deref()) {
-            (Some(old), Some(new)) if old != new => {
+        let old_claim = before.claimed_by.as_deref().filter(|_| claim_holds(before));
+        let new_claim = now.claimed_by.as_deref().filter(|_| claim_holds(now));
+        match (old_claim, new_claim) {
+            (Some(old), Some(new)) if old != new || now.claimed_at > before.claimed_at => {
                 out.push(Event::Unclaim {
                     objective: id.clone(),
                     guild: old.to_string(),

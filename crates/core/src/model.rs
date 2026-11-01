@@ -126,7 +126,7 @@ pub struct MatchObjective {
     pub owner: Option<TeamColor>,
     #[serde(default)]
     pub last_flipped: Option<DateTime<Utc>>,
-    #[serde(default)]
+    #[serde(default, deserialize_with = "normalize_claimed_guild_id")]
     pub claimed_by: Option<String>,
     #[serde(default)]
     pub claimed_at: Option<DateTime<Utc>>,
@@ -138,6 +138,14 @@ pub struct MatchObjective {
     pub yaks_delivered: Option<u32>,
     #[serde(default)]
     pub guild_upgrades: Vec<u32>,
+}
+
+fn normalize_claimed_guild_id<'de, D>(deserializer: D) -> Result<Option<String>, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    Option::<String>::deserialize(deserializer)
+        .map(|id| id.map(|id| crate::normalize_guild_id(&id).unwrap_or(id)))
 }
 
 impl MatchObjective {
@@ -303,6 +311,20 @@ mod tests {
         assert_eq!(m.color_of(12015), Some(TeamColor::Red));
         assert_eq!(m.color_of(12007), Some(TeamColor::Green));
         assert_eq!(m.color_of(999_999), None);
+    }
+
+    #[test]
+    fn rf73_claim_ids_are_canonical_when_read_from_match() {
+        const LOWER: &str = "230c9e95-e509-4b3e-aaf2-a320db7506e5";
+        const CANONICAL: &str = "230C9E95-E509-4B3E-AAF2-A320DB7506E5";
+
+        let json = MATCH.replace(CANONICAL, LOWER);
+        let parsed: Match = serde_json::from_str(&json).unwrap();
+        assert!(parsed
+            .maps
+            .iter()
+            .flat_map(|map| &map.objectives)
+            .any(|objective| objective.claimed_by.as_deref() == Some(CANONICAL)));
     }
 
     #[test]

@@ -269,6 +269,7 @@ mod tests {
         for kind in [
             ObjectiveType::Camp,
             ObjectiveType::Tower,
+            ObjectiveType::Keep,
             ObjectiveType::Castle,
         ] {
             let bounds = parts(kind, centre, 8.0).iter().fold(
@@ -287,11 +288,11 @@ mod tests {
             );
             let (low, high) = bounds;
             assert!(
-                (low[0] + high[0]) / 2.0 - centre[0] < 0.001,
+                ((low[0] + high[0]) / 2.0 - centre[0]).abs() < 0.001,
                 "{kind:?} descentrado en X"
             );
             assert!(
-                (low[1] + high[1]) / 2.0 - centre[1] < 2.0,
+                ((low[1] + high[1]) / 2.0 - centre[1]).abs() < 2.0,
                 "{kind:?} descentrado en Y"
             );
         }

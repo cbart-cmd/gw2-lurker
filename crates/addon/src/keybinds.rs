@@ -24,7 +24,7 @@ const UNKNOWN: &str = "GW2LURKER_CLICK_THROUGH";
 /// Una entrada de `InputBinds.json`.
 #[derive(Debug, Clone, Deserialize)]
 struct Bind {
-    #[serde(default)]
+    #[serde(rename = "Alt", default)]
     alt: bool,
     #[serde(rename = "Code", default)]
     code: u16,
@@ -244,5 +244,14 @@ mod tests {
             shift: true,
         };
         assert_eq!(describe(&bind), "Ctrl+Alt+Shift+L");
+    }
+
+    #[test]
+    fn rf18_alt_is_read_from_nexuss_saved_binding() {
+        let json = r#"[{"Alt":true,"Code":38,"Ctrl":true,"Identifier":"GW2LURKER_CLICK_THROUGH","Shift":true}]"#;
+        assert_eq!(
+            describe_identifier(json).as_deref(),
+            Some("Ctrl+Alt+Shift+L")
+        );
     }
 }

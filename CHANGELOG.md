@@ -1,6 +1,38 @@
 # Changelog
 Formato [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/), versionado [SemVer](https://semver.org/lang/es/).
 
+## [Unreleased]
+
+## [0.26.0] - 2026-11-01
+### Corregido
+- El diff registra el fin de un claim cuando el objetivo cambia de dueño, descarta claims caducados
+  en los baselines y detecta un nuevo claim del mismo clan por su hora de reclamación (RF-22, RF-25).
+- El índice de clanes ya no se instala si falta el MD5 publicado, no se puede leer o no coincide
+  (RF-20c).
+- La detección de una DLL actualizada sigue comprobándose durante la sesión y el render solo lee el
+  resultado en caché (RF-50).
+- Si no se puede iniciar el hilo de ajustes, el error queda registrado; al cerrar se conserva el
+  guardado final incluso si el hilo terminó inesperadamente.
+- Al recuperar el historial tras un hueco, no se vuelven a emitir claims que ya estaban registrados;
+  sí se conservan los claims nuevos ocurridos durante el hueco (D-B07).
+- El worker reutiliza la respuesta global de partidas cuando busca por equipo y deja de repetir
+  peticiones sin datos Mumble; al descargar el addon espera a que terminen sus tareas.
+- Las descargas de catálogos e imágenes aplican esperas tras errores temporales; el índice valida el
+  tamaño real del ZIP y conserva los nombres añadidos localmente durante la descarga.
+- El idioma y el tema seleccionados se aplican correctamente en la UI; el popup de prueba se puede
+  mostrar aunque no haya avisos reales y el mapa corrige el anillo de objetivos de alto valor.
+- Mientras no se conoce la partida del equipo, la búsqueda de los nueve emparejamientos (~400 KB)
+  se hace como mucho una vez por minuto, no cada 5 s: el intervalo de sondeo es solo para el estado
+  de los mapas del emparejamiento elegido (RNF-02).
+- Los ids de clan y de partida se comprueban antes de pedirlos a la API: un id mal formado del
+  índice de nombres ya no puede cambiar la petición.
+- Los UUID de clan válidos se normalizan a una forma canónica en las búsquedas, los mapas guild→equipo,
+  los claims y la lista de seguimiento; los errores de API se muestran localizados en el estado y el
+  buscador.
+- Al confirmarse una reasignación de equipos tras `teamAssignment`, el worker vuelve a resolver el
+  match, crea un baseline y limpia el historial/las alertas anteriores sin tocar la configuración
+  ni los clanes seguidos. La pestaña *Clanes* muestra desde cuándo corre el ciclo actual.
+
 ## [0.25.15] - 2026-11-01
 ### Cambiado
 - **La pestaña *Mapa* se abre en el mapa en el que estás** (petición del jugador): al entrar desde

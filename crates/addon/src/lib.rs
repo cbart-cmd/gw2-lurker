@@ -9,6 +9,8 @@
 
 mod alerts;
 mod arc_team;
+mod assignment;
+mod background;
 mod catalog;
 mod clock;
 mod config;
@@ -83,7 +85,9 @@ pub fn request_save(config: &config::Config) {
     if let Some(slot) = WRITER.get() {
         let guard = slot.lock().unwrap_or_else(|error| error.into_inner());
         if let Some(writer) = guard.as_ref() {
-            writer.request(config);
+            if !writer.request(config) {
+                log::error!("settings writer is unavailable; changes may be lost until shutdown");
+            }
         }
     }
 }
@@ -120,9 +124,6 @@ pub fn persist_if_changed() {
     gate.1 = Some(Instant::now());
 }
 
-/// The DLL on disk is not the one running: Nexus left a new one for the next start (RF-50).
-static STALE_DLL: OnceLock<Option<String>> = OnceLock::new();
-
 /// Version loaded in this session, from the crate metadata.
 pub fn loaded_version() -> &'static str {
     env!("CARGO_PKG_VERSION")
@@ -130,6 +131,42 @@ pub fn loaded_version() -> &'static str {
 
 /// Size and modification time of our own DLL, taken at load.
 static LOADED_DLL: OnceLock<Option<(u64, std::time::SystemTime)>> = OnceLock::new();
+const DLL_CHECK_INTERVAL: std::time::Duration = std::time::Duration::from_secs(10);
+
+#[derive(Debug, Default)]
+struct DllWatch {
+    last_check: Option<std::time::Instant>,
+    stale_path: Option<String>,
+}
+
+impl DllWatch {
+    fn should_check(&mut self, now: std::time::Instant) -> bool {
+        if self.stale_path.is_some()
+            || self
+                .last_check
+                .is_some_and(|last| now.duration_since(last) < DLL_CHECK_INTERVAL)
+        {
+            return false;
+        }
+        self.last_check = Some(now);
+        true
+    }
+
+    fn observe(
+        &mut self,
+        loaded: Option<(u64, std::time::SystemTime)>,
+        current: Option<(u64, std::time::SystemTime)>,
+        path: String,
+    ) -> bool {
+        if self.stale_path.is_some() || loaded.is_none() || current == loaded {
+            return false;
+        }
+        self.stale_path = Some(path);
+        true
+    }
+}
+
+static DLL_WATCH: OnceLock<Mutex<DllWatch>> = OnceLock::new();
 
 /// Path of the DLL Nexus put on disk: `<juego>/addons/gw2_lurker.dll`.
 ///
@@ -137,41 +174,65 @@ static LOADED_DLL: OnceLock<Option<(u64, std::time::SystemTime)>> = OnceLock::ne
 /// `Update available for …` (RF-50).
 fn own_dll_path() -> Option<std::path::PathBuf> {
     let addons = nexus::paths::get_game_dir().ok()?.join("addons");
-    let path = addons.join("gw2_lurker.dll");
-    path.exists().then_some(path)
+    Some(addons.join("gw2_lurker.dll"))
+}
+
+fn dll_fingerprint(path: &std::path::Path) -> Option<(u64, std::time::SystemTime)> {
+    let meta = std::fs::metadata(path).ok()?;
+    Some((meta.len(), meta.modified().ok()?))
 }
 
 /// Remembers the DLL as it was at load, so a later change can be noticed (RF-50).
 fn remember_loaded_dll() {
-    let fingerprint = own_dll_path().and_then(|path| {
-        let meta = std::fs::metadata(&path).ok()?;
-        Some((meta.len(), meta.modified().ok()?))
-    });
+    let fingerprint = own_dll_path().and_then(|path| dll_fingerprint(&path));
     let _ = LOADED_DLL.set(fingerprint);
 }
 
-/// Whether the file on disk changed since this session started, and its new size.
+/// Checks for a replacement from the worker thread, at most once every ten seconds.
 ///
-/// Nexus replaces the DLL file and asks for a restart; hot-loading is disabled on purpose
-/// (ADR-007). The check is cheap (one `metadata` call) and only runs from the render callback
-/// every few seconds.
-pub fn stale_dll() -> Option<String> {
-    let known = STALE_DLL.get_or_init(|| {
-        let path = own_dll_path()?;
-        let before = (*LOADED_DLL.get()?)?;
-        let meta = std::fs::metadata(&path).ok()?;
-        let now = (meta.len(), meta.modified().ok()?);
-        if now == before {
-            return None;
-        }
+/// The UI must only read the cached result: filesystem metadata calls do not belong on the render
+/// thread, and the notice must keep updating after the initial unchanged check (RF-50).
+pub(crate) fn check_dll_update() {
+    let should_check = {
+        let mut watch = DLL_WATCH
+            .get_or_init(|| Mutex::new(DllWatch::default()))
+            .lock()
+            .unwrap_or_else(|error| error.into_inner());
+        watch.should_check(std::time::Instant::now())
+    };
+    if !should_check {
+        return;
+    }
+
+    let Some(loaded) = LOADED_DLL.get().copied().flatten() else {
+        return;
+    };
+    let Some(path) = own_dll_path() else {
+        return;
+    };
+    let current = dll_fingerprint(&path);
+    let mut watch = DLL_WATCH
+        .get_or_init(|| Mutex::new(DllWatch::default()))
+        .lock()
+        .unwrap_or_else(|error| error.into_inner());
+    if watch.observe(Some(loaded), current, path.display().to_string()) {
         log::info!(
             "actualizado en disco: la DLL ha cambiado ({} -> {} bytes); hace falta reiniciar",
-            before.0,
-            now.0
+            loaded.0,
+            current.map_or(0, |fingerprint| fingerprint.0)
         );
-        Some(path.display().to_string())
-    });
-    known.clone()
+    }
+}
+
+/// Whether Nexus has replaced the file on disk since this session started.
+pub fn stale_dll() -> Option<String> {
+    DLL_WATCH.get().and_then(|watch| {
+        watch
+            .lock()
+            .unwrap_or_else(|error| error.into_inner())
+            .stale_path
+            .clone()
+    })
 }
 
 fn load() {
@@ -182,7 +243,9 @@ fn load() {
     // RF-51: a broken file is not only logged, it is shown. A settings file that silently went
     // back to defaults looks like the addon forgot everything.
     let _ = SAFE_MODE.set(report);
+    let language = config.language;
     let _ = CONFIG.set(config);
+    i18n::set_preference(language);
     remember_loaded_dll();
 
     match config::config_path() {
@@ -205,7 +268,18 @@ fn load() {
     guild_index::ensure_present();
     lang::subscribe();
     arc_team::subscribe();
-    let _ = WRITER.set(Mutex::new(Some(writer::Writer::start())));
+    match writer::Writer::start() {
+        Ok(writer) => {
+            if WRITER.set(Mutex::new(Some(writer))).is_err() {
+                log::error!("settings writer was already initialized");
+            }
+        }
+        Err(error) => {
+            log::error!(
+                "could not start settings writer; settings will be saved on shutdown: {error}"
+            );
+        }
+    }
     ui::register();
     worker::start();
 }
@@ -232,4 +306,28 @@ fn unload() {
 /// Configuration as it was loaded: what the worker reads, never changes.
 pub fn config() -> &'static config::Config {
     CONFIG.get_or_init(config::Config::default)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn rf50_dll_replacement_is_detected_after_an_unchanged_check() {
+        let start = std::time::Instant::now();
+        let loaded = (100, std::time::SystemTime::UNIX_EPOCH);
+        let mut watch = DllWatch::default();
+
+        assert!(watch.should_check(start));
+        assert!(!watch.observe(Some(loaded), Some(loaded), "addon.dll".to_owned()));
+        assert!(!watch.should_check(start + std::time::Duration::from_secs(5)));
+        assert!(watch.should_check(start + DLL_CHECK_INTERVAL));
+        assert!(watch.observe(
+            Some(loaded),
+            Some((200, std::time::SystemTime::UNIX_EPOCH)),
+            "addon.dll".to_owned()
+        ));
+        assert!(!watch.should_check(start + DLL_CHECK_INTERVAL * 2));
+        assert_eq!(watch.stale_path.as_deref(), Some("addon.dll"));
+    }
 }

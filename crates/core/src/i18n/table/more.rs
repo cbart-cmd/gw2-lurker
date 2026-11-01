@@ -341,6 +341,51 @@ pub const TEXT: &[(&str, [&str; COLUMNS])] = &[
         ["Error: {0}", "Error: {0}", "Erreur : {0}", "Fehler: {0}"],
     ),
     (
+        "API network error: {0}",
+        [
+            "Error de red de la API: {0}",
+            "API network error: {0}",
+            "Erreur réseau de l'API : {0}",
+            "Netzwerkfehler der API: {0}",
+        ],
+    ),
+    (
+        "API returned HTTP status {0}",
+        [
+            "La API respondió con el estado HTTP {0}",
+            "API returned HTTP status {0}",
+            "L'API a répondu avec le statut HTTP {0}",
+            "Die API antwortete mit HTTP-Status {0}",
+        ],
+    ),
+    (
+        "API response could not be parsed: {0}",
+        [
+            "No se pudo interpretar la respuesta de la API: {0}",
+            "API response could not be parsed: {0}",
+            "Impossible d'analyser la réponse de l'API : {0}",
+            "Die API-Antwort konnte nicht gelesen werden: {0}",
+        ],
+    ),
+    (
+        "API data was not found",
+        [
+            "La API no encontró los datos solicitados",
+            "API data was not found",
+            "L'API n'a pas trouvé les données demandées",
+            "Die API-Daten wurden nicht gefunden",
+        ],
+    ),
+    (
+        "Search could not start: {0}",
+        [
+            "No se pudo iniciar la búsqueda: {0}",
+            "Search could not start: {0}",
+            "Impossible de lancer la recherche : {0}",
+            "Die Suche konnte nicht gestartet werden: {0}",
+        ],
+    ),
+    (
         "{0} claimed objectives",
         [
             "{0} objetivos reclamados",

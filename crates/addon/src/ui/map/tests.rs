@@ -106,6 +106,35 @@ fn rf30a_scoring_objectives_are_the_only_ones_drawn() {
         assert!(!is_drawable(kind), "{kind:?} no se dibuja por defecto");
     }
 }
+
+#[test]
+fn rf30b_missing_objective_state_does_not_get_a_high_value_ring() {
+    assert!(!has_high_value_ring(None));
+    let state = ObjectiveState {
+        map_id: 38,
+        map_role: MapRole::Center,
+        objective_id: "38-20".to_owned(),
+        kind: ObjectiveType::Keep,
+        owner: Some(TeamColor::Blue),
+        guild: None,
+        claimed_at: None,
+        points_tick: 12,
+    };
+    assert!(has_high_value_ring(Some(&state)));
+}
+
+#[test]
+fn rf30_the_unknown_map_defaults_to_center_before_drawing_the_selector() {
+    assert_eq!(resolved_map_role(MapRole::Unknown, None), MapRole::Center);
+    assert_eq!(
+        resolved_map_role(MapRole::Unknown, Some(MapRole::RedHome)),
+        MapRole::RedHome
+    );
+    assert_eq!(
+        resolved_map_role(MapRole::BlueHome, Some(MapRole::RedHome)),
+        MapRole::BlueHome
+    );
+}
 #[test]
 fn rf30_the_hover_says_who_and_when_and_leaves_the_name_out() {
     // Petición del jugador (2026-11-01): el nombre del sitio no hace falta (ya sabe dónde está) y

@@ -94,12 +94,12 @@ pub const TEXT: &[(&str, [&str; COLUMNS])] = &[
     ("None followed yet", ["Ninguno seguido todavía", "None followed yet", "Aucune suivie pour l'instant", "Noch keine verfolgt"]),
     ("Add guild", ["Añadir clan", "Add guild", "Ajouter une guilde", "Gilde hinzufügen"]),
     (
-        "Claimed since the addon started",
+        "Tracking since {0}",
         [
-            "Han reclamado desde que arrancó",
-            "Claimed since the addon started",
-            "Ont revendiqué depuis le démarrage",
-            "Haben seit dem Start erobert",
+            "Seguimiento desde {0}",
+            "Tracking since {0}",
+            "Suivi depuis {0}",
+            "Beobachtung seit {0}",
         ],
     ),
     ("None yet", ["Ninguno todavía", "None yet", "Aucun pour l'instant", "Noch keiner"]),

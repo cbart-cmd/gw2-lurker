@@ -143,7 +143,7 @@ fn draw_row(ui: &Ui, row: &ClaimRow, names: &std::collections::BTreeMap<String, 
     let when = row.claimed_at.map(crate::clock::clock).unwrap_or_default();
 
     if let Some(colour) = row.owner {
-        let _tint = ui.push_style_color(StyleColor::Text, colour_rgba(colour));
+        let _tint = ui.push_style_color(StyleColor::Text, super::theme::team_colour(colour));
         ui.text(format!("{when}  {name}  ·  {guild}"));
     } else {
         ui.text(format!("{when}  {name}  ·  {guild}"));
@@ -157,14 +157,6 @@ fn map_label(role: MapRole) -> &'static str {
         MapRole::GreenHome => i18n::text("Green alpine"),
         MapRole::RedHome => i18n::text("Red desert"),
         MapRole::Unknown => i18n::text("Unknown map"),
-    }
-}
-
-fn colour_rgba(colour: gw2lurker_core::TeamColor) -> [f32; 4] {
-    match colour {
-        gw2lurker_core::TeamColor::Red => [1.0, 0.45, 0.45, 1.0],
-        gw2lurker_core::TeamColor::Green => [0.6, 0.95, 0.6, 1.0],
-        gw2lurker_core::TeamColor::Blue => [0.52, 0.75, 1.0, 1.0],
     }
 }
 

@@ -100,9 +100,8 @@ impl WindowState {
 ///
 /// The player asked for the cadence of gw2mists (2026-10-31): **5 s**, which is affordable
 /// because the poll asks for one match by id (~44 KB, the four maps) and not for the nine
-/// (`~400 KB`). The worker still backs off on failures, and a poll every second would be the only
-/// thing that could exceed the budget (`X-Rate-Limit-Limit: 600`; the window is not in the header
-/// — see RNF-02).
+/// (`~400 KB`). That is the **only** request made at this cadence: 0,2 per second against a
+/// bucket of 300 that refills at 5 per second per IP (wiki *API:Best practices*, RNF-02).
 pub const POLL_SECS_MIN: u32 = 5;
 
 /// Interval used when the player has not chosen one.
@@ -359,6 +358,12 @@ impl Config {
         // fichero no crece sin freno, y de paso limpia lo que versiones anteriores dejaron.
         let followed: std::collections::BTreeSet<String> =
             self.followed.iter().map(str::to_owned).collect();
+        let mut canonical_names = BTreeMap::new();
+        for (id, name) in std::mem::take(&mut self.guild_names) {
+            let id = gw2lurker_core::normalize_guild_id(&id).unwrap_or(id);
+            canonical_names.entry(id).or_insert(name);
+        }
+        self.guild_names = canonical_names;
         let before = self.guild_names.len();
         self.guild_names.retain(|id, _| followed.contains(id));
         if self.guild_names.len() != before {

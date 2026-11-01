@@ -61,18 +61,27 @@ pub fn all() -> BTreeMap<String, String> {
         .clone()
 }
 
+fn normalize_names(names: &BTreeMap<String, String>) -> BTreeMap<String, String> {
+    let mut normalized = BTreeMap::new();
+    for (id, label) in names {
+        let id = gw2lurker_core::normalize_guild_id(id).unwrap_or_else(|| id.clone());
+        normalized.entry(id).or_insert_with(|| label.clone());
+    }
+    normalized
+}
+
 /// Añade los nombres que faltaban. Devuelve `true` si creció (y hay que escribir el fichero).
 pub fn merge(names: &BTreeMap<String, String>) -> bool {
     let mut slot = slot().lock().unwrap_or_else(|error| error.into_inner());
     let before = slot.len();
-    for (id, label) in names {
+    for (id, label) in normalize_names(names) {
         if slot.len() >= MAX_NAMES {
             break;
         }
         if id.trim().is_empty() || label.trim().is_empty() {
             continue;
         }
-        slot.entry(id.clone()).or_insert_with(|| label.clone());
+        slot.entry(id).or_insert(label);
     }
     if slot.len() != before && slot.len() == MAX_NAMES {
         log::info!("nombres de la sesión: tope de {MAX_NAMES} alcanzado");
@@ -90,7 +99,8 @@ pub fn save() -> std::io::Result<usize> {
 
 /// [`save`] contra una ruta dada, para poder probarlo sin tocar los ficheros del jugador.
 pub fn save_to(path: &std::path::Path, names: &BTreeMap<String, String>) -> std::io::Result<()> {
-    let json = serde_json::to_vec(names).map_err(std::io::Error::other)?;
+    let normalized = normalize_names(names);
+    let json = serde_json::to_vec(&normalized).map_err(std::io::Error::other)?;
     let temp = path.with_extension("json.tmp");
     std::fs::write(&temp, json)?;
     std::fs::rename(&temp, path)
@@ -124,6 +134,20 @@ mod tests {
         assert_eq!(back, names);
 
         let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn rf20b_session_name_ids_are_normalized() {
+        const LOWER: &str = "230c9e95-e509-4b3e-aaf2-a320db7506e5";
+        const CANONICAL: &str = "230C9E95-E509-4B3E-AAF2-A320DB7506E5";
+
+        let names = BTreeMap::from([(LOWER.to_owned(), "[TAG] Clan".to_owned())]);
+        let normalized = normalize_names(&names);
+        assert_eq!(
+            normalized.get(CANONICAL).map(String::as_str),
+            Some("[TAG] Clan")
+        );
+        assert_eq!(normalized.len(), 1);
     }
 
     #[test]

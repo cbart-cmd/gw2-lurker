@@ -1,7 +1,7 @@
 //! Guilds of the matchup and the history of the chosen one (T-37, T-38; RF-71, RF-72).
 //!
 //! One window with two halves: the guilds that hold something right now, ordered by the most
-//! recent claim, and — when one is selected — its history during this session, split between the
+//! recent claim, and — when one is selected — its history during this tracking cycle, split between the
 //! map the player is on and the rest.
 //!
 //! Cada fila lleva dos botones, porque clicar la fila no decía qué hacía (petición del jugador,
@@ -34,6 +34,11 @@ pub enum Action {
     ShowOnMap(String),
 }
 
+pub(super) struct Context {
+    pub(super) current: Option<MapRole>,
+    pub(super) history_since: Option<chrono::DateTime<chrono::Utc>>,
+}
+
 fn selected() -> Option<String> {
     SELECTED
         .lock()
@@ -56,14 +61,14 @@ fn set_selected(guild: Option<String>) {
     *SELECTED.lock().unwrap_or_else(|error| error.into_inner()) = guild;
 }
 
-/// Body of the *Guilds* tab. `history` is the whole session; this filters it by guild.
+/// Body of the *Guilds* tab. `history` is the current tracking cycle filtered by guild.
 pub fn body(
     ui: &Ui,
     guilds: &[GuildSummary],
     names: &std::collections::BTreeMap<String, String>,
     labels: &mut std::collections::BTreeMap<String, String>,
     follow: &FollowList,
-    current: Option<MapRole>,
+    context: Context,
     history: impl Fn(&str) -> Vec<gw2lurker_core::matchup::ClaimRow>,
 ) -> Option<Action> {
     let mut action = None;
@@ -81,6 +86,12 @@ pub fn body(
     };
 
     {
+        if let Some(since) = context.history_since {
+            ui.text_disabled(i18n::format(
+                "Tracking since {0}",
+                &[&crate::clock::clock(since)],
+            ));
+        }
         if guilds.is_empty() {
             ui.text_disabled(i18n::text("No claims yet"));
             return None;
@@ -121,7 +132,7 @@ pub fn body(
 
                     let when = summary.last_at.map(crate::clock::clock).unwrap_or_default();
                     let here = match summary.last_map {
-                        Some((_, role)) if Some(role) == current => {
+                        Some((_, role)) if Some(role) == context.current => {
                             format!("  ·  {} ({})", map_label(role), i18n::text("you are here"))
                         }
                         Some((_, role)) => format!(" · {}", map_label(role)),
@@ -173,7 +184,7 @@ pub fn body(
             ui.text_disabled(i18n::text("No claims yet"));
             return action;
         }
-        let (here, elsewhere) = match current {
+        let (here, elsewhere) = match context.current {
             Some(role) => gw2lurker_core::matchup::split_by_map(&rows, role),
             None => (Vec::new(), rows.clone()),
         };

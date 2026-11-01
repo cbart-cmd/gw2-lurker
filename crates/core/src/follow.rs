@@ -3,7 +3,7 @@
 //! Identity is the guild id, never the name: names change and several guilds share tags.
 //! The list is serializable so the config layer only has to store it.
 
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Deserializer, Serialize};
 
 use crate::matchup::GuildSummary;
 
@@ -15,10 +15,67 @@ use crate::matchup::GuildSummary;
 pub const MAX_FOLLOWED: usize = 10;
 
 /// Ordered, duplicate-free list of followed guild ids.
-#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize)]
 #[serde(transparent)]
 pub struct FollowList {
     ids: Vec<String>,
+}
+
+impl<'de> Deserialize<'de> for FollowList {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let ids = Vec::<String>::deserialize(deserializer)?;
+        let mut normalized = Vec::with_capacity(ids.len());
+        for id in ids {
+            let id = canonical_guild_id(&id);
+            if !normalized.contains(&id) {
+                normalized.push(id);
+            }
+        }
+        Ok(Self { ids: normalized })
+    }
+}
+
+/// Converts a guild UUID to uppercase canonical `8-4-4-4-12` form.
+///
+/// The API uses UUIDs, but old/user-edited settings and the distributed name index may use
+/// lowercase or omit dashes. Returning `None` lets callers preserve non-UUID placeholders used by
+/// offline fixtures without treating them as real guild ids.
+pub fn normalize_guild_id(id: &str) -> Option<String> {
+    if id.len() != 32 && id.len() != 36 {
+        return None;
+    }
+
+    let mut hex = String::with_capacity(32);
+    for (index, byte) in id.bytes().enumerate() {
+        if byte == b'-' {
+            if id.len() != 36 || !matches!(index, 8 | 13 | 18 | 23) {
+                return None;
+            }
+        } else if byte.is_ascii_hexdigit() {
+            hex.push((byte as char).to_ascii_uppercase());
+        } else {
+            return None;
+        }
+    }
+    if hex.len() != 32 {
+        return None;
+    }
+
+    Some(format!(
+        "{}-{}-{}-{}-{}",
+        &hex[0..8],
+        &hex[8..12],
+        &hex[12..16],
+        &hex[16..20],
+        &hex[20..32]
+    ))
+}
+
+fn canonical_guild_id(id: &str) -> String {
+    normalize_guild_id(id).unwrap_or_else(|| id.to_owned())
 }
 
 impl FollowList {
@@ -29,7 +86,8 @@ impl FollowList {
 
     /// Whether the guild is followed.
     pub fn contains(&self, guild: &str) -> bool {
-        self.ids.iter().any(|g| g == guild)
+        let guild = canonical_guild_id(guild);
+        self.ids.iter().any(|stored| stored == &guild)
     }
 
     /// Follows a guild. Returns `false` if it already was followed or the list is full.
@@ -37,7 +95,7 @@ impl FollowList {
         if self.contains(guild) || self.is_full() {
             return false;
         }
-        self.ids.push(guild.to_string());
+        self.ids.push(canonical_guild_id(guild));
         true
     }
 
@@ -48,7 +106,8 @@ impl FollowList {
 
     /// Stops following a guild. Returns `false` if it was not followed.
     pub fn remove(&mut self, guild: &str) -> bool {
-        match self.ids.iter().position(|g| g == guild) {
+        let guild = canonical_guild_id(guild);
+        match self.ids.iter().position(|stored| stored == &guild) {
             Some(at) => {
                 self.ids.remove(at);
                 true
@@ -164,6 +223,26 @@ mod tests {
 
         let back: FollowList = serde_json::from_str(&json).unwrap();
         assert_eq!(back, list);
+    }
+
+    #[test]
+    fn rf73_full_guild_ids_are_canonicalized_on_add_and_deserialize() {
+        const LOWER: &str = "230c9e95e5094b3eaaf2a320db7506e5";
+        const CANONICAL: &str = "230C9E95-E509-4B3E-AAF2-A320DB7506E5";
+
+        let mut list = FollowList::new();
+        assert!(list.add(LOWER));
+        assert_eq!(list.iter().collect::<Vec<_>>(), [CANONICAL]);
+        assert!(list.contains(LOWER));
+        assert!(!list.add(CANONICAL), "la misma guild no se duplica");
+
+        let loaded: FollowList = serde_json::from_str(&format!("[\"{LOWER}\"]")).unwrap();
+        assert_eq!(loaded.iter().collect::<Vec<_>>(), [CANONICAL]);
+        assert_eq!(
+            normalize_guild_id("230C9E95-E509/4B3E-AAF2-A320DB7506E5"),
+            None,
+            "los guiones solo valen en las posiciones UUID"
+        );
     }
 
     #[test]

@@ -16,7 +16,7 @@ Comprobado el **2026-10-31** contra la API real, el código fuente de `nexus-rs`
 - `[API]` `/v2/wvw/matches/overview` devuelve solo la lista de ids de match en curso (83 bytes): endpoint barato para detectar el cambio de match.
 - `[API]` `/v2/wvw/guilds/eu` y `/na` devuelven `{ guild_id: team_id }` (282 KB para toda EU): es la fuente oficial guild → equipo. `/v2/guild/:id` no lo informa.
 - `[API]` `/v2/wvw/objectives?ids=all`: `coord` está en **coordenadas de continente** y **81 de 178** entradas tienen `coord: null`. `/v2/maps` aporta `continent_rect` (caja real) y `map_rect` (ADR-011).
-- `[API]` `Cache-Control: public, max-age=1`, sin cabecera `Age`, `X-Rate-Limit-Limit: 600` (600 peticiones/hora).
+- `[API]` `Cache-Control: public, max-age=1`, sin cabecera `Age`, `X-Rate-Limit-Limit: 600`. **Límite real** (wiki *API:Best practices*, copia de archive.org del 2025-12-16): cubo de **300** peticiones por IP que se recarga a **5 por segundo** (300/min). La cifra 600 de la cabecera **no** es «600 por hora»; superar el cubo devuelve `429`.
 - `[medido]` Con polling a 10 s: los cambios de **propiedad de objetivos** tienen mediana 19–20 s (máx 110 s observado) y hay emparejamientos muertos con **22 min sin un solo cambio**. 227 peticiones, 0 errores. Conclusión inicial: 30 s. **Decisión posterior (2026-10-31): 5 s por defecto** —el jugador pidió acercarse a gw2mists y el sondeo pide **una** partida por id, no los nueve—, con recorte por backoff (RNF-02).
 - `[medido]` **La API congela una partida entera**: el 2026-11-01 la partida `1-1` devolvió 20 minutos la misma copia, **puntos incluidos**, mientras las otras ocho se movían. No es CDN (`?cb=` da lo mismo) ni el cliente HTTP: es el backend. Por eso el widget avisa en naranja cuando la huella de la partida no cambia en ≥5 min, y no se puede confundir «no pasa nada» con «el addon está parado».
 - `[medido]` **El atlas de fuentes de Nexus solo trae latín básico y latino-1**: `·` (U+00B7) y `×` (U+00D7) se dibujan; `→` (U+2192), `…` (U+2026) y `★` (U+2605) salen como «?». Todo texto de la UI se queda en ASCII + latino-1 (test `rf44_the_table_stays_inside_latin_1`). Los nombres de clan que llegan del API sí pueden traer otros alfabetos: esos no tienen glifo.
@@ -54,8 +54,9 @@ Comprobado el **2026-10-31** contra la API real, el código fuente de `nexus-rs`
 
 **RF-03c (M)** El usuario podrá cambiar de equipo en cualquier momento desde la configuración.
 
-**RF-03d (M)** Cuando cambie el ID del match, el addon deberá descartar el baseline anterior, resolver de nuevo el color y marcar el historial con el nuevo `match_id`. Consultará `/v2/wvw/matches/overview` para detectar el cambio de forma barata y `/v2/wvw/timers/teamAssignment` para anticipar la reasignación de equipos.
+**RF-03d (M)** Cuando cambie el ID del match, el addon deberá descartar el baseline anterior y resolver de nuevo el color. Consultará `/v2/wvw/timers/teamAssignment`; al vencer el timer comprobará `/v2/wvw/matches/overview` y, si el match observado ya no está activo, volverá a consultar `ids=all` para resolver el equipo. Si la selección cambia o queda obsoleta por la reasignación, borrará el historial y las alertas del ciclo anterior, reiniciará el diff y creará un baseline nuevo. El equipo configurado, la lista de clanes seguidos y el resto de ajustes se conservan. Si el match sigue activo tras vencer el timer, no se borra nada.
 - GWT: *Given* un match `2-5` en curso, *When* la API devuelve `2-6` para el mismo equipo, *Then* no se emiten alertas por la diferencia y se crea un baseline nuevo.
+- GWT: *Given* que venció `teamAssignment` y el match observado desapareció de `overview`, *When* `ids=all` confirma otra selección o que el equipo ya no juega, *Then* se vacían historial y alertas anteriores, se conserva la configuración y el siguiente snapshot crea un baseline.
 
 **RF-03e (S)** El `world_id` de MumbleLink es un *shard id* y **no** identifica el equipo (verificado en el código de `gw2-mumble-rs`: "not usable since the switch to the megaserver system"). Por tanto la selección es manual por defecto. Solo si el spike T-01 demuestra que coincide con el id de equipo se ofrecerá como sugerencia aceptable.
 
@@ -72,7 +73,7 @@ Comprobado el **2026-10-31** contra la API real, el código fuente de `nexus-rs`
 
 **RF-03i (M)** El addon deberá llevar la tabla `data/wvw-teams.json` (id → nombre → nación) **dentro del binario o junto a él**, versionada en el repositorio. La tabla se regenera con `scripts/update_wvw_teams.ps1`, que contrasta los equipos en uso según `all_worlds` de la API oficial y conserva los nombres ya conocidos si la fuente de nombres no responde. Sin esa tabla el addon sigue funcionando mostrando ids.
 
-**RF-04 (M)** El primer snapshot tras activar, cambiar de match o recuperar tras un hueco largo se tratará como **baseline** y no generará alertas de flip. Al arrancar el addon el historial anterior **se descarta** (ADR-012) y el baseline reconstruye el estado actual con todos los claims vigentes (RF-25); se registra el `Gap` correspondiente y la UI indica "datos desde <hora de inicio de sesión>".
+**RF-04 (M)** El primer snapshot tras activar, cambiar de match, confirmar una reasignación o recuperar tras un hueco largo se tratará como **baseline** y no generará alertas de flip. Al arrancar el addon el historial anterior **se descarta** (ADR-012) y el baseline reconstruye el estado actual con todos los claims vigentes (RF-25); se registra el `Gap` correspondiente y la UI indica "datos desde <inicio de sesión o última reasignación>".
 
 ## B. Objetivo 1 – Alertas de estructuras
 
@@ -137,7 +138,7 @@ El click-through **no tiene casilla en los ajustes** (se quitó el 2026-11-01: e
 
 ## C. Objetivo 2 – Seguimiento de guilds enemigas
 
-**RF-20 (M)** El usuario podrá añadir guilds a seguir **buscándolas por un trozo del nombre** (índice local + `/v2/guild/search?name=` como extra) o desde la lista de las que han reclamado algo en la sesión, y quitarlas. Se guarda el id en `followed` y su `[TAG] Nombre` en `settings.json` (RF-20b). Para saber a qué **equipo** pertenece cada guild se usa `/v2/wvw/guilds/:region` (mapa guild → equipo de la API oficial), **cacheado en memoria 30 minutos** (`search.rs`), no en disco.
+**RF-20 (M)** El usuario podrá añadir guilds a seguir **buscándolas por un trozo del nombre** (índice local + `/v2/guild/search?name=` como extra) o desde la lista de las que han reclamado algo en el ciclo de seguimiento actual, y quitarlas. Se guarda el id en `followed` y su `[TAG] Nombre` en `settings.json` (RF-20b). Los UUID válidos se normalizan a mayúsculas y al formato `8-4-4-4-12` antes de compararlos o guardarlos. Para saber a qué **equipo** pertenece cada guild se usa `/v2/wvw/guilds/:region` (mapa guild → equipo de la API oficial), **cacheado en memoria 30 minutos** (`search.rs`), no en disco.
 - GWT: *Given* un nombre ambiguo, *When* la búsqueda devuelve varias guilds, *Then* el usuario elige entre candidatos con nombre y tag.
 - GWT: *Given* una guild seguida, *When* se resuelve el match, *Then* la UI muestra el equipo al que pertenece según `/v2/wvw/guilds/:region` y si es propio o enemigo.
 
@@ -152,9 +153,9 @@ El click-through **no tiene casilla en los ajustes** (se quitó el 2026-11-01: e
 
 **RF-20d (M)** Al empezar a seguir un clan cuyo nombre no está en el índice, el addon pide su nombre al API y lo **añade al índice**, para que la próxima búsqueda por texto lo encuentre.
 
-**RF-20a (M)** Además de buscar, el addon ofrecerá una **lista de guilds sugeridas** para seguir, construida con los claims ya observados **en la sesión**: ordenada por número de claims en el mapa actual, después en el resto de mapas del match y después en total; cada fila muestra tag, nombre si se conoce, nº de claims y la hora del último. Un clic la añade a seguidas.
+**RF-20a (M)** Además de buscar, el addon ofrecerá una **lista de guilds sugeridas** para seguir, construida con los claims observados en el ciclo de seguimiento actual: ordenada por número de claims en el mapa actual, después en el resto de mapas del match y después en total; cada fila muestra tag, nombre si se conoce, nº de claims y la hora del último. Un clic la añade a seguidas.
 - GWT: *Given* el addon lleva 2 h observando el mapa actual, *When* el usuario abre la pestaña Guilds, *Then* la lista empieza por las guilds con más claims vistos **en ese mapa**, no por orden alfabético.
-- La lista nace **vacía** en cada sesión y crece solo con lo observado en ella (ADR-012); la UI debe indicarlo ("claims vistos desde 12:00") para no aparentar un ranking global. No se obtiene de ninguna fuente externa: la API no publica estadísticas de claims por guild.
+- La lista nace **vacía** al iniciar el addon o confirmar una reasignación y crece solo con lo observado en el ciclo actual (ADR-012); la UI debe indicarlo ("claims vistos desde 12:00") para no aparentar un ranking global. No se obtiene de ninguna fuente externa: la API no publica estadísticas de claims por guild.
 
 **RF-21 (M)** Cuando un objetivo pase a estar reclamado por una guild seguida, el addon deberá avisar con guild, objetivo, mapa y hora del claim.
 
@@ -163,11 +164,11 @@ El click-through **no tiene casilla en los ajustes** (se quitó el 2026-11-01: e
 
 **RF-23 (M)** El usuario podrá ver el estado actual: qué objetivos tiene reclamados cada guild seguida ahora mismo.
 
-**RF-24 (M)** El historial cubrirá **la sesión actual** (ADR-012): al arrancar el addon se descarta el de la sesión anterior y se empieza uno nuevo. Dentro de la sesión podrá consultarse por guild y rango de tiempo. La UI mostrará siempre la hora de inicio de sesión como límite inferior de lo que se puede ver.
+**RF-24 (M)** El historial cubrirá el ciclo de seguimiento actual (ADR-012): al arrancar el addon se descarta el de la sesión anterior; tras una reasignación de equipos confirmada (RF-03d) se descartan el historial y las alertas del ciclo anterior y se empieza otro. Dentro del ciclo podrá consultarse por guild y rango de tiempo. La UI mostrará como límite inferior la hora de inicio de sesión o la última reasignación confirmada.
 
 **RF-25 (M)** En baseline o tras un hueco, para **cada** objetivo con `claimed_by` —de cualquier guild, no solo las seguidas— el addon deberá registrar un claim marcado `late=true` usando `claimed_at` como hora real. Los claims de guilds no seguidas se guardan como observación: no generan aviso, pero alimentan el ranking de RF-20a.
 - Los `late` **no entran en la lista de avisos** ni en el pop-up: al reiniciar el juego no aparece de golpe todo lo que ya estaba reclamado (bug de 2026-10-31). La única excepción es un claim de un **clan seguido** de los últimos 10 minutos, que es justo lo que se perdió al cargar (RF-21).
-- No hay nada de esto en disco (ADR-015): el historial `late` vive en la memoria de la sesión.
+- No hay nada de esto en disco (ADR-015): el historial `late` vive en memoria y se limpia al iniciar un nuevo ciclo de seguimiento.
 
 **RF-26 (M)** Cuando el hueco entre snapshots válidos supere el umbral (por defecto 3 × intervalo), el addon deberá registrar un evento `gap` para que la UI advierta de que pueden faltar claims.
 
@@ -200,7 +201,7 @@ El click-through **no tiene casilla en los ajustes** (se quitó el 2026-11-01: e
 
 **RF-72 (M)** Al seleccionar una guild se verá su **historial**, separando lo reclamado en el mapa en el que está el jugador **ahora** de lo reclamado en los **demás mapas**, con el rango temporal de RF-32.
 
-**RF-73 (M)** El usuario podrá marcar guilds como **favoritas** ("seguir"): persisten entre sesiones, aparecen siempre arriba en la lista de RF-71 y alimentan las alertas de RF-21.
+**RF-73 (M)** El usuario podrá marcar guilds como **favoritas** ("seguir"): persisten entre sesiones usando UUIDs válidos en forma canónica (mayúsculas, guiones `8-4-4-4-12`), aparecen siempre arriba en la lista de RF-71 y alimentan las alertas de RF-21.
 
 **RF-32a (C)** La ruta virtual (RF-32) se dibuja en el **último mapa donde la guild reclamó algo**, con el origen inferido por esta precedencia:
 1. Si es su **mapa principal** y tienen el **garrison** reclamado → se empieza en el garrison.
@@ -313,7 +314,7 @@ configuración y se restaura al arrancar.
 | ID | Requisito | Verificación |
 |---|---|---|
 | RNF-01 | Frame time añadido < 0.5 ms en render (widget y mapa abiertos) | Medición con temporizador en dev |
-| RNF-02 | Intervalo de polling configurable, **5–600 s**; por defecto **5 s** (decisión del jugador, 2026-10-31, para acercarse a gw2mists). Es asequible porque el sondeo pide **una** partida por id (~44 KB, con sus cuatro mapas) y no los nueve emparejamientos (~400 KB): 12 peticiones/min. La ventana del límite `X-Rate-Limit-Limit: 600` no viene en la cabecera; si fuera por hora, 5 s son 720/h y el worker recorta con su backoff | Test + spike |
+| RNF-02 | Intervalo de polling configurable, **5–600 s**; por defecto **5 s** (decisión del jugador, 2026-10-31, para acercarse a gw2mists). Ese intervalo es **solo** para el estado de los mapas del emparejamiento elegido: **una** partida por id (`/v2/wvw/matches/{id}`, ~44 KB con sus cuatro mapas), 0,2 peticiones/s frente a la recarga de 5/s del cubo de la API. Todo lo demás va limitado aparte (decisión del jugador, 2026-11-01): los nueve emparejamientos (`ids=all`, ~400 KB) como mucho una vez por minuto, también cuando aún no se conoce la partida del equipo; la lista de equipos y los nombres fuera de MvM cada 10 min; objetivos, mapas y mundos una vez por sesión; nombres de clan con un presupuesto por sondeo. Ante un `429` el worker retrocede | Test + spike |
 | RNF-03 | Historial acotado **por sesión** (ADR-012/ADR-015): **solo memoria**, tope de 2 000 filas; no hay fichero de historial y al arrancar se empieza de cero | Test con datos sintéticos |
 | RNF-04 | Sin red: UI funcional con último estado y marca "obsoleto"; backoff exponencial con tope | Test con cliente simulado |
 | RNF-05 | El historial es "mejor esfuerzo": no se promete completitud | Documentado en UI y README |

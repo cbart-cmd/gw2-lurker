@@ -205,7 +205,7 @@ pub fn body(ui: &Ui, view: &View<'_>, role: &mut MapRole, here: Option<MapRole>)
                 *point,
                 objective.kind,
                 state.and_then(|state| state.owner),
-                state.is_none_or(|state| state.is_high_value()),
+                has_high_value_ring(*state),
                 followed,
             );
             if let (true, Some(guild)) = (followed, guild) {
@@ -357,8 +357,12 @@ fn tile_texture(x: u32, y: u32) -> Option<nexus::imgui::TextureId> {
     }
     let path = crate::catalog::tile_path(x, y)?;
     // Un fichero de cero bytes es una descarga a medias: no es que falte, es que no se puede leer.
-    let Ok(meta) = std::fs::metadata(&path) else {
-        return None;
+    let meta = match std::fs::metadata(&path) {
+        Ok(meta) => meta,
+        Err(_) => {
+            remember_failure(x, y);
+            return None;
+        }
     };
     if meta.len() < MIN_TILE_BYTES {
         remember_failure(x, y);
@@ -568,10 +572,8 @@ const MAP_COMBO_WIDTH: f32 = 120.0;
 const GUILD_COMBO_WIDTH: f32 = 210.0;
 
 fn draw_selector(ui: &Ui, role: &mut MapRole, here: Option<MapRole>, maps: &[WvwMap]) {
+    *role = resolved_map_role(*role, here);
     let current = map_label(*role);
-    if here.is_some() && *role == MapRole::Unknown {
-        *role = here.unwrap_or(MapRole::Center);
-    }
     let _width = ui.push_item_width(MAP_COMBO_WIDTH);
     ComboBox::new(i18n::widget("Map"))
         .preview_value(current)
@@ -689,6 +691,18 @@ fn is_drawable(kind: ObjectiveType) -> bool {
         kind,
         ObjectiveType::Camp | ObjectiveType::Tower | ObjectiveType::Keep | ObjectiveType::Castle
     )
+}
+
+fn has_high_value_ring(state: Option<&ObjectiveState>) -> bool {
+    state.is_some_and(ObjectiveState::is_high_value)
+}
+
+fn resolved_map_role(role: MapRole, here: Option<MapRole>) -> MapRole {
+    if role == MapRole::Unknown {
+        here.unwrap_or(MapRole::Center)
+    } else {
+        role
+    }
 }
 
 fn draw_objective(

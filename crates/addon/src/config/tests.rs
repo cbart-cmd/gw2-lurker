@@ -188,6 +188,25 @@ fn rf20b_only_the_followed_guilds_keep_their_name_in_the_settings() {
 }
 
 #[test]
+fn rf20b_settings_canonicalize_old_lowercase_guild_ids() {
+    const LOWER: &str = "230c9e95-e509-4b3e-aaf2-a320db7506e5";
+    const CANONICAL: &str = "230C9E95-E509-4B3E-AAF2-A320DB7506E5";
+
+    let mut c = Config::default();
+    c.followed.add(LOWER);
+    c.guild_names
+        .insert(LOWER.to_owned(), "[TAG] Clan".to_owned());
+    c.sanitize();
+
+    assert!(c.followed.contains(CANONICAL));
+    assert_eq!(
+        c.guild_names.get(CANONICAL).map(String::as_str),
+        Some("[TAG] Clan")
+    );
+    assert!(!c.guild_names.contains_key(LOWER));
+}
+
+#[test]
 fn rf03b_configured_team_resolves_its_colour() {
     const MATCH: &str = include_str!(concat!(
         env!("CARGO_MANIFEST_DIR"),

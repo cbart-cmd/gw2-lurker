@@ -123,12 +123,12 @@ Regla: si un resultado contradice la spec, no se "arregla" el código; se abre u
   - **Cuerpo JSON completo:** match activo (B) min **9 s** / mediana **10 s** / máx **21 s** ⇒ cambia en *casi todas* las muestras de 10 s. Match inactivo (A) **1360 s (22 min 40 s) sin un solo cambio**, y después un burst de cambios cada ~10 s. El intervalo está limitado por el muestreo: a 10 s no se puede resolver nada más rápido.
   - **Propiedad de objetivos** (lo que dispara las alertas, RF-10/RF-21): activo (B) min **9 s** / mediana **19 s** / máx **110 s** (24 cambios en 9,8 min). Inactivo (A) **22 min 40 s con cero cambios de propiedad**, y luego **7 cambios en 2,5 min** (min 10 s, mediana 20 s).
   - Lectura: el JSON cambia constantemente por contadores (`deaths`, `kills`, `skirmishes`), no por objetivos. Un emparejamiento puede estar **>20 min sin actividad y luego estallar**. El hueco máximo observado (22 min 40 s) no es caché: se descartó con `Date` en vivo, con dos rutas distintas (`?world=1008` y `/matches/1-4`) devolviendo el mismo cuerpo, y con el match 2-4 cambiando en 96 s en la misma ventana.
-- Cache-Control / Age `[API]`: `Cache-Control: public, max-age=1`; **no se envía cabecera `Age`**; `Expires` = `Date` + 1 s. Otras cabeceras: `X-Rate-Limit-Limit: 600` (600 peticiones/hora), `Server: Quaggans`, `X-Result-Total`, `Content-Language` negociable por `lang`.
-  - Consecuencia: la API declara que el dato puede cambiar cada segundo; el límite práctico es 600 req/h ⇒ 10 s = 360/h (60 % del presupuesto, deja poco para `/v2/guild`, `/v2/worlds`, objetivos); 30 s = 120/h (20 %); 5 s = 720/h (**excede** el límite).
+- Cache-Control / Age `[API]`: `Cache-Control: public, max-age=1`; **no se envía cabecera `Age`**; `Expires` = `Date` + 1 s. Otras cabeceras: `X-Rate-Limit-Limit: 600` (el valor no expresa una ventana horaria), `Server: Quaggans`, `X-Result-Total`, `Content-Language` negociable por `lang`.
 - % de errores y huecos máximos: **0 %** de errores en 227 peticiones; latencia medida en el sondeo A: 45–327 ms. Hueco máximo sin cambios: **1360 s** (22 min 40 s) en un emparejamiento inactivo.
-- Intervalo por defecto elegido: **30 s se mantiene** (provisional → confirmado), por tres razones medidas: (a) captura la mayoría de cambios de propiedad (mediana 19–20 s); (b) consume 120 de las 600 req/h, dejando margen para el resto de endpoints; (c) bajar a 10 s aumenta ×3 el consumo para ganar como mucho ~10 s de latencia de aviso. Queda documentado en RNF-05 que un flip+recaptura dentro del mismo intervalo **se pierde**; los huecos de >20 min hacen además que "sin noticias" no signifique "sin actividad".
-- **Revisado el 2026-10-31 (0.23.0):** el jugador pidió la cadencia de gw2mists (5 s), y el coste cambia por dos motivos medidos después: (a) el sondeo pasa a pedir **una partida por id** (`/v2/wvw/matches/{id}`, 44 096 B con los cuatro mapas) en vez de resolver el equipo contra `ids=all` (400 KB), así que 5 s mueve ~9 KB/s, **menos** que los 30 s anteriores; (b) la ventana del límite **no está** en la cabecera (`X-Rate-Limit-Limit: 600`), así que 720 peticiones/hora solo incumplirían si la ventana fuera la hora — extremo que hay que confirmar con una sesión larga a 5 s (si llega un `429`, el worker ya retrocede hasta 300 s). Se adopta 5 s por defecto y 5 s de mínimo; RNF-05 sigue vigente (best effort).
-  - `pendiente`: validar en juego si 30 s de retraso es aceptable para un aviso de captura (criterio humano, no medible desde la API).
+- Límite real `[API]`, comprobado el 2026-11-01 en la copia de archive.org de *API:Best practices* (la wiki estaba caída): cubo de **300** peticiones por IP que se **recarga a 5 por segundo**; al agotarlo, `429`. `X-Rate-Limit-Limit: 600` no indica una cuota por hora. La cadencia configurada de 5 s equivale a 0,2 peticiones por segundo para la partida observada, muy por debajo de la recarga.
+- Cadencia actual: **5 s solo para `/v2/wvw/matches/{id}` del emparejamiento seleccionado**. `ids=all` (≈400 KB) se limita a una vez por minuto mientras se resuelve o selecciona equipo; antes se pedía en cada sondeo. Esto evita usar la cadencia de estado de mapas para descargar emparejamientos ajenos.
+- La selección inicial de 30 s fue sustituida el 2026-10-31 por la petición del jugador de usar 5 s, tras medirse que consultar una partida por id (44 096 B con cuatro mapas) mueve ≈9 KB/s. La medición de cambios de objetivo sigue siendo válida; un flip y una recaptura entre sondeos pueden no observarse (RNF-05).
+- Comprobado el 2026-11-01: `/v2/guild/search?name=<inexistente>` responde `200 []`, no 404.
 
 ### T-02b
 | Opción | Tamaño DLL | Funciona en juego |
@@ -226,6 +226,7 @@ Comprobado `[API]` contra el índice de endpoints (`https://api.guildwars2.com/v
 - **Sí existe la pertenencia gremio → equipo:** `GET /v2/wvw/guilds/eu` y `/na` devuelven `{ "<guild_id UUID>": "<team_id>" }` (282 KB para toda EU). Es la fuente oficial para saber a qué equipo pertenece un gremio, útil en RF-20/RF-23 (seguir guilds); `/v2/guild/:id` no lo informa.
 - **`/v2/account/wvw`** existe y requiere API key (`[a]` en el índice): permitiría leer el equipo de la cuenta automáticamente, pero ADR-010 descarta pedir clave. Se anota como alternativa disponible, no como decisión.
 - **`/v2/wvw/matches/overview`** devuelve solo la lista de ids de match en curso (83 bytes, los 9 actuales): endpoint barato para detectar el cambio de match sin descargar el JSON completo.
+- Se capturó `/v2/wvw/matches?ids=all` el 2026-11-02 en `crates/api/tests/fixtures/matches_all_20261102.json`: respuesta real de **495 748 bytes**, con nueve ids únicos (cinco EU y cuatro NA). Se conserva aparte del fixture histórico `matches_all.json`, que solo contiene `2-2` y sigue siendo usado por tests de selección.
 - **Orden de región:** `1-x` = NA y `2-x` = EU (deducido de los mundos de cada `all_worlds`; no viene indicado en el JSON).
 
 ### Notas de verificación: `claimed_by` es un id de gremio usable y `/v2/guild/:id` lo resuelve (2026-10-31)
@@ -237,7 +238,9 @@ Comprobado `[API]` con datos en vivo (`/v2/wvw/matches?ids=all`, 403 622 bytes, 
 - **`GET /v2/guild/<ese uuid con guiones>` → 200** con `{"id","name","tag","emblem":{…}}`;
   ejemplo medido: `[AMX] Le Coq Sportif`. Hay campos de más (`emblem`) que el parseo ignora.
 - **Sin guiones NO funciona**: los 32 caracteres seguidos devuelven **HTTP 500**
-  `{"text":"unknown error"}`. El id se usa tal cual viene en el matchup; no hay que normalizarlo.
+  `{"text":"unknown error"}` al pedir directamente `/v2/guild/:id`. El addon convierte UUIDs
+  válidos sin guiones o en minúsculas a la forma canónica antes de construir la URL; los claims
+  medidos, que ya llegan en mayúsculas y con guiones, no cambian.
 - Un id que ya no existe devuelve **404** `{"text":"guild not found"}`: es el caso normal de un
   gremio disuelto, así que la UI debe caer al id y no reintentarlo en cada sondeo.
 - **Coste:** una llamada por gremio. Con un tope de 10 por sondeo, un matchup de veinte gremios

@@ -7,7 +7,7 @@ cambia, se cambia aquí primero.
 
 Convenciones: `S0` = snapshot anterior, `S1` = actual. Tiempos en UTC. «Seguida» = guild en la lista
 de seguimiento. No hay módulo `rules` ni crate `store`: los filtros viven en `core::alerts::Filter`
-y se aplican en `addon::alerts::Dashboard::recent_alerts`; el historial es de la sesión y está en
+y se aplican en `addon::alerts::Dashboard::recent_alerts`; el historial es del ciclo de seguimiento y está en
 memoria (ADR-015).
 
 ## D – `core::diff` (Snapshot, Snapshot) → Vec<Event>
@@ -43,6 +43,7 @@ memoria (ADR-015).
 | B-08 | Mismo snapshot repetido por API atascada (huella idéntica, tiempo avanza) | diff + worker | Sin eventos; `matchup::digest` + `payload_since` marcan la partida como congelada y el widget lo dice (RF-43) |
 | B-09 | `taken_at` no monótono (S1 anterior a S0) | diff | Sin panic; S1 se descarta y se registra |
 | B-10 | `claimed_by` puesto, `last_flipped` **posterior** a `claimed_at` | diff | Claim **caducado**: se descarta y no se pinta (`matchup::claim_holds`; bug de 2026-10-31, «un clan en un campa de otro color») |
+| B-11 | Vence `teamAssignment` y el match observado desaparece de `overview` | worker | `ids=all` revalida el equipo; si la selección cambia o queda obsoleta, vacía historial/alertas y reinicia el baseline (RF-03d, RF-24); si el match sigue activo, no limpia nada |
 
 ## R – Filtros de aviso (`core::alerts::Filter` aplicado en `addon::alerts`)
 
@@ -58,7 +59,7 @@ clanes seguidos en cualquier mapa, y **solo de estructuras reclamables** (RF-19e
 | R-05 | `Claim` de un clan no seguido y su mapa sin marcar | filtro | No avisa | `rf73_…` (caso contrario) |
 | R-06 | «Solo los clanes que sigo» marcado | filtro | Manda sobre las casillas de mapa | `rf19a_only_the_followed_guilds_is_one_switch` |
 | R-07 | `Claim{late:true}` de un clan seguido, hace minutos | filtro | Avisa (es lo que se perdió al cargar) | `rf25_late_claims_carry_the_real_claimed_at` |
-| R-08 | `Claim{late:true}` de hace horas | filtro | No avisa; queda en el historial de la sesión | — (regla en `LATE_GRACE`) |
+| R-08 | `Claim{late:true}` de hace horas | filtro | No avisa; queda en el historial del ciclo actual | — (regla en `LATE_GRACE`) |
 | R-09 | `Gap` | UI | Línea de estado «puede haber eventos perdidos», no alerta de objetivo | — |
 | R-10 | El jugador cambia los filtros | render | Se aplica en el acto a la lista ya construida | `rf19_unticking_a_map_silences_only_that_map` |
 | R-11 | Cooldown por objetivo | — | **No implementado**: se retiró de la UI y no está en el código | — |

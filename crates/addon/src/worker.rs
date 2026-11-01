@@ -4,16 +4,18 @@
 //! render callback only reads a small derived [`Dashboard`] behind a mutex, so rule 6 (no
 //! network, no file system in the render thread) holds and the frame never waits on HTTP.
 //!
-//! Poll size matters: while the match is unknown the worker asks for `ids=all` (~400 KB), and
-//! once the team is selected it switches to `/wvw/matches/{id}` (~44 KB), which at one poll
-//! every 30 s keeps us well inside the 600 requests/hour budget.
+//! Poll size matters: while the match is unknown the worker asks for `ids=all` (~400 KB), at most
+//! once per [`ALL_MATCHUPS_TTL`], and once the team is confirmed it switches to
+//! `/wvw/matches/{id}` (~44 KB). Only that request follows the configured interval (5 s by
+//! default, RNF-02): 0,2 requests/s against an API bucket of 300 that refills at 5 per second
+//! per IP (wiki *API:Best practices*). HTTP 429 responses still trigger exponential backoff.
 
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Mutex, MutexGuard, OnceLock};
 use std::time::{Duration, Instant};
 
 use chrono::{DateTime, Utc};
-use gw2lurker_api::Api;
+use gw2lurker_api::{Api, ApiError, Backoff};
 use gw2lurker_core::diff::{Differ, Event};
 use gw2lurker_core::matchup::{self, ClaimRow, GuildSummary, ObjectiveState};
 use gw2lurker_core::model::{MapRole, Match, ObjectiveInfo};
@@ -23,10 +25,10 @@ pub use crate::alerts::{AlertKind, AlertLine, Received};
 use crate::catalog::{maps_for, objectives_for, resolve_guild_names};
 use crate::net::WinHttpTransport;
 
-/// Claims kept in memory for the guild history of the session (RF-72).
+/// Claims kept in memory for the current tracking cycle (RF-72).
 const MAX_HISTORY: usize = 2000;
 
-/// How often a failing API is retried at most, on top of the configured interval.
+/// Cap used by both the shared exponential backoff and the configured polling wait.
 const MAX_BACKOFF: Duration = Duration::from_secs(300);
 
 /// Whether the worker may use the network (set from the render callback's gate).
@@ -57,7 +59,10 @@ pub enum Health {
     /// Last poll worked.
     Ok { at: DateTime<Utc> },
     /// Last poll failed; the worker keeps trying with backoff.
-    Degraded { since: DateTime<Utc>, error: String },
+    Degraded {
+        since: DateTime<Utc>,
+        error: ApiError,
+    },
 }
 
 /// What the UI reads. Small on purpose: the render callback must never touch the raw match.
@@ -90,8 +95,10 @@ pub struct Dashboard {
     pub candidates: Vec<gw2lurker_core::Candidate>,
     /// Map id → matchup role, so an alert knows which map it happened on.
     pub map_roles: std::collections::BTreeMap<u32, MapRole>,
-    /// Claims seen during this session, oldest first: the guild history of ADR-012.
+    /// Claims seen during this tracking cycle, oldest first: the guild history of ADR-012.
     pub history: Vec<ClaimRow>,
+    /// Start of the current tracking cycle: addon load or confirmed team reassignment.
+    pub history_since: Option<DateTime<Utc>>,
     /// Most recent events, newest last (RF-19), each with **when we saw it**.
     ///
     /// The instant is stored here and not rebuilt when the line is formatted: recomputing it
@@ -123,7 +130,26 @@ pub struct Dashboard {
 }
 
 impl Dashboard {
-    /// Claims of one guild during the session, in the order they happened (RF-72).
+    pub(crate) fn reset_tracking_cycle(&mut self, at: DateTime<Utc>) {
+        self.match_id = None;
+        self.selection = Selection::Missing;
+        self.claims.clear();
+        self.states.clear();
+        self.guilds.clear();
+        self.candidates.clear();
+        self.map_roles.clear();
+        self.history.clear();
+        self.history_since = Some(at);
+        self.alerts.clear();
+        self.updated_at = None;
+        self.played_team = None;
+        self.auto_detected = false;
+        self.payload_digest = None;
+        self.payload_since = None;
+        self.last_claim_at = None;
+    }
+
+    /// Claims of one guild during the current tracking cycle, in the order they happened (RF-72).
     pub fn guild_history(&self, guild: &str) -> Vec<ClaimRow> {
         matchup::guild_timeline(&self.history, guild)
     }
@@ -149,9 +175,8 @@ impl Dashboard {
             .filter(|role| *role != MapRole::Unknown)
     }
 
-    /// Guilds that hold something right now: the ones that claimed during this session plus the
-    /// ones that already held an objective when the addon started (ADR-012: the history starts
-    /// with the map as it is).
+    /// Guilds that hold something right now: the ones that claimed during this tracking cycle plus
+    /// the ones already holding an objective at its baseline (ADR-012).
     ///
     /// It is what the *Add guild* panel offers first: those are the guilds the player has just
     /// seen on screen, so following one is a click and no network (T-44).
@@ -234,10 +259,7 @@ pub fn start() {
         let mut names = crate::config().guild_names.clone();
         names.extend(crate::session_names::all());
         dashboard().guild_names = names;
-        let spawn = std::thread::Builder::new()
-            .name("gw2lurker-worker".to_owned())
-            .spawn(run);
-        if let Err(error) = spawn {
+        if let Err(error) = crate::background::spawn("gw2lurker-worker", run) {
             log::warn!("worker: no se pudo arrancar el hilo: {error}");
         }
     });
@@ -246,16 +268,19 @@ pub fn start() {
 /// Asks the worker to stop and waits for it to leave.
 pub fn stop() {
     STOP.store(true, Ordering::Relaxed);
+    crate::background::stop_all();
 }
 
 fn run() {
     let api = Api::new(WinHttpTransport::default());
     let mut differ = Differ::new(gw2lurker_core::DiffConfig::default());
+    let mut assignment = crate::assignment::AssignmentMonitor::default();
     let mut teams_at: Option<Instant> = None;
     let mut names_at: Option<Instant> = None;
-    let mut backoff_ms: u64 = 0;
+    let mut backoff = Backoff::default();
 
     while !STOP.load(Ordering::Relaxed) {
+        crate::check_dll_update();
         if !MAY_POLL.load(Ordering::Relaxed) {
             // Outside WvW, only the team list is worth fetching, and rarely: it changes at
             // reset, not every half minute.
@@ -278,23 +303,31 @@ fn run() {
             continue;
         }
 
-        match poll_once(&api, &mut differ) {
-            Ok(()) => backoff_ms = 0,
+        let backoff_delay = match poll_once(&api, &mut differ, &mut assignment) {
+            Ok(()) => {
+                backoff.reset();
+                Duration::ZERO
+            }
             Err(error) => {
-                backoff_ms = next_backoff(backoff_ms);
-                log::warn!("worker: {error}; reintento en {backoff_ms} ms");
+                if STOP.load(Ordering::Relaxed) {
+                    break;
+                }
+                let delay = retry_delay(&mut backoff, &error);
+                log::warn!(
+                    "worker: {error}; siguiente sondeo en {} ms",
+                    delay.as_millis()
+                );
                 let mut board = dashboard();
                 board.health = Health::Degraded {
                     since: started_degraded(&board.health),
                     error,
                 };
+                delay
             }
-        }
+        };
 
         let interval = Duration::from_secs(u64::from(crate::runtime().poll_secs));
-        let wait = interval
-            .max(Duration::from_millis(backoff_ms))
-            .min(MAX_BACKOFF);
+        let wait = interval.max(backoff_delay).min(MAX_BACKOFF);
         sleep(wait);
     }
 
@@ -326,10 +359,9 @@ fn publish_teams(live: &[Match], selected: Option<u32>) {
     let mut board = dashboard();
     board.candidates = select::candidates(live);
     board.selection = select::evaluate(selected, live);
-    board.match_id = match &board.selection {
-        Selection::Confirmed { match_id, .. } => Some(match_id.clone()),
-        _ => None,
-    };
+    if let Some(match_id) = selected_match_id(&board.selection) {
+        board.match_id = Some(match_id.to_owned());
+    }
 }
 
 fn started_degraded(health: &Health) -> DateTime<Utc> {
@@ -339,13 +371,13 @@ fn started_degraded(health: &Health) -> DateTime<Utc> {
     }
 }
 
-fn next_backoff(current_ms: u64) -> u64 {
-    let next = if current_ms == 0 {
-        1_000
+fn retry_delay(backoff: &mut Backoff, error: &ApiError) -> Duration {
+    if Backoff::should_retry(error) {
+        Duration::from_millis(backoff.next_delay_ms())
     } else {
-        current_ms * 2
-    };
-    next.min(MAX_BACKOFF.as_millis() as u64)
+        backoff.reset();
+        Duration::ZERO
+    }
 }
 
 /// Sleeps in slices so `stop()` and a gate change are noticed quickly.
@@ -353,13 +385,18 @@ fn sleep(total: Duration) {
     let step = Duration::from_millis(250);
     let mut left = total;
     while left > Duration::ZERO && !STOP.load(Ordering::Relaxed) {
+        crate::check_dll_update();
         let chunk = left.min(step);
         std::thread::sleep(chunk);
         left -= chunk;
     }
 }
 
-fn poll_once(api: &Api<WinHttpTransport>, differ: &mut Differ) -> Result<(), String> {
+fn poll_once(
+    api: &Api<WinHttpTransport>,
+    differ: &mut Differ,
+    assignment: &mut crate::assignment::AssignmentMonitor,
+) -> Result<(), ApiError> {
     let saved = crate::team::selected();
     // El personaje manda: la lista por personaje es de RF-03a, así que un alt con otro equipo
     // tiene que revalidar (una sola vez) al entrar.
@@ -369,17 +406,37 @@ fn poll_once(api: &Api<WinHttpTransport>, differ: &mut Differ) -> Result<(), Str
     // Con el selector en pantalla hacen falta los nueve emparejamientos, pero como mucho una vez
     // por minuto: la lista de equipos solo cambia al reiniciarse el emparejamiento y a 5 s serían
     // 4,8 MB por minuto (informe del jugador, 2026-10-31).
-    let needs_all = needs_all_now(saved, teams_needed(), crate::detect::due(), all_stale());
+    let previous_match_id = watched_match_id();
+    let assignment_due = if let Some(match_id) = previous_match_id.as_deref() {
+        match assignment.rotation_confirmed(api, match_id, Utc::now(), Instant::now()) {
+            Ok(due) => due,
+            Err(error) => {
+                log::warn!("worker: no se pudo comprobar la reasignación de equipos ({error})");
+                false
+            }
+        }
+    } else {
+        false
+    };
+    let needs_all =
+        needs_all_now(teams_needed(), crate::detect::due(), all_stale()) || assignment_due;
     // Lo que se pide es la partida del equipo que **se va a vigilar**, no la del guardado: con
     // la detección cacheada un cuarto de hora, pedir la del guardado y evaluar después el equipo
     // detectado dejaba al addon mirando otra partida 14 de cada 15 minutos (informe de
     // 2026-10-31).
     let polled = polled_team(saved, crate::detect::cached().map(|found| found.team));
+    let known_match = previous_match_id;
+    if should_skip_poll(needs_all, known_match.as_deref(), polled, all_stale()) {
+        return Ok(());
+    }
     let live = fetch_live(
         api,
-        fetch_plan(needs_all, watched_match_id().as_deref(), polled),
+        fetch_plan(needs_all, known_match.as_deref(), polled),
         polled,
     )?;
+    if crate::background::is_stopping() {
+        return Ok(());
+    }
 
     // El juego manda: si Mumble dice en qué partida está el jugador, se vigila ésa y no la del
     // equipo guardado. Es la causa de todos los «no salen avisos» (informe de 2026-10-31).
@@ -391,11 +448,34 @@ fn poll_once(api: &Api<WinHttpTransport>, differ: &mut Differ) -> Result<(), Str
     let team_id = detected.as_ref().map(|found| found.team).or(saved);
 
     let selection = select::evaluate(team_id, &live);
-    let names = objectives_for(api)?;
-    let match_id = match &selection {
-        Selection::Confirmed { match_id, .. } => Some(match_id.clone()),
-        _ => live.first().map(|entry| entry.id.clone()),
+    let names = match objectives_for(api) {
+        Ok(names) => names,
+        Err(error) => {
+            log::warn!("worker: sin nombres de objetivo ({error}); se usan los ids");
+            Vec::new()
+        }
     };
+    if crate::background::is_stopping() {
+        return Ok(());
+    }
+    let match_id = selected_match_id(&selection).map(str::to_owned);
+    let assignment_reset_at = Utc::now();
+    let assignment_reset = if assignment_due {
+        let mut board = dashboard();
+        crate::assignment::reset_tracking_for_assignment(
+            &mut board,
+            differ,
+            assignment,
+            known_match.as_deref(),
+            match_id.as_deref(),
+            assignment_reset_at,
+        )
+    } else {
+        false
+    };
+    if assignment_reset {
+        log::info!("worker: reasignación confirmada; historial y alertas reiniciados");
+    }
 
     // Diff first: the dashboard lock must not be taken while building the history.
     let mut events = Vec::new();
@@ -427,8 +507,17 @@ fn poll_once(api: &Api<WinHttpTransport>, differ: &mut Differ) -> Result<(), Str
     let candidates = select::candidates(&live);
     let followed = crate::runtime().followed.clone();
     let guild_names = resolve_guild_names(api, &guilds, &followed);
+    if crate::background::is_stopping() {
+        return Ok(());
+    }
     let world_names = crate::catalog::world_names(api);
+    if crate::background::is_stopping() {
+        return Ok(());
+    }
     let maps = maps_for(api);
+    if crate::background::is_stopping() {
+        return Ok(());
+    }
     crate::diagnostics::log_watched_matchup(&selection, match_id.as_deref(), &live, &events);
     crate::diagnostics::log_where(team_id, match_id.as_deref(), &live);
     crate::catalog::ensure_tiles(&maps);
@@ -445,6 +534,7 @@ fn poll_once(api: &Api<WinHttpTransport>, differ: &mut Differ) -> Result<(), Str
         .unwrap_or_default();
     let mut board = dashboard();
     board.health = Health::Ok { at: now };
+    board.history_since.get_or_insert(now);
     // Huella de la partida: si la API repite la misma copia, se guarda desde cuándo.
     if let Some(entry) = current_match(&live, match_id.as_deref()) {
         let digest = matchup::digest(entry);
@@ -496,11 +586,25 @@ fn poll_once(api: &Api<WinHttpTransport>, differ: &mut Differ) -> Result<(), Str
 
 /// Whether this poll has to ask for the nine matchups (~400 KB) or just for one match (~44 KB).
 ///
-/// All nine are needed when there is no team yet (the picker has to be filled), when it is time
-/// to look for the player's match again, or when the picker is on screen **and** the list is
-/// stale. Asking for all nine on every poll was 4,8 MB per minute at the five-second cadence.
-fn needs_all_now(saved: Option<u32>, picker: bool, detect_due: bool, all_stale: bool) -> bool {
-    detect_due || saved.is_none() || (picker && all_stale)
+/// All nine are needed for the initial detection attempt, when missing Mumble data is due for
+/// retry, or when the picker is on screen **and** the list is stale. Asking for all nine on every
+/// poll was 4,8 MB per minute at the five-second cadence.
+fn needs_all_now(picker: bool, detect_due: bool, all_stale: bool) -> bool {
+    detect_due || (picker && all_stale)
+}
+
+fn should_skip_poll(
+    needs_all: bool,
+    known_match: Option<&str>,
+    polled: Option<u32>,
+    all_stale: bool,
+) -> bool {
+    if needs_all || known_match.is_some() {
+        return false;
+    }
+    // Sin id de partida, buscar el equipo es `ids=all` (~400 KB): la cadencia configurada es solo
+    // para el estado de los mapas de la partida elegida, así que esto espera al enfriamiento.
+    polled.is_none() || !all_stale
 }
 
 /// Whether the nine matchups were fetched longer than [`ALL_MATCHUPS_TTL`] ago.
@@ -576,15 +680,15 @@ fn fetch_live(
     api: &Api<WinHttpTransport>,
     plan: Fetch,
     polled: Option<u32>,
-) -> Result<Vec<Match>, String> {
+) -> Result<Vec<Match>, ApiError> {
     match plan {
         Fetch::All => {
-            let live = api.matches_all().map_err(|error| error.to_string())?;
+            let live = api.matches_all()?;
             remember_all();
             Ok(live)
         }
         Fetch::ById(id) => {
-            let found = api.match_by_id(&id).map_err(|error| error.to_string())?;
+            let found = api.match_by_id(&id)?;
             // La partida guardada puede haber terminado o el jugador haber cambiado de equipo:
             // si el equipo que se vigila no está ahí, se busca otra vez.
             if polled.is_none_or(|team| found.color_of(team).is_some()) {
@@ -598,14 +702,22 @@ fn fetch_live(
 
 /// The match of a team, or every matchup when that team no longer plays (the ladder reshuffled,
 /// so the picker has to offer the live teams again).
-fn fetch_by_team(api: &Api<WinHttpTransport>, polled: Option<u32>) -> Result<Vec<Match>, String> {
-    match polled {
-        Some(team) => match api.match_for_team(team) {
-            Ok(found) => Ok(vec![found]),
-            Err(_) => api.matches_all().map_err(|error| error.to_string()),
-        },
-        None => api.matches_all().map_err(|error| error.to_string()),
+fn fetch_by_team(api: &Api<WinHttpTransport>, polled: Option<u32>) -> Result<Vec<Match>, ApiError> {
+    if crate::background::is_stopping() {
+        return Ok(Vec::new());
     }
+    let live = api.matches_all()?;
+    remember_all();
+    Ok(matching_team_or_all(live, polled))
+}
+
+fn matching_team_or_all(live: Vec<Match>, polled: Option<u32>) -> Vec<Match> {
+    if let Some(team) = polled {
+        if let Some(found) = live.iter().find(|entry| entry.color_of(team).is_some()) {
+            return vec![found.clone()];
+        }
+    }
+    live
 }
 
 /// Turns a claim event into a history row, resolving name, kind and owner from the snapshot.
@@ -664,9 +776,14 @@ fn history_row(
 }
 
 fn current_match<'a>(live: &'a [Match], id: Option<&str>) -> Option<&'a Match> {
-    match id {
-        Some(id) => live.iter().find(|entry| entry.id == id),
-        None => live.first(),
+    let id = id?;
+    live.iter().find(|entry| entry.id == id)
+}
+
+fn selected_match_id(selection: &Selection) -> Option<&str> {
+    match selection {
+        Selection::Confirmed { match_id, .. } => Some(match_id),
+        Selection::Missing | Selection::Stale { .. } => None,
     }
 }
 

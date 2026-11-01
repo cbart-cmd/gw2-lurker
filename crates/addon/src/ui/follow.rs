@@ -4,7 +4,7 @@
 //! wall of rows nobody reads (report of 2026-10-31). Now it shows only what the player follows,
 //! and adding is a deliberate action with two ways in:
 //!
-//! 1. **What claimed something since the addon started** — the session has those claims already,
+//! 1. **What claimed something during the current tracking cycle** — the worker already has those claims,
 //!    so this costs no network at all.
 //! 2. **Search by team and name** — the team is mandatory and comes from the player's region,
 //!    because a guild only matters if it plays in your matchup.
@@ -25,7 +25,7 @@ use nexus::imgui::{InputText, Selectable, Ui};
 
 use crate::i18n;
 
-/// How many guilds the *Claimed since the addon started* shortcut offers.
+/// How many guilds the current-tracking-cycle shortcut offers.
 const MAX_SESSION_ROWS: usize = 10;
 
 /// What the player typed in the search box. Session state on purpose: it is a tool, not a
@@ -208,14 +208,15 @@ fn remember_name(
     saved: &mut BTreeMap<String, String>,
     guild: &str,
 ) -> Vec<(String, String)> {
-    let Some(label) = known.get(guild).cloned() else {
+    let id = gw2lurker_core::normalize_guild_id(guild).unwrap_or_else(|| guild.to_owned());
+    let Some(label) = known.get(&id).cloned() else {
         return Vec::new();
     };
-    saved.insert(guild.to_owned(), label.clone());
-    vec![(guild.to_owned(), label)]
+    saved.insert(id.clone(), label.clone());
+    vec![(id, label)]
 }
 
-/// Guilds that claimed something during this session: one click and they are followed.
+/// Guilds that claimed something during this tracking cycle: one click and they are followed.
 ///
 /// El nombre sale de `known` —los ajustes **más** `temp.json`—, no solo de los ajustes: estos
 /// clanes no se siguen todavía, así que en `settings.json` no están y la lista enseñaba ids de 36
@@ -329,8 +330,11 @@ fn search_block(
         crate::search::State::Searching(_) => {
             ui.text_disabled(i18n::text("Searching..."));
         }
-        crate::search::State::Failed(error) => {
-            ui.text_disabled(i18n::format("Search failed: {0}", &[error]));
+        crate::search::State::Failed(crate::search::Failure::Api(error)) => ui.text_disabled(
+            i18n::format("Search failed: {0}", &[&i18n::format_api_error(error)]),
+        ),
+        crate::search::State::Failed(crate::search::Failure::Internal(error)) => {
+            ui.text_disabled(i18n::format("Search could not start: {0}", &[error]));
         }
         crate::search::State::Done(_) => {}
     }
@@ -537,7 +541,8 @@ mod tests {
         );
 
         // Y al empezar a seguirlo, su nombre se queda en los ajustes y se le enseña al índice.
-        let learned = remember_name(&known, &mut saved, ID);
+        let lower_id = ID.to_ascii_lowercase();
+        let learned = remember_name(&known, &mut saved, &lower_id);
         assert_eq!(
             saved.get(ID).map(String::as_str),
             Some("[PEST] Please excuse the silly tactics")

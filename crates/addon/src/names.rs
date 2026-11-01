@@ -16,6 +16,7 @@
 use std::collections::BTreeMap;
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::Mutex;
 
 use crate::config;
 
@@ -24,6 +25,7 @@ pub const FILE: &str = "guild-names.json";
 
 /// Cuántos nombres tiene el índice, para que la ventana lo diga sin leer el fichero.
 static INDEX_LEN: AtomicUsize = AtomicUsize::new(0);
+static INDEX_IO: Mutex<()> = Mutex::new(());
 
 /// Ruta del fichero, o `None` si la carpeta del addon no está disponible.
 pub fn path() -> Option<PathBuf> {
@@ -64,12 +66,21 @@ fn read_at(path: &std::path::Path) -> BTreeMap<String, String> {
         }
     };
     match serde_json::from_slice::<BTreeMap<String, String>>(&raw) {
-        Ok(names) => names,
+        Ok(names) => normalize_names(names),
         Err(error) => {
             log::warn!("índice de nombres de clan mal formado ({error}); se busca solo en el API");
             BTreeMap::new()
         }
     }
+}
+
+fn normalize_names(names: BTreeMap<String, String>) -> BTreeMap<String, String> {
+    let mut normalized = BTreeMap::new();
+    for (id, label) in names {
+        let id = gw2lurker_core::normalize_guild_id(&id).unwrap_or(id);
+        normalized.entry(id).or_insert(label);
+    }
+    normalized
 }
 
 /// Clanes del índice cuya etiqueta (nombre o tag) contiene `needle`, sin distinguir mayúsculas.
@@ -82,19 +93,22 @@ pub fn search_in(
     needle: &str,
     limit: usize,
 ) -> Vec<(String, String)> {
-    let needle = needle.trim().to_lowercase();
-    if needle.len() < 2 {
+    let needle = needle.trim();
+    if needle.chars().count() < 2 {
         return Vec::new();
     }
+    let needle = needle.to_lowercase();
     let mut out: Vec<(String, String)> = names
         .iter()
-        .filter(|(id, label)| matches_text(label, id, &needle))
+        .filter(|(id, label)| matches_normalized_text(label, id, &needle))
         .map(|(id, label)| (id.clone(), label.clone()))
         .collect();
     // Primero los que **empiezan** por lo escrito (sin contar el `[TAG]`), y entre ellos los más
     // cortos: quien busca «die» quiere *Die Gäng* y *Die Garde* antes que *Never Die*
     // (2026-11-01). Después el resto por longitud, que sigue siendo más útil que el orden del id.
-    out.sort_by_key(|(id, label)| (!starts_with_needle(label, &needle), label.len(), id.clone()));
+    out.sort_by_cached_key(|(id, label)| {
+        (!starts_with_needle(label, &needle), label.len(), id.clone())
+    });
     out.truncate(limit);
     out
 }
@@ -109,12 +123,17 @@ fn starts_with_needle(label: &str, needle: &str) -> bool {
 }
 
 /// Whether an entry matches what the player typed. Pure, so the rule can be tested.
+#[cfg(test)]
 pub fn matches_text(label: &str, id: &str, needle: &str) -> bool {
     let needle = needle.trim().to_lowercase();
+    matches_normalized_text(label, id, &needle)
+}
+
+fn matches_normalized_text(label: &str, id: &str, needle: &str) -> bool {
     if needle.is_empty() {
         return false;
     }
-    label.to_lowercase().contains(&needle) || id.to_lowercase().starts_with(&needle)
+    label.to_lowercase().contains(needle) || id.to_lowercase().starts_with(needle)
 }
 
 /// Añade nombres que faltaban al índice, en su propio hilo.
@@ -126,15 +145,13 @@ pub fn append_async(entries: Vec<(String, String)>) {
     if entries.is_empty() {
         return;
     }
-    let spawned = std::thread::Builder::new()
-        .name("gw2lurker-names".to_owned())
-        .spawn(move || match append(&entries) {
-            Ok(added) if added > 0 => log::info!("índice de clanes: {added} nombres nuevos"),
-            Ok(_) => {}
-            Err(error) => log::warn!("no se pudo ampliar el índice de clanes ({error})"),
-        });
-    if spawned.is_err() {
-        log::warn!("índice de clanes: no se pudo lanzar la escritura");
+    let spawned = crate::background::spawn("gw2lurker-names", move || match append(&entries) {
+        Ok(added) if added > 0 => log::info!("índice de clanes: {added} nombres nuevos"),
+        Ok(_) => {}
+        Err(error) => log::warn!("no se pudo ampliar el índice de clanes ({error})"),
+    });
+    if let Err(error) = spawned {
+        log::warn!("índice de clanes: no se pudo lanzar la escritura ({error})");
     }
 }
 
@@ -148,13 +165,15 @@ pub fn append(entries: &[(String, String)]) -> std::io::Result<usize> {
 
 /// [`append`] against a given file, so it can be tested without touching the player's index.
 pub fn append_at(path: &std::path::Path, entries: &[(String, String)]) -> std::io::Result<usize> {
+    let _guard = INDEX_IO.lock().unwrap_or_else(|error| error.into_inner());
     let mut names = read_at(path);
     let before = names.len();
     for (id, label) in entries {
         if id.trim().is_empty() || label.trim().is_empty() {
             continue;
         }
-        names.entry(id.clone()).or_insert_with(|| label.clone());
+        let id = gw2lurker_core::normalize_guild_id(id).unwrap_or_else(|| id.clone());
+        names.entry(id).or_insert_with(|| label.clone());
     }
     if names.len() == before {
         return Ok(0);
@@ -165,6 +184,22 @@ pub fn append_at(path: &std::path::Path, entries: &[(String, String)]) -> std::i
     std::fs::rename(&temp, path)?;
     INDEX_LEN.store(names.len(), Ordering::Relaxed);
     Ok(names.len() - before)
+}
+
+/// Installs a downloaded index while preserving names appended during this session.
+pub(crate) fn install_at(path: &std::path::Path, downloaded: &[u8]) -> std::io::Result<usize> {
+    let downloaded: BTreeMap<String, String> =
+        serde_json::from_slice(downloaded).map_err(std::io::Error::other)?;
+    let downloaded = normalize_names(downloaded);
+    let _guard = INDEX_IO.lock().unwrap_or_else(|error| error.into_inner());
+    let mut names = read_at(path);
+    names.extend(downloaded);
+    let json = serde_json::to_vec(&names).map_err(std::io::Error::other)?;
+    let temp = path.with_extension("json.tmp");
+    std::fs::write(&temp, json)?;
+    std::fs::rename(&temp, path)?;
+    INDEX_LEN.store(names.len(), Ordering::Relaxed);
+    Ok(names.len())
 }
 
 #[cfg(test)]
@@ -200,6 +235,15 @@ mod tests {
     fn t44_two_letters_are_the_minimum() {
         // Con una sola letra la lista sería el índice entero.
         assert!(search_in(&index(), "d", 5).is_empty());
+    }
+
+    #[test]
+    fn t44_a_single_multibyte_character_is_still_one_character() {
+        let names = BTreeMap::from([("A".to_owned(), "[N] Ñandú".to_owned())]);
+        assert!(
+            search_in(&names, "ñ", 5).is_empty(),
+            "el mínimo cuenta caracteres, no bytes UTF-8"
+        );
     }
 
     #[test]
@@ -275,6 +319,65 @@ mod tests {
         // Y el buscador lo encuentra por un trozo del nombre.
         assert_eq!(search_in(&index, "letzken", 5).len(), 1);
 
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn rf20d_index_guild_ids_are_normalized_before_storage() {
+        const LOWER: &str = "230c9e95-e509-4b3e-aaf2-a320db7506e5";
+        const CANONICAL: &str = "230C9E95-E509-4B3E-AAF2-A320DB7506E5";
+
+        let dir =
+            std::env::temp_dir().join(format!("gw2lurker-names-normalize-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let path = dir.join(FILE);
+
+        assert_eq!(
+            append_at(&path, &[(LOWER.to_owned(), "[TAG] Clan".to_owned())]).unwrap(),
+            1
+        );
+        assert_eq!(
+            append_at(&path, &[(CANONICAL.to_owned(), "[TAG] Clan".to_owned())]).unwrap(),
+            0,
+            "el índice no duplica el mismo UUID con otra capitalización"
+        );
+        assert_eq!(
+            read_at(&path).get(CANONICAL).map(String::as_str),
+            Some("[TAG] Clan")
+        );
+
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn rf20_concurrent_download_and_append_preserve_both_indexes() {
+        let dir = std::env::temp_dir().join(format!("gw2lurker-index-io-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let path = dir.join(FILE);
+        std::fs::write(&path, br#"{"A":"[A] Existing"}"#).unwrap();
+        let append_path = path.clone();
+        let install_path = path.clone();
+
+        std::thread::scope(|scope| {
+            let append = scope.spawn(|| {
+                append_at(&append_path, &[("B".to_owned(), "[B] Appended".to_owned())]).unwrap();
+            });
+            let install = scope.spawn(|| {
+                install_at(&install_path, br#"{"C":"[C] Downloaded"}"#).unwrap();
+            });
+            append.join().unwrap();
+            install.join().unwrap();
+        });
+
+        let index = read_at(&path);
+        assert!(
+            index.contains_key("B"),
+            "la adición no se pierde: {index:?}"
+        );
+        assert!(
+            index.contains_key("C"),
+            "la descarga no se pierde: {index:?}"
+        );
         let _ = std::fs::remove_dir_all(&dir);
     }
 }

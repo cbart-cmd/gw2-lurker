@@ -18,7 +18,7 @@ use std::collections::BTreeMap;
 use std::sync::{Mutex, OnceLock};
 use std::time::{Duration, Instant};
 
-use gw2lurker_api::Api;
+use gw2lurker_api::{Api, ApiError};
 use gw2lurker_core::Region;
 
 use crate::net::WinHttpTransport;
@@ -44,6 +44,18 @@ pub struct Hit {
     pub matches_team: bool,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum Failure {
+    Api(ApiError),
+    Internal(String),
+}
+
+impl From<ApiError> for Failure {
+    fn from(error: ApiError) -> Self {
+        Self::Api(error)
+    }
+}
+
 /// What the window draws while the thread works.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub enum State {
@@ -55,7 +67,7 @@ pub enum State {
     /// clan, tengo que darle otra vez»).
     Searching(Vec<Hit>),
     Done(Vec<Hit>),
-    Failed(String),
+    Failed(Failure),
 }
 
 impl State {
@@ -98,20 +110,21 @@ pub fn start(region: Region, team: Option<u32>, text: String, mode: Mode) -> boo
         *state = State::Searching(state.hits().to_vec());
     }
 
-    let spawned = std::thread::Builder::new()
-        .name("gw2lurker-search".to_owned())
-        .spawn(move || {
-            let outcome = run(region, team, &text, mode);
-            let mut state = slot().lock().unwrap_or_else(|error| error.into_inner());
-            *state = match outcome {
-                Ok(hits) => State::Done(hits),
-                Err(error) => State::Failed(error),
-            };
-        });
+    let spawned = crate::background::spawn("gw2lurker-search", move || {
+        let outcome = run(region, team, &text, mode);
+        if crate::background::is_stopping() {
+            return;
+        }
+        let mut state = slot().lock().unwrap_or_else(|error| error.into_inner());
+        *state = match outcome {
+            Ok(hits) => State::Done(hits),
+            Err(error) => State::Failed(error),
+        };
+    });
 
-    if spawned.is_err() {
+    if let Err(error) = spawned {
         *slot().lock().unwrap_or_else(|error| error.into_inner()) =
-            State::Failed("no se pudo lanzar la búsqueda".to_owned());
+            State::Failed(Failure::Internal(error.to_string()));
         return false;
     }
     true
@@ -126,7 +139,7 @@ pub enum Mode {
     Full,
 }
 
-fn run(region: Region, team: Option<u32>, text: &str, mode: Mode) -> Result<Vec<Hit>, String> {
+fn run(region: Region, team: Option<u32>, text: &str, mode: Mode) -> Result<Vec<Hit>, Failure> {
     // El índice se lee aquí, en este hilo, y se suelta en cuanto se filtra: son miles de entradas
     // y el hilo de render no las toca nunca (petición del jugador, 2026-11-01).
     let index = crate::names::read();
@@ -148,7 +161,7 @@ fn run(region: Region, team: Option<u32>, text: &str, mode: Mode) -> Result<Vec<
 
     let api = Api::new(WinHttpTransport::default());
     let ctx = format!("«{text}» en {region:?}");
-    let teams = teams_of(region, &api).map_err(|error| format!("{ctx} (equipos): {error}"))?;
+    let teams = teams_of(region, &api)?;
 
     let mut hits: Vec<Hit> = local
         .into_iter()
@@ -163,17 +176,15 @@ fn run(region: Region, team: Option<u32>, text: &str, mode: Mode) -> Result<Vec<
         })
         .collect();
 
-    let ids = api
-        .guild_search(text)
-        .map_err(|error| format!("{ctx} (búsqueda): {error}"))?;
-    for id in ids.into_iter().take(MAX_LOOKUPS) {
+    let ids = api.guild_search(text)?;
+    for raw_id in ids.into_iter().take(MAX_LOOKUPS) {
         // Un id de clan es un UUID. Cualquier otra cosa que devuelva el índice se descarta aquí:
         // pedirla a `/v2/guild/:id` solo produce un error opaco de la API (informe de 2026-10-31,
         // «invalid type string …»).
-        if !looks_like_guild_id(&id) {
-            log::warn!("search: la API devolvió {id}, que no es un id de clan; se ignora");
+        let Some(id) = gw2lurker_core::normalize_guild_id(&raw_id) else {
+            log::warn!("search: la API devolvió {raw_id}, que no es un id de clan; se ignora");
             continue;
-        }
+        };
         if hits.iter().any(|hit| hit.id == id) {
             continue;
         }
@@ -203,29 +214,14 @@ fn run(region: Region, team: Option<u32>, text: &str, mode: Mode) -> Result<Vec<
     Ok(hits)
 }
 
-/// Whether a string has the shape of a guild id: 32 hexadecimal digits, with or without dashes.
-///
-/// `/v2/guild/<id>` answers with an opaque error for anything else, so the shape is checked
-/// before spending a request on it.
-fn looks_like_guild_id(id: &str) -> bool {
-    let mut digits = 0;
-    for character in id.chars() {
-        if character == '-' {
-            continue;
-        }
-        if !character.is_ascii_hexdigit() {
-            return false;
-        }
-        digits += 1;
-    }
-    digits == 32
-}
-
 /// Guild → team of a region, with the moment it was fetched.
 type TeamCache = Option<(Region, Instant, BTreeMap<String, u32>)>;
 
 /// Guild → team of a region, cached because the answer is ~280 KB and only changes at reset.
-fn teams_of(region: Region, api: &Api<WinHttpTransport>) -> Result<BTreeMap<String, u32>, String> {
+fn teams_of(
+    region: Region,
+    api: &Api<WinHttpTransport>,
+) -> Result<BTreeMap<String, u32>, ApiError> {
     static CACHE: OnceLock<Mutex<TeamCache>> = OnceLock::new();
     let cache = CACHE.get_or_init(|| Mutex::new(None));
     let mut guard = cache.lock().unwrap_or_else(|error| error.into_inner());
@@ -236,7 +232,7 @@ fn teams_of(region: Region, api: &Api<WinHttpTransport>) -> Result<BTreeMap<Stri
         }
     }
 
-    let teams = api.wvw_guilds(region).map_err(|error| error.to_string())?;
+    let teams = api.wvw_guilds(region)?;
     *guard = Some((region, Instant::now(), teams.clone()));
     Ok(teams)
 }
@@ -244,6 +240,7 @@ fn teams_of(region: Region, api: &Api<WinHttpTransport>) -> Result<BTreeMap<Stri
 #[cfg(test)]
 mod tests {
     use super::*;
+    use gw2lurker_api::looks_like_guild_id;
 
     #[test]
     fn t44_a_search_is_not_started_on_top_of_another() {

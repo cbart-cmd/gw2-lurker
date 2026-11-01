@@ -115,7 +115,9 @@ pub(super) fn draw_health(
         crate::worker::Health::Ok { .. } => {
             i18n::format("{0} claimed objectives", &[&data.claims.len().to_string()])
         }
-        crate::worker::Health::Degraded { error, .. } => i18n::format("Error: {0}", &[error]),
+        crate::worker::Health::Degraded { error, .. } => {
+            i18n::format("Error: {0}", &[&i18n::format_api_error(error)])
+        }
     };
     let when = updated.map(crate::clock::clock_seconds).unwrap_or_default();
     if when.is_empty() {

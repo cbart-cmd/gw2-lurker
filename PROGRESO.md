@@ -13,6 +13,42 @@ Reglas:
 
 ---
 
+## HECHO – 2026-11-02 · Seis mejoras API/addon/core
+
+- Retirada la caché sin consumidores; los errores `ApiError` llegan tipados a la UI y se localizan; el worker comparte `api::Backoff` con catálogo y búsquedas.
+- UUIDs de clan canonizados en seguimiento, configuración, nombres de sesión, búsquedas, mapa guild→equipo y claims; añadidas pruebas para entradas minúsculas/sin guiones. Capturada una respuesta real `ids=all` (9 partidas) como fixture independiente.
+- Documentación de límite y cadencia corregida: los 5 s son solo para el estado de mapas del matchup elegido; `ids=all` se limita a una vez por minuto. Eliminados `revisioncopilot.md` y `addendaparacopilot.md`.
+- Añadido el monitor de reasignación basado en `teamAssignment` y `matches/overview`: al confirmar el cambio, reinicia el baseline y limpia historial/alertas sin tocar ajustes ni clanes seguidos; la UI muestra el inicio del ciclo. Actualizadas constitución, requisitos, diseño, escenarios y changelog.
+- Verificado: formato, Clippy, LOC (worker 791 líneas), trazabilidad (32 RF/RNF aún sin prueba), workspace (308 pasados, 4 ignorados), build release y DLL de 2 190 336 B (objetivo 2 306 867 B).
+- No verificado: comportamiento de reasignación dentro del juego. El usuario eliminó las entradas anteriores de `bugs.md` durante el trabajo; no se restauraron ni se modificó ese fichero. Sin commit.
+
+## HECHO – 2026-11-01 · Límite real de la API y addenda de Sonnet (api + addon)
+
+- Límite de la API (wiki, copia de archive.org del 2025-12-16): cubo de **300** y recarga de **5 por segundo** por IP; la cabecera `X-Rate-Limit-Limit: 600` no es «por hora» (ni «por minuto», como decía la addenda). Corregidos RNF-02, el contexto de `01-requirements.md`, `07-spikes.md` (corrección fechada, el histórico se conserva) y los comentarios de `worker.rs`, `catalog.rs`, `config/mod.rs` y `net.rs`.
+- Decisión del jugador: los 5 s son **solo** para el estado de los mapas del emparejamiento elegido. `should_skip_poll` ahora deja esperar al enfriamiento de `ids=all` (60 s) cuando aún no se conoce la partida del equipo: antes `Fetch::Team` pedía ~400 KB en cada sondeo. Test `rnf02_only_the_watched_match_is_polled_at_the_configured_cadence`.
+- `api`: `match_by_id`, `guild` y `objectives` validan id/idioma antes de construir la URL (`NotFound` sin petición); `looks_like_guild_id` pasa al `api` y `search.rs` la reutiliza; el `Fake` responde `NotFound` como `net.rs`; docs corregidas (cabecera con `ureq`, «contiene» → prefijo, `ids=all` de las dos regiones, «30 s»). Tres tests nuevos.
+- Addenda descartado tras comprobarlo: 7.1.3 (búsqueda vacía = `200 []`, medido), 7.2.4 (ya hay tope de 8 MB en `ffi/http.rs`), test de mapas «débil» (el `Fake` solo responde a la URL exacta) y 1.8 (el dato era incorrecto).
+- Propuestas sin aplicar: borrar `api::cache` (muerto, T-11b lo cita), traducir `ApiError` en la UI, unificar el backoff del worker con `api::Backoff`, normalizar ids de clan a mayúsculas (toca `core`), usar los timers de reasignación y un `ids=all` real de nueve partidas como fixture.
+- Verificado: fmt, clippy `-D warnings`, 293 tests (4 ignorados), `check_loc.sh`, trazabilidad (33 sin cubrir; RNF-02 ya tiene test), release 2 170 368 B. No verificado en juego. Sin commit.
+
+## HECHO – 2026-11-01 · Verificación de revisioncopilot.md
+
+- Corregidos defectos reproducibles en los tres crates: el diff ya no repite claims conocidos tras un hueco; el worker reutiliza sondeos globales y espera sus hilos al descargar; catálogos y teselas aplican cooldowns y cancelación.
+- El índice valida el límite ZIP con los bytes realmente leídos, serializa escrituras y fusiona nombres añadidos durante la descarga. También se corrigieron Alt, la gracia de claims tardíos y la codificación de búsquedas.
+- La UI aplica el tema antes de crear la ventana, usa el fondo y el idioma actuales, evita clonar el dashboard con la ventana cerrada y permite mostrar el popup de prueba sin alertas reales; se corrigieron detalles del mapa.
+- Verificado: `cargo fmt --check`, `cargo clippy --workspace --all-targets -- -D warnings`, `cargo test --workspace` (289 pasados, 4 ignorados), `check_loc.sh`, `check_traceability.sh`, `cargo build --release` y `check_size.sh` (2 169 856 B; objetivo 2 306 867 B).
+- La trazabilidad mantiene 34 requisitos sin test o prueba manual; `check_loc.sh` informa nueve archivos entre 500 y 800 líneas. No se modificaron specs ni se añadieron dependencias.
+- No verificado: comportamiento dentro del juego y las optimizaciones que requieren mediciones en vivo. Sin commit.
+
+## HECHO – 2026-11-01 · Auditoría general de rendimiento y robustez
+
+- En `core::diff`, los claims caducados ya no contaminan historial/baselines, los flips que invalidan un claim producen `Unclaim` y un reclaim del mismo clan produce el par `Unclaim`/`Claim` (RF-22, RF-25). Tres regresiones nuevas.
+- En el índice, el checksum publicado es obligatorio y se informa cualquier descarga/validación fallida sin instalar datos sin verificar (RF-20c). Tres regresiones nuevas.
+- La comprobación de DLL nueva pasa al worker, se repite cada 10 s y el render solo lee el estado en caché (RF-50). El writer informa de fallos al arrancar/enviar y hace un guardado alternativo al cerrar.
+- Verificado: fmt, clippy, LOC, trazabilidad, workspace (271 passed, 4 ignored), build release y DLL de 2 160 128 B (bajo el objetivo de 2 306 867 B).
+- La trazabilidad sigue mostrando 34 RF/RNF sin test o prueba manual; se dejaron como deuda fuera de esta auditoría correctiva.
+- No verificado: comportamiento dentro del juego. Durante el trabajo el usuario quitó las entradas de `bugs.md`; se respetó y no se restauraron.
+
 ## HECHO – 2026-11-01 · La pestaña *Mapa* se abre en el mapa del jugador (0.25.15)
 
 - Petición del jugador: al entrar en la pestaña *Mapa* desde otra, y si no se llega por clicar un

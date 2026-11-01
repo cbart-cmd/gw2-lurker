@@ -61,24 +61,55 @@ fn rf03a_the_picker_asks_for_every_matchup_but_not_on_every_poll() {
     // lista solo cambia al reiniciarse el emparejamiento: a 5 s, pedirla en cada sondeo serían
     // 4,8 MB por minuto (informe del jugador, 2026-10-31).
     assert!(
-        needs_all_now(Some(12014), true, false, true),
+        needs_all_now(true, false, true),
         "selector abierto y lista vieja: se piden los nueve"
     );
     assert!(
-        !needs_all_now(Some(12014), true, false, false),
+        !needs_all_now(true, false, false),
         "selector abierto con la lista reciente: basta una partida"
     );
     assert!(
-        !needs_all_now(Some(12014), false, false, false),
+        !needs_all_now(false, false, false),
         "sin selector basta el matchup del jugador (~44 KB en vez de ~400 KB)"
     );
     assert!(
-        needs_all_now(None, false, false, false),
-        "sin equipo configurado hay que pedirlo todo"
+        !needs_all_now(false, false, false),
+        "sin equipo, la lista reciente no se vuelve a pedir en cada sondeo"
     );
     assert!(
-        needs_all_now(Some(12014), false, true, false),
+        !needs_all_now(false, false, true),
+        "sin selector, no hace falta refrescar la lista global"
+    );
+    assert!(
+        needs_all_now(false, true, false),
         "toca buscar la partida del jugador otra vez"
+    );
+}
+
+#[test]
+fn rf03a_a_poll_without_a_known_team_or_match_does_not_fetch_all() {
+    assert!(should_skip_poll(false, None, None, true));
+    assert!(
+        !should_skip_poll(true, None, None, false),
+        "la detección inicial sí pide todo"
+    );
+    assert!(!should_skip_poll(false, Some("2-2"), None, false));
+    assert!(!should_skip_poll(false, None, Some(12014), true));
+}
+
+#[test]
+fn rnf02_only_the_watched_match_is_polled_at_the_configured_cadence() {
+    assert!(
+        !should_skip_poll(false, Some("2-2"), Some(12014), false),
+        "la partida conocida se pide en cada sondeo aunque `ids=all` esté reciente"
+    );
+    assert!(
+        should_skip_poll(false, None, Some(12014), false),
+        "sin id de partida, buscar el equipo pide `ids=all` (~400 KB) y espera su enfriamiento"
+    );
+    assert!(
+        !should_skip_poll(false, None, Some(12014), true),
+        "pasado el enfriamiento, se vuelve a buscar"
     );
 }
 
@@ -95,6 +126,138 @@ fn rf03a_the_poll_asks_for_the_team_the_game_gave() {
     );
     assert_eq!(polled_team(None, Some(12010)), Some(12010));
     assert_eq!(polled_team(None, None), None);
+}
+
+#[test]
+fn rf03a_only_a_confirmed_selection_has_a_match_to_watch() {
+    assert_eq!(selected_match_id(&Selection::Missing), None);
+    assert_eq!(
+        selected_match_id(&Selection::Stale { previous: 12014 }),
+        None
+    );
+    assert_eq!(
+        selected_match_id(&Selection::Confirmed {
+            team_id: 12014,
+            match_id: "2-2".to_owned()
+        }),
+        Some("2-2")
+    );
+    assert!(current_match(&[], None).is_none());
+}
+
+#[test]
+fn rf03a_a_team_lookup_reuses_the_full_response_when_the_team_is_missing() {
+    let live: Vec<Match> =
+        serde_json::from_str(include_str!("../../../api/tests/fixtures/matches_all.json")).unwrap();
+    let count = live.len();
+    assert_eq!(matching_team_or_all(live.clone(), Some(12014)).len(), 1);
+    assert_eq!(
+        matching_team_or_all(live.clone(), Some(u32::MAX)).len(),
+        count,
+        "sin el equipo se conserva la misma respuesta para poblar el selector"
+    );
+    assert_eq!(
+        matching_team_or_all(live.clone(), None).len(),
+        count,
+        "sin selección se reutiliza el listado global"
+    );
+}
+
+#[test]
+fn rf24_assignment_reset_clears_history_and_alerts_and_sets_new_boundary() {
+    let at = Utc::now();
+    let mut board = Dashboard {
+        history: vec![ClaimRow {
+            map_id: 38,
+            map_role: MapRole::Center,
+            objective_id: "38-20".to_owned(),
+            name: Some("Tower".to_owned()),
+            kind: gw2lurker_core::ObjectiveType::Tower,
+            owner: Some(gw2lurker_core::TeamColor::Red),
+            guild: "1DB147F0".to_owned(),
+            claimed_at: Some(at),
+            points_tick: 4,
+        }],
+        match_id: Some("2-4".to_owned()),
+        payload_digest: Some(12),
+        payload_since: Some(at),
+        ..Dashboard::default()
+    };
+    board.push_alert(Event::Unclaim {
+        objective: "38-20".to_owned(),
+        guild: "1DB147F0".to_owned(),
+        at,
+    });
+
+    board.reset_tracking_cycle(at);
+
+    assert!(board.history.is_empty());
+    assert!(board.alerts.is_empty());
+    assert_eq!(board.history_since, Some(at));
+    assert_eq!(board.match_id, None);
+    assert_eq!(board.payload_digest, None);
+    assert_eq!(board.payload_since, None);
+}
+
+#[test]
+fn rf03d_confirmed_assignment_change_resets_the_differ_and_tracking_state() {
+    let at = Utc::now();
+    let mut board = Dashboard {
+        match_id: Some("2-4".to_owned()),
+        ..Dashboard::default()
+    };
+    let mut differ = Differ::new(gw2lurker_core::DiffConfig::default());
+    differ.push(gw2lurker_core::diff::Snapshot {
+        match_id: "2-4".to_owned(),
+        taken_at: at,
+        objectives: std::collections::BTreeMap::new(),
+    });
+    let mut assignment = crate::assignment::AssignmentMonitor::default();
+
+    let reset = crate::assignment::reset_tracking_for_assignment(
+        &mut board,
+        &mut differ,
+        &mut assignment,
+        Some("2-4"),
+        Some("2-5"),
+        at,
+    );
+
+    assert!(reset);
+    assert!(differ.prev().is_none());
+    assert_eq!(board.history_since, Some(at));
+    assert_eq!(board.match_id, None);
+}
+
+#[test]
+fn rf03d_expired_timer_does_not_reset_tracking_while_match_is_active() {
+    let at = Utc::now();
+    let mut board = Dashboard {
+        match_id: Some("2-4".to_owned()),
+        history_since: Some(at),
+        ..Dashboard::default()
+    };
+    let mut differ = Differ::new(gw2lurker_core::DiffConfig::default());
+    differ.push(gw2lurker_core::diff::Snapshot {
+        match_id: "2-4".to_owned(),
+        taken_at: at,
+        objectives: std::collections::BTreeMap::new(),
+    });
+    let mut assignment = crate::assignment::AssignmentMonitor::default();
+
+    let reset = crate::assignment::reset_tracking_for_assignment(
+        &mut board,
+        &mut differ,
+        &mut assignment,
+        Some("2-4"),
+        Some("2-4"),
+        at,
+    );
+
+    assert!(!reset);
+    assert!(differ.prev().is_some());
+    assert_eq!(board.history_since, Some(at));
+    assert_eq!(board.match_id.as_deref(), Some("2-4"));
 }
 
 #[test]
@@ -145,6 +308,44 @@ fn rf21_a_followed_guild_is_told_when_the_claim_is_fresh() {
         "un clan seguido avisa de un claim de hace un momento, aunque fuera `late`"
     );
     assert!(lines[0].late);
+}
+
+#[test]
+fn rf25_late_claim_grace_uses_when_the_addon_received_it() {
+    let now = Utc::now();
+    let board = Dashboard {
+        alerts: vec![
+            Received {
+                event: Event::Claim {
+                    objective: "38-20".to_owned(),
+                    guild: "1DB147F0".to_owned(),
+                    at: now - chrono::Duration::minutes(2),
+                    late: true,
+                },
+                received: now,
+            },
+            Received {
+                event: Event::Flip {
+                    objective: "38-21".to_owned(),
+                    from: Some(gw2lurker_core::TeamColor::Green),
+                    to: Some(gw2lurker_core::TeamColor::Red),
+                    at: now + chrono::Duration::minutes(20),
+                },
+                received: now + chrono::Duration::minutes(20),
+            },
+        ],
+        ..Dashboard::default()
+    };
+    let mut follow = gw2lurker_core::FollowList::new();
+    follow.add("1DB147F0");
+
+    let lines = board.recent_alerts(&any_map(), &follow, None, 50);
+    assert!(
+        lines
+            .iter()
+            .any(|line| line.objective == "38-20" && line.late),
+        "un evento posterior y ajeno no debe caducar este claim tardío"
+    );
 }
 
 #[test]
@@ -337,4 +538,22 @@ fn rf38_an_alert_says_which_kind_of_objective_it_is_about() {
         gw2lurker_core::ObjectiveType::Unknown,
         "sin datos no se inventa un tipo"
     );
+}
+
+#[test]
+fn rnf04_worker_uses_shared_api_backoff_only_for_retryable_errors() {
+    let mut backoff = Backoff::default();
+    assert_eq!(
+        retry_delay(&mut backoff, &ApiError::Transport("timeout".to_owned())),
+        Duration::from_secs(2)
+    );
+    assert_eq!(
+        retry_delay(&mut backoff, &ApiError::Status(429)),
+        Duration::from_secs(4)
+    );
+    assert_eq!(
+        retry_delay(&mut backoff, &ApiError::Parse("invalid".to_owned())),
+        Duration::ZERO
+    );
+    assert_eq!(backoff.attempts(), 0, "los errores permanentes reinician");
 }

@@ -81,22 +81,21 @@ pub fn download(url: String) -> bool {
         }
         *status = Status::Downloading;
     }
-    let spawned = std::thread::Builder::new()
-        .name("gw2lurker-index".to_owned())
-        .spawn(move || match run(&url) {
-            Ok(count) => {
-                log::info!("índice de clanes: {count} nombres instalados desde {url}");
-                set_status(Status::Done(count));
-            }
-            Err(error) => {
-                log::warn!("índice de clanes: {error}");
-                set_status(Status::Failed(error));
-            }
-        });
-    if spawned.is_err() {
-        set_status(Status::Failed(
-            "no se pudo lanzar la descarga del índice".to_owned(),
-        ));
+    let spawned = crate::background::spawn("gw2lurker-index", move || match run(&url) {
+        Ok(count) => {
+            log::info!("índice de clanes: {count} nombres instalados desde {url}");
+            set_status(Status::Done(count));
+        }
+        Err(error) if !crate::background::is_stopping() => {
+            log::warn!("índice de clanes: {error}");
+            set_status(Status::Failed(error));
+        }
+        Err(_) => {}
+    });
+    if let Err(error) = spawned {
+        set_status(Status::Failed(format!(
+            "no se pudo lanzar la descarga del índice: {error}"
+        )));
         return false;
     }
     true
@@ -104,6 +103,9 @@ pub fn download(url: String) -> bool {
 
 /// Descarga, verifica y descomprime. Corre en el hilo de la descarga.
 fn run(url: &str) -> Result<usize, String> {
+    if crate::background::is_stopping() {
+        return Err("descarga cancelada".to_owned());
+    }
     if !url.starts_with("https://") {
         return Err("la dirección del índice tiene que empezar por https://".to_owned());
     }
@@ -113,39 +115,34 @@ fn run(url: &str) -> Result<usize, String> {
     let bytes = transport
         .get(&zip_url)
         .map_err(|error| format!("no se pudo descargar {url}: {}", describe(&error)))?;
+    if crate::background::is_stopping() {
+        return Err("descarga cancelada".to_owned());
+    }
 
     // El hash va **antes** de escribir nada: un ZIP truncado nunca llega al disco.
     let md5_url = cache_busted(&format!("{url}{MD5_SUFFIX}"), stamp);
     let published = transport
         .get(&md5_url)
-        .ok()
-        .and_then(|body| crate::md5::parse(&String::from_utf8_lossy(&body)));
-    match published.as_deref() {
-        Some(expected) => {
-            let actual = crate::md5::hex(&bytes);
-            if actual != expected {
-                return Err(format!(
-                    "el MD5 del índice no coincide (publicado {expected}, descargado {actual}); no se instala"
-                ));
-            }
-            log::info!("índice de clanes: {actual} verificado ({expected})");
-        }
-        None => log::warn!(
-            "índice de clanes: no hay {url}{MD5_SUFFIX} legible; se instala sin comprobar el hash"
-        ),
+        .map_err(|error| format!("no se pudo descargar el MD5 de {url}: {error}"))?;
+    if crate::background::is_stopping() {
+        return Err("descarga cancelada".to_owned());
     }
+    verify_published_md5(&bytes, &published)?;
+    let actual = crate::md5::hex(&bytes);
+    log::info!("índice de clanes: {actual} verificado");
 
     let json = unpack(&bytes, Limits::default())?;
     let count = serde_json::from_slice::<std::collections::BTreeMap<String, String>>(&json)
         .map_err(|error| format!("el índice descargado no es un mapa de nombres: {error}"))?
         .len();
+    if crate::background::is_stopping() {
+        return Err("descarga cancelada".to_owned());
+    }
     let path = crate::names::path().ok_or_else(|| "sin carpeta del addon".to_owned())?;
     if let Some(dir) = path.parent() {
         std::fs::create_dir_all(dir).map_err(|error| error.to_string())?;
     }
-    let temp = path.with_extension("json.tmp");
-    std::fs::write(&temp, &json).map_err(|error| error.to_string())?;
-    std::fs::rename(&temp, &path).map_err(|error| error.to_string())?;
+    crate::names::install_at(&path, &json).map_err(|error| error.to_string())?;
     Ok(count)
 }
 
@@ -158,6 +155,18 @@ fn run(url: &str) -> Result<usize, String> {
 pub fn cache_busted(url: &str, stamp: i64) -> String {
     let separator = if url.contains('?') { '&' } else { '?' };
     format!("{url}{separator}v={stamp}")
+}
+
+fn verify_published_md5(bytes: &[u8], published: &[u8]) -> Result<(), String> {
+    let expected = crate::md5::parse(&String::from_utf8_lossy(published))
+        .ok_or_else(|| "el MD5 publicado no es legible; no se instala el índice".to_owned())?;
+    let actual = crate::md5::hex(bytes);
+    if actual != expected {
+        return Err(format!(
+            "el MD5 del índice no coincide (publicado {expected}, descargado {actual}); no se instala"
+        ));
+    }
+    Ok(())
 }
 
 /// Mensaje del fallo de descarga, con el 404 explicado (es el que más veces se ve).
@@ -199,7 +208,7 @@ fn unpack(bytes: &[u8], limits: Limits) -> Result<Vec<u8>, String> {
         ));
     }
     for index in 0..archive.len() {
-        let mut file = archive
+        let file = archive
             .by_index(index)
             .map_err(|error| format!("entrada {index} del ZIP: {error}"))?;
         if file.is_dir() {
@@ -216,12 +225,16 @@ fn unpack(bytes: &[u8], limits: Limits) -> Result<Vec<u8>, String> {
         if file.size() > limits.bytes {
             return Err(format!("{name} descomprime más de lo aceptado"));
         }
-        if !name.ends_with(ENTRY) {
+        if name.rsplit('/').next() != Some(ENTRY) {
             continue;
         }
         let mut out = Vec::with_capacity(file.size() as usize);
-        std::io::Read::read_to_end(&mut file, &mut out)
+        let mut bounded = std::io::Read::take(file, limits.bytes.saturating_add(1));
+        std::io::Read::read_to_end(&mut bounded, &mut out)
             .map_err(|error| format!("{name}: {error}"))?;
+        if out.len() as u64 > limits.bytes {
+            return Err(format!("{name} descomprime más de lo aceptado"));
+        }
         return Ok(out);
     }
     Err(format!("el ZIP no trae ningún {ENTRY}"))
@@ -291,6 +304,31 @@ mod tests {
     }
 
     #[test]
+    fn rf20c_an_unreadable_published_md5_rejects_the_index() {
+        for published in [&b""[..], b"not-a-checksum"] {
+            assert!(
+                verify_published_md5(b"index", published).is_err(),
+                "el índice no se instala sin un MD5 publicado válido"
+            );
+        }
+    }
+
+    #[test]
+    fn rf20c_a_mismatched_published_md5_rejects_the_index() {
+        let error = verify_published_md5(b"index", b"00000000000000000000000000000000")
+            .expect_err("un hash distinto no se instala");
+        assert!(error.contains("no se instala"), "{error}");
+    }
+
+    #[test]
+    fn rf20c_a_matching_published_md5_accepts_the_index() {
+        let bytes = b"index";
+        let published = crate::md5::hex(bytes);
+
+        assert_eq!(verify_published_md5(bytes, published.as_bytes()), Ok(()));
+    }
+
+    #[test]
     fn rf20c_a_404_says_the_file_is_not_published() {
         let message = describe(&gw2lurker_api::ApiError::NotFound);
         assert!(
@@ -348,6 +386,15 @@ mod tests {
     fn rf20_a_zip_without_the_index_is_an_error() {
         let packed = zip_with("otra-cosa.json", b"{}");
         assert!(unpack(&packed, Limits::default()).is_err());
+    }
+
+    #[test]
+    fn rf20_a_near_match_name_is_not_the_index() {
+        let packed = zip_with("not-guild-names.json", b"{}");
+        assert!(
+            unpack(&packed, Limits::default()).is_err(),
+            "un nombre que solo termina igual no identifica la entrada"
+        );
     }
 
     #[test]

@@ -6,24 +6,74 @@
 //!
 //! Split out of [`crate::worker`] when that file crossed 800 lines (AGENTS §2.8).
 
+use std::collections::{HashMap, HashSet};
 use std::sync::{Mutex, OnceLock};
+use std::time::{Duration, Instant};
 
-use gw2lurker_api::Api;
+use gw2lurker_api::{Api, ApiError, Backoff};
 use gw2lurker_core::matchup::GuildSummary;
 use gw2lurker_core::model::ObjectiveInfo;
 
 use crate::net::WinHttpTransport;
-/// How many guild names are looked up per poll.
-///
-/// `/v2/guild` answers one guild per call, so asking for all of them at once would be a burst.
-/// With this budget a matchup with twenty guilds is fully named in about a minute, and the
-/// answers stay for the session.
 /// How many guild names are resolved per poll.
 ///
 /// One request each, and a matchup has around forty guilds, so with this budget every name is known
 /// within a few polls. It was ten, which left alerts without a guild name for longer than the player
-/// was willing to wait (report of 2026-10-31). The API allows 600 requests a minute.
+/// was willing to wait (report of 2026-10-31). The API limit is a bucket of 300 requests that
+/// refills at 5 per second per IP (wiki *API:Best practices*, specs/07-spikes.md): twenty lookups
+/// every 5 s is 4 per second, and only until the names of the matchup are known. The worker backs
+/// off when the API returns 429.
 const GUILD_LOOKUPS_PER_POLL: usize = 20;
+const STATIC_DATA_RETRY: Duration = Duration::from_secs(60);
+
+#[derive(Default)]
+struct GuildLookupFailures {
+    permanent: HashSet<String>,
+    retry_after: HashMap<String, Instant>,
+    backoff: HashMap<String, Backoff>,
+}
+
+impl GuildLookupFailures {
+    fn should_skip(&self, id: &str, now: Instant) -> bool {
+        self.permanent.contains(id)
+            || self
+                .retry_after
+                .get(id)
+                .is_some_and(|retry_after| now < *retry_after)
+    }
+
+    fn record(&mut self, id: &str, error: &ApiError, now: Instant) {
+        if Backoff::should_retry(error) {
+            self.permanent.remove(id);
+            let delay = self
+                .backoff
+                .entry(id.to_owned())
+                .or_default()
+                .next_delay_ms();
+            self.retry_after
+                .insert(id.to_owned(), now + Duration::from_millis(delay));
+        } else {
+            self.permanent.insert(id.to_owned());
+            self.retry_after.remove(id);
+            self.backoff.remove(id);
+        }
+    }
+
+    fn resolved(&mut self, id: &str) {
+        self.permanent.remove(id);
+        self.retry_after.remove(id);
+        self.backoff.remove(id);
+    }
+}
+
+fn guild_lookup_failures() -> &'static Mutex<GuildLookupFailures> {
+    static FAILED: OnceLock<Mutex<GuildLookupFailures>> = OnceLock::new();
+    FAILED.get_or_init(|| Mutex::new(GuildLookupFailures::default()))
+}
+
+fn static_data_retry_due(last_attempt: Option<Instant>, now: Instant) -> bool {
+    last_attempt.is_none_or(|at| now.saturating_duration_since(at) >= STATIC_DATA_RETRY)
+}
 
 /// `[TAG] Nombre`, the way the game shows a guild.
 pub fn guild_label(info: &gw2lurker_api::GuildInfo) -> String {
@@ -51,10 +101,6 @@ pub fn resolve_guild_names(
     guilds: &[GuildSummary],
     followed: &gw2lurker_core::FollowList,
 ) -> std::collections::BTreeMap<String, String> {
-    static FAILED: OnceLock<Mutex<std::collections::HashSet<String>>> = OnceLock::new();
-    let failed = FAILED.get_or_init(|| Mutex::new(Default::default()));
-    let mut failed = failed.lock().unwrap_or_else(|error| error.into_inner());
-
     let saved = crate::runtime().guild_names.clone();
     let mut known = saved.clone();
     known.extend(crate::session_names::all());
@@ -68,24 +114,38 @@ pub fn resolve_guild_names(
 
     let mut budget = GUILD_LOOKUPS_PER_POLL;
     for id in ids {
+        if crate::background::is_stopping() {
+            break;
+        }
         if budget == 0 {
             break;
         }
-        if known.contains_key(id) || failed.contains(id) {
+        if known.contains_key(id)
+            || guild_lookup_failures()
+                .lock()
+                .unwrap_or_else(|error| error.into_inner())
+                .should_skip(id, Instant::now())
+        {
             continue;
         }
         budget -= 1;
         match api.guild(id) {
             Ok(info) => {
                 known.insert(id.to_owned(), guild_label(&info));
+                guild_lookup_failures()
+                    .lock()
+                    .unwrap_or_else(|error| error.into_inner())
+                    .resolved(id);
             }
             Err(error) => {
                 log::debug!("worker: sin nombre de clan {id} ({error})");
-                failed.insert(id.to_owned());
+                guild_lookup_failures()
+                    .lock()
+                    .unwrap_or_else(|error| error.into_inner())
+                    .record(id, &error, Instant::now());
             }
         }
     }
-    failed.retain(|id| !known.contains_key(id));
 
     // Todo lo resuelto se queda en `temp.json`, el fichero de la sesión: se borra al arrancar el
     // addon, así que no dura más que el propio juego.
@@ -124,35 +184,55 @@ pub fn resolve_guild_names(
 /// They are shown next to each team in the picker: the team names are new, the world names are
 /// what the player has known for years (report of 2026-10-31).
 pub fn world_names(api: &Api<WinHttpTransport>) -> std::collections::BTreeMap<u32, String> {
-    static WORLDS: OnceLock<Mutex<std::collections::BTreeMap<u32, String>>> = OnceLock::new();
-    let cache = WORLDS.get_or_init(|| Mutex::new(std::collections::BTreeMap::new()));
+    struct WorldCache {
+        names: std::collections::BTreeMap<u32, String>,
+        last_attempt: Option<Instant>,
+    }
+    static WORLDS: OnceLock<Mutex<WorldCache>> = OnceLock::new();
+    let cache = WORLDS.get_or_init(|| {
+        Mutex::new(WorldCache {
+            names: std::collections::BTreeMap::new(),
+            last_attempt: None,
+        })
+    });
     let mut guard = cache.lock().unwrap_or_else(|error| error.into_inner());
-    if guard.is_empty() {
+    if guard.names.is_empty() && static_data_retry_due(guard.last_attempt, Instant::now()) {
+        guard.last_attempt = Some(Instant::now());
         match api.worlds() {
-            Ok(worlds) => *guard = worlds,
+            Ok(worlds) => guard.names = worlds,
             Err(error) => log::warn!("worker: sin nombres de mundo ({error})"),
         }
     }
-    guard.clone()
+    guard.names.clone()
 }
 
 /// The four WvW maps, fetched once per session (they never change).
 /// `None` means the API has not answered yet: the map tab says so instead of drawing an empty
-/// box, and the next poll tries again.
+/// box, and the next attempt follows a short retry cooldown.
 pub fn maps_for(api: &Api<WinHttpTransport>) -> Vec<gw2lurker_core::WvwMap> {
-    static MAPS: OnceLock<Mutex<Option<Vec<gw2lurker_core::WvwMap>>>> = OnceLock::new();
-    let cache = MAPS.get_or_init(|| Mutex::new(None));
+    struct MapCache {
+        maps: Option<Vec<gw2lurker_core::WvwMap>>,
+        last_attempt: Option<Instant>,
+    }
+    static MAPS: OnceLock<Mutex<MapCache>> = OnceLock::new();
+    let cache = MAPS.get_or_init(|| {
+        Mutex::new(MapCache {
+            maps: None,
+            last_attempt: None,
+        })
+    });
     let mut guard = cache.lock().unwrap_or_else(|error| error.into_inner());
-    if guard.is_none() {
+    if guard.maps.is_none() && static_data_retry_due(guard.last_attempt, Instant::now()) {
+        guard.last_attempt = Some(Instant::now());
         match api.maps() {
-            Ok(maps) => *guard = Some(maps),
+            Ok(maps) => guard.maps = Some(maps),
             Err(error) => {
                 log::warn!("worker: sin cajas de mapa ({error})");
                 return Vec::new();
             }
         }
     }
-    guard.clone().unwrap_or_default()
+    guard.maps.clone().unwrap_or_default()
 }
 pub fn objectives_for(api: &Api<WinHttpTransport>) -> Result<Vec<ObjectiveInfo>, String> {
     static NAMES: OnceLock<Mutex<(String, Vec<ObjectiveInfo>)>> = OnceLock::new();
@@ -238,7 +318,7 @@ pub fn ensure_tiles(maps: &[gw2lurker_core::WvwMap]) {
     // Sin cajas de mapa no hay nada que pedir, y marcarlo como hecho dejaría el mapa real vacío
     // para toda la sesión: el primer sondeo puede llegar antes que `/v2/maps` (bug encontrado
     // revisando el de las teselas, 2026-10-31).
-    if maps.is_empty() || STARTED.set(()).is_err() {
+    if maps.is_empty() || STARTED.get().is_some() {
         return;
     }
     forget_stale_tiles(&format!("{TILE_CONTINENT}-{TILE_FLOOR}-"));
@@ -258,6 +338,7 @@ pub fn ensure_tiles(maps: &[gw2lurker_core::WvwMap]) {
     }
     if jobs.is_empty() {
         log::info!("tiles: las del mapa ya estaban en caché");
+        let _ = STARTED.set(());
         return;
     }
     log::info!(
@@ -265,42 +346,51 @@ pub fn ensure_tiles(maps: &[gw2lurker_core::WvwMap]) {
         jobs.len()
     );
 
-    let spawned = std::thread::Builder::new()
-        .name("gw2lurker-tiles".to_owned())
-        .spawn(move || {
-            let transport = WinHttpTransport::default();
-            let mut saved = 0;
-            for (path, url) in jobs {
-                match gw2lurker_api::Transport::get(&transport, &url) {
-                    Ok(bytes) => {
-                        if let Some(dir) = path.parent() {
-                            let _ = std::fs::create_dir_all(dir);
-                        }
-                        // A un nombre temporal y luego renombrar: si se escribe directo, el
-                        // render ve el fichero a medias y la textura falla (log de 2026-10-31,
-                        // «no se pudo cargar la textura»). El `.part` no se confunde con una
-                        // tesela buena porque solo se buscan `.jpg`.
-                        let part = path.with_extension("part");
-                        match std::fs::write(&part, &bytes) {
-                            Ok(()) => match std::fs::rename(&part, &path) {
-                                Ok(()) => saved += 1,
-                                Err(error) => {
-                                    let _ = std::fs::remove_file(&part);
-                                    log::warn!("tiles: no se pudo guardar {path:?} ({error})")
-                                }
-                            },
+    let spawned = crate::background::spawn("gw2lurker-tiles", move || {
+        let transport = WinHttpTransport::default();
+        let mut saved = 0;
+        for (path, url) in jobs {
+            if crate::background::is_stopping() {
+                break;
+            }
+            match gw2lurker_api::Transport::get(&transport, &url) {
+                Ok(bytes) => {
+                    if crate::background::is_stopping() {
+                        break;
+                    }
+                    if let Some(dir) = path.parent() {
+                        let _ = std::fs::create_dir_all(dir);
+                    }
+                    // A un nombre temporal y luego renombrar: si se escribe directo, el
+                    // render ve el fichero a medias y la textura falla (log de 2026-10-31,
+                    // «no se pudo cargar la textura»). El `.part` no se confunde con una
+                    // tesela buena porque solo se buscan `.jpg`.
+                    let part = path.with_extension("part");
+                    match std::fs::write(&part, &bytes) {
+                        Ok(()) => match std::fs::rename(&part, &path) {
+                            Ok(()) => saved += 1,
                             Err(error) => {
+                                let _ = std::fs::remove_file(&part);
                                 log::warn!("tiles: no se pudo guardar {path:?} ({error})")
                             }
+                        },
+                        Err(error) => {
+                            log::warn!("tiles: no se pudo guardar {path:?} ({error})")
                         }
                     }
-                    Err(error) => log::warn!("tiles: {url} ({error})"),
                 }
+                Err(error) => log::warn!("tiles: {url} ({error})"),
             }
-            log::info!("tiles: {saved} teselas del mapa en caché");
-        });
-    if spawned.is_err() {
-        log::warn!("tiles: no se pudo lanzar la descarga");
+        }
+        log::info!("tiles: {saved} teselas del mapa en caché");
+    });
+    match spawned {
+        Ok(()) => {
+            let _ = STARTED.set(());
+        }
+        Err(error) => {
+            log::warn!("tiles: no se pudo lanzar la descarga ({error})");
+        }
     }
 }
 
@@ -328,5 +418,43 @@ mod tests {
             ..info
         };
         assert_eq!(guild_label(&anon), "[Lord]", "sin nombre queda la etiqueta");
+    }
+
+    #[test]
+    fn rf20_transient_guild_lookup_errors_are_retried_after_a_cooldown() {
+        let now = Instant::now();
+        let mut failures = GuildLookupFailures::default();
+        failures.record("guild", &ApiError::Transport("timeout".to_owned()), now);
+        assert!(failures.should_skip("guild", now + Duration::from_millis(1_999)));
+        assert!(!failures.should_skip("guild", now + Duration::from_secs(2)));
+        failures.record(
+            "guild",
+            &ApiError::Status(503),
+            now + Duration::from_secs(2),
+        );
+        assert!(failures.should_skip("guild", now + Duration::from_secs(5)));
+        assert!(!failures.should_skip("guild", now + Duration::from_secs(6)));
+        failures.record("missing", &ApiError::NotFound, now);
+        assert!(failures.should_skip("missing", now + Duration::from_secs(600)));
+        failures.resolved("missing");
+        assert!(!failures.should_skip("missing", now));
+    }
+
+    #[test]
+    fn rf20_non_retryable_guild_errors_are_not_requested_again() {
+        let now = Instant::now();
+        let mut failures = GuildLookupFailures::default();
+        for error in [ApiError::Status(400), ApiError::Parse("invalid".to_owned())] {
+            failures.record("guild", &error, now);
+            assert!(failures.should_skip("guild", now + Duration::from_secs(600)));
+        }
+    }
+
+    #[test]
+    fn rf20_static_catalogues_retry_after_a_cooldown_not_every_poll() {
+        let now = Instant::now();
+        assert!(static_data_retry_due(None, now));
+        assert!(!static_data_retry_due(Some(now), now));
+        assert!(static_data_retry_due(Some(now - STATIC_DATA_RETRY), now));
     }
 }

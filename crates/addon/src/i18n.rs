@@ -3,9 +3,35 @@
 //! The table itself lives in `gw2lurker_core::i18n`, where it can be checked on the Linux CI
 //! job. This module only decides **which** language applies and adds the right-Ctrl override.
 
+use gw2lurker_api::ApiError;
 use gw2lurker_core::i18n::{self, Language};
+use std::sync::atomic::{AtomicU8, Ordering};
 
 use crate::config::LanguagePreference;
+
+static PREFERENCE: AtomicU8 = AtomicU8::new(0);
+
+/// Updates the cached language preference without taking the runtime configuration lock.
+pub fn set_preference(preference: LanguagePreference) {
+    let value = match preference {
+        LanguagePreference::Auto => 0,
+        LanguagePreference::Es => 1,
+        LanguagePreference::En => 2,
+        LanguagePreference::Fr => 3,
+        LanguagePreference::De => 4,
+    };
+    PREFERENCE.store(value, Ordering::Relaxed);
+}
+
+fn preference() -> LanguagePreference {
+    match PREFERENCE.load(Ordering::Relaxed) {
+        1 => LanguagePreference::Es,
+        2 => LanguagePreference::En,
+        3 => LanguagePreference::Fr,
+        4 => LanguagePreference::De,
+        _ => LanguagePreference::Auto,
+    }
+}
 
 /// Language that must be used right now.
 ///
@@ -26,7 +52,7 @@ pub fn active() -> Language {
 /// 2026-10-31: Extras already reports the real client language, so RTAPI only added size.
 pub fn effective() -> Language {
     resolve(
-        crate::config().language,
+        preference(),
         [
             crate::lang::from_extras(),
             crate::lang::from_nexus_settings(),
@@ -65,6 +91,26 @@ pub fn widget(key: &'static str) -> String {
 /// Translated text with `{0}`, `{1}`… replaced.
 pub fn format(key: &'static str, args: &[&str]) -> String {
     i18n::f(active(), key, args)
+}
+
+/// API errors are translated when displayed, not when produced on a background thread.
+pub fn format_api_error(error: &ApiError) -> String {
+    format_api_error_for(active(), error)
+}
+
+fn format_api_error_for(language: Language, error: &ApiError) -> String {
+    match error {
+        ApiError::Transport(detail) => i18n::f(language, "API network error: {0}", &[detail]),
+        ApiError::Status(code) => i18n::f(
+            language,
+            "API returned HTTP status {0}",
+            &[&code.to_string()],
+        ),
+        ApiError::Parse(detail) => {
+            i18n::f(language, "API response could not be parsed: {0}", &[detail])
+        }
+        ApiError::NotFound => i18n::t(language, "API data was not found").to_owned(),
+    }
 }
 
 /// Registers our strings in Nexus so its own UI can show them in the user's language.
@@ -120,6 +166,42 @@ mod tests {
         let all = [Some(Language::Fr), Some(Language::Es), Some(Language::De)];
         assert_eq!(resolve(LanguagePreference::De, all), Language::De);
         assert_eq!(resolve(LanguagePreference::Es, all), Language::Es);
+    }
+
+    #[test]
+    fn rf44_language_preference_is_cached_without_a_config_lock() {
+        for preference in [
+            LanguagePreference::Auto,
+            LanguagePreference::Es,
+            LanguagePreference::En,
+            LanguagePreference::Fr,
+            LanguagePreference::De,
+        ] {
+            set_preference(preference);
+            assert_eq!(super::preference(), preference);
+        }
+    }
+
+    #[test]
+    fn rf44_api_errors_are_localized_by_variant() {
+        use gw2lurker_api::ApiError;
+
+        assert_eq!(
+            format_api_error_for(Language::Es, &ApiError::Transport("timeout".into())),
+            "Error de red de la API: timeout"
+        );
+        assert_eq!(
+            format_api_error_for(Language::En, &ApiError::Status(503)),
+            "API returned HTTP status 503"
+        );
+        assert_eq!(
+            format_api_error_for(Language::Fr, &ApiError::Parse("JSON".into())),
+            "Impossible d'analyser la réponse de l'API : JSON"
+        );
+        assert_eq!(
+            format_api_error_for(Language::De, &ApiError::NotFound),
+            "Die API-Daten wurden nicht gefunden"
+        );
     }
 
     #[test]

@@ -49,11 +49,16 @@ Mumble (map_id/map_type, identity)  ─┬─> context/gate  -> ¿se sondea? ¿s
                                      └─> team (id de equipo guardado, roster por personaje, arcdps)
 worker (hilo propio, cada poll_secs):
    GET /v2/wvw/matches?ids=<una partida>  -> Snapshot -> diff(prev, cur) -> Vec<Event>
-   -> Dashboard (Mutex, memoria): historial de la sesión, alertas, claims, colores, nombres
+   -> Dashboard (Mutex, memoria): historial del ciclo, alertas, claims, colores, nombres
    -> catálogo: objetivos/mapas/nombres de clan (una vez por sesión, con presupuesto por sondeo)
 render (hilo del juego): lee el Dashboard (clon corto) y dibuja; escribe solo en `runtime()`
 ```
 
+- `AssignmentMonitor` cachea `/v2/wvw/timers/teamAssignment` durante 30 min. Después de la fecha de
+  la región, consulta `/v2/wvw/matches/overview` como mucho una vez por minuto; si el match vigilado
+  desaparece, pide `ids=all` y vuelve a resolver el equipo. Si la selección cambia o queda obsoleta,
+  limpia el historial/alertas y reinicia el baseline; una fecha vencida sin cambio confirmado no
+  limpia nada.
 - El **Dashboard** es la única fuente del render: se copia lo necesario (alertas ya filtradas, listas
   ya resueltas) para no tener el candado mientras se dibuja.
 - El render **nunca** hace red ni E/S: la configuración se escribe con `writer` (hilo propio) y los
@@ -77,8 +82,9 @@ enum Event { Flip{..}, Claim{.., late}, Unclaim{..}, Gap{..}, MatchChanged{..}, 
 Datos estáticos: `/v2/wvw/objectives?ids=all&lang=<código>` (una vez por idioma),
 `/v2/maps` (una vez por sesión), `/v2/wvw/guilds/:region` (caché en memoria 30 min; solo para el
 buscador), `/v2/guild/:id` (uno por clan, presupuesto de 20 por sondeo) y las tablas empaquetadas
-`data/wvw-teams.json` + `data/team-names.json`. El equipo propio se resuelve buscando su id en
-`all_worlds` del match (ADR-010).
+`data/wvw-teams.json` + `data/team-names.json`. Los UUID de clan se normalizan a mayúsculas y al
+formato `8-4-4-4-12` al entrar desde API/configuración o claims, antes de compararlos. El equipo
+propio se resuelve buscando su id en `all_worlds` del match (ADR-010).
 
 ## 5. Algoritmo de `diff`
 
@@ -191,7 +197,7 @@ click-through.
 
 ## 8. Vista Histórico y ruta inferida (ADR-005)
 
-- Entrada: el historial **en memoria** de la sesión (`Dashboard::guild_history`), filtrado por guild.
+- Entrada: el historial **en memoria** del ciclo de seguimiento (`Dashboard::guild_history`), filtrado por guild.
 - Salida: nodos `(n, objetivo, hora, late)` y tramos; si dos nodos están en mapas distintos se
   escribe «salto a <mapa>».
 - Dibujo: polilínea con flecha de dirección, nodos numerados y el más reciente resaltado.
@@ -244,4 +250,3 @@ click-through.
 | R-8 | Widget que interfiere con el input | Dos interruptores independentes (bloquear / click-through) + salida por clic derecho |
 | R-10 | Presupuesto de tamaño | Medido: 2,08 MB con todo (límite 2,5 MB, ADR-013) |
 | R-11 | Un glifo que la fuente no tiene se dibuja como «?» | La tabla de textos se queda en latino-1, con test |
-

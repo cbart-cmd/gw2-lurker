@@ -123,6 +123,7 @@ pub fn body(
 
     remember_translation(config, edits.translation.as_str(), language);
     config.language = edits.language;
+    i18n::set_preference(config.language);
     config.alert_scope = edits.scope;
     config.poll_secs = edits
         .poll_secs

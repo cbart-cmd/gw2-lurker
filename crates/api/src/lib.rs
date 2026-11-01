@@ -1,18 +1,18 @@
 //! HTTP client for the public GW2 API and its response parsing.
 //!
-//! The transport is a trait so the HTTP client itself (ureq, TLS choice, size budget) can
-//! be decided by the T-02b measurement without touching parsing or the retry policy.
-//! Everything here is testable against the fixtures in `crates/api/tests/fixtures`.
+//! The transport is a trait: the addon implements it over WinHTTP (`net::WinHttpTransport`),
+//! and the tests over the fixtures in `crates/api/tests/fixtures`, so parsing and the retry
+//! policy are checked without the network.
+//!
+//! Every id that ends up inside a URL path or query is checked first ([`looks_like_guild_id`],
+//! match ids, language codes): guild ids also come from `guild-names.json`, which is downloaded
+//! from a configurable URL, and a `/`, `?` or `..` would change the endpoint requested.
 
 #![forbid(unsafe_code)]
 #![cfg_attr(test, allow(clippy::unwrap_used, clippy::expect_used))]
 
 use gw2lurker_core::model::{Match, ObjectiveInfo};
 use serde::Deserialize;
-
-pub mod cache;
-
-pub use cache::Cache;
 
 /// Base URL of the public API.
 pub const BASE: &str = "https://api.guildwars2.com/v2";
@@ -23,6 +23,13 @@ pub struct GuildInfo {
     pub id: String,
     pub name: String,
     pub tag: String,
+}
+
+/// Regional team-assignment deadlines returned by `/v2/wvw/timers/teamAssignment`.
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+pub struct TeamAssignmentTimers {
+    pub na: String,
+    pub eu: String,
 }
 
 /// What can go wrong while talking to the API.
@@ -41,10 +48,10 @@ pub enum ApiError {
 impl std::fmt::Display for ApiError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Self::Transport(detail) => write!(f, "transporte: {detail}"),
-            Self::Status(code) => write!(f, "estado HTTP {code}"),
-            Self::Parse(detail) => write!(f, "respuesta ilegible: {detail}"),
-            Self::NotFound => write!(f, "no existe"),
+            Self::Transport(detail) => write!(f, "transport error: {detail}"),
+            Self::Status(code) => write!(f, "HTTP status {code}"),
+            Self::Parse(detail) => write!(f, "invalid response: {detail}"),
+            Self::NotFound => write!(f, "not found"),
         }
     }
 }
@@ -74,9 +81,26 @@ impl<T: Transport> Api<T> {
         &self.transport
     }
 
-    /// Every match of the region, from `/v2/wvw/matches?ids=all`.
+    /// Every live match of **both** regions (NA `1-x` and EU `2-x`), from
+    /// `/v2/wvw/matches?ids=all` (~400 KB).
     pub fn matches_all(&self) -> Result<Vec<Match>, ApiError> {
         let body = self.transport.get(&format!("{BASE}/wvw/matches?ids=all"))?;
+        parse(&body)
+    }
+
+    /// Ids of the live matches, from the small `/v2/wvw/matches/overview` response.
+    pub fn matches_overview(&self) -> Result<Vec<String>, ApiError> {
+        let body = self
+            .transport
+            .get(&format!("{BASE}/wvw/matches/overview"))?;
+        parse(&body)
+    }
+
+    /// Team-assignment deadlines for NA and EU.
+    pub fn team_assignment_timers(&self) -> Result<TeamAssignmentTimers, ApiError> {
+        let body = self
+            .transport
+            .get(&format!("{BASE}/wvw/timers/teamAssignment"))?;
         parse(&body)
     }
 
@@ -95,15 +119,22 @@ impl<T: Transport> Api<T> {
 
     /// A single match by id, from `/v2/wvw/matches/{id}`.
     ///
-    /// The worker polls this once it knows the player's match: ~44 KB instead of the ~400 KB
-    /// of `ids=all`, which matters at one poll every 30 s (RNF-05).
+    /// The worker polls this once it knows the player's match: ~44 KB with its four maps instead
+    /// of the ~400 KB of `ids=all`. It is the only request made at the configured cadence
+    /// (5 s by default, RNF-02).
     pub fn match_by_id(&self, id: &str) -> Result<Match, ApiError> {
+        if !looks_like_match_id(id) {
+            return Err(ApiError::NotFound);
+        }
         let body = self.transport.get(&format!("{BASE}/wvw/matches/{id}"))?;
         parse(&body)
     }
 
     /// Static objective metadata in the given language (RF-44).
     pub fn objectives(&self, lang: &str) -> Result<Vec<ObjectiveInfo>, ApiError> {
+        if !looks_like_language(lang) {
+            return Err(ApiError::NotFound);
+        }
         let body = self
             .transport
             .get(&format!("{BASE}/wvw/objectives?ids=all&lang={lang}"))?;
@@ -112,19 +143,25 @@ impl<T: Transport> Api<T> {
 
     /// Public guild data.
     pub fn guild(&self, id: &str) -> Result<GuildInfo, ApiError> {
+        let id = gw2lurker_core::normalize_guild_id(id).ok_or(ApiError::NotFound)?;
         let body = self.transport.get(&format!("{BASE}/guild/{id}"))?;
         parse(&body)
     }
 
-    /// Ids of the guilds whose name contains `text` (T-44).
+    /// Ids of the guilds whose name **starts with** `text` (T-44).
     ///
-    /// `/v2/guild/search` needs no API key and only matches on the name, so the caller still has
-    /// to resolve each id with [`Self::guild`] to get the tag and to know which team it plays for.
+    /// Measured on 2026-10-31/11-01: a prefix of the full name, at most one guild, and `[]` with
+    /// HTTP 200 when nothing matches (not a 404). No API key is needed; the caller still resolves
+    /// each id with [`Self::guild`] to get the tag and to know which team it plays for.
     pub fn guild_search(&self, text: &str) -> Result<Vec<String>, ApiError> {
         let body = self
             .transport
             .get(&format!("{BASE}/guild/search?name={}", url_encode(text)))?;
-        parse(&body)
+        let ids: Vec<String> = parse(&body)?;
+        Ok(ids
+            .into_iter()
+            .map(|id| gw2lurker_core::normalize_guild_id(&id).unwrap_or(id))
+            .collect())
     }
 
     /// Guild id → team id for a region, the official source of "which team is this guild on".
@@ -150,7 +187,10 @@ impl<T: Transport> Api<T> {
         let raw: std::collections::BTreeMap<String, TeamRef> = parse(&body)?;
         Ok(raw
             .into_iter()
-            .filter_map(|(guild, team)| team.into_id().map(|id| (guild, id)))
+            .filter_map(|(guild, team)| {
+                let guild = gw2lurker_core::normalize_guild_id(&guild).unwrap_or(guild);
+                team.into_id().map(|id| (guild, id))
+            })
             .collect())
     }
 
@@ -206,6 +246,28 @@ impl TeamRef {
             Self::Text(text) => text.trim().parse().ok(),
         }
     }
+}
+
+/// Whether a string has the shape of a guild id: 32 hexadecimal digits, with or without dashes.
+///
+/// `/v2/guild/<id>` answers with an opaque error for anything else, and a `/` or `?` would change
+/// the request, so the shape is checked before spending one on it.
+pub fn looks_like_guild_id(id: &str) -> bool {
+    gw2lurker_core::normalize_guild_id(id).is_some()
+}
+
+/// `<region>-<tier>`, like `2-2`.
+fn looks_like_match_id(id: &str) -> bool {
+    let Some((region, tier)) = id.split_once('-') else {
+        return false;
+    };
+    let digits = |part: &str| !part.is_empty() && part.bytes().all(|byte| byte.is_ascii_digit());
+    matches!(region, "1" | "2") && digits(tier)
+}
+
+/// Language supported by the addon: `es`, `en`, `fr` or `de`.
+fn looks_like_language(lang: &str) -> bool {
+    matches!(lang, "es" | "en" | "fr" | "de")
 }
 
 /// Percent-encodes a query value: guild names have spaces, accents and apostrophes.
@@ -285,10 +347,13 @@ mod tests {
     use std::collections::HashMap;
 
     const MATCHES: &[u8] = include_bytes!("../tests/fixtures/matches_all.json");
+    const MATCHES_ALL_LIVE: &[u8] = include_bytes!("../tests/fixtures/matches_all_20261102.json");
     const MATCH: &[u8] = include_bytes!("../tests/fixtures/match_2-2.json");
     const OBJECTIVES: &[u8] = include_bytes!("../tests/fixtures/objectives_all.json");
     const GUILD: &[u8] = include_bytes!("../tests/fixtures/guild.json");
     const MAPS: &[u8] = include_bytes!("../tests/fixtures/maps_wvw.json");
+    const TEAM_ASSIGNMENT: &[u8] = include_bytes!("../tests/fixtures/timers_team_assignment.json");
+    const MATCHES_OVERVIEW: &[u8] = include_bytes!("../tests/fixtures/matches_overview.json");
 
     /// Transport that answers from a table of URLs and records what was asked.
     #[derive(Default)]
@@ -317,7 +382,7 @@ mod tests {
             self.routes
                 .get(url)
                 .cloned()
-                .unwrap_or(Err(ApiError::Status(404)))
+                .unwrap_or(Err(ApiError::NotFound))
         }
     }
 
@@ -326,6 +391,26 @@ mod tests {
         let api = Api::new(Fake::with(&format!("{BASE}/wvw/matches?ids=all"), MATCHES));
         let matches = api.matches_all().unwrap();
         assert_eq!(matches.len(), 1, "el fixture es un array con el match 2-2");
+    }
+
+    #[test]
+    fn rf03a_live_ids_all_fixture_has_nine_unique_matches() {
+        let api = Api::new(Fake::with(
+            &format!("{BASE}/wvw/matches?ids=all"),
+            MATCHES_ALL_LIVE,
+        ));
+        let matches = api.matches_all().unwrap();
+        let ids: std::collections::BTreeSet<_> =
+            matches.iter().map(|entry| entry.id.as_str()).collect();
+
+        assert_eq!(matches.len(), 9);
+        assert_eq!(ids.len(), matches.len(), "cada match tiene un id único");
+        assert!(matches
+            .iter()
+            .any(|entry| entry.region() == Some(gw2lurker_core::Region::Eu)));
+        assert!(matches
+            .iter()
+            .any(|entry| entry.region() == Some(gw2lurker_core::Region::Na)));
     }
 
     #[test]
@@ -368,6 +453,36 @@ mod tests {
     }
 
     #[test]
+    fn t44_guild_search_encodes_spaces_ampersands_and_utf8() {
+        let url = format!("{BASE}/guild/search?name=Die+%26+G%C3%A4ng");
+        let api = Api::new(Fake::with(&url, b"[]"));
+        assert!(api.guild_search("Die & Gäng").unwrap().is_empty());
+        assert_eq!(api.transport().asked.borrow().as_slice(), [url]);
+    }
+
+    #[test]
+    fn rf20_guild_search_returns_canonical_uuid() {
+        const CANONICAL: &str = "230C9E95-E509-4B3E-AAF2-A320DB7506E5";
+        let url = format!("{BASE}/guild/search?name=Le+Coq");
+        let api = Api::new(Fake::with(&url, br#"["230c9e95e5094b3eaaf2a320db7506e5"]"#));
+
+        assert_eq!(api.guild_search("Le Coq").unwrap(), [CANONICAL]);
+    }
+
+    #[test]
+    fn rf20_wvw_guild_team_keys_are_canonical() {
+        const CANONICAL: &str = "230C9E95-E509-4B3E-AAF2-A320DB7506E5";
+        let url = format!("{BASE}/wvw/guilds/eu");
+        let api = Api::new(Fake::with(
+            &url,
+            br#"{"230c9e95e5094b3eaaf2a320db7506e5":"12014"}"#,
+        ));
+
+        let teams = api.wvw_guilds(gw2lurker_core::Region::Eu).unwrap();
+        assert_eq!(teams.get(CANONICAL), Some(&12014));
+    }
+
+    #[test]
     fn rf03a_the_team_of_a_guild_is_read_whatever_the_api_uses() {
         // El API manda el equipo **como cadena** (`{ "id-de-clan": "12008" }`, medido el
         // 2026-10-31). Parsearlo directo a `u32` daba `invalid type: string "12008"`, que es lo
@@ -389,11 +504,73 @@ mod tests {
 
     #[test]
     fn rf20_guild_returns_name_and_tag() {
-        let id = "230C9E95-E509-4B3E-AAF2-A320DB7506E5";
-        let api = Api::new(Fake::with(&format!("{BASE}/guild/{id}"), GUILD));
+        let id = "230c9e95e5094b3eaaf2a320db7506e5";
+        let api = Api::new(Fake::with(
+            &format!("{BASE}/guild/230C9E95-E509-4B3E-AAF2-A320DB7506E5"),
+            GUILD,
+        ));
         let g = api.guild(id).unwrap();
         assert_eq!(g.tag, "LAX");
         assert!(!g.name.is_empty());
+    }
+
+    #[test]
+    fn rf20_a_malformed_guild_id_never_reaches_the_network() {
+        // Los ids salen también de `guild-names.json`, que se descarga de una URL configurable:
+        // uno con `/`, `?` o `..` cambiaría el endpoint pedido.
+        let api = Api::new(Fake::default());
+        for id in [
+            "../wvw/matches?ids=all",
+            "230C9E95-E509-4B3E-AAF2-A320DB7506E5?x=1",
+            "230C9E95",
+            "",
+        ] {
+            assert_eq!(api.guild(id), Err(ApiError::NotFound), "id {id:?}");
+        }
+        assert!(api.transport().asked.borrow().is_empty());
+        assert!(
+            looks_like_guild_id("230c9e95e5094b3eaaf2a320db7506e5"),
+            "sin guiones y en minúsculas sigue siendo un id"
+        );
+    }
+
+    #[test]
+    fn rf03d_team_assignment_timer_parses_both_regions() {
+        let url = format!("{BASE}/wvw/timers/teamAssignment");
+        let api = Api::new(Fake::with(&url, TEAM_ASSIGNMENT));
+        let timers = api.team_assignment_timers().unwrap();
+
+        assert_eq!(timers.na, "2026-11-07T02:00:00Z");
+        assert_eq!(timers.eu, "2026-11-06T18:00:00Z");
+    }
+
+    #[test]
+    fn rf03d_matches_overview_returns_the_live_match_ids() {
+        let url = format!("{BASE}/wvw/matches/overview");
+        let api = Api::new(Fake::with(&url, MATCHES_OVERVIEW));
+        let ids = api.matches_overview().unwrap();
+
+        assert_eq!(ids.len(), 9);
+        assert!(ids.contains(&"2-2".to_owned()));
+        assert!(ids.contains(&"1-4".to_owned()));
+    }
+
+    #[test]
+    fn rf20_a_malformed_match_id_or_language_never_reaches_the_network() {
+        let api = Api::new(Fake::default());
+        assert_eq!(api.match_by_id("2-2/../1-1"), Err(ApiError::NotFound));
+        assert_eq!(api.match_by_id("2-"), Err(ApiError::NotFound));
+        assert_eq!(api.objectives("es&ids=1"), Err(ApiError::NotFound));
+        assert!(api.transport().asked.borrow().is_empty());
+    }
+
+    #[test]
+    fn rf20_unknown_routes_answer_like_the_real_transport() {
+        // `net::WinHttpTransport` traduce el 404 a `NotFound`; el doble de pruebas hace lo mismo
+        // para que un test no pase por un camino que en producción no existe.
+        let api = Api::new(Fake::default());
+        assert_eq!(api.match_by_id("9-9"), Err(ApiError::NotFound));
+        assert!(!Backoff::should_retry(&ApiError::NotFound));
     }
 
     #[test]

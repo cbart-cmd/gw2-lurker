@@ -47,7 +47,6 @@ impl Dashboard {
         current: Option<MapRole>,
         limit: usize,
     ) -> Vec<AlertLine> {
-        let newest = self.alerts.iter().map(|seen| seen.received).max();
         self.alerts
             .iter()
             .rev()
@@ -65,8 +64,7 @@ impl Dashboard {
                         .guild
                         .as_deref()
                         .is_some_and(|guild| follow.contains(guild))
-                        && newest
-                            .is_some_and(|seen| seen.signed_duration_since(line.at) < LATE_GRACE))
+                        && line.received.signed_duration_since(line.at) < LATE_GRACE)
             })
             .filter(|line| {
                 filter.notify(

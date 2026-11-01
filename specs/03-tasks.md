@@ -63,12 +63,13 @@ Todo lo demás está hecho y con test. El estado fino, con fechas y versiones, e
 
 ## Fase 2 – API y worker
 
-- **T-11b ✔ (2026-10-31)** `api`: `trait Transport` + `Api<T>` tipado (`matches_all`, `match_for_team`, `objectives(lang)`, `guild`), `ApiError` y `Backoff` exponencial con tope. 9 tests con las fixtures reales, incluidos 503, JSON truncado y equipo inexistente. Añadida la caché en disco (`cache::Cache`: objetivos por idioma + guilds, tolerante a ficheros corruptos, 4 tests). Cliente HTTP real en el addon (`net::WinHttpTransport` sobre WinHTTP del sistema, medidas en `07-spikes.md`: HTTP 200 en 270 ms sin crecer la DLL). (T-04) — RF-20, RF-44, RNF-04
+- **T-11b ✔ (2026-10-31)** `api`: `trait Transport` + `Api<T>` tipado (`matches_all`, `match_for_team`, `objectives(lang)`, `guild`), `ApiError` y `Backoff` exponencial con tope. 9 tests con fixtures reales, incluidos 503, JSON truncado y equipo inexistente. La caché en disco (`cache::Cache`, objetivos por idioma + guilds; 4 tests) se retiró el 2026-11-01: no tenía consumidores y contradecía el diseño actual, donde estos catálogos se cachean en memoria por sesión. Cliente HTTP real en el addon (`net::WinHttpTransport` sobre WinHTTP del sistema, medidas en `07-spikes.md`: HTTP 200 en 270 ms sin crecer la DLL). (T-04) — RF-20, RF-44, RNF-04
 - **T-11c ✔ (2026-10-31, parcial)** `worker`: hilo propio con parada limpia (`stop()` + sondeo
   de 250 ms), `MAY_POLL` desde la compuerta del render (nunca red ni disco en el hilo de render),
   `ids=all` mientras no hay equipo y `/wvw/matches/{id}` (nuevo `Api::match_by_id`) cuando lo
-  hay, backoff hasta 5 min, `Health::{Idle,Ok,Degraded}`, histórico en `SessionStore` y
-  `Dashboard` (claims, clanes, nombres, últimos 50 eventos) que la ventana de estado ya lee.
+  hay, backoff hasta 5 min, `Health::{Idle,Ok,Degraded}` e histórico del ciclo en memoria en
+  `Dashboard` (claims, clanes y nombres) que la ventana de estado ya lee. El monitor de
+  `teamAssignment` reinicia ese ciclo con un baseline al confirmar una reasignación.
   Probado de verdad con `live_pipeline_builds_the_dashboard` (HTTP real, 1,2 s). Falta: dejar de
   escribir `settings.json` en mitad de un poll largo y separar el sondeo de objetivos del de
   estado. (T-11b, T-07) — RF-20, RF-26, RNF-04
@@ -294,6 +295,4 @@ tarea indica de qué depende.
    (T-38) — RF-32a
 10. **T-41 (S)** Cerrar i18n: terminología de tipos con hablantes nativos de fr/de. (T-31)
     — RF-44, RNF-08
-
-
 

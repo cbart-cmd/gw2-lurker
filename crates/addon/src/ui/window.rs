@@ -29,6 +29,13 @@ const MIN_BODY_HEIGHT: f32 = 24.0;
 /// Width reserved for the close button.
 const CLOSE_WIDTH: f32 = 24.0;
 
+#[derive(Clone, Copy)]
+pub struct WindowAppearance {
+    pub theme: crate::config::Theme,
+    pub font_scale: f32,
+    pub background: crate::config::WidgetBackground,
+}
+
 fn default_position(slot: usize) -> [f32; 2] {
     let offset = 30.0 * slot as f32;
     [60.0 + offset, 120.0 + offset]
@@ -41,6 +48,7 @@ pub fn draw(
     slot: usize,
     default_size: [f32; 2],
     state: &mut WindowState,
+    appearance: WindowAppearance,
     body: impl FnOnce(&Ui),
 ) -> bool {
     if !state.visible {
@@ -59,6 +67,7 @@ pub fn draw(
     let size = clamp_size(state.size.unwrap_or(default_size));
     let position = state.position.unwrap_or_else(|| default_position(slot));
 
+    let _style = super::theme::apply(ui, appearance.theme);
     let mut window = Window::new(title_id)
         .title_bar(false)
         .movable(!state.locked)
@@ -67,7 +76,7 @@ pub fn draw(
         .size(size, Condition::FirstUseEver)
         .position(position, Condition::FirstUseEver)
         .size_constraints(MIN_SIZE, [4096.0, 4096.0])
-        .bg_alpha(bg_alpha(state.opacity));
+        .bg_alpha(bg_alpha(state.opacity, appearance.background));
     if state.collapsed {
         window = window.always_auto_resize(true);
     }
@@ -76,11 +85,8 @@ pub fn draw(
     }
 
     window.build(ui, || {
-        // RF-60/RF-61: estilo heredado de Nexus (nada) o el tema propio, **solo** dentro de esta
-        // ventana.
-        let _style = super::theme::apply(ui, crate::config().theme);
-        if crate::config().font_scale > 0.0 {
-            ui.set_window_font_scale(crate::config().font_scale.clamp(0.8, 1.6));
+        if appearance.font_scale > 0.0 {
+            ui.set_window_font_scale(appearance.font_scale.clamp(0.8, 1.6));
         }
         let start = ui.cursor_pos();
         let width = ui.content_region_avail()[0];
@@ -187,8 +193,8 @@ fn clamp_size(size: [f32; 2]) -> [f32; 2] {
 ///
 /// El fondo transparente deja solo el texto: la opacidad de la ventana sigue mandando, así que se
 /// puede tener «sin fondo» y aun así atenuado.
-fn bg_alpha(opacity: f32) -> f32 {
-    match crate::config().widget_background {
+fn bg_alpha(opacity: f32, background: crate::config::WidgetBackground) -> f32 {
+    match background {
         crate::config::WidgetBackground::Dark => opacity.clamp(0.0, 1.0),
         crate::config::WidgetBackground::Transparent => 0.0,
     }
@@ -335,6 +341,15 @@ mod tests {
             opacity_percent(f32::NAN),
             90.0,
             "un NaN no puede llegar al slider"
+        );
+    }
+
+    #[test]
+    fn rf46_window_background_uses_the_current_setting() {
+        assert_eq!(bg_alpha(0.5, crate::config::WidgetBackground::Dark), 0.5);
+        assert_eq!(
+            bg_alpha(0.5, crate::config::WidgetBackground::Transparent),
+            0.0
         );
     }
 

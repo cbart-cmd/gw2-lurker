@@ -15,8 +15,8 @@ pub struct WinHttpTransport {
 
 impl Default for WinHttpTransport {
     fn default() -> Self {
-        // Enough for a slow mobile connection, short enough that a stuck poll cannot block
-        // the interval: the worker polls every 30 s by default.
+        // Enough for a slow mobile connection, short enough that a stuck poll cannot hold the
+        // worker much longer than the 5 s default interval.
         Self { timeout_ms: 10_000 }
     }
 }

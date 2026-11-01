@@ -19,24 +19,3 @@ Formato:
 
 Estado: `[ ]` pendiente · `[x]` arreglado según el addon (a falta de que el jugador lo confirme).
 
-## [x] lista de clanes: qué hace clicar una fila (2026-11-01)
-«en widget, lista clanes, sale una lista de clanes según reclamado. no queda claro que hace pulsar en
-él. debería haber dos botones: uno de "+" para añadir a clanes favoritos (si no lo está ya), y otro
-tipo "i" de información, que haga la inferencia sobre el mapa y no en texto abajo»
-- **Hecho (0.25.14):** cada fila lleva `+` (seguir el clan, solo si no se sigue; si ya se sigue, en su
-  sitio va un `*` que es estado y no botón) e `i`, que selecciona el clan y salta a la pestaña *Mapa*
-  con su ruta dibujada en el último mapa donde reclamó. La ruta **ya no se escribe en texto** debajo de
-  la lista: el resumen («desde su fortaleza -> A -> salto a X -> B») se pinta junto al mapa, donde está
-  el dibujo. Clicar la fila sigue enseñando el historial del clan (RF-72).
-- **Pendiente:** verlo en el juego.
-
-## [x] la pestaña de mapas se abre en el mapa en el que estoy (2026-11-01)
-«cuando cambie de mapa, si en el widget voy a la pestaña de mapas desde otra y no sea porque he
-clicado un clan, me abra el mapa en el que estoy»
-- **Hecho (0.25.15):** entrar en la pestaña *Mapa* desde otra pestaña salta al mapa donde está el
-  jugador (el que da el Mumble). Si se llega por clicar un clan —la fila de *Clanes* o el `i`— manda el
-  mapa donde ese clan reclamó, como hasta ahora. Quedarse en la pestaña no cambia el mapa que hayas
-  elegido a mano en el desplegable.
-- **Pendiente:** verlo en el juego cambiando de mapa.
-
-

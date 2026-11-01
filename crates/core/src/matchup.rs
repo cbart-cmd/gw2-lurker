@@ -51,7 +51,7 @@ impl ClaimRow {
 /// (`last_flipped` later than `claimed_at`), and listing it paints a guild's ring on a camp of
 /// another colour — exactly what the player saw on 2026-10-31 («el mapa ponía que YaK tenía
 /// reclamado un campa que en verdad era de otro color»).
-fn claim_holds(objective: &crate::model::MatchObjective) -> bool {
+pub(crate) fn claim_holds(objective: &crate::model::MatchObjective) -> bool {
     match (objective.claimed_at, objective.last_flipped) {
         (Some(claimed), Some(flipped)) => flipped <= claimed,
         // Without both stamps the claim cannot be dated, so it is kept: dropping it would hide

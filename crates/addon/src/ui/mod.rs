@@ -218,16 +218,43 @@ fn draw_widget(ui: &nexus::imgui::Ui) {
     static FILTERS: std::sync::OnceLock<std::sync::Mutex<matchup::Filters>> =
         std::sync::OnceLock::new();
 
+    let (visible, popup_enabled, alerts_cfg, follow) = {
+        let mut config = crate::runtime();
+        (
+            config.window(WIDGET).visible,
+            config.popup_enabled,
+            config.alerts,
+            config.followed.clone(),
+        )
+    };
+    if !visible && !popup_enabled {
+        return;
+    }
+
     let filters = FILTERS.get_or_init(|| std::sync::Mutex::new(matchup::Filters::all_kinds()));
     let current = crate::context::current_map_role();
-    // De la copia editable, no de la del arranque: un clan que el jugador acaba de añadir o de
-    // dejar de seguir tiene que verse en la pestaña y en los filtros en el mismo momento
-    // (informe de 2026-10-31, «pulsar x no lo borra»).
-    let (alerts_cfg, follow) = {
-        let config = crate::runtime();
-        (config.alerts, config.followed.clone())
-    };
-    let (candidates, guilds, names, claims, states, alerts, objectives, maps, worlds) = {
+    let now = chrono::Utc::now();
+    if !visible {
+        let alerts = {
+            let board = crate::worker::dashboard();
+            board.recent_alerts(&alerts_cfg, &follow, current, 50)
+        };
+        popup::draw(ui, &alerts, now);
+        return;
+    }
+
+    let (
+        candidates,
+        guilds,
+        names,
+        claims,
+        states,
+        alerts,
+        objectives,
+        maps,
+        worlds,
+        history_since,
+    ) = {
         let board = crate::worker::dashboard();
         (
             board.candidates.clone(),
@@ -239,9 +266,9 @@ fn draw_widget(ui: &nexus::imgui::Ui) {
             board.names.clone(),
             board.maps.clone(),
             board.world_names.clone(),
+            board.history_since,
         )
     };
-    let now = chrono::Utc::now();
 
     let mut config = crate::runtime();
     let mut state = config.window(WIDGET).clone();
@@ -251,27 +278,40 @@ fn draw_widget(ui: &nexus::imgui::Ui) {
     let mut change = None;
     let mut filters = filters.lock().unwrap_or_else(|error| error.into_inner());
 
-    let still_open = window::draw(ui, WIDGET, 0, WIDGET_DEFAULT_SIZE, &mut state, |ui| {
-        change = draw_tabs(
-            ui,
-            &mut config,
-            &mut filters,
-            &Tabbed {
-                candidates: &candidates,
-                guilds: &guilds,
-                names: &names,
-                claims: &claims,
-                states: &states,
-                alerts: &alerts,
-                follow: &follow,
-                current,
-                now,
-                objectives: &objectives,
-                maps: &maps,
-                worlds: &worlds,
-            },
-        );
-    });
+    let still_open = window::draw(
+        ui,
+        WIDGET,
+        0,
+        WIDGET_DEFAULT_SIZE,
+        &mut state,
+        window::WindowAppearance {
+            theme: config.theme,
+            font_scale: config.font_scale,
+            background: config.widget_background,
+        },
+        |ui| {
+            change = draw_tabs(
+                ui,
+                &mut config,
+                &mut filters,
+                &Tabbed {
+                    candidates: &candidates,
+                    guilds: &guilds,
+                    names: &names,
+                    claims: &claims,
+                    states: &states,
+                    alerts: &alerts,
+                    follow: &follow,
+                    current,
+                    now,
+                    history_since,
+                    objectives: &objectives,
+                    maps: &maps,
+                    worlds: &worlds,
+                },
+            );
+        },
+    );
     drop(filters);
 
     // The settings tab can hide or lock the widget in the same frame the chrome runs, so the
@@ -324,6 +364,7 @@ pub(super) struct Tabbed<'a> {
     follow: &'a gw2lurker_core::FollowList,
     current: Option<MapRole>,
     now: chrono::DateTime<chrono::Utc>,
+    history_since: Option<chrono::DateTime<chrono::Utc>>,
     /// Objectives of the player's language, with the `coord` the map needs.
     objectives: &'a [gw2lurker_core::ObjectiveInfo],
     /// Boxes of the four WvW maps (RF-30).
@@ -460,7 +501,10 @@ fn draw_tabs(
                             data.names,
                             &mut config.guild_labels,
                             data.follow,
-                            data.current,
+                            guilds::Context {
+                                current: data.current,
+                                history_since: data.history_since,
+                            },
                             |guild| crate::worker::dashboard().guild_history(guild),
                         ) {
                             Some(guilds::Action::Follow(guild)) => follow::add_followed(

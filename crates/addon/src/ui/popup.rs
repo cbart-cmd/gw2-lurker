@@ -25,8 +25,8 @@ pub fn draw(
     alerts: &[crate::worker::AlertLine],
     now: chrono::DateTime<chrono::Utc>,
 ) {
-    let (enabled, secs, opacity, mut position) = {
-        let config = crate::config();
+    let (enabled, secs, opacity, mut position, alert_kinds) = {
+        let config = crate::runtime();
         let opacity = config
             .windows
             .get(WIDGET)
@@ -37,6 +37,7 @@ pub fn draw(
             config.popup_secs,
             opacity,
             config.popup_pos,
+            config.alert_kinds,
         )
     };
     if !enabled {
@@ -46,7 +47,7 @@ pub fn draw(
     // RF-19c: el pop-up enseña los mismos tipos que el widget.
     let candidates: Vec<crate::worker::AlertLine> = alerts
         .iter()
-        .filter(|line| crate::config().alert_kinds.shows(line.kind))
+        .filter(|line| alert_kinds.shows(line.kind))
         .cloned()
         .collect();
     // De uno en uno: dos reclamaciones seguidas se leían como una sola y el pop-up se iba de
@@ -54,18 +55,27 @@ pub fn draw(
     let mut popup = queue_slot();
     let shown = popup.tick(&candidates, now, secs);
     drop(popup);
-    let (mut showing, fade) = match shown {
-        Some((line, fade)) => (vec![line], fade),
-        None => return,
+    let Some((showing, fade)) = popup_lines(shown, test_popup_line(now)) else {
+        return;
     };
-    if let Some(test) = test_popup_line(now) {
-        showing.insert(0, test);
-    }
 
     alerts::draw_popup(ui, &showing, opacity, &mut position, fade);
 
-    if position != crate::config().popup_pos {
-        crate::runtime().popup_pos = position;
+    let mut config = crate::runtime();
+    if position != config.popup_pos {
+        config.popup_pos = position;
+    }
+}
+
+fn popup_lines(
+    shown: Option<(crate::worker::AlertLine, f32)>,
+    test: Option<crate::worker::AlertLine>,
+) -> Option<(Vec<crate::worker::AlertLine>, f32)> {
+    match (shown, test) {
+        (Some((line, fade)), Some(test)) => Some((vec![test, line], fade)),
+        (Some((line, fade)), None) => Some((vec![line], fade)),
+        (None, Some(test)) => Some((vec![test], 1.0)),
+        (None, None) => None,
     }
 }
 
@@ -97,4 +107,34 @@ fn test_popup_line(now: chrono::DateTime<chrono::Utc>) -> Option<crate::worker::
         to: None,
         late: false,
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn line() -> crate::worker::AlertLine {
+        let now = chrono::Utc::now();
+        crate::worker::AlertLine {
+            at: now,
+            received: now,
+            map_role: MapRole::Center,
+            objective_kind: gw2lurker_core::ObjectiveType::Camp,
+            kind: crate::worker::AlertKind::Claim,
+            objective: "Camp".to_owned(),
+            guild: None,
+            guild_name: Some("Test".to_owned()),
+            from: None,
+            to: None,
+            late: false,
+        }
+    }
+
+    #[test]
+    fn rf19a_a_test_popup_is_shown_without_a_real_alert() {
+        let (showing, fade) = popup_lines(None, Some(line())).expect("test line is visible");
+        assert_eq!(showing.len(), 1);
+        assert_eq!(showing[0].guild_name.as_deref(), Some("Test"));
+        assert_eq!(fade, 1.0);
+    }
 }
