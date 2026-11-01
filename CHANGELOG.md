@@ -1,6 +1,13 @@
 # Changelog
 Formato [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/), versionado [SemVer](https://semver.org/lang/es/).
 
+## [0.25.7] - 2026-11-01
+### Corregido
+- **La descarga del índice de nombres fallaba con «no existe».** La URL por defecto tenía una errata
+  (`gw2addonreleases` en vez de `gw2addonsreleases`), así que GitHub respondía 404. Corregida, y la
+  errata se repara sola en `settings.json` al cargar. El error 404 ahora se explica en la ventana, y
+  la descarga lleva un sello `?v=` para saltarse la caché del CDN.
+
 ## [0.25.6] - 2026-11-01
 ### Cambiado
 - **Los nombres de la sesión van a `temp.json`**, no a memoria: el jugador prefiere un fichero

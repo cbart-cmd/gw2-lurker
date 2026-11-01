@@ -286,4 +286,32 @@ mod tests {
         let json: serde_json::Value = serde_json::from_slice(&body).unwrap();
         assert_eq!(json["id"], "2-2");
     }
+
+    /// El ZIP del índice se descarga con **este** cliente, no con otro: si aquí da 404, el addon
+    /// también. Sirve para separar «no está publicado» de «el addon no sabe bajarlo».
+    #[test]
+    #[ignore = "requiere red"]
+    fn live_the_index_zip_is_downloadable() {
+        let url = crate::guild_index::DEFAULT_URL;
+        for query in [
+            "",
+            "?cb=1",
+            "?v=1",
+            "?v=1761950000",
+            "?a=2",
+            "?x=abcdef",
+            "?cb=999999",
+        ] {
+            let probe = format!("{url}{query}");
+            match get(&probe, 10_000) {
+                Ok((status, body)) => println!("PROBE {status} {:>8} bytes <- {query}", body.len()),
+                Err(error) => println!("PROBE error {error:?} <- {query}"),
+            }
+        }
+        let stamp = chrono::Utc::now().timestamp();
+        let (status, body) = get(&crate::guild_index::cache_busted(url, stamp), 10_000)
+            .unwrap_or_else(|error| panic!("PROBE {url}: {error:?}"));
+        assert_eq!(status, 200, "el ZIP publicado tiene que responder 200");
+        assert!(body.len() > 1000, "bytes: {}", body.len());
+    }
 }

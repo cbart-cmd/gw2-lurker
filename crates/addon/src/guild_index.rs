@@ -1,7 +1,7 @@
 //! Descarga del índice de nombres de clan (`guild-names.json`) desde el repositorio de distribución.
 //!
 //! El índice pesa cientos de KB y no cabe en la DLL, así que se publica como ZIP junto a su
-//! `.md5` en `gw2addonreleases` y el addon se lo baja **la primera vez** (o cuando el jugador
+//! `.md5` en `gw2addonsreleases` y el addon se lo baja **la primera vez** (o cuando el jugador
 //! pulsa «Descargar»). Es el mismo mecanismo que el addon hermano `gw2-rotation-builds` usa para
 //! su `data.zip`: descargar → comprobar el MD5 publicado → descomprimir.
 //!
@@ -15,8 +15,12 @@ use gw2lurker_api::Transport;
 use crate::net::WinHttpTransport;
 
 /// Dónde se publica el ZIP del índice. El jugador puede cambiarlo en los ajustes.
+///
+/// Ojo con el nombre del repositorio: es `gw2addons`**s**`releases` (addons + releases). Con una
+/// sola «s» GitHub responde 404 y el jugador veía «no se pudo descargar … : no existe» (informe
+/// del 2026-11-01). El test `rf20c_the_default_index_url_is_the_distribution_repo` lo vigila.
 pub const DEFAULT_URL: &str =
-    "https://raw.githubusercontent.com/cbart-cmd/gw2addonreleases/main/gw2_lurker_guilds.zip";
+    "https://raw.githubusercontent.com/cbart-cmd/gw2addonsreleases/main/gw2_lurker_guilds.zip";
 
 /// Sufijo del hash publicado junto al ZIP (`x.zip` → `x.zip.md5`).
 const MD5_SUFFIX: &str = ".md5";
@@ -104,13 +108,16 @@ fn run(url: &str) -> Result<usize, String> {
         return Err("la dirección del índice tiene que empezar por https://".to_owned());
     }
     let transport = WinHttpTransport::default();
+    let stamp = chrono::Utc::now().timestamp();
+    let zip_url = cache_busted(url, stamp);
     let bytes = transport
-        .get(url)
-        .map_err(|error| format!("no se pudo descargar {url}: {error}"))?;
+        .get(&zip_url)
+        .map_err(|error| format!("no se pudo descargar {url}: {}", describe(&error)))?;
 
     // El hash va **antes** de escribir nada: un ZIP truncado nunca llega al disco.
+    let md5_url = cache_busted(&format!("{url}{MD5_SUFFIX}"), stamp);
     let published = transport
-        .get(&format!("{url}{MD5_SUFFIX}"))
+        .get(&md5_url)
         .ok()
         .and_then(|body| crate::md5::parse(&String::from_utf8_lossy(&body)));
     match published.as_deref() {
@@ -140,6 +147,28 @@ fn run(url: &str) -> Result<usize, String> {
     std::fs::write(&temp, &json).map_err(|error| error.to_string())?;
     std::fs::rename(&temp, &path).map_err(|error| error.to_string())?;
     Ok(count)
+}
+
+/// URL con un parámetro de versión para **saltarse la caché del CDN**.
+///
+/// `raw.githubusercontent.com` sirvió un **404 cacheado** para el ZIP mientras el mismo fichero,
+/// con `?cb=1`, devolvía los 297 532 bytes (medido el 2026-11-01 con el cliente del addon, no con
+/// `curl`). Sin esto, «Descargar el índice» fallaba con «no existe» aunque el fichero estuviera
+/// publicado. El `.md5` se pide con el mismo sello para que hash y ZIP sean de la misma versión.
+pub fn cache_busted(url: &str, stamp: i64) -> String {
+    let separator = if url.contains('?') { '&' } else { '?' };
+    format!("{url}{separator}v={stamp}")
+}
+
+/// Mensaje del fallo de descarga, con el 404 explicado (es el que más veces se ve).
+fn describe(error: &gw2lurker_api::ApiError) -> String {
+    match error {
+        gw2lurker_api::ApiError::NotFound => {
+            "el fichero no está publicado en esa URL (404); revisa la dirección del índice"
+                .to_owned()
+        }
+        other => other.to_string(),
+    }
 }
 
 /// Limits accepted while unpacking, so a hostile archive cannot fill the disk.
@@ -216,6 +245,54 @@ mod tests {
             writer.finish().unwrap();
         }
         out.into_inner()
+    }
+
+    #[test]
+    fn rf20c_the_download_is_cache_busted() {
+        // Sin el sello, el CDN de `raw.githubusercontent.com` sirvió un 404 cacheado del ZIP.
+        assert_eq!(
+            cache_busted("https://x/y.zip", 42),
+            "https://x/y.zip?v=42",
+            "primera query: se abre con ?"
+        );
+        assert_eq!(
+            cache_busted("https://x/y.zip?a=1", 42),
+            "https://x/y.zip?a=1&v=42",
+            "si ya hay query: se añade con &"
+        );
+        assert!(
+            cache_busted("https://x/y.zip", 42).ends_with(".zip?v=42"),
+            "el fichero sigue siendo el mismo"
+        );
+    }
+
+    #[test]
+    fn rf20c_the_default_index_url_is_the_distribution_repo() {
+        // El repositorio de distribución se llama `gw2addonsreleases` (addons + releases): con
+        // una «s» menos, GitHub devuelve 404 y el jugador ve «no existe» al descargar el índice
+        // (informe del 2026-11-01). Esta comprobación es la que me faltaba.
+        assert!(
+            DEFAULT_URL.contains("/gw2addonsreleases/"),
+            "la URL por defecto tiene que apuntar al repo de distribución: {}",
+            DEFAULT_URL
+        );
+        assert!(
+            DEFAULT_URL.ends_with("/gw2_lurker_guilds.zip"),
+            "y al fichero que publica `scripts/pack-guild-index.ps1`"
+        );
+        assert!(
+            !DEFAULT_URL.contains("/gw2addonreleases/"),
+            "la errata de la «s» que rompió la descarga"
+        );
+    }
+
+    #[test]
+    fn rf20c_a_404_says_the_file_is_not_published() {
+        let message = describe(&gw2lurker_api::ApiError::NotFound);
+        assert!(
+            message.contains("404") && message.contains("publicado"),
+            "«no existe» a secas no dice nada: {message}"
+        );
     }
 
     #[test]

@@ -369,6 +369,11 @@ impl Config {
         } else {
             crate::guild_index::DEFAULT_URL.to_owned()
         };
+        // Errata de mi URL por defecto en la 0.25.0: el repositorio es `gw2addonsreleases`, con dos
+        // «s». Quien tenga la mala guardada se queda sin descarga (404), así que se corrige sola.
+        self.guild_index_url = self
+            .guild_index_url
+            .replace("gw2addonreleases", "gw2addonsreleases");
     }
 }
 
@@ -655,6 +660,19 @@ mod tests {
         };
         good.sanitize();
         assert_eq!(good.guild_index_url, "https://ejemplo/x.zip");
+    }
+
+    #[test]
+    fn rf20c_the_broken_default_url_repairs_itself() {
+        // La 0.25.0 guardó `gw2addonreleases` (una «s» menos) en el fichero del jugador y con ella
+        // GitHub responde 404: «no se pudo descargar… no existe» (informe de 2026-11-01).
+        let mut c = Config {
+            guild_index_url: "https://raw.githubusercontent.com/cbart-cmd/gw2addonreleases/main/gw2_lurker_guilds.zip".to_owned(),
+            ..Config::default()
+        };
+        c.sanitize();
+        assert_eq!(c.guild_index_url, crate::guild_index::DEFAULT_URL);
+        assert!(c.guild_index_url.contains("gw2addonsreleases"));
     }
 
     #[test]
