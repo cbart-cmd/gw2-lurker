@@ -103,7 +103,7 @@ Estado global (en `addon/src/lib.rs` y `worker.rs`):
 
 <!-- GENERADO: no editar debajo; se rehace con scripts/gen_modelo.ps1 -->
 
-Generado el 2026-11-01 22:06 desde el commit `8292bad`.
+Generado el 2026-11-01 23:36 desde el commit `130dabd`.
 
 ## Crate `core`
 
@@ -1805,11 +1805,27 @@ Off-thread writer for the settings file.
 - `bugs.md` — Bugs — Bandeja de entrada de fallos. **No se borra**: cada bug se queda con su marca. `[x]` cuando creo que está arreglado, con la versión en la que sale el arreglo, para que el jugador pueda comprobarlo y tacharlo del todo si…
 - `Cargo.lock`
 - `Cargo.toml`
-- `CHANGELOG.md` — Changelog — Formato [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/), versionado [SemVer](https://semver.org/lang/es/). equipo y zona, y una segunda cuenta arranca vacía y se pregunta una vez. La cuenta sale del nombre qu…
+- `CHANGELOG.md` — Changelog — Formato [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/), versionado [SemVer](https://semver.org/lang/es/). no se anotan (eran ~60 líneas en los primeros minutos), y `vigilando` y `deteccion` solo salen cuando…
 - `CLAUDE.md` —  — Lee y sigue `AGENTS.md` (instrucciones completas para agentes de IA de este repositorio).
 - `deny.toml` — RUSTSEC-2024-0384 (instant) y RUSTSEC-2024-0436 (paste): avisos de "sin mantenimiento" en crates que arrastra `nexus-rs`. No son vulnerabilidades, están fuera de nuestro control y no podemos actualizarlos por separado: s…
 - `docs/agents/lecciones.md` — Lecciones con contexto (referencia de AGENTS.md) — Texto completo de las reglas que en `AGENTS.md` van en una línea. Cada punto sale de un fallo real. Léelo cuando la tarea toque tests, imgui, el candado `RUNTIME` o `settings.json`; no hace falta cargarlo en cada sesión.
 - `docs/boceto.html`
+- `docs/bocetos/ruta/app.js`
+- `docs/bocetos/ruta/boceto-a-caminos.html`
+- `docs/bocetos/ruta/boceto-b-estela.html`
+- `docs/bocetos/ruta/boceto-c-escuadras.html`
+- `docs/bocetos/ruta/boceto-d-incertidumbre.html`
+- `docs/bocetos/ruta/comun.js`
+- `docs/bocetos/ruta/datos-caminos.js`
+- `docs/bocetos/ruta/datos-objetivos.js`
+- `docs/bocetos/ruta/escena.js`
+- `docs/bocetos/ruta/escenarios.js`
+- `docs/bocetos/ruta/logica.js`
+- `docs/bocetos/ruta/propuesta-a.js`
+- `docs/bocetos/ruta/propuesta-b.js`
+- `docs/bocetos/ruta/propuesta-c.js`
+- `docs/bocetos/ruta/propuesta-d.js`
+- `docs/bocetos/ruta/ruta.css`
 - `docs/RELEASE.md` — Publicación de la DLL para Nexus — El addon se distribuye desde **un repositorio compartido con los demás addons**: Regla de oro: **este repositorio no es nuestro**. Solo se tocan los ficheros de dejaba dos instancias del addon con el juego abierto y reve…
 - `install.bat` — Copia gw2_lurker.dll a la carpeta addons de Guild Wars 2 con doble clic. Argumentos opcionales: install.bat -Build (tests + compilacion antes de copiar) install.bat -DryRun (solo dice que haria)
 - `install.ps1` — Compila (opcional) e instala el addon gw2_lurker.dll en la carpeta addons de Guild Wars 2.
