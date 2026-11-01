@@ -7,25 +7,35 @@
 
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Mutex;
+use std::time::{Duration, Instant};
 
 use chrono::{DateTime, Utc};
 
 use gw2lurker_core::diff::Event;
 use gw2lurker_core::model::Match;
 use gw2lurker_core::select::Selection;
-/// Says which matchup is being watched, and what came out of the poll.
+
+/// How often the heartbeat is written, whatever the poll interval is.
+const HEARTBEAT_EVERY: Duration = Duration::from_secs(300);
+
+/// Whether `line` is different from the last one written in this slot, remembering it if so.
 ///
-/// This is the line that answers "why did nothing alert me": if the id starts with `1-` the
-/// addon is watching North America and the player is probably in Europe (reported 2026-10-31,
-/// the team picked was `11011`, which the API plays in `1-1`). Only logged when it changes, plus
-/// every detected event, because both are rare.
-pub fn log_watched_matchup(
-    selection: &Selection,
-    match_id: Option<&str>,
-    live: &[Match],
-    events: &[Event],
-) {
-    static LAST: Mutex<Option<String>> = Mutex::new(None);
+/// Every line that describes a **state** goes through here: the same sentence repeated at each
+/// poll buried the lines that matter in `Nexus.log` (90 lines in four minutes, report of
+/// 2026-11-01).
+pub fn changed(last: &mut Option<String>, line: &str) -> bool {
+    if last.as_deref() == Some(line) {
+        return false;
+    }
+    *last = Some(line.to_owned());
+    true
+}
+
+/// What identifies the watched matchup: id, region and selection, and nothing that moves.
+///
+/// It used to carry how many matchups the poll had returned, which is nine once a minute (`ids=all`)
+/// and one the rest of the time, so the line was rewritten at every other poll.
+fn watched_key(selection: &Selection, match_id: Option<&str>) -> String {
     let region = match_id
         .and_then(|id| id.split_once('-'))
         .map(|(region, _)| region);
@@ -34,16 +44,28 @@ pub fn log_watched_matchup(
         Some("2") => "EU",
         _ => "?",
     };
-    let line = format!(
-        "{} ({region}) · {:?} · {} emparejamientos",
-        match_id.unwrap_or("-"),
-        selection,
-        live.len()
-    );
+    format!("{} ({region}) · {:?}", match_id.unwrap_or("-"), selection)
+}
+
+/// Says which matchup is being watched, and what came out of the poll.
+///
+/// This is the line that answers "why did nothing alert me": if the id starts with `1-` the
+/// addon is watching North America and the player is probably in Europe (reported 2026-10-31,
+/// the team picked was `11011`, which the API plays in `1-1`). Only logged when it changes. The
+/// events that are rare (`Baseline`, `Gap`, `MatchChanged`) are written too; the ones that are not
+/// (`Claim`, `Flip`, `Unclaim`: at the start of a session every claim already standing arrives as
+/// one) go to `debug`, which the addon's log filter leaves out.
+pub fn log_watched_matchup(
+    selection: &Selection,
+    match_id: Option<&str>,
+    live: &[Match],
+    events: &[Event],
+) {
+    static LAST: Mutex<Option<String>> = Mutex::new(None);
+    let key = watched_key(selection, match_id);
     let mut last = LAST.lock().unwrap_or_else(|error| error.into_inner());
-    if last.as_deref() != Some(line.as_str()) {
-        log::info!("worker: vigilando {line}");
-        *last = Some(line);
+    if changed(&mut last, &key) {
+        log::info!("worker: vigilando {key} · {} emparejamientos", live.len());
     }
     drop(last);
 
@@ -54,16 +76,16 @@ pub fn log_watched_matchup(
                 guild,
                 late,
                 ..
-            } => log::info!("evento: Claim {objective} de {guild} (late: {late})"),
+            } => log::debug!("evento: Claim {objective} de {guild} (late: {late})"),
             Event::Flip {
                 objective,
                 to: from,
                 ..
-            } => log::info!("evento: Flip {objective} -> {from:?}"),
+            } => log::debug!("evento: Flip {objective} -> {from:?}"),
             Event::Unclaim {
                 objective, guild, ..
             } => {
-                log::info!("evento: Unclaim {objective} de {guild}")
+                log::debug!("evento: Unclaim {objective} de {guild}")
             }
             Event::Baseline { reason } => log::info!("evento: Baseline ({reason:?})"),
             Event::Gap { .. } => log::info!("evento: Gap (nos hemos perdido un tramo)"),
@@ -89,13 +111,26 @@ pub fn last_claim_of(live: &[Match], match_id: Option<&str>) -> Option<DateTime<
         .max()
 }
 
-/// A line every few polls with what the last one saw.
+/// Whether the heartbeat is due: the first poll writes it (it proves the worker is up) and then
+/// one every [`HEARTBEAT_EVERY`].
+///
+/// By time and not by number of polls: «every ten polls» was five minutes at the old 30 s default
+/// and one line a minute at the current 5 s (report of 2026-11-01).
+fn heartbeat_due(last: &mut Option<Instant>, now: Instant) -> bool {
+    let due = last.is_none_or(|at| now.saturating_duration_since(at) >= HEARTBEAT_EVERY);
+    if due {
+        *last = Some(now);
+    }
+    due
+}
+
+/// A line every five minutes with what the last poll saw.
 ///
 /// «No me avisa» has three very different causes and only the log can tell them apart: the poll may
 /// not be running, the differ may see no changes, or the events may arrive and the filter eat them.
-/// One line every ten polls (five minutes at the default) is cheap and answers the first two
-/// (report of 2026-10-31). Since 2026-10-31 it also says **when the game** last saw a claim in
-/// this matchup: if that timestamp is old, nothing is broken, there is simply nothing happening.
+/// A line every few minutes is cheap and answers the first two (report of 2026-10-31). Since
+/// 2026-10-31 it also says **when the game** last saw a claim in this matchup: if that timestamp is
+/// old, nothing is broken, there is simply nothing happening.
 pub fn heartbeat(
     events: usize,
     claims: usize,
@@ -104,8 +139,13 @@ pub fn heartbeat(
     last_claim: Option<DateTime<Utc>>,
 ) {
     static POLLS: AtomicU64 = AtomicU64::new(0);
+    static LAST: Mutex<Option<Instant>> = Mutex::new(None);
     let count = POLLS.fetch_add(1, Ordering::Relaxed) + 1;
-    if count.is_multiple_of(10) {
+    let due = heartbeat_due(
+        &mut LAST.lock().unwrap_or_else(|error| error.into_inner()),
+        Instant::now(),
+    );
+    if due {
         let newest = match last_claim {
             Some(at) => {
                 let minutes = Utc::now().signed_duration_since(at).num_minutes();
@@ -157,4 +197,76 @@ pub fn log_where(configured: Option<u32>, match_id: Option<&str>, live: &[Match]
     log::info!(
         "donde: mumble shard {shard}, color {colour:?}; equipo configurado {watched}; mumble dice {played:?}"
     );
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn t35_a_state_line_is_written_once_until_it_changes() {
+        let confirmed = Selection::Confirmed {
+            team_id: 12014,
+            match_id: "2-2".to_owned(),
+        };
+        let mut last = None;
+        let line = watched_key(&confirmed, Some("2-2"));
+        assert!(
+            changed(&mut last, &line),
+            "the first line is always written"
+        );
+        assert!(
+            !changed(&mut last, &watched_key(&confirmed, Some("2-2"))),
+            "the same state at the next poll is not written again"
+        );
+        assert!(
+            changed(&mut last, &watched_key(&Selection::Missing, None)),
+            "a different state is written"
+        );
+        assert!(
+            changed(&mut last, &line),
+            "and going back to the first is a change too"
+        );
+    }
+
+    #[test]
+    fn t35_the_watched_line_still_says_which_region_is_being_watched() {
+        let missing = Selection::Missing;
+        assert!(watched_key(&missing, Some("2-2")).contains("(EU)"));
+        assert!(watched_key(&missing, Some("1-1")).contains("(NA)"));
+        assert!(watched_key(&missing, None).contains("(?)"));
+    }
+
+    #[test]
+    fn t35_the_heartbeat_is_one_line_per_interval_whatever_the_poll_interval() {
+        let start = Instant::now();
+        let mut last = None;
+        assert!(
+            heartbeat_due(&mut last, start),
+            "the first poll proves the worker is up"
+        );
+        for poll in [
+            Duration::from_secs(5),
+            Duration::from_secs(30),
+            Duration::from_secs(120),
+        ] {
+            let mut last = Some(start);
+            let mut at = start + poll;
+            while at < start + HEARTBEAT_EVERY {
+                assert!(
+                    !heartbeat_due(&mut last, at),
+                    "no line before the interval ({poll:?})"
+                );
+                at += poll;
+            }
+            assert!(
+                heartbeat_due(&mut last, at),
+                "the interval is over, so the line is written ({poll:?})"
+            );
+            assert!(
+                !heartbeat_due(&mut last, at + poll),
+                "and the next poll does not write it again ({poll:?})"
+            );
+        }
+    }
 }

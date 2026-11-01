@@ -103,7 +103,7 @@ Estado global (en `addon/src/lib.rs` y `worker.rs`):
 
 <!-- GENERADO: no editar debajo; se rehace con scripts/gen_modelo.ps1 -->
 
-Generado el 2026-11-01 21:47 desde el commit `bb1e843`.
+Generado el 2026-11-01 22:06 desde el commit `8292bad`.
 
 ## Crate `core`
 
@@ -624,7 +624,7 @@ Which team the player is on, as arcdps sees it (RF-03a).
 - `pub fn subscribe()` — Subscribes to arcdps' self-join event. Must be called from `load`.
 - `fn on_self_join(payload: Option<&nexus::event::arc::AgentUpdate>)` — Callback del evento de ArcDPS «self join»: guarda el equipo del jugador en `SELF_TEAM`.
 - `pub fn self_team_tag() -> Option<u16>` — Opaque arcdps team tag of the local player, if arcdps has reported one.
-- `pub fn self_account() -> Option<String>` — Account name arcdps reported for the local player (`Jhoin.1234`), which is the key the team is saved under (RF-03a).
+- `pub fn self_account() -> Option<String>` — Account name arcdps reported for the local player (`:Jhoin.1234`, with the colon arcdps puts in front; verified in the game on 2026-11-01), which is the key the team is saved under (RF-03a).
 - `pub fn describe() -> String` — Tag as text for the log, so a bug report can say which side arcdps thought we were on.
 
 **APIs externas:** `nexus::event`, `nexus::event::arc::AgentUpdate`
@@ -792,7 +792,7 @@ Glue between Nexus/Mumble and the pure gate in `core`.
 **Usa (interno):** `crate::ffi`, `gw2lurker_core::gate`, `gw2lurker_core::MapRole`
 
 
-### `crates/addon/src/detect.rs` (98 líneas)
+### `crates/addon/src/detect.rs` (144 líneas)
 
 Dónde está jugando el jugador, según el juego (RF-03a).
 
@@ -805,26 +805,33 @@ Dónde está jugando el jugador, según el juego (RF-03a).
 - `fn retry_due(at: Instant, now: Instant) -> bool` — Si han pasado 60 s desde el último intento de detección.
 - `pub fn forget()` — Forgets the last sweep, so the next poll asks for the nine matchups again.
 - `pub fn cached() -> Option<Detected>` — Último equipo/match detectado desde el juego, si lo hay, sin volver a calcularlo.
+- `fn detection_line(…)` — What a detection has to say: a saved team that disagrees with the game, or a shard that is in no matchup. When the game and the saved team agree there is nothing to report.
 - `pub fn detect_in(live: &[Match], saved: Option<u32>) -> Option<Detected>` — Asks Mumble which shard the player is on and looks it up in every matchup.
 
-**Usa (interno):** `crate::ffi`, `gw2lurker_core::detect`, `gw2lurker_core::model`
+**Usa (interno):** `crate::diagnostics`, `crate::ffi`, `gw2lurker_core::detect`, `gw2lurker_core::model`, `gw2lurker_core::TeamColor`
 
-**Tests (1):** `rf03a_missing_mumble_data_is_retried_after_a_cooldown`
+**Tests (4):** `rf03a_missing_mumble_data_is_retried_after_a_cooldown`, `rf03a_a_detection_that_agrees_with_the_saved_team_says_nothing`, `rf03a_a_detection_that_disagrees_with_the_saved_team_says_both`, `rf03a_a_shard_in_no_matchup_is_reported_with_the_saved_team`
 
 
-### `crates/addon/src/diagnostics.rs` (160 líneas)
+### `crates/addon/src/diagnostics.rs` (272 líneas)
 
 What the worker writes to the log, apart from `worker` itself so that file stays within its size limit.
 
 **Contenido:**
 
+- `const HEARTBEAT_EVERY` — How often the heartbeat is written, whatever the poll interval is.
+- `pub fn changed(last: &mut Option<String>, line: &str) -> bool` — Whether `line` is different from the last one written in this slot, remembering it if so.
+- `fn watched_key(selection: &Selection, match_id: Option<&str>) -> String` — What identifies the watched matchup: id, region and selection, and nothing that moves.
 - `pub fn log_watched_matchup(…)` — Says which matchup is being watched, and what came out of the poll.
 - `pub fn last_claim_of(live: &[Match], match_id: Option<&str>) -> Option<DateTime<Utc>>` — `claimed_at` comes from the API and is the game's clock, not ours (measured: the newest claim of `1-1` was 21:02 UTC while other matchups were at 21:10, which is the difference between «the addon is s…
-- `pub fn heartbeat(…)` — A line every few polls with what the last one saw.
+- `fn heartbeat_due(last: &mut Option<Instant>, now: Instant) -> bool` — Whether the heartbeat is due: the first poll writes it (it proves the worker is up) and then one every [`HEARTBEAT_EVERY`].
+- `pub fn heartbeat(…)` — A line every five minutes with what the last poll saw.
 - `pub fn log_where(configured: Option<u32>, match_id: Option<&str>, live: &[Match])` — Says, once per change, where the game says the player is and which team the addon watches.
   - `type Key` — (equipo configurado, shard de Mumble, color de Mumble)
 
 **Usa (interno):** `crate::clock`, `crate::ffi`, `gw2lurker_core::diff`, `gw2lurker_core::model`, `gw2lurker_core::select`
+
+**Tests (3):** `t35_a_state_line_is_written_once_until_it_changes`, `t35_the_watched_line_still_says_which_region_is_being_watched`, `t35_the_heartbeat_is_one_line_per_interval_whatever_the_poll_interval`
 
 
 ### `crates/addon/src/ffi/http.rs` (317 líneas)

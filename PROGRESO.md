@@ -42,13 +42,43 @@ Reglas:
   worker según la fecha de modificación y la tecla se nombra en el hilo que pide el texto
   (`GetKeyNameTextW` usa la distribución de teclado de ese hilo).
 
+## HECHO – 2026-11-01 · Menos ruido en `Nexus.log` (sin publicar)
+
+- Resultado con su propio log (95 líneas del addon en 5 min): 59 eran `evento: Claim/Flip/Unclaim`
+  (→ `debug`, no llegan al log porque `log_filter` es `info`), 8 `deteccion:` (2 textos distintos),
+  5 `vigilando` (3 distintos, por el nº de emparejamientos), 1 `arcdps: cuenta`. Quedan ≈ 25 (arranque
+  y `gate:`, que ya eran cambios de estado). En régimen estable pasa de ≈ 3 líneas/min (vigilando +
+  deteccion + latido) a 1 cada 5 min más lo que cambie de verdad. Estimación, no medida durante una hora.
+- Cambios: `diagnostics.rs` (`changed`, `watched_key` sin el nº de emparejamientos, `heartbeat_due` por
+  tiempo con `HEARTBEAT_EVERY` = 300 s), `detect.rs` (`detection_line` pura: calla si el juego y el
+  equipo guardado coinciden; el resto se escribe una vez por resultado), `arc_team.rs` (sin log de la
+  cuenta; sigue guardándola). `worker.rs` intacto. Tests: `t35_*` (3, en `diagnostics.rs`) y
+  `rf03a_a_detection_*` / `rf03a_a_shard_*` (3, en `detect.rs`). `validate.ps1` completo en verde.
+- **Verificado en el juego**: `AgentUpdate::account` llega relleno, con los **dos puntos** de arcdps
+  (`:Lord Rematador.3056`). La clave del equipo por cuenta usa ese texto tal cual; no se normaliza para
+  no dejar huérfano lo guardado con la 0.26.5. El plan B con `EV_ACCOUNT_NAME` no hace falta.
+- Lo que no se puede ver sin publicar: Nexus sobrescribe la DLL con la publicada, así que el recorte se
+  comprueba en el siguiente `Nexus.log` tras una 0.26.6.
+- Petición del jugador: «ya no hace falta crear tantos logs». Con su `Nexus.log` delante (90 líneas
+  del addon en 4 minutos de juego) las fuentes de ruido son: una línea por cada `Claim` (~50 `late: true`
+  al arrancar) y `Flip`/`Unclaim`; `worker: vigilando` que **alterna** cada minuto porque su clave
+  lleva el número de emparejamientos (9 con `ids=all`, 1 con la partida sola); `deteccion:` repetida
+  cada 60 s con el mismo texto; el latido cada 10 sondeos (≈1 min con 5 s, no los «cinco minutos» que
+  decía el comentario); y `arcdps: cuenta <nombre>`, que ya cumplió (**verificado en el juego**: llega
+  `:Lord Rematador.3056`, con los dos puntos de arcdps) y además metía el nombre de cuenta en un fichero
+  que se pega en los informes.
+- Plan: quitar la línea de la cuenta; `Claim`/`Flip`/`Unclaim` a `debug` (el addon filtra a `info`);
+  `vigilando` y `deteccion` solo al cambiar de verdad; latido por tiempo (5 min). Sin tocar `worker.rs`
+  (777 líneas).
+
 ## HECHO – 2026-11-01 · Publicada la 0.26.5
 
 - Release `gw2-lurker-v0.26.5`, MD5 `5db876cb1ce08641388a44cc08b28d8e` (2 202 112 B), verificado con
   la descarga real. Retención: quedan 0.26.5 y 0.26.4; borrada la 0.26.3.
 - Contenido: el equipo se guarda por cuenta (`AgentUpdate::account` de arcdps).
-- Pendiente de probar en GW2: que `Nexus.log` diga `arcdps: cuenta <nombre>` con la cuenta real y
-  que el selector salga una sola vez por cuenta, no por personaje.
+- Pendiente de probar en GW2: ~~que `Nexus.log` diga `arcdps: cuenta <nombre>`~~ (verificado el
+  2026-11-01: `:Lord Rematador.3056`; esa línea ya no se escribe desde el recorte de logs) y que
+  el selector salga una sola vez por cuenta, no por personaje.
 
 ## HECHO – 2026-11-01 · El equipo se guarda por cuenta (RF-03a)
 
@@ -66,8 +96,9 @@ Reglas:
   (`identity_changed` con `team::current_key()`), no con cada personaje.
 - Spec actualizada (RF-03a) y CHANGELOG. Tests: `rf03a_the_team_is_remembered_per_account_and_shared_by_its_characters`
   y `rf03a_a_team_saved_per_character_still_resolves_after_the_upgrade`.
-- UNVERIFIED: que `AgentUpdate::account` llegue con `Jhoin.1234` en el juego. El log imprime
-  `arcdps: cuenta <nombre>` la primera vez de cada sesión; con eso se comprueba.
+- ~~UNVERIFIED: que `AgentUpdate::account` llegue con `Jhoin.1234` en el juego.~~ **Verificado el
+  2026-11-01**: llega `:Lord Rematador.3056` (con los dos puntos de arcdps). El log de la cuenta se
+  quitó después (ver «Menos ruido en `Nexus.log`»).
 
 ## HECHO – 2026-11-01 · Publicada la 0.26.4
 

@@ -2,6 +2,13 @@
 Formato [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/), versionado [SemVer](https://semver.org/lang/es/).
 
 ## [Unreleased]
+### Cambiado
+- `Nexus.log` escribe bastante menos: los reclamos, cambios de dueño y abandonos de cada sondeo ya
+  no se anotan (eran ~60 líneas en los primeros minutos), y `vigilando` y `deteccion` solo salen
+  cuando algo cambia en vez de repetirse cada minuto. El latido (`sondeo N`) sale cada cinco
+  minutos aunque el intervalo de sondeo sea de 5 s. Se mantienen el arranque, los cambios de
+  contexto (`gate`), los avisos y los errores.
+- El log ya no guarda el nombre de tu cuenta de GW2: se pega en los informes.
 
 ## [0.26.5] - 2026-11-01
 ### Añadido

@@ -38,11 +38,11 @@ fn on_self_join(payload: Option<&nexus::event::arc::AgentUpdate>) {
     };
     SELF_TEAM.store(i32::from(agent.team), Ordering::Relaxed);
     // El equipo se recuerda por cuenta, no por personaje (RF-03a): arcdps da el nombre de
-    // cuenta en el mismo evento que el equipo, así que no hay que preguntar nada.
+    // cuenta en el mismo evento que el equipo, así que no hay que preguntar nada. El nombre no
+    // se escribe en el log: se pega en los informes y ya está verificado que llega.
     if let Some(account) = agent.account().map(str::trim).filter(|a| !a.is_empty()) {
         let mut slot = ACCOUNT.lock().unwrap_or_else(|error| error.into_inner());
         if slot.as_deref() != Some(account) {
-            log::info!("arcdps: cuenta {account}");
             *slot = Some(account.to_owned());
         }
     }
@@ -57,8 +57,8 @@ pub fn self_team_tag() -> Option<u16> {
         .filter(|tag| *tag != 0)
 }
 
-/// Account name arcdps reported for the local player (`Jhoin.1234`), which is the key the team
-/// is saved under (RF-03a).
+/// Account name arcdps reported for the local player (`:Jhoin.1234`, with the colon arcdps puts in
+/// front; verified in the game on 2026-11-01), which is the key the team is saved under (RF-03a).
 ///
 /// Copied out on purpose: the event arrives on arcdps' thread, so callers never hold the lock.
 pub fn self_account() -> Option<String> {
