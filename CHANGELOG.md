@@ -1,6 +1,16 @@
 # Changelog
 Formato [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/), versionado [SemVer](https://semver.org/lang/es/).
 
+## [0.25.13] - 2026-11-01
+### Arreglado
+- **El mapa pintaba «sin reclamar» objetivos que sí tenían dueño** (informe del jugador): el color de
+  cada objetivo salía del reclamo, y un objetivo capturado **sin claim** no tiene reclamo, así que se
+  dibujaba en gris y su hover no decía el dueño. Ahora `matchup::states` da **todos** los objetivos del
+  match con su dueño y el mapa lo usa: un puesto rojo sin reclamar se dibuja rojo y se lee
+  «Rojo · Sin reclamar». La lista de reclamos y las rutas no cambian.
+- Tests nuevos: un objetivo sin claim conserva dueño y hora vacía; el hover dice el color; los estados
+  y los reclamos coinciden en qué objetivos están reclamados.
+
 ## [0.25.12] - 2026-11-01
 ### Cambiado
 - **Ajustes por defecto de una instalación nueva** (petición del jugador): en «avisar de» vienen

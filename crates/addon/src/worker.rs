@@ -15,7 +15,7 @@ use std::time::{Duration, Instant};
 use chrono::{DateTime, Utc};
 use gw2lurker_api::Api;
 use gw2lurker_core::diff::{Differ, Event};
-use gw2lurker_core::matchup::{self, ClaimRow, GuildSummary};
+use gw2lurker_core::matchup::{self, ClaimRow, GuildSummary, ObjectiveState};
 use gw2lurker_core::model::{MapRole, Match, ObjectiveInfo};
 use gw2lurker_core::select::{self, Selection};
 
@@ -71,6 +71,11 @@ pub struct Dashboard {
     pub selection: Selection,
     /// Claims across the matchup (RF-70).
     pub claims: Vec<ClaimRow>,
+    /// Every objective of the matchup with its owner, claimed or not (RF-30b).
+    ///
+    /// The map cannot colour objectives from `claims`: an objective captured without a claim has
+    /// no row there and would be drawn as unclaimed.
+    pub states: Vec<ObjectiveState>,
     /// Guilds ranked by most recent claim (RF-71).
     pub guilds: Vec<GuildSummary>,
     /// Objectives of the current language, for naming alerts.
@@ -395,6 +400,7 @@ fn poll_once(api: &Api<WinHttpTransport>, differ: &mut Differ) -> Result<(), Str
     // Diff first: the dashboard lock must not be taken while building the history.
     let mut events = Vec::new();
     let mut claims = Vec::new();
+    let mut states = Vec::new();
     let mut guilds = Vec::new();
     let mut new_history = Vec::new();
     let roles_of_match: std::collections::BTreeMap<u32, MapRole> = live
@@ -409,6 +415,7 @@ fn poll_once(api: &Api<WinHttpTransport>, differ: &mut Differ) -> Result<(), Str
             Utc::now(),
         ));
         claims = matchup::claims(entry, &names);
+        states = matchup::states(entry);
         guilds = matchup::rank_guilds(&claims);
         new_history = events
             .iter()
@@ -459,6 +466,7 @@ fn poll_once(api: &Api<WinHttpTransport>, differ: &mut Differ) -> Result<(), Str
     let objective_count = board.names.len();
     board.claims = claims;
     let claim_count = board.claims.len();
+    board.states = states;
     board.guilds = guilds;
     for event in &events {
         board.push_alert(event.clone());

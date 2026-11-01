@@ -109,14 +109,13 @@ fn rf30a_scoring_objectives_are_the_only_ones_drawn() {
 fn rf30_the_hover_says_who_and_when_and_leaves_the_name_out() {
     // Petición del jugador (2026-11-01): el nombre del sitio no hace falta (ya sabe dónde está) y
     // alargaba la caja hasta tapar los objetivos vecinos. El alto valor, al final.
-    let row = ClaimRow {
+    let state = ObjectiveState {
         map_id: 38,
         map_role: MapRole::Center,
         objective_id: "38-20".to_owned(),
-        name: Some("Palacio del Aguila Pescadora".to_owned()),
         kind: ObjectiveType::Keep,
         owner: Some(TeamColor::Blue),
-        guild: "6C45F3C8".to_owned(),
+        guild: Some("6C45F3C8".to_owned()),
         claimed_at: Some(
             chrono::DateTime::parse_from_rfc3339("2026-11-01T12:31:00Z")
                 .expect("fecha")
@@ -130,7 +129,7 @@ fn rf30_the_hover_says_who_and_when_and_leaves_the_name_out() {
     follow.add("6C45F3C8");
 
     use gw2lurker_core::i18n::{t, Language};
-    let line = detail_line(Some(&row), &names, &follow, Language::Es);
+    let line = detail_line(Some(&state), &names, &follow, Language::Es);
     assert!(
         !line.contains("Palacio"),
         "el nombre del sitio no va en el hover: {line}"
@@ -141,7 +140,10 @@ fn rf30_the_hover_says_who_and_when_and_leaves_the_name_out() {
     assert_eq!(parts.len(), 4, "{line}");
     assert_eq!(parts[0], t(Language::Es, "Blue"));
     assert_eq!(parts[1], "* [YaK] Dolyak Sanctuary");
-    assert_eq!(parts[2], crate::clock::clock(row.claimed_at.expect("hora")));
+    assert_eq!(
+        parts[2],
+        crate::clock::clock(state.claimed_at.expect("hora"))
+    );
     assert_eq!(
         parts[3],
         t(Language::Es, "High value"),
@@ -154,6 +156,38 @@ fn rf30_the_hover_without_a_claim_only_says_unclaimed() {
     use gw2lurker_core::i18n::{t, Language};
     let line = detail_line(None, &BTreeMap::new(), &FollowList::default(), Language::Es);
     assert_eq!(line, t(Language::Es, "Unclaimed"));
+}
+
+#[test]
+fn rf30b_an_objective_owned_without_claim_keeps_its_colour_on_the_hover() {
+    // Informe del jugador (2026-11-01): «Puesto avanzado abrasado» pasó a rojo y el mapa seguía
+    // diciendo «sin reclamar». El dueño no sale del reclamo, sale del objetivo.
+    use gw2lurker_core::i18n::{t, Language};
+    let state = ObjectiveState {
+        map_id: 38,
+        map_role: MapRole::Center,
+        objective_id: "38-6".to_owned(),
+        kind: ObjectiveType::Camp,
+        owner: Some(TeamColor::Red),
+        guild: None,
+        claimed_at: None,
+        points_tick: 2,
+    };
+    let line = detail_line(
+        Some(&state),
+        &BTreeMap::new(),
+        &FollowList::default(),
+        Language::Es,
+    );
+    assert_eq!(
+        line,
+        format!(
+            "{}  ·  {}",
+            t(Language::Es, "Red"),
+            t(Language::Es, "Unclaimed")
+        ),
+        "un objetivo rojo sin reclamar se lee «Rojo · Sin reclamar», no sólo «Sin reclamar»"
+    );
 }
 #[test]
 fn rf31_the_guild_menu_is_the_followed_ones_and_then_the_latest_five() {

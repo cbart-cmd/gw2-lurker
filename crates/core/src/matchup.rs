@@ -119,6 +119,72 @@ pub fn claims(m: &Match, names: &[ObjectiveInfo]) -> Vec<ClaimRow> {
     rows
 }
 
+/// Estado de un objetivo en el snapshot: **dueño siempre**, claim solo si lo hay (RF-30b).
+///
+/// El mapa necesita esto y no [`ClaimRow`]: [`claims`] solo devuelve objetivos reclamados, así que
+/// un objetivo que cambia a rojo **sin** claim se quedaba sin fila y se pintaba con el color de
+/// «sin reclamar» aunque su dueño fuese rojo. El jugador lo vio el 2026-11-01 con «Puesto avanzado
+/// abrasado»: el registro de avisos decía `AZUL -> ROJO` y el mapa seguía en gris.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ObjectiveState {
+    /// Map the objective belongs to.
+    pub map_id: u32,
+    /// Role of that map inside the matchup.
+    pub map_role: MapRole,
+    /// Objective id (`"38-20"`).
+    pub objective_id: String,
+    /// Objective kind.
+    pub kind: ObjectiveType,
+    /// Current owner colour, as the API reports it.
+    pub owner: Option<TeamColor>,
+    /// Guild holding the claim right now; `None` when the objective is not claimed.
+    pub guild: Option<String>,
+    /// Claim time, only when [`ObjectiveState::guild`] is `Some`.
+    pub claimed_at: Option<DateTime<Utc>>,
+    /// `points_tick` of the objective in this snapshot (RF-30b).
+    pub points_tick: u32,
+}
+
+impl ObjectiveState {
+    /// Whether the objective scores enough to be marked (RF-30b).
+    pub fn is_high_value(&self) -> bool {
+        self.points_tick >= crate::model::HIGH_VALUE_TICK
+    }
+}
+
+/// Flattens **every** objective of the match with its owner, claimed or not (RF-30b).
+///
+/// Ordering is `(map id, objective id)`, like [`claims`], so the same snapshot always produces the
+/// same list.
+pub fn states(m: &Match) -> Vec<ObjectiveState> {
+    let mut rows: Vec<ObjectiveState> = m
+        .maps
+        .iter()
+        .flat_map(|map| {
+            map.objectives.iter().map(move |o| {
+                let guild = claim_holds(o)
+                    .then(|| o.claimed_by.clone())
+                    .flatten()
+                    .filter(|guild| !guild.is_empty());
+                let claimed_at = guild.as_ref().and(o.claimed_at);
+                ObjectiveState {
+                    map_id: map.id,
+                    map_role: map.role,
+                    objective_id: o.id.clone(),
+                    kind: o.kind,
+                    owner: o.owner,
+                    guild,
+                    claimed_at,
+                    points_tick: o.points_tick,
+                }
+            })
+        })
+        .collect();
+
+    rows.sort_by(|a, b| (a.map_id, &a.objective_id).cmp(&(b.map_id, &b.objective_id)));
+    rows
+}
+
 /// Rows grouped by map role, in a stable order (RF-70).
 pub fn by_map(rows: &[ClaimRow]) -> Vec<(MapRole, Vec<ClaimRow>)> {
     const ORDER: [MapRole; 4] = [
@@ -325,6 +391,70 @@ mod tests {
             .filter(|o| o.claimed_by.is_some())
             .count();
         assert_eq!(rows.len(), expected);
+    }
+
+    #[test]
+    fn rf30b_an_objective_without_claim_keeps_its_owner() {
+        // El mapa no puede deducir el color del reclamo: un objetivo capturado sin reclamar no
+        // tenía fila en `claims` y se pintaba como «sin reclamar» (informe de 2026-11-01, «Puesto
+        // avanzado abrasado»: el aviso decía AZUL -> ROJO y el mapa seguía gris).
+        let json = r#"{
+            "id": "1-1",
+            "scores": {"green": 0, "blue": 0, "red": 0},
+            "all_worlds": {"green": [], "blue": [], "red": []},
+            "maps": [{
+                "id": 38,
+                "type": "Center",
+                "objectives": [
+                    {"id": "38-1", "type": "Camp", "owner": "Red", "points_tick": 2},
+                    {"id": "38-2", "type": "Camp", "owner": "Blue",
+                     "claimed_by": "AAAA", "claimed_at": "2026-10-31T22:02:34Z",
+                     "last_flipped": "2026-10-31T22:02:32Z"},
+                    {"id": "38-3", "type": "Camp", "owner": "Green",
+                     "claimed_by": "AAAA", "claimed_at": "2026-10-31T20:00:00Z",
+                     "last_flipped": "2026-10-31T21:30:00Z"}
+                ]
+            }]
+        }"#;
+        let m: Match = serde_json::from_str(json).unwrap();
+        let states = states(&m);
+
+        assert_eq!(states.len(), 3, "todo objetivo del match tiene estado");
+        assert_eq!(
+            (states[0].owner, states[0].guild.as_deref()),
+            (Some(TeamColor::Red), None),
+            "38-1 está rojo y sin reclamar: conserva el dueño"
+        );
+        assert_eq!(
+            (states[1].owner, states[1].guild.as_deref()),
+            (Some(TeamColor::Blue), Some("AAAA")),
+            "38-2 tiene un reclamo vigente"
+        );
+        assert_eq!(
+            (states[2].owner, states[2].guild.as_deref()),
+            (Some(TeamColor::Green), None),
+            "38-3 dio la vuelta después del reclamo: dueño sí, clan no"
+        );
+        assert!(
+            claims(&m, &[]).iter().all(|r| r.objective_id != "38-1"),
+            "la lista de reclamos no cambia: un objetivo sin claim sigue sin fila"
+        );
+    }
+
+    #[test]
+    fn rf30b_every_objective_of_the_fixture_has_an_owner_state() {
+        // Invariante de los datos reales: `states` cubre exactamente los objetivos del match, y
+        // ninguno de los reclamados pierde su clan por el camino.
+        let (m, _) = fixture();
+        let states = states(&m);
+        let total: usize = m.maps.iter().map(|map| map.objectives.len()).sum();
+        assert_eq!(states.len(), total);
+        assert!(states.iter().all(|s| s.owner.is_some()), "owner del API");
+        assert_eq!(
+            states.iter().filter(|s| s.guild.is_some()).count(),
+            claims(&m, &[]).len(),
+            "los estados y los reclamos deben coincidir en qué objetivos están reclamados"
+        );
     }
 
     #[test]

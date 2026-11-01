@@ -13,6 +13,27 @@ Reglas:
 
 ---
 
+## HECHO – 2026-11-01 · El mapa coloreaba solo los objetivos reclamados (0.25.13)
+
+- Informe del jugador: «Puesto avanzado abrasado» pasó a rojo (aviso `AZUL -> ROJO`, 11:01:41) y el
+  mapa seguía en «sin reclamar».
+- **No era caché ni retraso del sondeo.** `map::body` deducía el dueño de la fila de `matchup::claims`,
+  y `claims` solo emite objetivos con claim vivo (`claim_holds` + `claimed_by`). Un objetivo capturado
+  **sin** claim no tiene fila: se pintaba con `UNCLAIMED` y el hover caía al texto «Sin reclamar». En
+  el registro, 8 s después del vuelco, llega `[aT] … · Sin reclamar` (`Event::Unclaim`), así que el
+  caso reportado era exactamente dueño rojo + claim vacío.
+- Arreglo: nuevo `core::matchup::ObjectiveState` + `states(&Match)` — **todos** los objetivos del match
+  con `owner`, y `guild`/`claimed_at` solo si el claim sigue vivo. `Dashboard::states`, `Tabbed::states`
+  y `map::View::states` lo llevan hasta el dibujo; `detail_line` pasa a recibir `Option<&ObjectiveState>`
+  y dice «Rojo · Sin reclamar». `claims` y `history` no cambian: siguen alimentando la pestaña Clanes,
+  el ranking y las rutas.
+- Tests: `rf30b_an_objective_without_claim_keeps_its_owner` (dueño sí, clan no, y `claims` no cambia),
+  `rf30b_every_objective_of_the_fixture_has_an_owner_state` (invariante contra la fixture: 44 objetivos
+  y el mismo número de reclamados que `claims`) y
+  `rf30b_an_objective_owned_without_claim_keeps_its_colour_on_the_hover`.
+- Spec actualizada (RF-30b): el color sale del `owner` del objetivo, **no** del reclamo.
+- **No verificado:** falta verlo en el juego con una captura sin reclamar.
+
 ## HECHO – 2026-11-01 · Ajustes por defecto de una instalación nueva (0.25.12)
 
 - Petición del jugador: en «avisar de», de fábrica solo **«el mapa en el que estoy»** y **«los clanes

@@ -9,7 +9,7 @@
 
 use std::collections::BTreeMap;
 
-use gw2lurker_core::matchup::ClaimRow;
+use gw2lurker_core::matchup::{ClaimRow, ObjectiveState};
 use gw2lurker_core::model::{MapRole, ObjectiveInfo, ObjectiveType, TeamColor, WvwMap};
 use gw2lurker_core::project::{tile_box, tiles_of, TILE_ZOOM};
 use gw2lurker_core::{project, FollowList, Frame};
@@ -40,8 +40,11 @@ const FOLLOWED_RING: [f32; 4] = [1.0, 0.86, 0.4, 1.0];
 ///
 /// A struct and not eight parameters: the signature was already at the limit clippy allows.
 pub struct View<'a> {
-    /// Claims of the whole matchup: owner and guild of each objective.
-    pub rows: &'a [ClaimRow],
+    /// Every objective of the matchup with its owner and, if claimed, its guild (RF-30b).
+    ///
+    /// Not the claim rows: an objective captured without a claim has no row there and used to be
+    /// drawn as unclaimed.
+    pub states: &'a [ObjectiveState],
     /// Objectives of the player's language, with the `coord` the drawing needs.
     pub names: &'a [ObjectiveInfo],
     /// Boxes of the four maps (RF-30).
@@ -68,7 +71,7 @@ pub struct View<'a> {
 /// The route is always captioned as inferred (ADR-005); the caption lives next to the drawing.
 pub fn body(ui: &Ui, view: &View<'_>, role: &mut MapRole, here: Option<MapRole>) {
     let View {
-        rows,
+        states,
         names,
         maps,
         follow,
@@ -136,7 +139,7 @@ pub fn body(ui: &Ui, view: &View<'_>, role: &mut MapRole, here: Option<MapRole>)
     let list = ui.get_window_draw_list();
     // One pass to know where every objective lands: the drawing and the hover check need the
     // same points, and asking `get_window_draw_list` twice per frame is a panic (see above).
-    let mut drawn: Vec<([f32; 2], &ObjectiveInfo, Option<&ClaimRow>)> = Vec::new();
+    let mut drawn: Vec<([f32; 2], &ObjectiveInfo, Option<&ObjectiveState>)> = Vec::new();
     for objective in names.iter().filter(|objective| objective.map_id == map.id) {
         let Some(coord) = objective.coord else {
             continue; // `coord: null` se omite, no se dibuja en (0,0) (RF-30)
@@ -147,8 +150,10 @@ pub fn body(ui: &Ui, view: &View<'_>, role: &mut MapRole, here: Option<MapRole>)
         let Some(point) = project(&frame, [coord[0], coord[1]], origin, size) else {
             continue;
         };
-        let row = rows.iter().find(|row| row.objective_id == objective.id);
-        drawn.push((point, objective, row));
+        let state = states
+            .iter()
+            .find(|state| state.objective_id == objective.id);
+        drawn.push((point, objective, state));
     }
 
     // Hover: the cursor position is enough, no imgui item needed for a drawing made by hand.
@@ -165,7 +170,7 @@ pub fn body(ui: &Ui, view: &View<'_>, role: &mut MapRole, here: Option<MapRole>)
     // dibuja dentro del recorte del mapa, que es donde está el ratón.
     let hover_text = hovered
         .and_then(|index| drawn.get(index))
-        .map(|(_, _, row)| detail_line(*row, guild_names, follow, i18n::active()));
+        .map(|(_, _, state)| detail_line(*state, guild_names, follow, i18n::active()));
 
     let since =
         range_choice(ui).map(|minutes| chrono::Utc::now() - chrono::Duration::minutes(minutes));
@@ -189,19 +194,20 @@ pub fn body(ui: &Ui, view: &View<'_>, role: &mut MapRole, here: Option<MapRole>)
             draw_background(&list, origin, size, &frame, map_label(*role));
         }
 
-        for (index, (point, objective, row)) in drawn.iter().enumerate() {
-            let followed = row.is_some_and(|row| follow.contains(&row.guild));
+        for (index, (point, objective, state)) in drawn.iter().enumerate() {
+            let guild = state.and_then(|state| state.guild.as_deref());
+            let followed = guild.is_some_and(|guild| follow.contains(guild));
             draw_objective(
                 &list,
                 *point,
                 objective.kind,
-                row.and_then(|row| row.owner),
-                row.is_none_or(|row| row.is_high_value()),
+                state.and_then(|state| state.owner),
+                state.is_none_or(|state| state.is_high_value()),
                 followed,
             );
-            if let (true, Some(row)) = (followed, row) {
+            if let (true, Some(guild)) = (followed, guild) {
                 // El tag del clan, junto al anillo: el color no puede ser la única información (RF-31).
-                if let Some(tag) = guild_names.get(&row.guild).and_then(|label| tag_of(label)) {
+                if let Some(tag) = guild_names.get(guild).and_then(|label| tag_of(label)) {
                     list.add_text([point[0] + 10.0, point[1] - 6.0], FOLLOWED_RING, tag);
                 }
             }
@@ -499,15 +505,17 @@ fn nearest(spots: &[[f32; 2]], mouse: [f32; 2], max_distance: f32) -> Option<usi
 /// El idioma entra como parámetro: leer el activo pasa por Nexus (API RealTime), que revienta fuera
 /// del juego y haría esto imposible de probar — el mismo motivo que en `alerts::spans`.
 fn detail_line(
-    row: Option<&ClaimRow>,
+    state: Option<&ObjectiveState>,
     guild_names: &BTreeMap<String, String>,
     follow: &FollowList,
     language: gw2lurker_core::i18n::Language,
 ) -> String {
     use gw2lurker_core::i18n::t;
     let mut parts: Vec<String> = Vec::new();
-    if let Some(row) = row {
-        if let Some(owner) = row.owner {
+    if let Some(state) = state {
+        // El dueño sale del objetivo, **no** del reclamo: un objetivo capturado sin reclamar
+        // también tiene color (informe de 2026-11-01, «Puesto avanzado abrasado»).
+        if let Some(owner) = state.owner {
             parts.push(
                 t(
                     language,
@@ -520,21 +528,26 @@ fn detail_line(
                 .to_owned(),
             );
         }
-        // `[TAG] Nombre`, no el id: el hover decía el id y no había forma de reconocer el clan
-        // (informe de 2026-10-31).
-        let name = guild_names
-            .get(&row.guild)
-            .cloned()
-            .unwrap_or_else(|| row.guild.clone());
-        parts.push(if follow.contains(&row.guild) {
-            format!("* {name}")
-        } else {
-            name
-        });
-        if let Some(at) = row.claimed_at {
-            parts.push(crate::clock::clock(at));
+        match state.guild.as_deref() {
+            // `[TAG] Nombre`, no el id: el hover decía el id y no había forma de reconocer el clan
+            // (informe de 2026-10-31).
+            Some(guild) => {
+                let name = guild_names
+                    .get(guild)
+                    .cloned()
+                    .unwrap_or_else(|| guild.to_owned());
+                parts.push(if follow.contains(guild) {
+                    format!("* {name}")
+                } else {
+                    name
+                });
+                if let Some(at) = state.claimed_at {
+                    parts.push(crate::clock::clock(at));
+                }
+            }
+            None => parts.push(t(language, "Unclaimed").to_owned()),
         }
-        if row.is_high_value() {
+        if state.is_high_value() {
             parts.push(t(language, "High value").to_owned());
         }
     } else {

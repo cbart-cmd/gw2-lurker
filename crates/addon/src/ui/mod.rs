@@ -227,13 +227,14 @@ fn draw_widget(ui: &nexus::imgui::Ui) {
         let config = crate::runtime();
         (config.alerts, config.followed.clone())
     };
-    let (candidates, guilds, names, claims, alerts, objectives, maps, worlds) = {
+    let (candidates, guilds, names, claims, states, alerts, objectives, maps, worlds) = {
         let board = crate::worker::dashboard();
         (
             board.candidates.clone(),
             board.guilds.clone(),
             board.guild_names.clone(),
             board.claims.clone(),
+            board.states.clone(),
             board.recent_alerts(&alerts_cfg, &follow, current, 50),
             board.names.clone(),
             board.maps.clone(),
@@ -260,6 +261,7 @@ fn draw_widget(ui: &nexus::imgui::Ui) {
                 guilds: &guilds,
                 names: &names,
                 claims: &claims,
+                states: &states,
                 alerts: &alerts,
                 follow: &follow,
                 current,
@@ -315,6 +317,9 @@ pub(super) struct Tabbed<'a> {
     guilds: &'a [gw2lurker_core::matchup::GuildSummary],
     names: &'a std::collections::BTreeMap<String, String>,
     claims: &'a [gw2lurker_core::matchup::ClaimRow],
+    /// Dueño y claim de **cada** objetivo del match (RF-30b): el mapa no puede colorear sólo los
+    /// reclamados.
+    states: &'a [gw2lurker_core::matchup::ObjectiveState],
     alerts: &'a [crate::worker::AlertLine],
     follow: &'a gw2lurker_core::FollowList,
     current: Option<MapRole>,
@@ -382,7 +387,7 @@ fn draw_tabs(
                     map::body(
                         ui,
                         &map::View {
-                            rows: data.claims,
+                            states: data.states,
                             names: data.objectives,
                             maps: data.maps,
                             follow: data.follow,

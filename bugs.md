@@ -259,3 +259,17 @@ busco clan, lo encuentro, clico para añadir en el bastion, y en vez de guardar 
 - Solo afecta a instalaciones nuevas o a quien no tenga esos campos guardados: tus ajustes actuales no
   se tocan.
 - **Pendiente:** verlo con un `settings.json` limpio (o borrando las claves `alerts` y `popup_secs`).
+
+## [ ] en el mapa, un objetivo capturado sin reclamo sigue en «sin reclamar» (2026-11-01)
+«mapa rojo, puesto avanzado abrasado se ha reclamado pero en el mapa sigue en "sin reclamar". parece
+que el mapa no recoge las actualizaciones a la vez que los avisos»
+- **Causa (real, no era caché):** el mapa deducía el color del objetivo de `matchup::claims`, que solo
+  devuelve objetivos **reclamados**. Un objetivo capturado **sin claim** no tenía fila, así que se
+  pintaba con el gris de «sin reclamar» y su hover no decía el dueño. Tu registro enseñaba
+  `AZUL -> ROJO` a las 11:01:41 y `[aT] … · Sin reclamar` a las 11:01:49: el objetivo era rojo y sin
+  claim, justo el caso que el mapa no sabía dibujar. Los avisos no se «adelantan»: son histórico y el
+  mapa es el presente del último sondeo (5 s).
+- **Hecho (0.25.13):** `matchup::states` devuelve **todos** los objetivos del match con su `owner` y,
+  si lo hay, clan y hora; el mapa y su hover se alimentan de ahí. Un objetivo rojo sin reclamar se lee
+  «Rojo · Sin reclamar». `claims` no cambia (es la lista de reclamos y el historial de rutas).
+- **Pendiente:** verlo en el juego con la siguiente captura sin reclamar.

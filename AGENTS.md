@@ -41,7 +41,7 @@ Proyecto: addon de Nexus (Guild Wars 2) en Rust para Mundo contra Mundo. Avisa d
    ```
 5. Actualiza la documentación afectada (rustdoc, CHANGELOG si es visible para el usuario, `03-tasks.md`).
 6. Entrega con el formato de la sección 5.
-7. Es un archivo compartido. Si se borran filas, es porque el usuario las ha borrado. Así que no es un problema. Pero si añade algo mientras trabajas en solucionar bugs, NO borres las filas que el usuario haya añadido. 
+7. Bugs-md es un archivo compartido. Si se borran filas, es porque el usuario las ha borrado. Así que no es un problema. Pero si añade algo mientras trabajas en solucionar bugs, NO borres las filas que el usuario haya añadido. 
 
 ## 4. Mapa del repositorio
 
