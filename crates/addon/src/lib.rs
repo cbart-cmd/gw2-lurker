@@ -41,8 +41,7 @@ nexus::export! {
     unload: crate::unload,
     flags: nexus::AddonFlags::DisableHotloading,
     provider: nexus::UpdateProvider::Direct,
-    update_link: "https://raw.githubusercontent.com/cbart-cmd/gw2addonsreleases/main/gw2_lurker.dll",
-    log_filter: "info"
+    update_link: "https://raw.githubusercontent.com/cbart-cmd/gw2addonsreleases/main/gw2_lurker.dll"
 }
 
 /// Directory name used by Nexus for this addon (`addons/gw2_lurker/`).

@@ -46,6 +46,20 @@ Reglas:
   verificarlos (403 entre carpetas, no redimensiona el viewport): se probaron con Edge del sistema
   y `playwright-core` (hay que reinstalarlo; no queda nada en el repo).
 
+## HECHO – 2026-11-02 · DLL de 2,28 MB a 1,62 MB sin tocar funcionalidad
+
+- `cargo bloat --crates`: `regex` + `regex_automata` + `aho_corasick` + `regex_syntax` ≈ 390 KiB.
+  Entraban **solo** por la feature `log_filter` de `nexus` (→ `env_filter`), para parsear
+  `log_filter: "info"`, que es un nivel sin directivas por módulo.
+- Cambio: se quita `log_filter` (feature y campo de `export!`) y se pide `log` con
+  `max_level_info`. Es el mismo filtro, pero se aplica al compilar: los `debug!`/`trace!` no
+  llegan a la DLL. Fuente: `nexus/src/logger.rs` (sin la feature, `NexusLogger` deja pasar todo
+  y `set_max_level(Trace)`; lo corta el límite estático de `log`).
+- 2 284 032 → **1 616 896 bytes** (−29 %). `validate.ps1 -Release` en verde (373 tests).
+- Lo que queda (`std` con `panic="unwind"` por ADR-008, imgui, serde_json, nuestro código) es
+  funcional; no hay otro recorte grande sin tocar un ADR.
+- **No verificado en el juego:** que el log de Nexus siga mostrando info/warn/error.
+
 ## HECHO – 2026-11-02 · Aviso de API parada a 5 min y selector de equipo en ventana propia
 
 - Aviso de API congelada: el umbral **ya era 5 min** (ahora constante `FROZEN_AFTER_MIN` en

@@ -3,15 +3,6 @@
 version = 4
 
 [[package]]
-name = "aho-corasick"
-version = "1.1.5"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c982642fa9e8606056828ee9a8505737230110bb1099153c79efe865c59d12ba"
-dependencies = [
- "memchr",
-]
-
-[[package]]
 name = "android_system_properties"
 version = "0.1.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -123,26 +114,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "env_filter"
-version = "0.1.4"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1bf3c259d255ca70051b30e2e95b5446cdb8949ac4cd22c0d7fd634d89f568e2"
-dependencies = [
- "log",
- "regex",
-]
-
-[[package]]
-name = "env_filter"
-version = "2.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "900d271a03799a1ee8d1ca9b19893b48ca674a9284fefcfb85f05e74ed314217"
-dependencies = [
- "log",
- "regex",
-]
-
-[[package]]
 name = "equivalent"
 version = "1.0.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -225,7 +196,7 @@ dependencies = [
 
 [[package]]
 name = "gw2lurker-addon"
-version = "0.26.7"
+version = "0.26.8"
 dependencies = [
  "chrono",
  "gw2lurker-api",
@@ -239,7 +210,7 @@ dependencies = [
 
 [[package]]
 name = "gw2lurker-api"
-version = "0.26.7"
+version = "0.26.8"
 dependencies = [
  "gw2lurker-core",
  "serde",
@@ -248,7 +219,7 @@ dependencies = [
 
 [[package]]
 name = "gw2lurker-core"
-version = "0.26.7"
+version = "0.26.8"
 dependencies = [
  "chrono",
  "serde",
@@ -370,7 +341,6 @@ source = "git+https://github.com/zerthox/nexus-rs?tag=0.12.0#8682c50b4340e29d1d7
 dependencies = [
  "arcdps-imgui",
  "bitflags 2.13.2",
- "env_filter 2.0.0",
  "evtc",
  "gw2_mumble",
  "log",
@@ -387,7 +357,6 @@ version = "0.3.2"
 source = "git+https://github.com/zerthox/nexus-rs?tag=0.12.0#8682c50b4340e29d1d7495253728cae7b381cd63"
 dependencies = [
  "cfg-if",
- "env_filter 0.1.4",
  "paste",
  "proc-macro2",
  "quote",
@@ -521,35 +490,6 @@ checksum = "fb5a58c1855b4b6819d59012155603f0b22ad30cad752600aadfcb695265519a"
 dependencies = [
  "bitflags 1.3.2",
 ]
-
-[[package]]
-name = "regex"
-version = "1.13.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f020237b6c8eed93db2e2cb53c00c60a8e1bc73da7d073199a1180401450218d"
-dependencies = [
- "aho-corasick",
- "memchr",
- "regex-automata",
- "regex-syntax",
-]
-
-[[package]]
-name = "regex-automata"
-version = "0.4.18"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ad8553b9b26413251cbf30e620595c7a41b3887f03da04579c0e6b0d6a06b4b2"
-dependencies = [
- "aho-corasick",
- "memchr",
- "regex-syntax",
-]
-
-[[package]]
-name = "regex-syntax"
-version = "0.8.11"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d6f6ff9a378485b298a5286656da665ba74413d36db0979633275d2e708145d4"
 
 [[package]]
 name = "rustversion"

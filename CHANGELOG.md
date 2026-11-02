@@ -3,6 +3,11 @@ Formato [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/), versionado 
 
 ## [Unreleased]
 
+## [0.26.8] - 2026-11-02
+### Cambiado
+- La DLL pasa de 2,28 MB a 1,62 MB: se ha quitado una librería de expresiones regulares que
+  solo servía para filtrar el log por nivel. Sin cambios de funcionamiento.
+
 ## [0.26.7] - 2026-11-02
 ### Añadido
 - **Selector de equipo en su propia ventana**, centrada en pantalla. Se abre sola al entrar en
