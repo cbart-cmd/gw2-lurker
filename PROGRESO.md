@@ -4,11 +4,11 @@ Bitácora para continuar el trabajo, incluso si quien lo retoma no es la misma I
 misma sesión. **Lo más reciente va arriba.** Cada entrada dice qué se pretendía, qué se
 hizo, cómo se verificó y qué quedó pendiente.
 
-## EN CURSO – 2026-11-02 · Publicación 0.26.9 (T-54 y T-56)
+## HECHO – 2026-11-02 · Publicación 0.26.9 (T-54 y T-56)
 
-- Subir la versión y preparar la documentación de la implementación de RF-19f y RF-19d.
-- Validar las pruebas, el build release y el tamaño de la DLL antes de publicar.
-- Publicar mediante `scripts/release.ps1` y comprobar los bytes y el MD5 de la descarga real.
+- Código `6a8eb9e`; distribución `6f3066f`, tag `gw2-lurker-v0.26.9`.
+- `scripts/release.ps1`: descarga real verificada, 1 634 816 bytes, MD5
+  `e0e7659073901558c0d3da75d322e2ac`.
 - Hallazgo previo a publicar: el emergente guardaba la posición después de cerrar su ventana
   imgui, cuando ya era actual otra ventana. Corregido y reproducido con imgui nativo sin Nexus:
   `rf19d_placement_remembers_the_popup_position_not_the_parent`.
@@ -20,8 +20,9 @@ hizo, cómo se verificó y qué quedó pendiente.
   clanes llena: p95 0,058–0,097 ms en régimen y 0,198–0,473 ms en ráfaga (cuatro pasadas).
   No mide widget y mapa completos ni sustituye la comprobación de RNF-01 dentro del juego.
 - Validación tras la corrección: fmt, clippy, LOC, trazabilidad, tests y release en verde;
-  383 tests pasados, cuatro ignorados; DLL de 1 634 816 bytes.
-- Consulta por reclamo ausente (21:11–21:12): la API de la partida `2-2` mantenía el objetivo
+  383 tests pasados, cuatro de red ignorados y pasados aparte.
+- **Sin verificar en GW2:** click-through, colocación del emergente y coste del frame completo.
+- Consulta por reclamo ausente (21:11–21:30): la API de la partida `2-2` mantenía el objetivo
   `1099-105` con `claimed_at` 20:05:16 local; no reflejaba un reclamo reciente. El addon seguía
   sondeando cada 5 s, reconocía el mapa 1099 y tenía activados torres y reclamos; el sondeo
   registrado a las 21:11 informó cero eventos nuevos. No se conoce la causa del dato antiguo.
