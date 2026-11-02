@@ -59,6 +59,7 @@ Reglas:
 - Lo que queda (`std` con `panic="unwind"` por ADR-008, imgui, serde_json, nuestro código) es
   funcional; no hay otro recorte grande sin tocar un ADR.
 - **No verificado en el juego:** que el log de Nexus siga mostrando info/warn/error.
+- Publicado como **0.26.8** (1 616 384 bytes, MD5 `8fa8cf9c…`, descarga verificada).
 
 ## HECHO – 2026-11-02 · Aviso de API parada a 5 min y selector de equipo en ventana propia
 
