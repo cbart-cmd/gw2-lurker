@@ -46,6 +46,18 @@ Reglas:
   verificarlos (403 entre carpetas, no redimensiona el viewport): se probaron con Edge del sistema
   y `playwright-core` (hay que reinstalarlo; no queda nada en el repo).
 
+## HECHO – 2026-11-02 · Propuestas de UX (solo bocetos, nada implementado)
+
+- Crítica con `impeccable` (revisión de diseño + detector) de `crates/addon/src/ui`: heurísticas
+  22/40. Bocetos en `docs/bocetos/ux/propuestas.html`: aviso desde tu equipo
+  (PERDIDO/TOMADO + antigüedad), HUD de combate separado (choca con ADR-014), emergente agrupado
+  de 5 s, tira de cuatro mapas con leyenda, bloque único «Qué me avisa» y selector de equipo que
+  solo guarda al confirmar.
+- **Decisión del jugador (2026-11-02):** pasan a la spec las propuestas 1, 2, 4, 5 y 6, y la 3
+  cambiada (emergente apilado, cada línea dura `popup_secs`, 15 s por defecto; prioridad clan
+  seguido > alto valor > perdido > tomado). Escrito en RF-19d (reescrito), RF-19f, RF-03j, RF-30c,
+  RF-40a, RF-47, ADR-017 (enmienda ADR-014) y tareas T-54..T-59 (Fase 8). Nada implementado.
+
 ## HECHO – 2026-11-02 · DLL de 2,28 MB a 1,62 MB sin tocar funcionalidad
 
 - `cargo bloat --crates`: `regex` + `regex_automata` + `aho_corasick` + `regex_syntax` ≈ 390 KiB.

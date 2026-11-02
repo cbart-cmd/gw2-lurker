@@ -1,0 +1,341 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>gw2-lurker · Propuestas de UX (2026-11-02)</title>
+<style>
+  /* Página de validación: el addon real es imgui. Las "ventanas" imitan la paleta del tema propio
+     (theme.rs) y solo usan glifos ASCII + latino-1, los únicos que tiene la fuente de Nexus. */
+  :root {
+    --page: #0b0d10; --ink: #d9dee6; --muted: #8b939e; --rule: #232831;
+    --win: rgba(15,18,23,.94); --frame: #1a1f26; --btn: #242b38; --border: rgba(61,69,82,.6);
+    --text: #e6ebf2; --dim: #8c949e; --accent: #6bb8ff; --warn: #ffbf4d; --bad: #ff6b5e;
+    --red: #ff7a6b; --green: #94f094; --blue: #80bdff; --gold: #ffdb66;
+  }
+  * { box-sizing: border-box; }
+  ::selection { background: #2b4a6e; color: #fff; }
+  body { margin: 0; background: var(--page); color: var(--ink);
+         font: 15px/1.55 "Segoe UI", system-ui, sans-serif; }
+  main { max-width: 1180px; margin: 0 auto; padding: 48px 32px 96px; }
+  h1 { font-size: 30px; line-height: 1.15; margin: 0 0 10px; letter-spacing: -.01em; }
+  h2 { font-size: 21px; margin: 72px 0 6px; letter-spacing: -.005em; }
+  .lede { max-width: 70ch; color: var(--muted); margin: 0; }
+  .why { max-width: 72ch; color: var(--muted); margin: 0 0 22px; }
+  .why b { color: var(--ink); font-weight: 600; }
+  .pair { display: grid; grid-template-columns: 1fr 1fr; gap: 28px; align-items: start; }
+  .col > .tag { font-size: 12px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted);
+                margin-bottom: 8px; }
+  .col.new > .tag { color: var(--accent); }
+  .notes { margin: 18px 0 0; padding: 0 0 0 18px; color: var(--muted); max-width: 75ch; }
+  .notes li { margin: 4px 0; }
+  .notes code, .why code { color: var(--ink); font: 13px Consolas, monospace; }
+
+  /* imgui window imitation */
+  .win { background: var(--win); border: 1px solid var(--border); border-radius: 6px; color: var(--text);
+         font: 13px/1.45 "Segoe UI", Tahoma, sans-serif; padding: 6px 8px 8px; position: relative; }
+  .win.game { background-image: linear-gradient(160deg, #263124 0%, #3c3a2a 55%, #2a2f38 100%);
+              border: 0; padding: 18px; min-height: 230px; }
+  .title { display: flex; justify-content: space-between; color: var(--text); padding-bottom: 4px;
+           border-bottom: 1px solid var(--border); margin-bottom: 6px; }
+  .x { background: var(--btn); border-radius: 3px; width: 18px; text-align: center; color: var(--dim); }
+  .dim { color: var(--dim); } .warn { color: var(--warn); } .bad { color: var(--bad); }
+  .r { color: var(--red); } .g { color: var(--green); } .b { color: var(--blue); } .gold { color: var(--gold); }
+  .tabs { display: flex; gap: 2px; margin: 6px 0; }
+  .tabs span { background: var(--btn); padding: 2px 8px; border-radius: 4px 4px 0 0; color: var(--dim); white-space: nowrap; }
+  .tabs span.on { background: #2f3a4c; color: var(--text); }
+  .sep { border-top: 1px solid var(--border); margin: 6px 0; }
+  .btn { display: inline-block; background: var(--btn); border-radius: 4px; padding: 1px 8px; }
+  .btn.primary { background: #2a4b73; }
+  .combo { display: inline-block; background: var(--frame); border-radius: 4px; padding: 1px 22px 1px 6px;
+           position: relative; min-width: 90px; }
+  .combo::after { content: "v"; position: absolute; right: 6px; color: var(--dim); }
+  .chk::before { content: "[x] "; color: var(--accent); }
+  .chk.off::before { content: "[ ] "; color: var(--dim); }
+  .row { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .mono { font-variant-numeric: tabular-nums; }
+
+  /* proposed alert line */
+  .al { display: grid; grid-template-columns: 74px 1fr auto; gap: 8px; align-items: baseline; padding: 2px 0; }
+  .verb { font-weight: 700; letter-spacing: .02em; }
+  .verb.lost { color: var(--bad); } .verb.won { color: var(--green); } .verb.other { color: var(--dim); font-weight: 400; }
+  .age { color: var(--dim); font-variant-numeric: tabular-nums; }
+  .hv { font-weight: 700; }
+  .al.minor { opacity: .62; }
+  .pill { color: #10141a; background: var(--warn); border-radius: 3px; padding: 0 4px; font-size: 11px; font-weight: 700; }
+
+  /* HUD */
+  .hud { width: 360px; background: rgba(10,12,16,.62); border-radius: 5px; padding: 5px 8px;
+         font: 13px/1.45 "Segoe UI", Tahoma, sans-serif; color: var(--text); }
+  .hud .status { display: flex; justify-content: space-between; color: var(--dim); font-size: 12px;
+                 border-bottom: 1px solid rgba(255,255,255,.08); padding-bottom: 3px; margin-bottom: 3px; }
+
+  /* map strip */
+  .strip { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; margin: 4px 0 6px; }
+  .strip div { background: var(--frame); border-radius: 4px; padding: 3px 6px; }
+  .strip div.on { outline: 1px solid var(--accent); }
+  .strip .n { font-variant-numeric: tabular-nums; }
+  .board { height: 150px; background: #1a1c21; border-radius: 4px; position: relative;
+           background-image: linear-gradient(rgba(255,255,255,.05) 1px, transparent 1px),
+                             linear-gradient(90deg, rgba(255,255,255,.05) 1px, transparent 1px);
+           background-size: 24px 24px; }
+  .dot { position: absolute; width: 14px; height: 14px; border-radius: 50%; }
+  .dot.hv { box-shadow: 0 0 0 2px #10141a, 0 0 0 3.5px #fff; }
+  .dot.fol { box-shadow: 0 0 0 2px #10141a, 0 0 0 3.5px var(--gold); }
+  .legend { display: flex; flex-wrap: wrap; gap: 4px 14px; color: var(--dim); font-size: 12px; margin-top: 5px; }
+  .lg { display: inline-flex; gap: 5px; align-items: center; }
+  .lg i { width: 9px; height: 9px; border-radius: 50%; background: #9aa3ad; display: inline-block; }
+  .lg i.hv { box-shadow: 0 0 0 1.5px #10141a, 0 0 0 2.5px #fff; }
+  .lg i.fol { box-shadow: 0 0 0 1.5px #10141a, 0 0 0 2.5px var(--gold); }
+  .lg i.big { width: 13px; height: 13px; }
+
+  .summary { background: var(--frame); border-radius: 4px; padding: 5px 7px; margin-top: 6px; }
+  .opt { display: inline-block; background: var(--frame); border-radius: 4px; padding: 0 7px; margin: 1px 2px 1px 0; color: var(--dim); }
+  .opt.on { background: #2f3a4c; color: var(--text); }
+  .grid3 { display: grid; grid-template-columns: 82px 1fr; gap: 4px 8px; align-items: baseline; }
+
+  footer { margin-top: 80px; color: var(--muted); font-size: 13px; border-top: 1px solid var(--rule); padding-top: 16px; }
+  @media (max-width: 900px) { .pair { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+<main>
+  <h1>Propuestas de UX para gw2-lurker</h1>
+  <p class="lede">Seis cambios, ordenados por impacto en el trabajo n.º 1 del producto: <em>saber al instante
+    que hemos perdido o tomado algo importante, sin mirar</em>. Cada uno compara cómo está hoy (descrito a partir del código)
+    con la propuesta. Son solo bocetos: no hay nada implementado. Los nombres de objetivos están en inglés, como los
+    devuelve la API.</p>
+
+  <!-- 1 -->
+  <h2>1 · El aviso habla desde tu equipo</h2>
+  <p class="why">Hoy todas las líneas pesan lo mismo y, para leer <code>Rojo -&gt; Verde</code>, tienes que acordarte de
+    qué color eres. La propuesta pone primero <b>un verbo en tu punto de vista</b>, sube el peso de lo que puntúa mucho
+    y cambia la hora absoluta por la <b>antigüedad</b>. Los cambios entre los otros dos equipos quedan en segundo plano.</p>
+  <div class="pair">
+    <div class="col"><div class="tag">Hoy · alerts.rs</div>
+      <div class="win">
+        <div class="row mono"><span class="dim">12:31:04</span> <span class="dim">Eternos</span> · <span class="dim">Stonemist Castle</span> - <span class="g">Verde</span> -&gt; <span class="r">Rojo</span></div>
+        <div class="row mono"><span class="dim">12:30:52</span> <span class="b">Azul</span> · <span class="dim">Bluevale Refuge</span> - <span class="b">Azul</span> -&gt; <span class="r">Rojo</span></div>
+        <div class="row mono"><span class="dim">12:30:40</span> <span class="g">Verde</span> · <span class="dim">Lowlands Camp</span> - <span class="r">Rojo</span> -&gt; <span class="g">Verde</span></div>
+        <div class="row mono"><span class="dim">12:30:11</span> <span class="dim">Eternos</span> · <span class="dim">Veloka Slope</span> - <span class="dim">[KAZ] Kazmir Raiders</span></div>
+      </div>
+    </div>
+    <div class="col new"><div class="tag">Propuesta</div>
+      <div class="win">
+        <div class="al"><span class="verb lost">PERDIDO</span><span class="row"><span class="hv">Stonemist Castle</span> <span class="dim">Eternos ·</span> se lo lleva <span class="r">Rojo</span> <span class="pill">ALTO</span></span><span class="age">12 s</span></div>
+        <div class="al"><span class="verb won">TOMADO</span><span class="row">Lowlands Camp <span class="dim">Alpino verde</span></span><span class="age">36 s</span></div>
+        <div class="al minor"><span class="verb other">cambio</span><span class="row">Bluevale Refuge <span class="dim">Alpino azul ·</span> <span class="b">Azul</span> -&gt; <span class="r">Rojo</span></span><span class="age">24 s</span></div>
+        <div class="al minor"><span class="verb other">reclamo</span><span class="row">Veloka Slope <span class="dim">· [KAZ] Kazmir Raiders</span></span><span class="age">65 s</span></div>
+      </div>
+    </div>
+  </div>
+  <ul class="notes">
+    <li>Si el verbo no depende del color, el daltonismo deja de ser un problema (RF-62): <code>PERDIDO</code>/<code>TOMADO</code> son texto. La negrita en imgui se simula dibujando el texto dos veces con un desplazamiento de 1 px.</li>
+    <li><code>ALTO</code> sale de <code>points_tick</code>, igual que el anillo blanco del mapa: un solo criterio de alto valor en todo el addon.</li>
+    <li>Pasado 1 min, la antigüedad pasa a <code>hh:mm</code>. La hora exacta sigue en el tooltip y en Registro.</li>
+    <li>El mapa se nombra igual en todas partes (<code>Alpino verde</code>), no <code>Verde</code> en un sitio y <code>Alpino verde</code> en otro.</li>
+  </ul>
+
+  <!-- 2 -->
+  <h2>2 · Un HUD de combate separado de la consola</h2>
+  <p class="why">Cuando la ventana está bloqueada o en click-through, hoy se sigue viendo entera: entre 6 y 10 líneas de cabecera y
+    las pestañas antes del primer aviso. La propuesta recupera el <b>widget de 2–5 líneas</b> de ADR-006/W1. Una línea de estado
+    y los avisos, nada más. La ventana con pestañas pasa a ser la consola para fuera del combate.</p>
+  <div class="pair">
+    <div class="col"><div class="tag">Hoy · ventana completa bloqueada</div>
+      <div class="win" style="width:360px">
+        <div class="title"><span>WvW Lurker</span><span class="x">x</span></div>
+        <div class="dim">Estás en Eternos</div>
+        <div>Equipo Fortaleza del Dragón (del juego)</div>
+        <div class="dim">Partida en Europa</div>
+        <div>Verde · Fortaleza   Azul · Arborstone   Rojo · Vale</div>
+        <div class="dim">41 objetivos reclamados · Última actualización 12:31:10</div>
+        <div class="dim">Último reclamo hace 1 min</div>
+        <div class="warn">Click-through activo: clic derecho aquí para salir.</div>
+        <div class="tabs"><span class="on">Avisos</span><span>Mapa</span><span>Clanes</span><span>Registro de avisos</span><span>&gt;</span></div>
+        <div class="dim">Últimos 10 minutos; la ventana de registro tiene el resto.</div>
+        <div class="row mono"><span class="dim">12:31:04</span> <span class="dim">Eternos</span> · <span class="dim">Stonemist Castle</span> - <span class="g">Verde</span> -&gt; <span class="r">Rojo</span></div>
+      </div>
+    </div>
+    <div class="col new"><div class="tag">Propuesta · HUD sobre el juego</div>
+      <div class="win game">
+        <div class="hud">
+          <div class="status"><span><span class="g">Verde</span> · Europa · Eternos</span><span class="mono">datos hace 8 s</span></div>
+          <div class="al"><span class="verb lost">PERDIDO</span><span class="row"><span class="hv">Stonemist Castle</span> <span class="dim">Eternos</span></span><span class="age">12 s</span></div>
+          <div class="al"><span class="verb won">TOMADO</span><span class="row">Lowlands Camp <span class="dim">Alpino verde</span></span><span class="age">36 s</span></div>
+          <div class="al minor"><span class="verb other">cambio</span><span class="row">Bluevale Refuge <span class="dim">Alpino azul</span></span><span class="age">24 s</span></div>
+        </div>
+        <div class="hud" style="margin-top:18px">
+          <div class="status"><span><span class="g">Verde</span> · Europa · Eternos</span><span class="warn mono">API parada 7 min</span></div>
+          <div class="dim">Sin avisos nuevos: ArenaNet no publica cambios.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <ul class="notes">
+    <li>La línea de estado sustituye a la cabecera entera: equipo (con texto, no solo color), región, mapa y antigüedad de los datos. Al pasar el ratón muestra lo demás.</li>
+    <li>Cuando la API se congela, el aviso sale <b>dentro del HUD</b>, que es lo que el jugador tiene delante, y no en una cabecera que no ve. El silencio deja de parecer calma.</li>
+    <li>La consola (Mapa, Clanes, Registro, Ajustes) se abre con el atajo o desde Nexus. La cabecera de estado vive solo ahí, plegada en una línea.</li>
+    <li>Contradice ADR-014 (una sola ventana). Necesita un ADR nuevo antes de implementarse.</li>
+  </ul>
+
+  <!-- 3 -->
+  <h2>3 · El emergente: avisos apilados, cada uno con su tiempo</h2>
+  <p class="why">Hoy el emergente muestra los avisos de uno en uno durante 15 s, con hasta 5 en cola: una ráfaga puede tardar más de un minuto en
+    acabar de mostrarse. <b>Decisión del jugador (2026-11-02, RF-19d):</b> cada aviso entra como una línea propia en cuanto llega y se va a los
+    <code>popup_secs</code> (15 s por defecto) de haber entrado; las líneas aparecen y desaparecen por separado.</p>
+  <div class="pair">
+    <div class="col"><div class="tag">Hoy · uno tras otro, 15 s cada uno</div>
+      <div class="win" style="width:420px">
+        <div class="row mono"><span class="dim">12:31:04</span> <span class="dim">Eternos</span> · <span class="dim">Stonemist Castle</span> - <span class="g">Verde</span> -&gt; <span class="r">Rojo</span></div>
+      </div>
+      <p class="dim" style="font-size:12px;margin:6px 0 0">… y luego otros 4 en cola: el último sale 60 s después de llegar.</p>
+    </div>
+    <div class="col new"><div class="tag">Aprobado · apilado, 15 s por línea</div>
+      <div class="win" style="width:420px">
+        <div class="al"><span class="verb lost">PERDIDO</span><span class="row"><span class="hv">Stonemist Castle</span> <span class="dim">Eternos</span> <span class="pill">ALTO</span></span><span class="age">4 s</span></div>
+        <div class="al"><span class="verb lost">PERDIDO</span><span class="row">Torre de Rogue <span class="dim">Eternos</span></span><span class="age">9 s</span></div>
+        <div class="al"><span class="verb won">TOMADO</span><span class="row">Campamento sur <span class="dim">Alpino rojo</span></span><span class="age">12 s</span></div>
+      </div>
+    </div>
+  </div>
+  <ul class="notes">
+    <li>Prioridad, de arriba abajo: clan que sigo &gt; alto valor &gt; perdido &gt; tomado &gt; el resto. Como mucho 5 líneas; con la pila llena, el nuevo sustituye al de menor prioridad o cuenta en «y N más».</li>
+    <li><code>no_inputs</code> salvo cuando el jugador lo está colocando: en el centro de la pantalla no puede capturar clics. Esto hay que confirmarlo en el juego.</li>
+    <li>El fundido afecta también al texto, no solo al fondo.</li>
+  </ul>
+
+  <!-- 4 -->
+  <h2>4 · Los cuatro mapas de un vistazo, con leyenda</h2>
+  <p class="why">El trabajo n.º 2, ver qué está reclamado en los cuatro mapas, hoy obliga a pasar por el desplegable cuatro veces.
+    El tablero no tiene leyenda: el tamaño, el anillo blanco y el anillo dorado hay que adivinarlos. La propuesta pone una <b>tira de mapas</b> que hace a la vez de selector y de
+    resumen, y una <b>leyenda fija</b> debajo del tablero.</p>
+  <div class="pair">
+    <div class="col"><div class="tag">Hoy · map.rs</div>
+      <div class="win">
+        <div><span class="dim">Mapa</span> <span class="combo">Eternos</span> <span class="dim">Clan</span> <span class="combo" style="min-width:150px">Ningún clan</span></div>
+        <div class="board" style="margin-top:6px">
+          <span class="dot hv" style="left:46%;top:40%;background:var(--red)"></span>
+          <span class="dot" style="left:20%;top:70%;background:var(--green)"></span>
+          <span class="dot fol" style="left:75%;top:66%;background:var(--blue)"></span>
+          <span class="dot" style="left:60%;top:18%;background:var(--red)"></span>
+        </div>
+        <div class="dim" style="font-size:12px;margin-top:4px">Apunta a un objetivo para ver quién lo tiene</div>
+      </div>
+    </div>
+    <div class="col new"><div class="tag">Propuesta</div>
+      <div class="win">
+        <div class="strip">
+          <div class="on">Eternos <span class="n"><span class="g">G4</span> <span class="b">A3</span> <span class="r">R5</span></span><br><span class="dim" style="font-size:12px">estás aquí</span></div>
+          <div>Alp. verde <span class="n"><span class="g">G6</span> <span class="r">R2</span></span><br><span class="bad" style="font-size:12px">-1 hace 2 min</span></div>
+          <div>Alp. azul <span class="n"><span class="b">A5</span> <span class="r">R3</span></span><br><span class="dim" style="font-size:12px">sin cambios</span></div>
+          <div>Alp. rojo <span class="n"><span class="r">R7</span> <span class="g">G1</span></span><br><span class="dim" style="font-size:12px">sin cambios</span></div>
+        </div>
+        <div class="board">
+          <span class="dot hv" style="left:46%;top:40%;background:var(--red)"></span>
+          <span class="dot" style="left:20%;top:70%;background:var(--green)"></span>
+          <span class="dot fol" style="left:75%;top:66%;background:var(--blue)"></span>
+          <span class="dot" style="left:60%;top:18%;background:var(--red)"></span>
+        </div>
+        <div class="legend">
+          <span class="lg"><i class="big"></i>castillo/fortaleza</span><span class="lg"><i></i>torre/campamento</span>
+          <span class="lg"><i class="hv"></i>alto valor</span><span class="lg"><i class="fol"></i>clan seguido</span>
+        </div>
+        <div class="sep"></div>
+        <div><span class="dim">Ruta de</span> <span class="combo" style="min-width:150px">Ningún clan</span></div>
+      </div>
+    </div>
+  </div>
+  <ul class="notes">
+    <li><code>G4 A3 R5</code> son objetivos que puntúan por equipo: letra y número, no solo color. La segunda línea dice la novedad desde tu punto de vista.</li>
+    <li>Con un clan elegido, sus controles (reproducir, ventana de tiempo, eje, paso) van <b>debajo</b> del tablero. El mapa siempre se ve en la misma posición.</li>
+    <li>En "Reclamos del matchup", cada fila lleva además el dueño en texto (<code>· Rojo</code>), no solo la fila coloreada.</li>
+  </ul>
+
+  <!-- 5 -->
+  <h2>5 · "Qué me avisa": un solo bloque en vez de cuatro mecanismos</h2>
+  <p class="why">Hoy lo que te avisa depende de cuatro cosas en dos sitios: el desplegable de ámbito, 11 casillas,
+    las casillas de capturas/reclamos/liberaciones (dentro de <em>Ventanas</em>) y "Solo los clanes que sigo",
+    que además anula a las otras sin decirlo. La propuesta: <b>tres preguntas y una frase de resumen</b> que se actualiza sola.</p>
+  <div class="pair">
+    <div class="col"><div class="tag">Hoy · settings.rs (fragmento)</div>
+      <div class="win">
+        <div><span class="dim">Ámbito de alertas</span> <span class="combo">Todo el matchup</span></div>
+        <div class="dim">Avisar de:</div>
+        <div><span class="chk">Castillo</span> <span class="chk">Fortalezas</span> <span class="chk">Torres</span> <span class="chk off">Campamentos</span></div>
+        <div><span class="chk off">Ruinas</span> <span class="chk">Eternos</span> <span class="chk">Alpino verde</span> <span class="chk">Alpino azul</span></div>
+        <div><span class="chk">Alpino rojo</span> <span class="chk off">El mapa en el que estoy</span> <span class="chk off">Solo los clanes que sigo</span></div>
+        <div class="dim">… 14 controles más …</div>
+        <div class="dim">Ventanas</div>
+        <div><span class="chk">Capturas</span> <span class="chk">Reclamos</span> <span class="chk off">Liberaciones</span></div>
+      </div>
+    </div>
+    <div class="col new"><div class="tag">Propuesta</div>
+      <div class="win">
+        <div style="font-weight:600;margin-bottom:4px">Qué me avisa</div>
+        <div class="grid3">
+          <span class="dim">Qué</span><span><span class="opt on">Capturas</span><span class="opt on">Reclamos</span><span class="opt">Liberaciones</span></span>
+          <span class="dim">De qué</span><span><span class="opt">Todo</span><span class="opt on">Torres y más</span><span class="opt">Solo alto valor</span></span>
+          <span class="dim">Dónde</span><span><span class="opt">Todo el matchup</span><span class="opt on">Mi mapa</span><span class="opt">Elegir…</span></span>
+          <span class="dim">De quién</span><span><span class="opt on">Cualquiera</span><span class="opt">Solo clanes que sigo</span></span>
+        </div>
+        <div class="summary">Te avisaré de <b>capturas y reclamos</b> de <b>torres, fortalezas y castillo</b> en <b>el mapa donde estés</b>. <span class="btn" style="margin-left:6px">Probar</span></div>
+      </div>
+    </div>
+  </div>
+  <ul class="notes">
+    <li>Botones segmentados (selectables de imgui), como mucho 3 opciones por fila. "Elegir…" despliega las 4 casillas de mapa solo cuando hacen falta.</li>
+    <li>La frase de resumen deja claro lo que hoy no se ve: que "Solo clanes que sigo" restringe todo lo demás.</li>
+    <li>El resto de Ajustes se reparte en grupos plegables: <em>Ventanas y apariencia</em>, <em>Datos</em> (intervalo de sondeo, índice de nombres) y <em>Avanzado</em> (URL del índice, oculta por defecto).</li>
+  </ul>
+
+  <!-- 6 -->
+  <h2>6 · Selector de equipo: lo que confirmas es lo que se guarda</h2>
+  <p class="why">Hoy, elegir en los desplegables <b>ya guarda</b> el equipo, y [Confirmar equipo] solo marca el emparejamiento como visto.
+    Cerrar con la x no deshace la elección. Además, si arcdps ya sabe tu equipo, el selector pregunta algo que el addon conoce. La propuesta lo convierte en
+    una <b>confirmación de un clic</b> cuando el juego sabe el equipo, y en una elección normal cuando no lo sabe.</p>
+  <div class="pair">
+    <div class="col"><div class="tag">Hoy · team_picker.rs</div>
+      <div class="win" style="width:400px">
+        <div class="title"><span>Elige tu equipo</span><span class="x">x</span></div>
+        <div class="warn">El emparejamiento ha cambiado. Confirma tu equipo o cámbialo.</div>
+        <div><span class="dim">Región</span> <span class="combo">Europa (15)</span></div>
+        <div><span class="dim">Color</span> <span class="combo"><span class="g">Verde</span></span></div>
+        <div><span class="dim">Equipo</span> <span class="combo" style="min-width:220px">Fortaleza del Dragón</span></div>
+        <div class="dim" style="margin-top:4px">Tu emparejamiento</div>
+        <div><span class="g">Fortaleza del Dragón</span> · <span class="b">Arborstone</span> · <span class="r">Vale Guardian</span></div>
+        <div style="margin-top:6px"><span class="btn">Confirmar equipo</span></div>
+      </div>
+    </div>
+    <div class="col new"><div class="tag">Propuesta · el juego ya sabe tu equipo</div>
+      <div class="win" style="width:400px">
+        <div class="title"><span>Nuevo emparejamiento</span><span class="x">x</span></div>
+        <div>Esta semana juegas con <b class="g">Verde · Fortaleza del Dragón</b></div>
+        <div class="dim">contra <span class="b">Azul · Arborstone</span> y <span class="r">Rojo · Vale Guardian</span> (Europa)</div>
+        <div style="margin-top:8px"><span class="btn primary">Usar este equipo</span> <span class="btn">Elegir otro…</span></div>
+        <div class="dim" style="font-size:12px;margin-top:6px">Lo detecta el juego. Puedes cambiarlo cuando quieras en Ajustes.</div>
+      </div>
+      <div class="tag" style="margin-top:18px">… y si el juego no lo sabe</div>
+      <div class="win" style="width:400px">
+        <div class="title"><span>Elige tu equipo</span><span class="x">x</span></div>
+        <div><span class="dim">Región</span> <span class="opt on">Europa</span><span class="opt">Norteamérica</span></div>
+        <div class="dim" style="margin-top:4px">Equipos de esta semana</div>
+        <div><span class="opt on"><span class="g">Verde</span> · Fortaleza del Dragón</span></div>
+        <div><span class="opt"><span class="b">Azul</span> · Arborstone</span></div>
+        <div><span class="opt"><span class="r">Rojo</span> · Vale Guardian</span> <span class="dim">+ 6 emparejamientos más</span></div>
+        <div style="margin-top:6px"><span class="btn primary">Guardar</span> <span class="btn">Ahora no</span></div>
+      </div>
+    </div>
+  </div>
+  <ul class="notes">
+    <li>Nada se guarda hasta que pulsas el botón. La x y "Ahora no" no cambian nada y el selector vuelve a salir la próxima vez que entres.</li>
+    <li>Una lista agrupada por emparejamiento en vez de tres desplegables encadenados: se ve la elección entera de una vez.</li>
+    <li>Para no interrumpir al entrar con el escuadrón en marcha: si el equipo detectado coincide con el guardado y solo ha cambiado el emparejamiento, basta un aviso en el HUD ("Nuevo emparejamiento: sigues con Verde") y no hace falta abrir ventana.</li>
+  </ul>
+
+  <footer>
+    gw2-lurker · boceto de validación, 2026-11-02 · Fuente: revisión de diseño de <code>crates/addon/src/ui</code> (heurísticas 22/40).
+    Antes de implementar, cada propuesta necesita su RF en <code>specs/01-requirements.md</code>. La n.º 2 necesita además un ADR que modifique ADR-014.
+  </footer>
+</main>
+</body>
+</html>

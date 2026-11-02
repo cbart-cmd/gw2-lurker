@@ -79,6 +79,9 @@ Comprobado el **2026-10-31** contra la API real, el código fuente de `nexus-rs`
 - **Equipo que ya no juega** (sorteo): «Tu equipo guardado no está jugando ahora: vuelve a elegirlo».
 - **Cambio de emparejamiento:** «El emparejamiento ha cambiado: confirma tu equipo o elige otro». El emparejamiento es `id de match + ids de los tres equipos` (`core::prompt::matchup_key`); se guarda por equipo en `confirmed_matchups` de `settings.json` al pulsar **Confirmar equipo**. Si no hay ninguno guardado (actualización o equipo recién elegido) se apunta el actual **sin preguntar**.
 - Cerrar con `×` no confirma: se volverá a preguntar en la siguiente entrada. Solo se comprueba una vez por entrada en el mapa.
+- **Solo se guarda al confirmar** (propuesta 6, aprobada el 2026-11-02). Elegir en la ventana no cambia el equipo guardado; lo cambia el botón **Guardar** / **Usar este equipo**. `×` y **Ahora no** no tocan nada.
+- **Si el juego sabe el equipo** (arcdps, RF-03a), la ventana lo propone en una frase («Esta semana juegas con Verde · <equipo>, contra …») con **Usar este equipo** y **Elegir otro…**. Si no lo sabe, muestra la región como dos botones y los equipos de la semana **agrupados por emparejamiento**, cada uno con su color en texto, en lugar de tres desplegables encadenados.
+- GWT: *Given* el selector abierto con el equipo A guardado, *When* el jugador elige B y cierra con `×`, *Then* sigue guardado A.
 - GWT: *Given* el equipo 12014 confirmado en `2-2:12014,12015,12016`, *When* tras el reinicio semanal se entra en MvM y es `2-2:12014,12015,12099`, *Then* se abre la ventana centrada con el aviso de cambio de emparejamiento.
 
 **RF-04 (M)** El primer snapshot tras activar, cambiar de match, confirmar una reasignación o recuperar tras un hueco largo se tratará como **baseline** y no generará alertas de flip. Al arrancar el addon el historial anterior **se descarta** (ADR-012) y el baseline reconstruye el estado actual con todos los claims vigentes (RF-25); se registra el `Gap` correspondiente y la UI indica "datos desde <inicio de sesión o última reasignación>".
@@ -140,14 +143,29 @@ El click-through **no tiene casilla en los ajustes** (se quitó el 2026-11-01: e
 
 **RF-19c (S)** El usuario podrá configurar opacidad, tamaño de fuente, máximo de líneas visibles (por defecto 5) y qué tipos de alerta se muestran en el widget.
 
-**RF-19d (C)** El **aviso emergente** (la ventana de arriba, la que dibuja el addon) muestra cualquier alerta que pase los filtros del jugador —tipo de aviso y alcance—, de una en una y durante los segundos que se configuren (0–20). No se usa el sistema de avisos de Nexus: `nexus-rs` 0.12 solo expone `send_alert(texto)`, sin título ni sonido, y duplicaba esta ventana (decisión de 2026-10-31 tras la confusión del jugador entre «toast» y «aviso emergente»).
-- GWT: *Given* dos reclamaciones seguidas, *When* llegan en el mismo sondeo, *Then* el pop-up enseña primero la más antigua y la siguiente cuando pasa su tiempo, nunca las dos a la vez.
+**RF-19d (C)** El **aviso emergente** (la ventana de arriba, la que dibuja el addon) muestra cualquier alerta que pase los filtros del jugador —tipo de aviso y alcance—. No se usa el sistema de avisos de Nexus: `nexus-rs` 0.12 solo expone `send_alert(texto)`, sin título ni sonido, y duplicaba esta ventana (decisión de 2026-10-31 tras la confusión del jugador entre «toast» y «aviso emergente»).
+- **Pila de líneas (petición del jugador, 2026-11-02; antes era de una en una).** Cada aviso entra como **una línea propia** en cuanto llega y **desaparece cuando han pasado `popup_secs`** desde que entró (por defecto **15 s**, rango 0–20; `0` lo apaga). Las líneas aparecen y se van por separado; no hay cola que retrase un aviso nuevo a que acabe el anterior.
+- **Orden por prioridad**, de arriba abajo: **clan que sigo** > **alto valor** (`points_tick` ≥ 8, RF-30b) > **perdido** > **tomado** > el resto. A igual prioridad, el más reciente arriba.
+- Como mucho **5 líneas** a la vez. Si llega una con la pila llena, sustituye a la de menor prioridad (o, a igual prioridad, a la más antigua); si es de prioridad menor que todas, cuenta en una línea final «y N más», que no ocupa uno de los 5 huecos.
+- Cada línea usa el formato de RF-19f, con la **antigüedad** en vivo.
+- El emergente **no captura el ratón** (`NO_INPUTS`) salvo mientras el jugador lo está colocando; el fundido de salida afecta también al texto.
+- GWT: *Given* dos reclamaciones en el mismo sondeo, *When* llegan, *Then* aparecen las dos a la vez, ordenadas por prioridad, y cada una se va a los `popup_secs` de haber entrado.
+- GWT: *Given* 5 líneas de «tomado» en pantalla, *When* llega «perdido» de alto valor, *Then* entra arriba y sale el «tomado» más antiguo.
 - GWT: *Given* una reclamación de un clan que no se sigue con «Guilds I follow» activo, *When* se detecta, *Then* no sale en el aviso emergente.
 - **Sin sonido**: retirado del alcance por el jugador el 2026-11-02; no queda pendiente de una API futura.
 
 **RF-19e (M)** Solo avisan las **estructuras que un clan puede reclamar**: campamentos, torres, fortalezas/garris y castillos, con una casilla por tipo (todas marcadas por defecto). Las ruinas, los campamentos mercenarios, los spawns y el resto del decorado **nunca** generan aviso, aunque esté marcado «el mapa en el que estoy» (petición del jugador, 2026-11-01: «no me avises cuando alguien capture ruinas»).
 - Un objetivo de tipo desconocido **sí** avisa: la tabla de objetivos llega una vez por sesión y hasta entonces todo es `Unknown`, así que descartarlo dejaría el addon mudo en vez de filtrar.
 - GWT: *Given* todas las casillas marcadas, *When* cambia el dueño de unas ruinas, *Then* no hay aviso ni en la lista ni en el pop-up.
+
+**RF-19f (M)** Cada línea de aviso (widget, registro, emergente y HUD) se lee **desde el equipo del jugador** (propuesta 1 de `docs/bocetos/ux/propuestas.html`, aprobada el 2026-11-02):
+- Empieza con un **verbo** en texto: **PERDIDO** (era nuestro y pasa a otro equipo), **TOMADO** (pasa a ser nuestro), **cambio** (entre los otros dos equipos) o **reclamo** (claim de clan). Perdido y tomado van en negrita (texto dibujado dos veces con 1 px de desplazamiento) y con su color; cambio y reclamo, atenuados.
+- Después el objetivo, el mapa con **el mismo nombre que el resto del addon** («Alpino verde», no «Verde») y, en un cambio de dueño, el equipo que se lo lleva («se lo lleva Rojo»).
+- Marca **ALTO** si el objetivo es de alto valor (`points_tick` ≥ 8, el mismo criterio que RF-30b).
+- A la derecha, la **antigüedad** («12 s», «4 min»); a partir de 60 min, `hh:mm`. La hora exacta, en el tooltip y en Registro.
+- Sin equipo propio conocido, no hay perdido ni tomado: todo es «cambio».
+- GWT: *Given* mi equipo Verde, *When* Stonemist pasa de Verde a Rojo, *Then* la línea es «PERDIDO Stonemist Castle · Eternos · se lo lleva Rojo · ALTO · 0 s».
+- GWT: *Given* mi equipo Verde, *When* un objetivo pasa de Azul a Rojo, *Then* la línea empieza por «cambio», atenuada.
 
 ## C. Objetivo 2 – Seguimiento de guilds enemigas
 
@@ -241,6 +259,13 @@ El click-through **no tiene casilla en los ajustes** (se quitó el 2026-11-01: e
 - GWT: *Given* un objetivo rojo cuyo `claimed_by` está vacío, *When* se pinta el mapa y se pasa el ratón, *Then* se dibuja rojo y el detalle dice «Rojo · Sin reclamar», nunca solo «Sin reclamar».
 - GWT: *Given* las coordenadas del API, *When* se proyectan, *Then* el **norte queda arriba**: `continent_rect` y la pirámide de teselas crecen hacia el sur (medido en `/v2/continents/1/floors/1`: Orr, al sur de Kryta, tiene más Y), así que la proyección no invierte la Y. Un mapa del revés pone cada fila de teselas en el sitio de otra (fallo de 2026-10-31).
 
+**RF-30c (M)** Los **cuatro mapas a la vez** (propuesta 4, aprobada el 2026-11-02):
+- Encima del tablero, una **tira de cuatro botones** que sustituye al desplegable «Mapa». Cada botón lleva el nombre del mapa, el recuento de objetivos **que puntúan** por equipo en letra y número (`G4 A3 R5`, no solo color) y debajo la última novedad desde el punto de vista del jugador («-1 hace 2 min», «estás aquí», «sin cambios»). El botón del mapa elegido va resaltado.
+- Debajo del tablero, una **leyenda fija** de una línea: tamaño grande = castillo/fortaleza, pequeño = torre/campamento, anillo blanco = alto valor, anillo dorado = clan seguido.
+- Con un clan elegido, los controles de la ruta (reproducir, ventana de tiempo, eje y paso) van **debajo** del tablero, para que el tablero no cambie de sitio.
+- En «Claims del matchup» (RF-70) cada fila añade el dueño **en texto** (`· Rojo`), además del color.
+- GWT: *Given* Eternos con 4 objetivos verdes, 3 azules y 5 rojos que puntúan, *When* se abre Mapa, *Then* el botón de Eternos dice «G4 A3 R5».
+
 **RF-31 (M)** Capa de claims: marca visualmente los objetivos reclamados por guilds seguidas (anillo/etiqueta con tag de guild).
 
 **RF-32 (M)** Vista **Histórico** por guild: dibuja los claims en orden cronológico como estela numerada y direccional (ruta simulada), con selector de guild y de rango temporal. El claim **más reciente** se resaltará de forma inequívoca (relleno distinto y número en negrita), porque es el que el usuario quiere ver primero. Presentación B — Estela aprobada por el jugador el 2026-11-02 e implementada en 0.26.6:
@@ -279,6 +304,12 @@ El click-through **no tiene casilla en los ajustes** (se quitó el 2026-11-01: e
 
 **RF-40 (M)** Ventana de configuración (pestaña *Ajustes*, la última): equipo (botón que abre la ventana del selector, RF-03j), traducción del nombre del equipo, idioma, intervalo de sondeo, ámbito y filtros de avisos (mapas, clanes seguidos, tipos de estructura), segundos y activación del aviso emergente, tipos de aviso del widget, fondo del mapa, tema, fondo y opacidad del widget, tamaño de texto, líneas visibles, ventana visible y posición bloqueada, y la **URL del índice de nombres** con su botón de descarga. Las guilds seguidas se gestionan en la pestaña *Clanes*, no aquí.
 
+**RF-40a (M)** Orden de *Ajustes* (propuesta 5, aprobada el 2026-11-02):
+- Arriba, un único bloque **«Qué me avisa»** que junta los filtros de RF-19a/19b hoy repartidos en tres secciones: **Qué** (perdido, tomado, cambio, reclamo), **De qué** (castillo y fortalezas, torres, campamentos, ruinas), **Dónde** (los cuatro mapas) y **De quién** (cualquiera / solo clanes que sigo), más el emergente (encendido y `popup_secs`).
+- Debajo, una **frase de resumen en vivo** que dice qué va a pasar con esa combinación («Te avisará de lo que pierdas o tomes en castillo, fortalezas y torres de los cuatro mapas, de cualquier clan. El emergente dura 15 s.»). Si la combinación no deja pasar nada, la frase lo dice en naranja.
+- El resto, en secciones plegables: **Equipo** (botón del selector, RF-03j), **Ventanas y apariencia**, **Datos** (sondeo, índice de nombres) y **Avanzado** (la URL del índice, que no se muestra por defecto).
+- GWT: *Given* «De qué» sin ninguna casilla, *When* se mira el resumen, *Then* dice en naranja que no avisará de nada.
+
 **RF-41 (M)** Persistencia de la configuración en el directorio de addon de Nexus.
 
 **RF-42 (S)** El widget se abre y se cierra desde las opciones de Nexus (*Ver la ventana*), desde el menú del clic derecho y con el keybind `GW2LURKER_CLICK_THROUGH` (que alterna el click-through, no la visibilidad); el atajo que se muestra es el que Nexus tiene guardado.
@@ -313,6 +344,16 @@ configuración y se restaura al arrancar.
   ventana esté oculta o el overlay no se dibuje fuera de MvM, y dibujan también los ajustes.
 - Menú contextual con **clic derecho** sobre cualquier ventana: *Bloquear posición*, *Opacidad* (slider), *Restablecer posición y tamaño*, *Ajustes…*.
 - GWT: *Given* opacidad 60 % y ventana bloqueada, *When* se reinicia el juego, *Then* aparece en la misma posición, tamaño, opacidad y bloqueada.
+- **Excepción (ADR-017):** el HUD de combate (RF-47) es una segunda superficie fija.
+
+**RF-47 (M)** **HUD de combate** separado de la ventana con pestañas (propuesta 2 y ADR-017, aprobados el 2026-11-02):
+- Una línea de estado: equipo **en texto y color**, región, mapa actual y antigüedad de los datos («datos hace 8 s»). Al pasar el ratón, el resto del estado que hoy está en la cabecera (RF-43).
+- Debajo, las últimas **2–5 líneas de aviso** (`max_lines`) con el formato de RF-19f.
+- Si la API lleva ≥ 5 min sin cambios (RF-43), la línea de estado lo dice en naranja («API parada 7 min») y, sin avisos, el cuerpo dice «Sin avisos nuevos: ArenaNet no publica cambios».
+- Tiene su propio estado de ventana (posición, tamaño, opacidad, bloqueo, click-through; mismo contrato que RF-46 y RF-18). Se ve solo en mapas de MvM (RF-16).
+- La ventana con pestañas pasa a ser la **consola**: Mapa, Clanes, Registro y Ajustes, con la cabecera de estado **plegada en una línea**. La pestaña Avisos desaparece: su contenido es el HUD.
+- GWT: *Given* el HUD visible y la consola cerrada, *When* llega un aviso, *Then* aparece en el HUD sin abrir la consola.
+- GWT: *Given* la API congelada 7 min, *When* el jugador mira el HUD, *Then* lee «API parada 7 min» sin abrir nada.
 
 ## E2. Actualización, integridad y fallo seguro
 
@@ -373,10 +414,10 @@ Módulos **reales** del workspace actual (`crates/core`, `crates/api`, `crates/a
 | RF-01/02/02a | `addon::context`, `addon::detect`, `addon::ffi::mumble` | `ui::mod`, `worker` |
 | RF-03* | `addon::team`, `addon::arc_team`, `core::detect`, `core::resolver`, `core::select`, `core::teams`, `core::prompt` + `data/wvw-teams.json` y `data/team-names.json` | `ui::team_picker`, `ui::settings`, `worker` |
 | RF-10..15, RF-22..27 | `core::diff`, `core::gate`, `core::matchup` (`claim_holds`, `digest`) | `worker` |
-| RF-16..19e | `addon::alerts`, `addon::ui::alerts`, `addon::ui::popup`, `core::alerts` (filtros) | `ui::mod` |
+| RF-16..19f | `addon::alerts`, `addon::ui::alerts`, `addon::ui::popup`, `core::alerts` (filtros) | `ui::mod` |
 | RF-20..20d, RF-73 | `addon::catalog` (nombres), `addon::names` (índice), `addon::session_names` (`temp.json`), `addon::guild_index` (ZIP), `addon::search` (búsqueda), `core::follow` | `ui::follow`, `ui::guilds` |
 | RF-30..38 | `core::project`, `core::model`, `core::route`, `addon::ui::map`, `addon::ui::map::route`, `addon::ui::icons` | `ui::map` |
-| RF-40..43, RF-46 | `addon::config`, `addon::writer`, `addon::ui::settings`, `addon::ui::window` | `ui::mod` |
+| RF-40..43, RF-46, RF-47 | `addon::config`, `addon::writer`, `addon::ui::settings`, `addon::ui::window` | `ui::mod` |
 | RF-44..45 | `core::i18n` (tabla), `addon::i18n`, `addon::lang`, `addon::keybinds`, `ffi::keys` | todo el render |
 | RF-50..53 | `addon::lib` (DLL en disco, versión), `addon::config` (modo seguro), `scripts/release.ps1`, `scripts/pack-guild-index.ps1` | CI + `docs/RELEASE.md` |
 | RF-60..63 | `addon::ui::theme` | `ui::mod` |

@@ -2,7 +2,8 @@
 
 - **Estado**: aceptado (2026-10-31); enmendado el 2026-11-02: el selector de equipo pasa a ser una
   ventana aparte, centrada, que se abre sola al entrar en MvM o en el Bastión (RF-03j), por
-  petición expresa del jugador. Es la única excepción; el resto sigue en la ventana con pestañas.
+  petición expresa del jugador. Enmendado de nuevo el 2026-11-02 por **ADR-017**: los avisos
+  salen a un HUD de combate aparte y la ventana con pestañas pasa a ser la consola.
 - **Decide**: el usuario, tras ver el addon funcionando y compararlo con `docs/boceto.html`
 - **Afecta a**: RF-17, RF-18, RF-46; T-42
 
