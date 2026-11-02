@@ -70,7 +70,7 @@ Estado global (en `addon/src/lib.rs` y `worker.rs`):
 | Síntoma | Primero | Después |
 |---|---|---|
 | No avisa de una captura, o avisa de más | `core/src/alerts.rs` | `core/src/diff/mod.rs`, `addon/src/alerts.rs`, `ui/alerts.rs` |
-| El emergente no sale o se repite | `ui/popup.rs` | `ui/alerts.rs` (`tick`) |
+| El emergente no sale o se repite | `ui/popup.rs` | `ui/popup_stack.rs` (`tick`) |
 | Reclamos fantasma, tardíos o duplicados | `core/src/diff/mod.rs` + `specs/06-diff-scenarios.md` | `core/src/matchup.rs` |
 | Equipo o emparejamiento equivocado | `addon/src/team.rs`, `core/src/detect.rs` | `core/src/resolver.rs`, `core/src/select.rs`, `arc_team.rs`, `assignment.rs`, `core/src/teams.rs` |
 | No sondea, sondea de más o «Degradado» | `worker.rs` (`run`, `poll_once`, `retry_delay`, `should_skip_poll`) | `core/src/gate.rs`, `context.rs`, `api/src/lib.rs`, `ffi/http.rs` |
@@ -103,18 +103,20 @@ Estado global (en `addon/src/lib.rs` y `worker.rs`):
 
 <!-- GENERADO: no editar debajo; se rehace con scripts/gen_modelo.ps1 -->
 
-Generado el 2026-11-02 18:07 desde el commit `628a492`.
+Generado el 2026-11-02 21:24 desde el commit `b373394`.
 
 ## Crate `core`
 
 - `crates/core/Cargo.toml`
 
-### `crates/core/src/alerts.rs` (481 líneas)
+### `crates/core/src/alerts.rs` (551 líneas)
 
 Which captures deserve an alert (RF-19, RF-19a).
 
 **Contenido:**
 
+- `pub enum FlipPerspective` — A capture described from the player's team's point of view.
+- `pub fn flip_perspective(…)` — Classifies an ownership change without guessing when the player's team is unknown.
 - `pub struct Structures` — Which structures deserve an alert.
 - `impl Default for Structures`
   - `fn default() -> Self` — Por defecto avisa de los cuatro tipos de estructura: campamento, torre, fortaleza y castillo.
@@ -130,7 +132,7 @@ Which captures deserve an alert (RF-19, RF-19a).
 
 **Usa (interno):** `crate::follow`, `crate::model`
 
-**Tests (10):** `rf19a_by_default_only_my_map_and_the_guilds_i_follow`, `rf19_unticking_a_map_silences_only_that_map`, `rf19a_the_map_i_am_on_can_be_the_only_source`, `rf19a_only_the_followed_guilds_is_one_switch`, `rf73_a_followed_guild_is_interesting_on_every_map`, `rf73_unticking_followed_guilds_silences_them`, `rf19_unknown_map_never_alerts`, `rf19e_ruins_never_alert`, `rf19e_each_structure_can_be_turned_off`, `rf19e_an_unknown_kind_is_let_through`
+**Tests (13):** `rf19f_flip_from_my_team_is_lost`, `rf19f_flip_to_my_team_is_taken`, `rf19f_other_or_unknown_team_is_a_change`, `rf19a_by_default_only_my_map_and_the_guilds_i_follow`, `rf19_unticking_a_map_silences_only_that_map`, `rf19a_the_map_i_am_on_can_be_the_only_source`, `rf19a_only_the_followed_guilds_is_one_switch`, `rf73_a_followed_guild_is_interesting_on_every_map`, `rf73_unticking_followed_guilds_silences_them`, `rf19_unknown_map_never_alerts`, `rf19e_ruins_never_alert`, `rf19e_each_structure_can_be_turned_off`, `rf19e_an_unknown_kind_is_let_through`
 
 
 ### `crates/core/src/detect.rs` (143 líneas)
@@ -297,7 +299,7 @@ The translation table itself (RF-44).
 **Usa (interno):** `super::COLUMNS`, `super::more`
 
 
-### `crates/core/src/i18n/table/more.rs` (699 líneas)
+### `crates/core/src/i18n/table/more.rs` (735 líneas)
 
 The second half of the translation table (RF-44).
 
@@ -352,7 +354,7 @@ Pure domain logic: snapshots, diff, rules, guild following and history queries.
 - `pub mod teams`
 
 
-### `crates/core/src/matchup.rs` (692 líneas)
+### `crates/core/src/matchup.rs` (680 líneas)
 
 Claim-centric view models: what is claimed right now across the matchup (RF-70), which guilds are active and how recently (RF-71) and how a guild's history splits between the player's map and the others (RF-72).
 
@@ -362,7 +364,7 @@ Claim-centric view models: what is claimed right now across the matchup (RF-70),
 - `impl ClaimRow`
   - `pub fn is_high_value(&self) -> bool` — Whether the objective scores enough to be marked (RF-30b, threshold in [`crate::model::HIGH_VALUE_TICK`]).
 - `pub fn claim_holds(objective: &crate::model::MatchObjective) -> bool` — Whether the guild that claimed the objective still holds it.
-- `pub fn digest(m: &Match) -> u64` — Huella de lo que se captura en una partida: por objetivo, el dueño, el clan y la hora del último cambio.
+- `pub fn digest(m: &Match) -> u64` — Huella de lo que se enseña de una partida: puntos, y por objetivo el dueño, el clan y la hora del último cambio.
 - `pub fn claims(m: &Match, names: &[ObjectiveInfo]) -> Vec<ClaimRow>` — Flattens every claimed objective of the match (RF-70).
 - `pub struct ObjectiveState` — Estado de un objetivo en el snapshot: **dueño siempre**, claim solo si lo hay (RF-30b).
 - `impl ObjectiveState`
@@ -694,9 +696,9 @@ HTTP client for the public GW2 API and its response parsing.
 
 ## Crate `addon`
 
-- `crates/addon/Cargo.toml` — Descomprime el ZIP del índice de nombres de clan (RF-20). `deflate` es la feature que trae el lector de flate2; el resto (bzip2, zstd, lzma, aes) no se pide, porque el ZIP lo generamos nosotros. Es la misma caja y la mis…
+- `crates/addon/Cargo.toml` — `max_level_info` drops debug!/trace! at compile time. It replaces nexus' `log_filter: "info"`, whose `env_filter` pulled in `regex` (~390 KiB of the DLL) just to parse one level. Descomprime el ZIP del índice de nombres…
 
-### `crates/addon/src/alerts.rs` (209 líneas)
+### `crates/addon/src/alerts.rs` (214 líneas)
 
 Alert lines: the events of the session turned into something the widget can draw (T-13).
 
@@ -1145,7 +1147,7 @@ Where the interface language comes from (RF-44).
 **Tests (5):** `rf44_nexus_settings_language_is_read`, `rf44_nexus_settings_without_language_is_none`, `rf44_locale_identifier_matches_display_name`, `rf44_extras_codes_match_the_game_enum`, `rf44_no_extras_event_means_no_answer`
 
 
-### `crates/addon/src/lib.rs` (333 líneas)
+### `crates/addon/src/lib.rs` (332 líneas)
 
 Raidcore Nexus addon (cdylib).
 
@@ -1350,7 +1352,7 @@ Which team the current **account** plays for (RF-03a).
 **Tests (9):** `rf03f_a_translation_belongs_to_one_team`, `rf03a_override_wins_over_the_roster`, `rf03a_the_team_is_remembered_per_account_and_shared_by_its_characters`, `rf03a_a_character_entry_is_not_read_once_the_account_is_known`, `rf03a_picking_a_team_saves_it_under_the_account_only`, `rf03a_forgetting_clears_the_key_that_was_read_and_nothing_else`, `rf03f_the_players_translation_wins_over_the_bundled_one`, `rf03f_writing_the_automatic_name_is_not_an_override`, `rf03f_the_old_single_alias_is_still_honoured`
 
 
-### `crates/addon/src/ui/alerts.rs` (589 líneas)
+### `crates/addon/src/ui/alerts.rs` (750 líneas)
 
 Alert widget (T-13, RF-19): the recent captures and claims, newest first.
 
@@ -1359,33 +1361,34 @@ Alert widget (T-13, RF-19): the recent captures and claims, newest first.
 - `pub const KEY` — Translation key (and stable id) of this window.
 - `pub const LOG_KEY` — Translation key (and stable id) of the expanded log window.
 - `const POPUP_KEY` — Translation key of the pop-up: separate window, separate id, state never saved.
+- `pub struct LineContext` — Hora, equipo propio y estados de objetivos para formatear una línea.
 - `const MAX_LINES` — How many lines fit in the window without scrolling forever; the player can ask for fewer (RF-19c).
 - `fn keeps(kind: AlertKind) -> bool` — Whether the player wants this kind of alert at all (RF-19c).
 - `pub const WIDGET_MINUTES` — How long an alert stays in the compact widget, in minutes.
-- `pub const MAX_LOGGED` — How many lines the *Alert log* draws at most: the newest ones. El registro era lento porque\n/// pintaba todo lo de la sesión (informe de 2026-10-31).\npub const MAX_LOGGED: usize = 50;\n\n/// How man…
-- `const MAX_POPUP_LINES` — How many lines the pop-up shows at once.
+- `pub const MAX_LOGGED` — How many lines the *Alert log* draws at most, the newest first.
 - `const GLYPH_WIDTH` — Space reserved ahead of each line for the drawing of the objective (T-47).
 - `const GLYPH_HALF` — Half size of that drawing: it has to fit in a line of text.
-- `pub fn body(ui: &Ui, alerts: &[AlertLine], now: DateTime<Utc>) -> Option<String>` — Body of the *Alerts* tab: what just happened, so it is readable during a fight.
-- `pub fn log_body(ui: &Ui, alerts: &[AlertLine]) -> Option<String>` — Body of the *Alert log* tab: the whole session, scrolling if needed.
-- `fn draw_lines(ui: &Ui, lines: &[&AlertLine]) -> Option<String>` — One line per alert, each preceded by the drawing of what was taken (T-47).
+- `pub fn body(ui: &Ui, alerts: &[AlertLine], context: &LineContext<'_>) -> Option<String>` — Body of the *Alerts* tab: what just happened, so it is readable during a fight.
+- `pub fn log_body(ui: &Ui, alerts: &[AlertLine], context: &LineContext<'_>) -> Option<String>` — Body of the *Alert log* tab: the whole session, scrolling if needed.
+- `fn draw_faded_lines(…)` — One line per alert, each preceded by the drawing of what was taken (T-47).
 - `pub fn within(lines: &[AlertLine], now: DateTime<Utc>, minutes: i64) -> Vec<AlertLine>` — The lines still worth a place in the widget: those that arrived in the last `minutes`.
-- `pub struct PopupQueue` — Cola del pop-up: los avisos se enseñan **de uno en uno**, cada uno `secs` segundos.
-- `impl PopupQueue`
-  - `pub fn tick(…)` — Encola lo nuevo y devuelve el aviso que toca enseñar ahora, con su opacidad.
-- `pub fn draw_popup(…)` — Draws the transient pop-up: no frame, no title, and it can be dragged where you want it.
-- `fn draw_line(ui: &Ui, line: &AlertLine, language: gw2lurker_core::i18n::Language) -> bool` — One line, in coloured pieces. Returns `true` when the player clicked it and it names a guild.
-- `fn spans(line: &AlertLine, language: gw2lurker_core::i18n::Language) -> Vec<(String, [f32; 4])>` — The line as coloured pieces: what the player asked for on 2026-10-31.
+- `pub fn draw_popup(…)` — Dibuja el emergente sin cromo; solo captura el ratón durante la colocación.
+- `fn build_popup_window<T: AsRef<str>>(…)` — Dibuja el emergente y guarda su posición antes de que imgui cierre la ventana.
+- `fn draw_line(…)` — One line, in coloured pieces. Returns `true` when the player clicked it and it names a guild.
+- `fn draw_line_faded(…)` — Dibuja una línea RF-19f con su fundido y detecta el clic en un clan.
+- `fn spans(…)` — Construye los fragmentos traducidos y coloreados del aviso desde el equipo propio.
+- `fn age_text(…)` — Formatea la antigüedad en segundos, minutos o horas y minutos.
 - `const GREY` — Neutral grey: everything that is not the map or an owner colour.
-- `fn map_piece(…)` — The map of an alert, **short and in its own colour**: «Eternos» in grey, «Azul», «Verde» and «Rojo» in the colour of their borderland, which is how the player says it (request of 2026-10-31). `None` w…
+- `const HIGH_VALUE` — Color de la marca de objetivo de alto valor.
+- `fn map_piece(…)` — The map label matches the rest of the addon; borderlands keep their team colour.
 - `fn team_colour(colour: TeamColor) -> [f32; 4]` — Color de equipo, el mismo que en el mapa y en el historial (RF-62).
 - `fn colour_label(colour: TeamColor, language: gw2lurker_core::i18n::Language) -> &'static str` — Nombre traducido de un color de equipo (Rojo/Verde/Azul).
 
-**Usa (interno):** `crate::clock`, `crate::config`, `crate::i18n`, `crate::worker`, `gw2lurker_core::i18n`, `gw2lurker_core::MapRole`, `gw2lurker_core::model`, `super::icons`, `super::theme`
+**Usa (interno):** `crate::clock`, `crate::config`, `crate::i18n`, `crate::worker`, `gw2lurker_core::alerts`, `gw2lurker_core::i18n`, `gw2lurker_core::MapRole`, `gw2lurker_core::matchup`, `gw2lurker_core::model`, `super::icons`, `super::popup_stack`, `super::theme`
 
 **APIs externas:** `nexus::imgui`, `nexus::imgui::MouseButton`, `imgui::MouseButton`, `imgui (dibuja con &Ui)`
 
-**Tests (10):** `rf19a_the_popup_shows_one_alert_at_a_time`, `rf19a_the_popup_fades_in_its_last_half_second`, `rf19_the_widget_forgets_what_is_old`, `rf25_late_claims_are_not_popped_up`, `rf19d_every_alert_the_player_follows_can_be_interrupted`, `rf19_a_flip_names_both_colours`, `rf21_claims_name_the_guild`, `rf19_unclaim_says_released`, `rf19_the_map_is_drawn_in_its_own_colour_and_the_rest_in_grey`, `rf19_the_owner_colours_are_told_apart`
+**Tests (11):** `rf19d_placement_remembers_the_popup_position_not_the_parent`, `rnf01_popup_stack_and_native_draw_budget`, `rf19_the_widget_forgets_what_is_old`, `rf19d_every_alert_the_player_follows_can_be_interrupted`, `rf19_a_flip_names_both_colours`, `rf21_claims_name_the_guild`, `rf19_unclaim_says_released`, `rf19_the_map_is_drawn_in_its_own_colour_and_the_rest_in_grey`, `rf19f_line_uses_my_team_and_marks_high_value`, `rf19f_relative_age_uses_seconds_minutes_and_hours`, `rf19_the_owner_colours_are_told_apart`
 
 
 ### `crates/addon/src/ui/follow.rs` (618 líneas)
@@ -1631,7 +1634,7 @@ Session cache and native timeline controls for B - Estela (T-53).
 **APIs externas:** `nexus::imgui`, `imgui (dibuja con &Ui)`
 
 
-### `crates/addon/src/ui/map/trail_tests.rs` (233 líneas)
+### `crates/addon/src/ui/map/trail_tests.rs` (236 líneas)
 
 Acceptance of the prepared B scene without calling Nexus.
 
@@ -1640,7 +1643,7 @@ Acceptance of the prepared B scene without calling Nexus.
 - `pub fn fixtures() -> (Vec<ObjectiveInfo>, Vec<WvwMap>)` — Real catalogues used for map projection and objective coordinates.
 - `pub fn claim(id: &str, seconds: i64) -> ClaimRow` — Synthetic claim whose coordinates come from the real objective table.
 
-**Usa (interno):** `gw2lurker_core::Event`, `gw2lurker_core::route`, `super::scene`
+**Usa (interno):** `crate::ui`, `gw2lurker_core::Event`, `gw2lurker_core::route`, `super::scene`
 
 **APIs externas:** `nexus::imgui`, `serde_json::from_str`
 
@@ -1670,7 +1673,7 @@ Matchup claims view (T-36, RF-70): what is claimed right now, grouped by map.
 **Tests (6):** `rf73_the_claims_view_can_show_only_followed_guilds`, `rf30b_high_value_is_the_tick_of_this_snapshot_not_the_kind`, `rf70_all_kinds_are_visible_by_default`, `rf70_kind_filters_remove_rows`, `rf70_high_value_hides_camps_but_keeps_castles`, `rf70_rows_are_grouped_by_map`
 
 
-### `crates/addon/src/ui/mod.rs` (748 líneas)
+### `crates/addon/src/ui/mod.rs` (790 líneas)
 
 Windows of the addon. Every one of them goes through [`window::draw`] (RF-46).
 
@@ -1684,6 +1687,7 @@ Windows of the addon. Every one of them goes through [`window::draw`] (RF-46).
 - `mod matchup`
 - `mod navigation`
 - `mod popup`
+- `mod popup_stack`
 - `mod settings`
 - `mod status`
 - `mod team_picker`
@@ -1696,6 +1700,7 @@ Windows of the addon. Every one of them goes through [`window::draw`] (RF-46).
 - `pub const LOCK_SHORTCUT` — Shortcut registered by default for bringing the window back.
 - `const VK_L` — Virtual-key code of `L`, which is what Nexus' keybind API takes.
 - `static LOCK_TOGGLE` — Set by the keybind handler and consumed by the render callback.
+- `pub static IMGUI_TEST_LOCK` — ImGui allows only one active context, so native UI tests share this lock.
 - `fn on_lock_keybind(_identifier: &str, is_release: bool)` — Callback del atajo de Nexus: al pulsar (no al soltar) pide alternar el click-through.
 - `fn take_lock_toggle() -> bool` — Consume la petición del atajo (la lee y la pone a falso).
 - `fn reveal(config: &mut crate::config::Config) -> bool` — Brings the window back: shown, not click-through, and not collapsed.
@@ -1743,20 +1748,41 @@ Map navigation rules, independent of Nexus and imgui (RF-30, RF-71).
 **Tests (9):** `rf03a_without_a_team_every_data_tab_requires_the_settings_step`, `rf03a_another_accounts_saved_team_does_not_unlock_the_tabs`, `rf30_a_guild_jump_waits_until_the_map_tab_is_drawn`, `rf30_returning_to_the_map_tab_by_hand_snaps_to_the_players_map`, `rf71_a_guild_without_events_keeps_the_tab_and_map`, `rf71_a_guild_jump_chooses_its_map_and_clears_the_notice`, `rf71_an_empty_guild_cancels_an_earlier_pending_jump`, `rf32a_a_non_favourite_guild_opens_its_last_claim_map_with_a_route`, `rf71_entering_the_map_tab_by_hand_leaves_no_guild_chosen`
 
 
-### `crates/addon/src/ui/popup.rs` (140 líneas)
+### `crates/addon/src/ui/popup_stack.rs` (454 líneas)
 
-El aviso emergente (RF-19a): encima de la pantalla, **de uno en uno**.
+**Contenido:**
+
+- `const MAX_POPUP_LINES` — Máximo de avisos visibles simultáneamente en el emergente.
+- `pub struct PopupLine` — Aviso visible con su factor de fundido.
+- `pub struct PopupSnapshot` — Líneas visibles y número de avisos descartados.
+- `struct ActiveLine` — Aviso activo con su vencimiento y prioridad.
+- `struct Identity` — Identidad de un evento para no volver a mostrarlo en cada fotograma.
+- `impl From<&AlertLine> for Identity`
+  - `fn from(line: &AlertLine) -> Self` — Construye la identidad a partir de una línea de aviso.
+- `pub struct PopupStack` — Estado de avisos activos, identidades vistas y descartes.
+- `impl PopupStack`
+  - `pub fn tick(…)` — Caduca, ordena y limita las líneas con un reloj dado, y calcula su fundido.
+- `fn priority(…)` — Prioriza clan seguido, alto valor, perdido, tomado y el resto.
+
+**Usa (interno):** `crate::alerts`, `crate::worker`, `gw2lurker_core::FollowList`, `gw2lurker_core::matchup`, `gw2lurker_core::model`
+
+**Tests (6):** `rf19d_alerts_stack_and_expire_independently`, `rf19d_priority_is_followed_then_valuable_then_lost_then_taken`, `rf19d_high_value_lost_replaces_the_oldest_taken_line`, `rf19d_discarded_lines_are_counted_and_never_queued`, `rf19d_text_fades_during_the_last_half_second`, `rf25_r07_only_recent_followed_late_claims_reach_popup`
+
+
+### `crates/addon/src/ui/popup.rs` (178 líneas)
+
+The transient, stacked pop-up (RF-19d).
 
 **Contenido:**
 
 - `pub static TEST_POPUP_UNTIL` — When the *Test pop-up* button of the settings wants a fake alert on screen (milliseconds).
 - `pub fn start_test_popup()` — Shows a fake pop-up for a few seconds, so it can be placed without waiting for a capture.
 - `pub fn draw(…)` — Pop-up with what just happened, on top of the screen (RF-19a).
-- `fn popup_lines(…)` — Líneas del popup: la de prueba (si hay) encima de la real, con su opacidad.
-- `fn queue_slot() -> std::sync::MutexGuard<'static, alerts::PopupQueue>` — The one pop-up at a time (RF-19a): session state, not a setting.
+- `fn popup_lines(snapshot: PopupSnapshot, test: Option<crate::worker::AlertLine>) -> PopupSnapshot` — Muestra la línea de prueba en lugar de la pila real mientras se coloca el emergente.
+- `fn queue_slot() -> std::sync::MutexGuard<'static, PopupStack>` — The pop-up stack is session state, not a setting.
 - `fn test_popup_line(now: chrono::DateTime<chrono::Utc>) -> Option<crate::worker::AlertLine>` — A fake line while the settings ask for one, so the pop-up can be placed at will.
 
-**Usa (interno):** `crate::i18n`, `crate::runtime`, `crate::worker`, `gw2lurker_core::model`, `gw2lurker_core::ObjectiveType`, `super::alerts`, `super::WIDGET`
+**Usa (interno):** `crate::i18n`, `crate::runtime`, `crate::team`, `crate::worker`, `gw2lurker_core::model`, `gw2lurker_core::ObjectiveType`, `super::alerts`, `super::popup_stack`, `super::WIDGET`
 
 **APIs externas:** `nexus::imgui::Ui`, `imgui::Ui`, `imgui (dibuja con &Ui)`
 
@@ -1807,7 +1833,7 @@ La línea de estado de la ventana: salud del sondeo, partida, equipo y origen de
 
 **Contenido:**
 
-- `const FROZEN_AFTER_MIN` — Minutos sin ningún cambio en los objetivos a partir de los cuales se avisa (RF-43). En MvM cambia algo cada pocos segundos; 5 min quietos casi siempre es la API de ArenaNet parada (petición del jugado…
+- `const FROZEN_AFTER_MIN` — Minutos con la copia de la partida idéntica (puntos incluidos, `matchup::digest`) a partir de los cuales se avisa (RF-43). En MvM el marcador cambia cada pocos segundos; 5 min sin ningún cambio es la…
 - `pub fn draw_health(…)` — Bloque de estado: salud del sondeo, mapa del jugador, equipo (del juego o configurado), región y equipos del match, última actualización.
 - `pub fn colour_label(colour: TeamColor) -> &'static str` — Nombre del color del equipo, el mismo que usa el panel de WvW del juego.
 - `pub fn region_of(match_id: &str) -> Option<gw2lurker_core::model::Region>` — Region of a matchup id: `1-x` is North America and `2-x` is Europe.
@@ -2041,7 +2067,7 @@ Off-thread writer for the settings file.
 - `bugs.md` — Bugs — Bandeja de entrada de fallos. **No se borra**: cada bug se queda con su marca. `[x]` cuando creo que está arreglado, con la versión en la que sale el arreglo, para que el jugador pueda comprobarlo y tacharlo del todo si…
 - `Cargo.lock`
 - `Cargo.toml`
-- `CHANGELOG.md` — Changelog — Formato [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/), versionado [SemVer](https://semver.org/lang/es/). MvM o en el Bastión del Armisticio si aún no has elegido equipo, si tu equipo ya no juega o si ha cam…
+- `CHANGELOG.md` — Changelog — Formato [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/), versionado [SemVer](https://semver.org/lang/es/). alto valor, antigüedad en vivo y hora exacta en el registro y el tooltip. individual desde su llegada…
 - `CLAUDE.md` —  — Lee y sigue `AGENTS.md` (instrucciones completas para agentes de IA de este repositorio).
 - `deny.toml` — RUSTSEC-2024-0384 (instant) y RUSTSEC-2024-0436 (paste): avisos de "sin mantenimiento" en crates que arrastra `nexus-rs`. No son vulnerabilidades, están fuera de nuestro control y no podemos actualizarlos por separado: s…
 - `docs/agents/lecciones.md` — Lecciones con contexto (referencia de AGENTS.md) — Texto completo de las reglas que en `AGENTS.md` van en una línea. Cada punto sale de un fallo real. Léelo cuando la tarea toque tests, imgui, el candado `RUNTIME` o `settings.json`; no hace falta cargarlo en cada sesión.
@@ -2062,6 +2088,7 @@ Off-thread writer for the settings file.
 - `docs/bocetos/ruta/propuesta-c.js`
 - `docs/bocetos/ruta/propuesta-d.js`
 - `docs/bocetos/ruta/ruta.css`
+- `docs/bocetos/ux/propuestas.html`
 - `docs/RELEASE.md` — Publicación de la DLL para Nexus — El addon se distribuye desde **un repositorio compartido con los demás addons**: Regla de oro: **este repositorio no es nuestro**. Solo se tocan los ficheros de dejaba dos instancias del addon con el juego abierto y reve…
 - `install.bat` — Copia gw2_lurker.dll a la carpeta addons de Guild Wars 2 con doble clic. Argumentos opcionales: install.bat -Build (tests + compilacion antes de copiar) install.bat -DryRun (solo dice que haria)
 - `install.ps1` — Compila (opcional) e instala el addon gw2_lurker.dll en la carpeta addons de Guild Wars 2.
@@ -2109,9 +2136,10 @@ Off-thread writer for the settings file.
 - `specs/ADR-011-limites-y-fondo-de-mapa.md` — ADR-011 – Límites del mapa por `continent_rect` y fondo opcional con teselas — 1. Límites del mapa a partir del rectángulo de continente de `/v2/maps`, con respaldo por mínimo/máximo de objetivos. 2. Fondo con teselas y iconos oficiales, **opcional y desactivado por defecto** (RF-37, RF-38): descar…
 - `specs/ADR-012-historial-por-sesion.md` — ADR-012 – Historial por sesión: se descarta al arrancar — 1. El historial de eventos es **de la sesión**: al cargar el addon se empieza con el historial vacío y se construye en memoria. 2. El primer snapshot de la sesión es baseline (RF-04) y registra **todos** los claims vigen…
 - `specs/ADR-013-presupuesto-de-tamano-2-2-mb.md` — ADR-013 – Objetivo de tamaño de la DLL: 2,2 MB — límite duro de CI sigue en **2,5 MB** (`2 621 440`). ADR-008 fijó 1,5 MB antes de conocer el coste real del addon, dejándolo «a recalibrar con la medición del spike T-01». La medición llegó, y con ella el addon:
-- `specs/ADR-014-una-sola-ventana-con-pestanas.md` — ADR-014 · Una sola ventana con pestañas — ventana aparte, centrada, que se abre sola al entrar en MvM o en el Bastión (RF-03j), por petición expresa del jugador. Es la única excepción; el resto sigue en la ventana con pestañas. El addon acabó con cinco ventanas…
+- `specs/ADR-014-una-sola-ventana-con-pestanas.md` — ADR-014 · Una sola ventana con pestañas — ventana aparte, centrada, que se abre sola al entrar en MvM o en el Bastión (RF-03j), por petición expresa del jugador. Enmendado de nuevo el 2026-11-02 por **ADR-017**: los avisos salen a un HUD de combate aparte y la v…
 - `specs/ADR-015-sin-historial-en-disco.md` — ADR-015 – No hay historial en disco — en ADR-003 y complementa ADR-012. la sesión anterior. Aun así se seguían escribiendo los reclamos de los clanes seguidos en que tiene en memoria, y leer el fichero habría sido una segunda fuente de verdad que además se
 - `specs/ADR-016-indice-de-nombres-distribuido.md` — ADR-016 – El índice de nombres de clan se distribuye aparte y no vive en memoria — disco; el historial no) y RF-20b/RF-20c/RF-20d. (medido: «die» → *Die*, «a ne» → nada). Se construyó `guild-names.json` con **9 886** nombres (675 KB) y en la 0.24.0 se cargaba **entero en memoria al arrancar**, se clona…
+- `specs/ADR-017-hud-de-combate.md` — ADR-017 · HUD de combate separado de la consola — ADR-014 juntó cinco ventanas en una sola con pestañas. Eso arregló el desorden, pero la revisión de UX (Nielsen 22/40) mostró otro problema: durante una pelea lo único que importa son los avisos, y la ventana completa me…
 - `specs/glossary.md` — Glosario — 
 - `specs/manual-tests.md` — Pruebas manuales en el juego — Requisitos que solo se pueden comprobar con GW2 + Nexus (referenciados por la trazabilidad). Se ejecutan en T-19 y antes de cada release. Anota fecha, versión, resultado. **2026-11-02:** el jugador da por buenas las comp…
 - `specs/templates/adr-template.md` — ADR-NNN – Título — 

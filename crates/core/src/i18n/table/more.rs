@@ -696,4 +696,40 @@ pub const TEXT: &[(&str, [&str; COLUMNS])] = &[
             "Die API von ArenaNet meldet seit {0} Min. keine Änderung dieses Matches; das Addon fragt weiter alle {1} s ab.",
         ],
     ),
+    (
+        "And {0} more",
+        ["y {0} más", "and {0} more", "et {0} de plus", "und {0} weitere"],
+    ),
+    ("LOST", ["PERDIDO", "LOST", "PERDU", "VERLOREN"]),
+    ("TAKEN", ["TOMADO", "TAKEN", "PRIS", "EINGENOMMEN"]),
+    ("CHANGE", ["cambio", "change", "changement", "wechsel"]),
+    (
+        "CLAIM",
+        ["reclamo", "claim", "réclamation", "gildenanspruch"],
+    ),
+    (
+        "Taken by",
+        ["se lo lleva", "taken by", "capturé par", "erobert von"],
+    ),
+    (
+        "HIGH VALUE",
+        ["ALTO", "HIGH VALUE", "FORTE VALEUR", "HOHER WERT"],
+    ),
+    (
+        "Seconds short",
+        ["s", "s", "s", "s"],
+    ),
+    (
+        "Minutes short",
+        ["min", "min", "min", "Min."],
+    ),
+    (
+        "Event time: {0}",
+        [
+            "Hora del evento: {0}",
+            "Event time: {0}",
+            "Heure de l'événement : {0}",
+            "Ereigniszeit: {0}",
+        ],
+    ),
 ];

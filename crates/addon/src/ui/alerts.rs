@@ -2,7 +2,7 @@
 //!
 //! Two surfaces from the same data: the **window**, which keeps everything the filter accepts so
 //! it can be read later, and the **pop-up**, which shows only what arrived in the last few
-//! seconds (0–5, configurable) and then disappears without removing anything from the window
+//! seconds (15 by default, configurable from 0 to 20) and then disappears without removing anything from the window
 //! (RF-19a).
 //!
 //! It only draws; the worker owns the events and the store keeps the history. Lines are
@@ -25,6 +25,12 @@ pub const LOG_KEY: &str = "Alert log";
 /// Translation key of the pop-up: separate window, separate id, state never saved.
 const POPUP_KEY: &str = "Alerts (pop-up)";
 
+pub(super) struct LineContext<'a> {
+    pub(super) now: DateTime<Utc>,
+    pub(super) player_team: Option<TeamColor>,
+    pub(super) states: &'a [gw2lurker_core::matchup::ObjectiveState],
+}
+
 /// How many lines fit in the window without scrolling forever; the player can ask for fewer
 /// (RF-19c).
 const MAX_LINES: usize = 25;
@@ -41,14 +47,11 @@ fn keeps(kind: AlertKind) -> bool {
 /// the same number.
 pub const WIDGET_MINUTES: i64 = 10;
 
-/// How many lines the *Alert log* draws at most: the newest ones. El registro era lento porque\n/// pintaba todo lo de la sesión (informe de 2026-10-31).\npub const MAX_LOGGED: usize = 50;\n\n/// How many lines the *Alert log* draws at most, the newest first.
+/// How many lines the *Alert log* draws at most, the newest first.
 ///
 /// El registro era lento porque pintaba todo lo de la sesión, y ahora cada línea son varios trozos
 /// de texto (informe de 2026-10-31). Lo que no se dibuja sigue en el historial y en la ruta.
 pub const MAX_LOGGED: usize = 50;
-
-/// How many lines the pop-up shows at once.
-const MAX_POPUP_LINES: usize = 5;
 
 /// Space reserved ahead of each line for the drawing of the objective (T-47).
 const GLYPH_WIDTH: f32 = 11.0;
@@ -60,12 +63,12 @@ const GLYPH_HALF: f32 = 4.5;
 ///
 /// Returns the guild of the line the player clicked, if any: clicking an alert asks for the route
 /// of that guild (request of 2026-10-31).
-pub fn body(ui: &Ui, alerts: &[AlertLine], now: DateTime<Utc>) -> Option<String> {
+pub fn body(ui: &Ui, alerts: &[AlertLine], context: &LineContext<'_>) -> Option<String> {
     ui.text_disabled(i18n::format(
         "Last {0} minutes; the log window has the rest.",
         &[&WIDGET_MINUTES.to_string()],
     ));
-    let recent: Vec<AlertLine> = within(alerts, now, WIDGET_MINUTES)
+    let recent: Vec<AlertLine> = within(alerts, context.now, WIDGET_MINUTES)
         .into_iter()
         .filter(|line| keeps(line.kind))
         .take(crate::config().max_lines.clamp(1, MAX_LINES))
@@ -74,8 +77,8 @@ pub fn body(ui: &Ui, alerts: &[AlertLine], now: DateTime<Utc>) -> Option<String>
         ui.text_disabled(i18n::text("No alerts yet"));
         return None;
     }
-    let borrowed: Vec<&AlertLine> = recent.iter().collect();
-    draw_lines(ui, &borrowed)
+    let rows: Vec<(&AlertLine, f32)> = recent.iter().map(|line| (line, 1.0)).collect();
+    draw_faded_lines(ui, &rows, context, false, i18n::effective())
 }
 
 /// Body of the *Alert log* tab: the whole session, scrolling if needed.
@@ -83,7 +86,7 @@ pub fn body(ui: &Ui, alerts: &[AlertLine], now: DateTime<Utc>) -> Option<String>
 /// Only the rows on screen are laid out ([`ListClipper`]): the log used to draw every line, and
 /// with the coloured pieces of each one that is a lot of work per frame for text nobody is reading
 /// (report of 2026-10-31). The cap is [`MAX_LOGGED`] lines, the newest first.
-pub fn log_body(ui: &Ui, alerts: &[AlertLine]) -> Option<String> {
+pub fn log_body(ui: &Ui, alerts: &[AlertLine], context: &LineContext<'_>) -> Option<String> {
     if alerts.is_empty() {
         ui.text_disabled(i18n::text("No alerts yet"));
         return None;
@@ -98,7 +101,7 @@ pub fn log_body(ui: &Ui, alerts: &[AlertLine]) -> Option<String> {
     while clipper.step() {
         for index in clipper.display_start()..clipper.display_end() {
             if let Some(line) = all.get(index as usize) {
-                if draw_line(ui, line, i18n::effective()) {
+                if draw_line(ui, line, context, true) {
                     chosen = line.guild.clone();
                 }
             }
@@ -113,19 +116,24 @@ pub fn log_body(ui: &Ui, alerts: &[AlertLine]) -> Option<String> {
 /// The drawing needs the draw list, and `get_window_draw_list` panics if two instances are alive
 /// at once (`AGENTS.md` §11.12), so the list is taken **once** after the text pass, using the
 /// positions remembered while the lines were laid out.
-fn draw_lines(ui: &Ui, lines: &[&AlertLine]) -> Option<String> {
-    let language = i18n::effective();
-    let mut marks: Vec<([f32; 2], AlertLine)> = Vec::with_capacity(lines.len());
+fn draw_faded_lines(
+    ui: &Ui,
+    lines: &[(&AlertLine, f32)],
+    context: &LineContext<'_>,
+    include_event_time: bool,
+    language: gw2lurker_core::i18n::Language,
+) -> Option<String> {
+    let mut marks: Vec<([f32; 2], &AlertLine, f32)> = Vec::with_capacity(lines.len());
     let mut chosen = None;
-    for line in lines {
+    for &(line, fade) in lines {
         let start = ui.cursor_screen_pos();
         if super::icons::has_glyph(line.objective_kind) {
-            marks.push((start, (*line).clone()));
+            marks.push((start, line, fade));
             let x = ui.cursor_pos()[0];
             ui.dummy([GLYPH_WIDTH, ui.text_line_height()]);
             ui.same_line_with_pos(x + GLYPH_WIDTH);
         }
-        if draw_line(ui, line, language) {
+        if draw_line_faded(ui, line, language, fade, context, include_event_time) {
             chosen = line.guild.clone();
         }
     }
@@ -140,13 +148,15 @@ fn draw_lines(ui: &Ui, lines: &[&AlertLine]) -> Option<String> {
     let pos = ui.window_pos();
     let area = ui.window_size();
     list.with_clip_rect_intersect(pos, [pos[0] + area[0], pos[1] + area[1]], || {
-        for (start, line) in marks {
+        for (start, line, fade) in marks {
+            let mut colour = GREY;
+            colour[3] *= fade;
             super::icons::glyph(
                 &list,
                 line.objective_kind,
                 [start[0] + GLYPH_HALF, start[1] + middle],
                 GLYPH_HALF,
-                GREY,
+                colour,
             );
         }
     });
@@ -165,169 +175,202 @@ pub fn within(lines: &[AlertLine], now: DateTime<Utc>, minutes: i64) -> Vec<Aler
         .collect()
 }
 
-/// Cola del pop-up: los avisos se enseñan **de uno en uno**, cada uno `secs` segundos.
-///
-/// Enseñar a la vez todo lo que había llegado en la ventana hacía que dos reclamaciones seguidas
-/// se leyeran como una sola y que el pop-up se fuera de golpe (informe de 2026-10-31).
-#[derive(Default)]
-pub struct PopupQueue {
-    pending: std::collections::VecDeque<AlertLine>,
-    current: Option<AlertLine>,
-    shown_at: Option<DateTime<Utc>>,
-    /// Sello del aviso más nuevo ya encolado, para no repetirlos en cada frame.
-    seen: Option<DateTime<Utc>>,
-}
-
-impl PopupQueue {
-    /// Encola lo nuevo y devuelve el aviso que toca enseñar ahora, con su opacidad.
-    ///
-    /// `now` entra por parámetro (no se lee el reloj) para poder probarlo sin juego. `0` segundos
-    /// apaga el pop-up y vacía la cola.
-    pub fn tick(
-        &mut self,
-        lines: &[AlertLine],
-        now: DateTime<Utc>,
-        secs: f32,
-    ) -> Option<(AlertLine, f32)> {
-        if secs.is_nan() || secs <= 0.0 {
-            *self = Self::default();
-            return None;
-        }
-        for line in lines.iter().filter(|line| !line.late) {
-            let is_new = self.seen.is_none_or(|seen| line.received > seen);
-            if !is_new {
-                continue;
-            }
-            self.seen = Some(line.received);
-            self.pending.push_back(line.clone());
-            while self.pending.len() > MAX_POPUP_LINES {
-                self.pending.pop_front();
-            }
-        }
-
-        let secs = f64::from(secs);
-        let expired = match (self.current.as_ref(), self.shown_at) {
-            (Some(_), Some(at)) => {
-                now.signed_duration_since(at).num_milliseconds() as f64 / 1000.0 >= secs
-            }
-            _ => true,
-        };
-        if expired {
-            self.current = self.pending.pop_front();
-            self.shown_at = self.current.as_ref().map(|_| now);
-        }
-
-        let line = self.current.clone()?;
-        let at = self.shown_at?;
-        let shown = now.signed_duration_since(at).num_milliseconds() as f64 / 1000.0;
-        let left = (secs - shown).max(0.0);
-        // Medio segundo de desvanecido: desaparecer de golpe se lee como un fallo.
-        let fade = (left / 0.5).clamp(0.0, 1.0) as f32;
-        Some((line, fade))
-    }
-}
-
-/// Draws the transient pop-up: no frame, no title, and it can be dragged where you want it.
+/// Dibuja el emergente sin cromo; solo captura el ratón durante la colocación.
 ///
 /// `position` is where the player left it, and comes back with the new one. The frame is gone on
 /// purpose: with borders it reads as another window instead of a pop-up (bug of 2026-10-31).
 pub fn draw_popup(
     ui: &Ui,
-    lines: &[AlertLine],
+    lines: &[super::popup_stack::PopupLine],
+    overflow: usize,
     opacity: f32,
     position: &mut Option<[f32; 2]>,
-    fade: f32,
+    placing: bool,
+    context: &LineContext<'_>,
 ) {
-    if lines.is_empty() {
+    if lines.is_empty() && overflow == 0 {
         return;
     }
     let [width, _] = ui.io().display_size;
     let at = position.unwrap_or([(width - 420.0) / 2.0, 90.0]);
 
-    Window::new(i18n::widget(POPUP_KEY))
+    let mut window = Window::new(i18n::widget(POPUP_KEY))
         .title_bar(false)
         .no_decoration()
         .resizable(false)
-        .movable(true)
+        .movable(placing)
         .always_auto_resize(true)
         .position(at, Condition::FirstUseEver)
-        .bg_alpha((opacity * fade).clamp(0.0, 1.0))
-        .build(ui, || {
-            let lines: Vec<&AlertLine> = lines.iter().collect();
-            let _ = draw_lines(ui, &lines);
-        });
+        .bg_alpha(opacity.clamp(0.0, 1.0));
+    if !placing {
+        window = window.no_inputs();
+    }
+    build_popup_window(ui, window, position, || {
+        let rows: Vec<(&AlertLine, f32)> = lines.iter().map(|row| (&row.line, row.fade)).collect();
+        let _ = draw_faded_lines(ui, &rows, context, false, i18n::effective());
+        if overflow > 0 {
+            ui.text_disabled(i18n::format("And {0} more", &[&overflow.to_string()]));
+        }
+    });
+}
 
-    *position = Some(ui.window_pos());
+fn build_popup_window<T: AsRef<str>>(
+    ui: &Ui,
+    window: Window<'_, T>,
+    position: &mut Option<[f32; 2]>,
+    content: impl FnOnce(),
+) {
+    window.build(ui, || {
+        content();
+        // Window::build ends the window after this closure (arcdps-imgui 0.8, window/mod.rs:547).
+        *position = Some(ui.window_pos());
+    });
 }
 
 /// One line, in coloured pieces. Returns `true` when the player clicked it and it names a guild.
-fn draw_line(ui: &Ui, line: &AlertLine, language: gw2lurker_core::i18n::Language) -> bool {
+fn draw_line(
+    ui: &Ui,
+    line: &AlertLine,
+    context: &LineContext<'_>,
+    include_event_time: bool,
+) -> bool {
+    draw_line_faded(
+        ui,
+        line,
+        i18n::effective(),
+        1.0,
+        context,
+        include_event_time,
+    )
+}
+
+fn draw_line_faded(
+    ui: &Ui,
+    line: &AlertLine,
+    language: gw2lurker_core::i18n::Language,
+    fade: f32,
+    context: &LineContext<'_>,
+    include_event_time: bool,
+) -> bool {
+    let high_value = context
+        .states
+        .iter()
+        .find(|state| state.objective_id == line.objective_id)
+        .is_some_and(gw2lurker_core::matchup::ObjectiveState::is_high_value);
+    let perspective = match line.kind {
+        AlertKind::Flip => Some(gw2lurker_core::alerts::flip_perspective(
+            line.from,
+            line.to,
+            context.player_team,
+        )),
+        AlertKind::Claim | AlertKind::Unclaim => None,
+    };
+    let bold_verb = matches!(
+        perspective,
+        Some(
+            gw2lurker_core::alerts::FlipPerspective::Lost
+                | gw2lurker_core::alerts::FlipPerspective::Taken
+        )
+    );
+
     // The group makes the whole row one item, so it can be coloured piece by piece and still be
     // clickable as a single line.
     ui.group(|| {
-        for (index, (text, colour)) in spans(line, language).iter().enumerate() {
+        for (index, (text, colour)) in spans(line, language, context.player_team, high_value)
+            .iter()
+            .enumerate()
+        {
             if index > 0 {
                 ui.same_line_with_spacing(0.0, 0.0);
             }
-            let _tint = ui.push_style_color(StyleColor::Text, *colour);
+            let mut colour = *colour;
+            colour[3] *= fade;
+            let _tint = ui.push_style_color(StyleColor::Text, colour);
+            let position = ui.cursor_pos();
             ui.text(text);
+            if index == 0 && bold_verb {
+                let end = ui.cursor_pos();
+                ui.set_cursor_pos([position[0] + 1.0, position[1]]);
+                ui.text(text);
+                ui.set_cursor_pos(end);
+            }
+        }
+        ui.same_line_with_spacing(0.0, 8.0);
+        let age = age_text(context.now, line.received, language);
+        let mut colour = GREY;
+        colour[3] *= fade;
+        let _tint = ui.push_style_color(StyleColor::Text, colour);
+        ui.text(&age);
+        if include_event_time {
+            ui.same_line_with_spacing(0.0, 5.0);
+            let event_time = format!("({})", crate::clock::clock_seconds(line.at));
+            ui.text(&event_time);
         }
     });
     let hovered = ui.is_item_hovered();
     let clicked = hovered && ui.is_mouse_clicked(nexus::imgui::MouseButton::Left);
-    if hovered && line.late {
-        ui.tooltip_text(i18n::text("Already claimed when the addon started"));
-    } else if hovered && line.guild.is_some() {
-        ui.tooltip_text(i18n::text("Click to see this guild's route"));
+    if hovered {
+        let event_time = crate::clock::clock_seconds(line.at);
+        let mut details = i18n::format("Event time: {0}", &[&event_time]);
+        if line.late {
+            details.push('\n');
+            details.push_str(i18n::text("Already claimed when the addon started"));
+        }
+        if line.guild.is_some() {
+            details.push('\n');
+            details.push_str(i18n::text("Click to see this guild's route"));
+        }
+        ui.tooltip_text(&details);
     }
     clicked && line.guild.is_some()
 }
 
-/// The line as coloured pieces: what the player asked for on 2026-10-31.
-///
-/// «Marca del tipo de objetivo; el mapa, con su color (Eternos en gris, Azul en azul, Verde en
-/// verde, Rojo en rojo); y ya en gris: el nombre del sitio, un guion y el clan que lo tiene
-/// reclamado ahora.» Colouring the whole line by the new owner — what it did before — made the
-/// guild and the objective unreadable and hid which map it was.
-///
-/// The language is a parameter: reading the active one goes through Nexus' RealTime API, which
-/// panics outside the game and would make this untestable.
-fn spans(line: &AlertLine, language: gw2lurker_core::i18n::Language) -> Vec<(String, [f32; 4])> {
+fn spans(
+    line: &AlertLine,
+    language: gw2lurker_core::i18n::Language,
+    player_team: Option<TeamColor>,
+    high_value: bool,
+) -> Vec<(String, [f32; 4])> {
     use gw2lurker_core::i18n::t;
     let mut out: Vec<(String, [f32; 4])> = Vec::new();
-    out.push((crate::clock::clock_seconds(line.at), GREY));
+    let (verb, verb_colour) = match line.kind {
+        AlertKind::Flip => {
+            match gw2lurker_core::alerts::flip_perspective(line.from, line.to, player_team) {
+                gw2lurker_core::alerts::FlipPerspective::Lost => (
+                    t(language, "LOST"),
+                    player_team.map(team_colour).unwrap_or(GREY),
+                ),
+                gw2lurker_core::alerts::FlipPerspective::Taken => (
+                    t(language, "TAKEN"),
+                    player_team.map(team_colour).unwrap_or(GREY),
+                ),
+                gw2lurker_core::alerts::FlipPerspective::Change => (t(language, "CHANGE"), GREY),
+            }
+        }
+        AlertKind::Claim | AlertKind::Unclaim => (t(language, "CLAIM"), GREY),
+    };
+    out.push((verb.to_owned(), verb_colour));
+    out.push((" ".to_owned(), GREY));
+    out.push((line.objective.clone(), GREY));
     if let Some((name, colour)) = map_piece(line.map_role, language) {
-        out.push(("  ".to_owned(), GREY));
+        out.push((" · ".to_owned(), GREY));
         out.push((name, colour));
     }
-    out.push(("  ·  ".to_owned(), GREY));
-    out.push((line.objective.clone(), GREY));
 
     match line.kind {
         AlertKind::Flip => {
-            out.push(("  -  ".to_owned(), GREY));
-            match line.from {
-                Some(colour) => out.push((
+            if let Some(colour) = line.to {
+                out.push((" · ".to_owned(), GREY));
+                out.push((format!("{} ", t(language, "Taken by")), GREY));
+                out.push((
                     colour_label(colour, language).to_owned(),
                     team_colour(colour),
-                )),
-                None => out.push((t(language, "Unclaimed").to_owned(), GREY)),
-            }
-            // ASCII a propósito: el atlas de fuentes de Nexus solo trae latín básico y
-            // latino-1, así que una flecha Unicode (`→`) se dibuja como «?» (informe del
-            // jugador, 2026-11-01: «a veces pone un ? que creía que era una flecha»).
-            out.push((" -> ".to_owned(), GREY));
-            match line.to {
-                Some(colour) => out.push((
-                    colour_label(colour, language).to_owned(),
-                    team_colour(colour),
-                )),
-                None => out.push((t(language, "Unclaimed").to_owned(), GREY)),
+                ));
             }
         }
         AlertKind::Claim | AlertKind::Unclaim => {
             if let Some(guild) = line.guild_name.as_deref().or(line.guild.as_deref()) {
-                out.push(("  -  ".to_owned(), GREY));
+                out.push((" · ".to_owned(), GREY));
                 out.push((guild.to_owned(), GREY));
             }
             if line.kind == AlertKind::Unclaim {
@@ -336,15 +379,40 @@ fn spans(line: &AlertLine, language: gw2lurker_core::i18n::Language) -> Vec<(Str
             }
         }
     }
+    if high_value {
+        out.push((" · ".to_owned(), GREY));
+        out.push((t(language, "HIGH VALUE").to_owned(), HIGH_VALUE));
+    }
     out
+}
+
+fn age_text(
+    now: DateTime<Utc>,
+    received: DateTime<Utc>,
+    language: gw2lurker_core::i18n::Language,
+) -> String {
+    let seconds = now.signed_duration_since(received).num_seconds().max(0);
+    if seconds < 60 {
+        format!(
+            "{seconds} {}",
+            gw2lurker_core::i18n::t(language, "Seconds short")
+        )
+    } else if seconds < 60 * 60 {
+        format!(
+            "{} {}",
+            seconds / 60,
+            gw2lurker_core::i18n::t(language, "Minutes short")
+        )
+    } else {
+        format!("{:02}:{:02}", seconds / 3600, (seconds / 60) % 60)
+    }
 }
 
 /// Neutral grey: everything that is not the map or an owner colour.
 const GREY: [f32; 4] = [0.72, 0.72, 0.72, 1.0];
+const HIGH_VALUE: [f32; 4] = [1.0, 0.78, 0.2, 1.0];
 
-/// The map of an alert, **short and in its own colour**: «Eternos» in grey, «Azul», «Verde» and
-/// «Rojo» in the colour of their borderland, which is how the player says it (request of
-/// 2026-10-31). `None` when the id was not one of the four.
+/// The map label matches the rest of the addon; borderlands keep their team colour.
 fn map_piece(
     role: gw2lurker_core::MapRole,
     language: gw2lurker_core::i18n::Language,
@@ -356,15 +424,15 @@ fn map_piece(
             [0.85, 0.85, 0.85, 1.0],
         )),
         MapRole::BlueHome => Some((
-            colour_label(TeamColor::Blue, language).to_owned(),
+            gw2lurker_core::i18n::t(language, "Blue alpine").to_owned(),
             team_colour(TeamColor::Blue),
         )),
         MapRole::GreenHome => Some((
-            colour_label(TeamColor::Green, language).to_owned(),
+            gw2lurker_core::i18n::t(language, "Green alpine").to_owned(),
             team_colour(TeamColor::Green),
         )),
         MapRole::RedHome => Some((
-            colour_label(TeamColor::Red, language).to_owned(),
+            gw2lurker_core::i18n::t(language, "Red desert").to_owned(),
             team_colour(TeamColor::Red),
         )),
         MapRole::Unknown => None,
@@ -397,6 +465,7 @@ mod tests {
             at,
             received: at,
             map_role: gw2lurker_core::model::MapRole::Center,
+            objective_id: "38-1".to_owned(),
             objective_kind: gw2lurker_core::ObjectiveType::Tower,
             kind,
             objective: "Zanja de Mendon".to_owned(),
@@ -409,61 +478,132 @@ mod tests {
     }
 
     #[test]
-    fn rf19a_the_popup_shows_one_alert_at_a_time() {
-        let base = Utc.with_ymd_and_hms(2026, 10, 31, 12, 0, 0).unwrap();
-        let mut first = line(AlertKind::Claim, None, Some("YaK"));
-        first.received = base;
-        let mut second = line(AlertKind::Claim, None, Some("Otra"));
-        second.received = base + chrono::Duration::milliseconds(200);
-        let lines = vec![first.clone(), second.clone()];
+    fn rf19d_placement_remembers_the_popup_position_not_the_parent() {
+        let _imgui_guard = crate::ui::IMGUI_TEST_LOCK
+            .lock()
+            .unwrap_or_else(|error| error.into_inner());
+        let mut context = nexus::imgui::Context::create();
+        context.set_ini_filename(None);
+        context.set_log_filename(None);
+        context.io_mut().display_size = [1024.0, 768.0];
+        context.io_mut().delta_time = 1.0 / 60.0;
+        context.fonts().build_rgba32_texture();
 
-        let mut queue = PopupQueue::default();
-        let (shown, _) = queue.tick(&lines, base, 5.0).expect("hay algo que enseñar");
-        assert_eq!(
-            shown.guild.as_deref(),
-            Some("YaK"),
-            "primero el que llegó antes"
-        );
-
-        let (shown, _) = queue
-            .tick(&lines, base + chrono::Duration::seconds(2), 5.0)
-            .expect("sigue el primero");
-        assert_eq!(
-            shown.guild.as_deref(),
-            Some("YaK"),
-            "no se pisa antes de su tiempo"
-        );
-
-        let (shown, _) = queue
-            .tick(&lines, base + chrono::Duration::seconds(6), 5.0)
-            .expect("ahora el segundo");
-        assert_eq!(shown.guild.as_deref(), Some("Otra"), "después el siguiente");
-
-        assert!(
-            queue
-                .tick(&lines, base + chrono::Duration::seconds(60), 0.0)
-                .is_none(),
-            "0 s significa sin pop-up"
-        );
+        let expected = [240.0, 190.0];
+        let mut position = None;
+        let ui = context.frame();
+        Window::new("popup position test parent")
+            .position([20.0, 30.0], Condition::Always)
+            .size([600.0, 400.0], Condition::Always)
+            .build(&ui, || {
+                let popup = Window::new("popup position test")
+                    .position(expected, Condition::Always)
+                    .size([160.0, 80.0], Condition::Always);
+                build_popup_window(&ui, popup, &mut position, || ui.text("alert"));
+            });
+        ui.render();
+        assert_eq!(position, Some(expected));
     }
 
     #[test]
-    fn rf19a_the_popup_fades_in_its_last_half_second() {
-        let base = Utc.with_ymd_and_hms(2026, 10, 31, 12, 0, 0).unwrap();
-        let mut one = line(AlertKind::Flip, Some(TeamColor::Blue), None);
-        one.received = base;
-        let mut queue = PopupQueue::default();
+    fn rnf01_popup_stack_and_native_draw_budget() {
+        let _imgui_guard = crate::ui::IMGUI_TEST_LOCK
+            .lock()
+            .unwrap_or_else(|error| error.into_inner());
+        let mut imgui = nexus::imgui::Context::create();
+        imgui.set_ini_filename(None);
+        imgui.set_log_filename(None);
+        imgui.io_mut().display_size = [1920.0, 1080.0];
+        imgui.io_mut().delta_time = 1.0 / 60.0;
+        imgui.io_mut().mouse_pos = [-100.0, -100.0];
+        imgui.fonts().build_rgba32_texture();
 
-        let (_, fade) = queue.tick(&[one.clone()], base, 5.0).expect("sale");
-        assert_eq!(fade, 1.0, "recién salido, opaco del todo");
+        let now = Utc.with_ymd_and_hms(2026, 11, 2, 20, 0, 0).unwrap();
+        let states: Vec<_> = (0..200)
+            .map(|index| gw2lurker_core::matchup::ObjectiveState {
+                map_id: 38,
+                map_role: gw2lurker_core::MapRole::Center,
+                objective_id: format!("38-{index}"),
+                kind: gw2lurker_core::ObjectiveType::Tower,
+                owner: Some(TeamColor::Blue),
+                guild: None,
+                claimed_at: None,
+                points_tick: if index % 3 == 0 { 8 } else { 4 },
+            })
+            .collect();
+        let guilds: Vec<_> = (0..gw2lurker_core::MAX_FOLLOWED)
+            .map(|index| format!("{index:08X}-AAAA-BBBB-CCCC-DDDDDDDDDDDD"))
+            .collect();
+        let mut followed = gw2lurker_core::FollowList::default();
+        for guild in &guilds {
+            assert!(followed.add(guild));
+        }
+        let alerts: Vec<_> = (0..crate::alerts::MAX_ALERTS)
+            .map(|index| {
+                let guild = if index % 2 == 0 {
+                    guilds[index % guilds.len()].as_str()
+                } else {
+                    "FFFFFFFF-AAAA-BBBB-CCCC-DDDDDDDDDDDD"
+                };
+                let kind = if index % 3 == 0 {
+                    AlertKind::Claim
+                } else {
+                    AlertKind::Flip
+                };
+                let mut alert = line(kind, Some(TeamColor::Blue), Some(guild));
+                alert.objective_id = states[states.len() - 1 - index].objective_id.clone();
+                alert.received = now - chrono::Duration::milliseconds(index as i64);
+                alert.at = alert.received;
+                alert
+            })
+            .collect();
+        let context = LineContext {
+            now,
+            player_team: Some(TeamColor::Blue),
+            states: &states,
+        };
 
-        let (_, fade) = queue
-            .tick(&[one], base + chrono::Duration::milliseconds(4750), 5.0)
-            .expect("sigue saliendo");
-        assert!(
-            fade > 0.0 && fade < 1.0,
-            "medio segundo antes, se desvanece"
-        );
+        for burst in [false, true] {
+            let mut stack = super::super::popup_stack::PopupStack::default();
+            let mut position = None;
+            let mut samples = Vec::new();
+            for iteration in 0..110 {
+                if burst {
+                    stack = super::super::popup_stack::PopupStack::default();
+                }
+                let ui = imgui.frame();
+                let start = std::time::Instant::now();
+                let snapshot =
+                    stack.tick(&alerts, now, 15.0, &followed, &states, context.player_team);
+                let rows: Vec<_> = snapshot
+                    .lines
+                    .iter()
+                    .map(|row| (&row.line, row.fade))
+                    .collect();
+                let popup = Window::new("popup performance test")
+                    .no_decoration()
+                    .no_inputs()
+                    .always_auto_resize(true)
+                    .position([100.0, 100.0], Condition::FirstUseEver);
+                build_popup_window(&ui, popup, &mut position, || {
+                    let _ = draw_faded_lines(&ui, &rows, &context, false, Language::Es);
+                });
+                let vertices = ui.render().total_vtx_count;
+                let elapsed = start.elapsed().as_secs_f64() * 1000.0;
+                assert_eq!(snapshot.lines.len(), 5);
+                assert!(snapshot.overflow > 0);
+                if iteration >= 10 {
+                    assert!(vertices > 0);
+                    samples.push(elapsed);
+                }
+            }
+            samples.sort_by(f64::total_cmp);
+            let p95 = samples[samples.len() * 95 / 100];
+            println!("RNF-01 popup stack and native draw (burst={burst}): p95={p95:.3} ms");
+            if !cfg!(debug_assertions) {
+                assert!(p95 < 0.5, "popup work alone exceeds RNF-01: {p95:.3} ms");
+            }
+        }
     }
 
     #[test]
@@ -481,22 +621,9 @@ mod tests {
         assert_eq!(shown[0].guild_name.as_deref(), Some("[YaK] Algo"));
     }
 
-    #[test]
-    fn rf25_late_claims_are_not_popped_up() {
-        let base = Utc.with_ymd_and_hms(2026, 10, 31, 12, 0, 0).unwrap();
-        let mut late = line(AlertKind::Claim, None, Some("YaK"));
-        late.late = true;
-        late.received = base;
-        let mut queue = PopupQueue::default();
-        assert!(
-            queue.tick(&[late], base, 2.0).is_none(),
-            "lo que ya estaba reclamado al arrancar no interrumpe"
-        );
-    }
-
     /// Texto plano de una línea, para poder afirmar sobre él.
-    fn text_of(line: &AlertLine) -> String {
-        spans(line, Language::Es)
+    fn text_of(line: &AlertLine, player_team: Option<TeamColor>) -> String {
+        spans(line, Language::Es, player_team, false)
             .into_iter()
             .map(|(text, _)| text)
             .collect()
@@ -525,15 +652,18 @@ mod tests {
 
     #[test]
     fn rf19_a_flip_names_both_colours() {
-        let text = text_of(&line(AlertKind::Flip, Some(TeamColor::Blue), None));
+        let text = text_of(&line(AlertKind::Flip, Some(TeamColor::Blue), None), None);
         assert!(text.contains("Zanja de Mendon"), "{text}");
-        assert!(text.contains("->"), "se ve de quién a quién: {text}");
+        assert!(
+            text.contains("se lo lleva"),
+            "indica el nuevo dueño: {text}"
+        );
         assert_eq!(text.matches("Azul").count(), 1, "azul es el nuevo dueño");
     }
 
     #[test]
     fn rf21_claims_name_the_guild() {
-        let text = text_of(&line(AlertKind::Claim, None, Some("YaK")));
+        let text = text_of(&line(AlertKind::Claim, None, Some("YaK")), None);
         assert!(text.contains("YaK"), "{text}");
         assert!(
             text.contains("Zanja"),
@@ -543,7 +673,7 @@ mod tests {
 
     #[test]
     fn rf19_unclaim_says_released() {
-        let text = text_of(&line(AlertKind::Unclaim, None, Some("YaK")));
+        let text = text_of(&line(AlertKind::Unclaim, None, Some("YaK")), None);
         assert!(
             text.contains("Sin reclamar"),
             "se dice que ya no lo tiene: {text}"
@@ -556,10 +686,10 @@ mod tests {
         // en gris, en vez de toda la línea del color del que ha capturado.
         let mut blue = line(AlertKind::Claim, None, Some("YaK"));
         blue.map_role = gw2lurker_core::MapRole::BlueHome;
-        let pieces = spans(&blue, Language::Es);
+        let pieces = spans(&blue, Language::Es, None, false);
         let map = pieces
             .iter()
-            .find(|(text, _)| text == "Azul")
+            .find(|(text, _)| text == "Alpino azul")
             .expect("el mapa se nombra");
         assert_eq!(map.1, team_colour(TeamColor::Blue), "azul en azul");
         let objective = pieces
@@ -573,8 +703,39 @@ mod tests {
             .expect("el clan se nombra");
         assert_eq!(guild.1, GREY, "el clan en gris");
         assert!(
-            pieces.iter().any(|(text, _)| text.contains('-')),
-            "sitio y clan van separados por un guion: {pieces:?}"
+            pieces.iter().any(|(text, _)| text == "reclamo"),
+            "el verbo se muestra en texto: {pieces:?}"
+        );
+    }
+
+    #[test]
+    fn rf19f_line_uses_my_team_and_marks_high_value() {
+        let mut alert = line(AlertKind::Flip, Some(TeamColor::Red), None);
+        alert.from = Some(TeamColor::Green);
+        alert.map_role = gw2lurker_core::MapRole::GreenHome;
+        let pieces = spans(&alert, Language::Es, Some(TeamColor::Green), true);
+        let text: String = pieces.iter().map(|(text, _)| text.as_str()).collect();
+        assert!(text.starts_with("PERDIDO "), "{text}");
+        assert!(text.contains("Alpino verde"), "{text}");
+        assert!(text.contains("se lo lleva Rojo"), "{text}");
+        assert!(text.contains("ALTO"), "{text}");
+        assert_eq!(pieces[0].1, team_colour(TeamColor::Green));
+    }
+
+    #[test]
+    fn rf19f_relative_age_uses_seconds_minutes_and_hours() {
+        let base = Utc.with_ymd_and_hms(2026, 10, 31, 12, 0, 0).unwrap();
+        assert_eq!(
+            age_text(base + chrono::Duration::seconds(12), base, Language::Es),
+            "12 s"
+        );
+        assert_eq!(
+            age_text(base + chrono::Duration::minutes(4), base, Language::Es),
+            "4 min"
+        );
+        assert_eq!(
+            age_text(base + chrono::Duration::minutes(60), base, Language::Es),
+            "01:00"
         );
     }
 

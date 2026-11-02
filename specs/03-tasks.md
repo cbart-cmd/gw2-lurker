@@ -325,20 +325,21 @@ tarea indica de qué depende.
   Medición optimizada con el draw list real de imgui y preparación de geometría; no sustituye
   el frame completo de GW2. MT-21 queda para probar esta versión, como pide el jugador.
 
-## Fase 8 – Revisión de UX (aprobada el 2026-11-02, sin implementar)
+## Fase 8 – Revisión de UX (aprobada el 2026-11-02; T-54 y T-56 completadas)
 
 Bocetos en `docs/bocetos/ux/propuestas.html`. Cada tarea va sola y con tests primero.
 
-- **T-54 (M)** Línea de aviso desde mi equipo: verbo PERDIDO/TOMADO/cambio/reclamo, ALTO por
-  `points_tick` ≥ 8, antigüedad relativa (`hh:mm` desde 60 min) y nombres de mapa únicos.
-  Función pura en `core` que clasifica la alerta con el equipo propio; tests `rf19f_…`.
+- **T-54 (M) ✔ (2026-11-02)** Línea de aviso desde mi equipo: verbo PERDIDO/TOMADO/cambio/reclamo,
+  ALTO por `points_tick` ≥ 8, antigüedad relativa (`hh:mm` desde 60 min) y nombres de mapa únicos.
+  Clasificación pura en `core`; formato integrado en widget, registro y emergente; tests `rf19f_…`.
   — RF-19f, RF-30b
 - **T-55 (L)** HUD de combate y consola: segunda superficie con su `WindowState`, línea de estado
   con API parada, 2–5 avisos, interruptor **Ver el HUD** en Nexus; la consola pierde la pestaña
   Avisos y pliega la cabecera. (T-54) — RF-47, RF-46, RF-43, ADR-017
-- **T-56 (M)** Emergente en pila: una línea por aviso, cada una dura `popup_secs` desde que entra,
-  máximo 5 y «y N más», prioridad clan seguido > alto valor > perdido > tomado, `NO_INPUTS` y
-  fundido del texto. Modelo puro de la pila con reloj controlado; tests `rf19d_…`. (T-54) — RF-19d
+- **T-56 (M) ✔ (2026-11-02)** Emergente en pila: una línea por aviso, cada una dura `popup_secs`
+  desde que entra, máximo 5 y «y N más», prioridad clan seguido > alto valor > perdido > tomado,
+  `NO_INPUTS` y fundido del texto. Modelo de pila con reloj controlado; tests `rf19d_…`. (T-54)
+  — RF-19d
 - **T-57 (M)** Mapa: tira de cuatro mapas con `G4 A3 R5` y última novedad, leyenda fija, controles
   de ruta bajo el tablero y dueño en texto en «Claims del matchup». — RF-30c, RF-70
 - **T-58 (M)** Ajustes: bloque «Qué me avisa» con frase de resumen (función pura, tests

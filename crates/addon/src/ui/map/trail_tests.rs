@@ -147,6 +147,9 @@ fn rnf01_estela_native_draw_budget() {
     // this exercises the real draw list without Nexus, AddonApi, the game or a graphics driver.
     use nexus::imgui::{Condition, Context, Window as NativeWindow};
     use std::time::Instant;
+    let _imgui_guard = crate::ui::IMGUI_TEST_LOCK
+        .lock()
+        .unwrap_or_else(|error| error.into_inner());
     let (names, maps) = fixtures();
     let frame = Frame::of(maps.iter().find(|m| m.id == 95).unwrap());
     let canvas = RouteCanvas {

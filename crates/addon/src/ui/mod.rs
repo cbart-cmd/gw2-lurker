@@ -11,6 +11,7 @@ mod map;
 mod matchup;
 mod navigation;
 mod popup;
+mod popup_stack;
 mod settings;
 mod status;
 mod team_picker;
@@ -66,6 +67,10 @@ const VK_L: u16 = 0x4C;
 /// The handler runs on Nexus' input thread: taking the configuration lock there would mean
 /// blocking a thread we do not own, so it only raises a flag (RF-18).
 static LOCK_TOGGLE: AtomicBool = AtomicBool::new(false);
+
+/// ImGui allows only one active context, so native UI tests share this lock.
+#[cfg(test)]
+pub(crate) static IMGUI_TEST_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
 
 fn on_lock_keybind(_identifier: &str, is_release: bool) {
     if !is_release {
@@ -211,13 +216,14 @@ fn draw_widget(ui: &nexus::imgui::Ui) {
     static FILTERS: std::sync::OnceLock<std::sync::Mutex<matchup::Filters>> =
         std::sync::OnceLock::new();
 
-    let (visible, popup_enabled, alerts_cfg, follow) = {
+    let (visible, popup_enabled, alerts_cfg, follow, selected_team) = {
         let mut config = crate::runtime();
         (
             config.window(WIDGET).visible,
             config.popup_enabled,
             config.alerts,
             config.followed.clone(),
+            crate::team::selected_in(&config),
         )
     };
     if !visible && !popup_enabled {
@@ -236,7 +242,18 @@ fn draw_widget(ui: &nexus::imgui::Ui) {
         return;
     }
 
-    let (candidates, guilds, names, claims, states, alerts, objectives, maps, history_since) = {
+    let (
+        candidates,
+        guilds,
+        names,
+        claims,
+        states,
+        alerts,
+        objectives,
+        maps,
+        history_since,
+        played_team,
+    ) = {
         let board = crate::worker::dashboard();
         (
             board.candidates.clone(),
@@ -248,8 +265,13 @@ fn draw_widget(ui: &nexus::imgui::Ui) {
             board.names.clone(),
             board.maps.clone(),
             board.history_since,
+            board.played_team,
         )
     };
+    let player_team = played_team
+        .or(selected_team)
+        .and_then(|id| candidates.iter().find(|candidate| candidate.team_id == id))
+        .map(|candidate| candidate.color);
 
     let mut config = crate::runtime();
     let mut state = config.window(WIDGET).clone();
@@ -284,6 +306,8 @@ fn draw_widget(ui: &nexus::imgui::Ui) {
                     follow: &follow,
                     current,
                     now,
+                    team_id: selected_team,
+                    player_team,
                     history_since,
                     objectives: &objectives,
                     maps: &maps,
@@ -332,6 +356,8 @@ pub(super) struct Tabbed<'a> {
     follow: &'a gw2lurker_core::FollowList,
     current: Option<MapRole>,
     now: chrono::DateTime<chrono::Utc>,
+    team_id: Option<u32>,
+    player_team: Option<gw2lurker_core::model::TeamColor>,
     history_since: Option<chrono::DateTime<chrono::Utc>>,
     /// Objectives of the player's language, with the `coord` the map needs.
     objectives: &'a [gw2lurker_core::ObjectiveInfo],
@@ -361,7 +387,7 @@ fn draw_tabs(
     }
 
     // The status of the worker, above the tabs: it is what tells a bug from a quiet matchup.
-    let team = crate::team::selected_in(config);
+    let team = data.team_id;
     status::draw_health(ui, config, data, team);
     if team.is_some() {
         draw_map_notice(ui, data);
@@ -396,7 +422,15 @@ fn draw_tabs(
                     // Todas las ramas devuelven el clan que se ha clicado, si lo hay: con él se
                     // selecciona la ruta (petición de 2026-10-31).
                     0 => {
-                        clicked = alerts::body(ui, data.alerts, data.now);
+                        clicked = alerts::body(
+                            ui,
+                            data.alerts,
+                            &alerts::LineContext {
+                                now: data.now,
+                                player_team: data.player_team,
+                                states: data.states,
+                            },
+                        );
                     }
                     1 => {
                         let jump_at = GUILD_JUMP_AT.load(Ordering::Relaxed);
@@ -522,7 +556,15 @@ fn draw_tabs(
                         }
                     }
                     3 => {
-                        clicked = alerts::log_body(ui, data.alerts);
+                        clicked = alerts::log_body(
+                            ui,
+                            data.alerts,
+                            &alerts::LineContext {
+                                now: data.now,
+                                player_team: data.player_team,
+                                states: data.states,
+                            },
+                        );
                     }
                     _ => {
                         settings::body(ui, config);

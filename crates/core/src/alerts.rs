@@ -10,6 +10,32 @@
 use crate::follow::FollowList;
 use crate::model::{MapRole, ObjectiveType};
 
+/// A capture described from the player's team's point of view.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum FlipPerspective {
+    Lost,
+    Taken,
+    Change,
+}
+
+/// Classifies an ownership change without guessing when the player's team is unknown.
+pub fn flip_perspective(
+    from: Option<crate::model::TeamColor>,
+    to: Option<crate::model::TeamColor>,
+    player_team: Option<crate::model::TeamColor>,
+) -> FlipPerspective {
+    let Some(player_team) = player_team else {
+        return FlipPerspective::Change;
+    };
+    if from == Some(player_team) {
+        FlipPerspective::Lost
+    } else if to == Some(player_team) {
+        FlipPerspective::Taken
+    } else {
+        FlipPerspective::Change
+    }
+}
+
 /// Which structures deserve an alert.
 ///
 /// The player asked for **structures only** (2026-11-01): «no me avises cuando alguien capture
@@ -163,6 +189,50 @@ mod tests {
         let mut list = FollowList::default();
         list.add("1DB147F0");
         list
+    }
+
+    #[test]
+    fn rf19f_flip_from_my_team_is_lost() {
+        assert_eq!(
+            flip_perspective(
+                Some(crate::model::TeamColor::Green),
+                Some(crate::model::TeamColor::Red),
+                Some(crate::model::TeamColor::Green),
+            ),
+            FlipPerspective::Lost
+        );
+    }
+
+    #[test]
+    fn rf19f_flip_to_my_team_is_taken() {
+        assert_eq!(
+            flip_perspective(
+                Some(crate::model::TeamColor::Blue),
+                Some(crate::model::TeamColor::Green),
+                Some(crate::model::TeamColor::Green),
+            ),
+            FlipPerspective::Taken
+        );
+    }
+
+    #[test]
+    fn rf19f_other_or_unknown_team_is_a_change() {
+        assert_eq!(
+            flip_perspective(
+                Some(crate::model::TeamColor::Blue),
+                Some(crate::model::TeamColor::Red),
+                Some(crate::model::TeamColor::Green),
+            ),
+            FlipPerspective::Change
+        );
+        assert_eq!(
+            flip_perspective(
+                Some(crate::model::TeamColor::Green),
+                Some(crate::model::TeamColor::Red),
+                None,
+            ),
+            FlipPerspective::Change
+        );
     }
 
     #[test]

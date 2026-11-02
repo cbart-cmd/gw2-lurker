@@ -1,4 +1,4 @@
-//! El aviso emergente (RF-19a): encima de la pantalla, **de uno en uno**.
+//! The transient, stacked pop-up (RF-19d).
 //!
 //! Vive aparte porque es una superficie propia (y porque `mod.rs` estaba en el límite de 800
 //! líneas, AGENTS.md §2.7).
@@ -7,6 +7,7 @@ use gw2lurker_core::model::MapRole;
 use std::sync::atomic::{AtomicI64, Ordering};
 
 use super::alerts;
+use super::popup_stack::{PopupLine, PopupSnapshot, PopupStack};
 use super::WIDGET;
 use crate::i18n;
 
@@ -25,7 +26,7 @@ pub fn draw(
     alerts: &[crate::worker::AlertLine],
     now: chrono::DateTime<chrono::Utc>,
 ) {
-    let (enabled, secs, opacity, mut position, alert_kinds) = {
+    let (enabled, secs, opacity, mut position, alert_kinds, followed, team_id) = {
         let config = crate::runtime();
         let opacity = config
             .windows
@@ -38,11 +39,10 @@ pub fn draw(
             opacity,
             config.popup_pos,
             config.alert_kinds,
+            config.followed.clone(),
+            crate::team::selected_in(&config),
         )
     };
-    if !enabled {
-        return;
-    }
 
     // RF-19c: el pop-up enseña los mismos tipos que el widget.
     let candidates: Vec<crate::worker::AlertLine> = alerts
@@ -50,16 +50,54 @@ pub fn draw(
         .filter(|line| alert_kinds.shows(line.kind))
         .cloned()
         .collect();
-    // De uno en uno: dos reclamaciones seguidas se leían como una sola y el pop-up se iba de
-    // golpe (informe de 2026-10-31).
-    let mut popup = queue_slot();
-    let shown = popup.tick(&candidates, now, secs);
-    drop(popup);
-    let Some((showing, fade)) = popup_lines(shown, test_popup_line(now)) else {
-        return;
+
+    let (states, player_team) = {
+        let board = crate::worker::dashboard();
+        let team_id = board.played_team.or(team_id);
+        let player_team = team_id.and_then(|id| {
+            board
+                .candidates
+                .iter()
+                .find(|candidate| candidate.team_id == id)
+                .map(|candidate| candidate.color)
+        });
+        (board.states.clone(), player_team)
     };
 
-    alerts::draw_popup(ui, &showing, opacity, &mut position, fade);
+    let mut popup = queue_slot();
+    let snapshot = popup.tick(
+        &candidates,
+        now,
+        if enabled { secs } else { 0.0 },
+        &followed,
+        &states,
+        player_team,
+    );
+    drop(popup);
+    if !enabled {
+        return;
+    }
+
+    let test = test_popup_line(now);
+    let placing = test.is_some();
+    let showing = popup_lines(snapshot, test);
+    if showing.lines.is_empty() && showing.overflow == 0 {
+        return;
+    }
+
+    alerts::draw_popup(
+        ui,
+        &showing.lines,
+        showing.overflow,
+        opacity,
+        &mut position,
+        placing,
+        &alerts::LineContext {
+            now,
+            player_team,
+            states: &states,
+        },
+    );
 
     let mut config = crate::runtime();
     if position != config.popup_pos {
@@ -67,24 +105,22 @@ pub fn draw(
     }
 }
 
-fn popup_lines(
-    shown: Option<(crate::worker::AlertLine, f32)>,
-    test: Option<crate::worker::AlertLine>,
-) -> Option<(Vec<crate::worker::AlertLine>, f32)> {
-    match (shown, test) {
-        (Some((line, fade)), Some(test)) => Some((vec![test, line], fade)),
-        (Some((line, fade)), None) => Some((vec![line], fade)),
-        (None, Some(test)) => Some((vec![test], 1.0)),
-        (None, None) => None,
+fn popup_lines(snapshot: PopupSnapshot, test: Option<crate::worker::AlertLine>) -> PopupSnapshot {
+    if let Some(line) = test {
+        PopupSnapshot {
+            lines: vec![PopupLine { line, fade: 1.0 }],
+            overflow: 0,
+        }
+    } else {
+        snapshot
     }
 }
 
-/// The one pop-up at a time (RF-19a): session state, not a setting.
-fn queue_slot() -> std::sync::MutexGuard<'static, alerts::PopupQueue> {
-    static QUEUE: std::sync::OnceLock<std::sync::Mutex<alerts::PopupQueue>> =
-        std::sync::OnceLock::new();
+/// The pop-up stack is session state, not a setting.
+fn queue_slot() -> std::sync::MutexGuard<'static, PopupStack> {
+    static QUEUE: std::sync::OnceLock<std::sync::Mutex<PopupStack>> = std::sync::OnceLock::new();
     QUEUE
-        .get_or_init(|| std::sync::Mutex::new(alerts::PopupQueue::default()))
+        .get_or_init(|| std::sync::Mutex::new(PopupStack::default()))
         .lock()
         .unwrap_or_else(|error| error.into_inner())
 }
@@ -98,6 +134,7 @@ fn test_popup_line(now: chrono::DateTime<chrono::Utc>) -> Option<crate::worker::
         at: now,
         received: now,
         map_role: MapRole::Center,
+        objective_id: "38-1".to_owned(),
         objective_kind: gw2lurker_core::ObjectiveType::Camp,
         kind: crate::worker::AlertKind::Claim,
         objective: i18n::text("Sample objective").to_owned(),
@@ -119,6 +156,7 @@ mod tests {
             at: now,
             received: now,
             map_role: MapRole::Center,
+            objective_id: "38-1".to_owned(),
             objective_kind: gw2lurker_core::ObjectiveType::Camp,
             kind: crate::worker::AlertKind::Claim,
             objective: "Camp".to_owned(),
@@ -132,9 +170,9 @@ mod tests {
 
     #[test]
     fn rf19a_a_test_popup_is_shown_without_a_real_alert() {
-        let (showing, fade) = popup_lines(None, Some(line())).expect("test line is visible");
-        assert_eq!(showing.len(), 1);
-        assert_eq!(showing[0].guild_name.as_deref(), Some("Test"));
-        assert_eq!(fade, 1.0);
+        let showing = popup_lines(PopupSnapshot::default(), Some(line()));
+        assert_eq!(showing.lines.len(), 1);
+        assert_eq!(showing.lines[0].line.guild_name.as_deref(), Some("Test"));
+        assert_eq!(showing.lines[0].fade, 1.0);
     }
 }

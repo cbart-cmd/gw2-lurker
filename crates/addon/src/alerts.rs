@@ -109,6 +109,7 @@ impl Dashboard {
                 at: *at,
                 received,
                 map_role: role(objective),
+                objective_id: objective.clone(),
                 objective_kind: self.objective_kind(objective),
                 kind: AlertKind::Flip,
                 objective: name(objective),
@@ -127,6 +128,7 @@ impl Dashboard {
                 at: *at,
                 received,
                 map_role: role(objective),
+                objective_id: objective.clone(),
                 objective_kind: self.objective_kind(objective),
                 kind: AlertKind::Claim,
                 objective: name(objective),
@@ -144,6 +146,7 @@ impl Dashboard {
                 at: *at,
                 received,
                 map_role: role(objective),
+                objective_id: objective.clone(),
                 objective_kind: self.objective_kind(objective),
                 kind: AlertKind::Unclaim,
                 objective: name(objective),
@@ -186,6 +189,8 @@ pub struct AlertLine {
     pub received: DateTime<Utc>,
     /// Map of the matchup the objective belongs to, for the alert filter.
     pub map_role: MapRole,
+    /// Stable objective id, used to read its current value from the matchup state.
+    pub objective_id: String,
     /// Camp, tower, keep or castle: the drawing that goes ahead of the line (T-47).
     pub objective_kind: gw2lurker_core::ObjectiveType,
     pub kind: AlertKind,

@@ -3,6 +3,19 @@ Formato [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/), versionado 
 
 ## [Unreleased]
 
+## [0.26.9] - 2026-11-02
+### Añadido
+- Avisos con el formato de RF-19f: verbo desde tu equipo, mapa con su nombre completo, marca de
+  alto valor, antigüedad en vivo y hora exacta en el registro y el tooltip.
+- Emergente apilado: hasta cinco avisos simultáneos, ordenados por prioridad y con caducidad
+  individual desde su llegada; las líneas descartadas se cuentan sin reproducirse después.
+### Corregido
+- El emergente guarda su propia posición al colocarlo, en vez de la posición de otra ventana.
+- Los reclamos recientes de clanes seguidos recuperados al entrar también salen en el emergente;
+  los reclamos antiguos y de clanes no seguidos siguen descartándose.
+### Técnico
+- DLL release: 1 634 816 bytes (1 616 384 bytes en la versión anterior).
+
 ## [0.26.8] - 2026-11-02
 ### Cambiado
 - La DLL pasa de 2,28 MB a 1,62 MB: se ha quitado una librería de expresiones regulares que
