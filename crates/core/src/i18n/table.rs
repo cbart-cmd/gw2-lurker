@@ -8,6 +8,7 @@
 use super::COLUMNS;
 
 pub mod more;
+pub mod picker;
 pub mod trail;
 
 /// The table: `(english key, [es, en, fr, de])`.

@@ -97,6 +97,7 @@ fn entries() -> impl Iterator<Item = (&'static str, [&'static str; COLUMNS])> {
     TEXT.iter()
         .chain(table::more::TEXT.iter())
         .chain(table::trail::TEXT.iter())
+        .chain(table::picker::TEXT.iter())
         .copied()
 }
 

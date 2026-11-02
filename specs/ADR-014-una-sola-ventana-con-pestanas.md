@@ -1,6 +1,8 @@
 # ADR-014 · Una sola ventana con pestañas
 
-- **Estado**: aceptado (2026-10-31)
+- **Estado**: aceptado (2026-10-31); enmendado el 2026-11-02: el selector de equipo pasa a ser una
+  ventana aparte, centrada, que se abre sola al entrar en MvM o en el Bastión (RF-03j), por
+  petición expresa del jugador. Es la única excepción; el resto sigue en la ventana con pestañas.
 - **Decide**: el usuario, tras ver el addon funcionando y compararlo con `docs/boceto.html`
 - **Afecta a**: RF-17, RF-18, RF-46; T-42
 

@@ -3,6 +3,13 @@ Formato [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/), versionado 
 
 ## [Unreleased]
 
+## [0.26.7] - 2026-11-02
+### Añadido
+- **Selector de equipo en su propia ventana**, centrada en pantalla. Se abre sola al entrar en
+  MvM o en el Bastión del Armisticio si aún no has elegido equipo, si tu equipo ya no juega o si
+  ha cambiado el emparejamiento (te lo avisa y te pide confirmar o cambiar). En *Ajustes* queda
+  el botón **Cambiar de equipo**, que abre esa ventana.
+
 ## [0.26.6] - 2026-11-02
 ### Añadido
 - **B — Estela** en Mapa: curvas inferidas con flechas, recencia, revisitas agrupadas,

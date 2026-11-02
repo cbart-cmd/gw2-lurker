@@ -18,7 +18,7 @@ Comprobado el **2026-10-31** contra la API real, el código fuente de `nexus-rs`
 - `[API]` `/v2/wvw/objectives?ids=all`: `coord` está en **coordenadas de continente** y **81 de 178** entradas tienen `coord: null`. `/v2/maps` aporta `continent_rect` (caja real) y `map_rect` (ADR-011).
 - `[API]` `Cache-Control: public, max-age=1`, sin cabecera `Age`, `X-Rate-Limit-Limit: 600`. **Límite real** (wiki *API:Best practices*, copia de archive.org del 2025-12-16): cubo de **300** peticiones por IP que se recarga a **5 por segundo** (300/min). La cifra 600 de la cabecera **no** es «600 por hora»; superar el cubo devuelve `429`.
 - `[medido]` Con polling a 10 s: los cambios de **propiedad de objetivos** tienen mediana 19–20 s (máx 110 s observado) y hay emparejamientos muertos con **22 min sin un solo cambio**. 227 peticiones, 0 errores. Conclusión inicial: 30 s. **Decisión posterior (2026-10-31): 5 s por defecto** —el jugador pidió acercarse a gw2mists y el sondeo pide **una** partida por id, no los nueve—, con recorte por backoff (RNF-02).
-- `[medido]` **La API congela una partida entera**: el 2026-11-01 la partida `1-1` devolvió 20 minutos la misma copia, **puntos incluidos**, mientras las otras ocho se movían. No es CDN (`?cb=` da lo mismo) ni el cliente HTTP: es el backend. Por eso el widget avisa en naranja cuando la huella de la partida no cambia en ≥5 min, y no se puede confundir «no pasa nada» con «el addon está parado».
+- `[medido]` **La API congela una partida entera**: el 2026-11-01 la partida `1-1` devolvió 20 minutos la misma copia, **puntos incluidos**, mientras las otras ocho se movían. No es CDN (`?cb=` da lo mismo) ni el cliente HTTP: es el backend. Por eso el widget avisa en naranja cuando la huella de la partida no cambia en ≥5 min, y no se puede confundir «no pasa nada» con «el addon está parado». La huella incluye los puntos además de los objetivos: mide si la API publica **algo**, no si hay capturas; una partida con capturas quietas pero marcador en movimiento no está congelada. El umbral de 5 min es deliberado (petición del jugador, 2026-11-02): en MvM el marcador se mueve cada pocos segundos.
 - `[medido]` **El atlas de fuentes de Nexus solo trae latín básico y latino-1**: `·` (U+00B7) y `×` (U+00D7) se dibujan; `→` (U+2192), `…` (U+2026) y `★` (U+2605) salen como «?». Todo texto de la UI se queda en ASCII + latino-1 (test `rf44_the_table_stays_inside_latin_1`). Los nombres de clan que llegan del API sí pueden traer otros alfabetos: esos no tienen glifo.
 - `[API]` `/v2/guild/search?name=` devuelve **un solo** clan y solo si el texto **empieza** su nombre (`die` → *Die*; `a ne` → nada). No hay búsqueda por subcadena ni listado masivo (`/v2/guild?ids=` → 404). De ahí el índice propio (`guild-names.json`, 9 886 nombres) que el addon distribuye y consulta al buscar.
 - La API **no** expone estado "bajo ataque" (ADR-001) ni historial: solo el último claim vigente.
@@ -47,13 +47,13 @@ Comprobado el **2026-10-31** contra la API real, el código fuente de `nexus-rs`
 - **Pestañas sin equipo (2026-11-02, petición del jugador):** si la cuenta actual no tiene equipo elegido, cada pestaña de datos del widget muestra «No hay datos hasta que elijas un equipo en Ajustes» en lugar de su contenido. Ajustes permanece accesible y operativo. No se muestran estadísticas de la partida anterior como si fueran actuales; elegir equipo devuelve el contenido normal de las pestañas.
 - **Selector en dos pasos (2026-10-31):** región (EU/NA, deducida del prefijo del id: `2-x`/`1-x`) → matchup (`2-1`…`2-5`) → uno de sus **tres** equipos, con su color. Se ofrecen solo ids de equipo: `all_worlds` mezcla ids de mundo antiguos (`2xxx`) que nadie puede elegir.
 - **No se puede deducir el color del jugador:** Mumble solo expone `server_address`, `map_id`, `map_type`, `shard_id`, `instance` y `build_id`; `Identity::team_color_id` es un id de *tinte* (`/v2/colors`), no el color de WvW; `UserInfo` de Unofficial Extras no tiene campo de equipo; Nexus no lo expone. Por eso el color se conoce **después** de elegir equipo, y sirve para confirmar rivales (RF-03g), no para filtrar la primera elección.
-- **Validación automática:** cada vez que se entra en WvW se comprueba el equipo guardado contra los matchups vivos. Si sigue jugando, no se pregunta nada; si no aparece en ninguno (sorteo mensual), **el selector vuelve a abrirse solo**.
+- **Validación automática:** cada vez que se entra en WvW o en el Bastión del Armisticio se comprueba el equipo guardado contra los matchups vivos. Si sigue jugando en el mismo emparejamiento, no se pregunta nada; si no aparece en ninguno (sorteo mensual) o el emparejamiento cambió, **el selector vuelve a abrirse solo** (RF-03j).
 - **Memoria por cuenta** (2026-11-01, decisión del jugador): `Roster` se indexa por el **nombre de cuenta** que arcdps entrega en `EV_ARCDPS_SELF_JOIN` (`AgentUpdate::account`, ya suscrito en `arc_team.rs`, con los dos puntos delante: `:Nombre.1234`), así que todos los personajes de una cuenta comparten equipo y una segunda cuenta no lo hereda: se le pregunta una vez. El nombre de personaje de Mumble solo es la clave **mientras arcdps no ha dado la cuenta** (o no está instalado); la clave con la que se guarda es siempre la que se lee, y con la cuenta conocida una entrada por personaje **no se lee nunca**. **Sin migración** (decisión del jugador, 2026-11-01): `settings.json` guarda `roster.by_account`, y el `roster.by_character` de las versiones ≤ 0.26.5 se ignora y desaparece en el siguiente guardado, así que cada cuenta elige su equipo una vez al actualizar. El botón manual de ajustes sigue siendo la salida para el resto de casos.
 - La **API no traduce nombres de equipo** (`/v2/wvw/teams` responde 404; `/v2/wvw/objectives?lang=es` sí traduce objetivos). Las traducciones viven en `data/team-names.json` **indexadas por nombre inglés** (los nombres rotan cada temporada, los ids no) y se mantienen **a mano** desde el 2026-11-01 —la hoja `data/equipos.xlsx` y el script que la convertía se retiraron—: son literales (`Great House Aviary → Pajar de la Gran Casa`), no los del cliente (*Bosquemugoso*), así que el mapa `names` por id de `wvw-teams.json` tiene prioridad para meter los oficiales.
 
 **RF-03b (M)** El addon deberá resolver el match buscando el **id de equipo** en `all_worlds` (no en `worlds`, que solo trae el mundo heredado) para deducir el color propio y los de los enemigos. Usará el prefijo del id de match para descartar la región contraria (`1-x` = NA, `2-x` = EU).
 
-**RF-03c (M)** El usuario podrá cambiar de equipo en cualquier momento desde la configuración.
+**RF-03c (M)** El usuario podrá cambiar de equipo en cualquier momento desde la configuración: el botón **Cambiar de equipo** de *Ajustes* abre la ventana del selector (RF-03j).
 
 **RF-03d (M)** Cuando cambie el ID del match, el addon deberá descartar el baseline anterior y resolver de nuevo el color. Consultará `/v2/wvw/timers/teamAssignment`; al vencer el timer comprobará `/v2/wvw/matches/overview` y, si el match observado ya no está activo, volverá a consultar `ids=all` para resolver el equipo. Si la selección cambia o queda obsoleta por la reasignación, borrará el historial y las alertas del ciclo anterior, reiniciará el diff y creará un baseline nuevo. El equipo configurado, la lista de clanes seguidos y el resto de ajustes se conservan. Si el match sigue activo tras vencer el timer, no se borra nada.
 - GWT: *Given* un match `2-5` en curso, *When* la API devuelve `2-6` para el mismo equipo, *Then* no se emiten alertas por la diferencia y se crea un baseline nuevo.
@@ -74,6 +74,13 @@ Comprobado el **2026-10-31** contra la API real, el código fuente de `nexus-rs`
 
 **RF-03i (M)** El addon deberá llevar la tabla `data/wvw-teams.json` (id → nombre → nación) **dentro del binario o junto a él**, versionada en el repositorio. La tabla se regenera con `scripts/update_wvw_teams.ps1`, que contrasta los equipos en uso según `all_worlds` de la API oficial y conserva los nombres ya conocidos si la fuente de nombres no responde. Sin esa tabla el addon sigue funcionando mostrando ids.
 
+**RF-03j (M)** El selector de equipo es una **ventana propia, centrada en pantalla** (petición del jugador, 2026-11-02), no una sección de *Ajustes*. Se abre sola al entrar en un mapa de MvM o en el Bastión del Armisticio, unos segundos después de cargar el mapa (arcdps tarda en dar la cuenta, RF-03a), y diciendo por qué:
+- **Sin equipo** (jugador nuevo o cuenta nueva): «Elige tu equipo para ver lo que pasa en tu emparejamiento».
+- **Equipo que ya no juega** (sorteo): «Tu equipo guardado no está jugando ahora: vuelve a elegirlo».
+- **Cambio de emparejamiento:** «El emparejamiento ha cambiado: confirma tu equipo o elige otro». El emparejamiento es `id de match + ids de los tres equipos` (`core::prompt::matchup_key`); se guarda por equipo en `confirmed_matchups` de `settings.json` al pulsar **Confirmar equipo**. Si no hay ninguno guardado (actualización o equipo recién elegido) se apunta el actual **sin preguntar**.
+- Cerrar con `×` no confirma: se volverá a preguntar en la siguiente entrada. Solo se comprueba una vez por entrada en el mapa.
+- GWT: *Given* el equipo 12014 confirmado en `2-2:12014,12015,12016`, *When* tras el reinicio semanal se entra en MvM y es `2-2:12014,12015,12099`, *Then* se abre la ventana centrada con el aviso de cambio de emparejamiento.
+
 **RF-04 (M)** El primer snapshot tras activar, cambiar de match, confirmar una reasignación o recuperar tras un hueco largo se tratará como **baseline** y no generará alertas de flip. Al arrancar el addon el historial anterior **se descarta** (ADR-012) y el baseline reconstruye el estado actual con todos los claims vigentes (RF-25); se registra el `Gap` correspondiente y la UI indica "datos desde <inicio de sesión o última reasignación>".
 
 ## B. Objetivo 1 – Alertas de estructuras
@@ -83,7 +90,9 @@ Comprobado el **2026-10-31** contra la API real, el código fuente de `nexus-rs`
 **RF-10 (M)** Cuando un objetivo propio pase a manos de un equipo enemigo, el addon deberá mostrar una alerta en el widget fijo (RF-16) con nombre, tipo, mapa y hora.
 - GWT: *Given* "Torre X" con `owner=Green` y mi equipo Green, *When* un snapshot la muestra `owner=Red`, *Then* aparece en el widget la línea "Torre X perdida ante Rojo (mapa)".
 
-**RF-11 (S)** Cuando cambie un estado observable de un objetivo propio (descenso de `yaks_delivered`, cambio de `guild_upgrades`, pérdida de claim), el addon deberá emitir un aviso de prioridad baja, configurable.
+**RF-11 (deprecado)** La ampliación de avisos de prioridad baja configurables por cambios de
+`yaks_delivered`, `guild_upgrades` o pérdida de claim se retira del alcance con T-21 por decisión
+del jugador (2026-11-02). Los avisos ya implementados, incluidos los de pérdida de claim, se mantienen.
 
 **RF-12 (M)** El usuario podrá elegir el ámbito de las alertas: *solo mi mapa actual* o *todos los mapas del match*.
 
@@ -93,7 +102,9 @@ ni una tarea pendiente a la espera de una futura API de Nexus.
 
 **RF-14 (M)** El addon deberá mantener un log de alertas recientes (últimas N configurables), accesible desde el widget en una ventana ampliada.
 
-**RF-15 (S)** Se podrán emitir también avisos de captura enemiga de objetivos neutrales o de objetivos enemigos tomados por mi equipo (informativo), desactivados por defecto.
+**RF-15 (deprecado)** La ampliación de avisos informativos opcionales por capturas de objetivos
+neutrales o enemigos se retira del alcance con T-21 por decisión del jugador (2026-11-02).
+Los avisos de captura ya existentes no se modifican.
 
 ### B2. Widget fijo de alertas (ADR-006)
 
@@ -266,7 +277,7 @@ El click-through **no tiene casilla en los ajustes** (se quitó el 2026-11-01: e
 
 ## E. Configuración y UX
 
-**RF-40 (M)** Ventana de configuración (pestaña *Ajustes*, la última): equipo (selector región → color → equipo), traducción del nombre del equipo, idioma, intervalo de sondeo, ámbito y filtros de avisos (mapas, clanes seguidos, tipos de estructura), segundos y activación del aviso emergente, tipos de aviso del widget, fondo del mapa, tema, fondo y opacidad del widget, tamaño de texto, líneas visibles, ventana visible y posición bloqueada, y la **URL del índice de nombres** con su botón de descarga. Las guilds seguidas se gestionan en la pestaña *Clanes*, no aquí.
+**RF-40 (M)** Ventana de configuración (pestaña *Ajustes*, la última): equipo (botón que abre la ventana del selector, RF-03j), traducción del nombre del equipo, idioma, intervalo de sondeo, ámbito y filtros de avisos (mapas, clanes seguidos, tipos de estructura), segundos y activación del aviso emergente, tipos de aviso del widget, fondo del mapa, tema, fondo y opacidad del widget, tamaño de texto, líneas visibles, ventana visible y posición bloqueada, y la **URL del índice de nombres** con su botón de descarga. Las guilds seguidas se gestionan en la pestaña *Clanes*, no aquí.
 
 **RF-41 (M)** Persistencia de la configuración en el directorio de addon de Nexus.
 
@@ -295,6 +306,9 @@ cabecera, redimensionar por el borde y el grip inferior derecho, **bloquear** (i
 redimensionar; bloqueada además no captura clics, RF-18) y **opacidad 0–100 %** aplicada al fondo.
 El estado (`visible`, `position`, `size`, `opacity`, `locked`, `collapsed`) se guarda en la
 configuración y se restaura al arrancar.
+- **Excepción (2026-11-02, petición del jugador):** el selector de equipo (RF-03j) es una ventana
+  aparte y centrada, porque se abre sola para pedir una decisión; no guarda
+  posición ni tamaño.
 - Las opciones de Nexus ofrecen siempre **Ver la ventana** y **Avisos emergentes**, aunque la
   ventana esté oculta o el overlay no se dibuje fuera de MvM, y dibujan también los ajustes.
 - Menú contextual con **clic derecho** sobre cualquier ventana: *Bloquear posición*, *Opacidad* (slider), *Restablecer posición y tamaño*, *Ajustes…*.
@@ -357,7 +371,7 @@ Módulos **reales** del workspace actual (`crates/core`, `crates/api`, `crates/a
 | Requisito | Módulo | Dónde |
 |---|---|---|
 | RF-01/02/02a | `addon::context`, `addon::detect`, `addon::ffi::mumble` | `ui::mod`, `worker` |
-| RF-03* | `addon::team`, `addon::arc_team`, `core::detect`, `core::resolver`, `core::select`, `core::teams` + `data/wvw-teams.json` y `data/team-names.json` | `ui::settings`, `worker` |
+| RF-03* | `addon::team`, `addon::arc_team`, `core::detect`, `core::resolver`, `core::select`, `core::teams`, `core::prompt` + `data/wvw-teams.json` y `data/team-names.json` | `ui::team_picker`, `ui::settings`, `worker` |
 | RF-10..15, RF-22..27 | `core::diff`, `core::gate`, `core::matchup` (`claim_holds`, `digest`) | `worker` |
 | RF-16..19e | `addon::alerts`, `addon::ui::alerts`, `addon::ui::popup`, `core::alerts` (filtros) | `ui::mod` |
 | RF-20..20d, RF-73 | `addon::catalog` (nombres), `addon::names` (índice), `addon::session_names` (`temp.json`), `addon::guild_index` (ZIP), `addon::search` (búsqueda), `core::follow` | `ui::follow`, `ui::guilds` |

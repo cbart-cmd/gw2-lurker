@@ -14,6 +14,7 @@ pub mod i18n;
 pub mod matchup;
 pub mod model;
 pub mod project;
+pub mod prompt;
 pub mod resolver;
 pub mod route;
 pub mod select;

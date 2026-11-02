@@ -15,12 +15,11 @@ Lo que **queda vivo**, con por qué:
 
 | Tarea | Qué falta | Necesita |
 |---|---|---|
-| **T-21 (S)** | RF-11 y RF-15 (avisos de bajada de yaks/upgrades y capturas informativas) | Programa |
-| **T-41 (S)** | Terminología fr/de con hablantes nativos | Nativos |
 | **Prueba B** | Probar el nuevo mapa 0.26.6 (MT-21); implementación T-51..T-53 terminada | El jugador |
 
 Pruebas previas en juego aceptadas por indicación del jugador el 2026-11-02, sin atribuir nuevas
-mediciones a la IA. Audio retirado del alcance; T-24 ya estaba cerrado. El estado fino está en `PROGRESO.md`.
+mediciones a la IA. T-21 y T-41 deprecadas por decisión del jugador; se conserva lo ya implementado.
+Audio retirado del alcance; T-24 ya estaba cerrado. El estado fino está en `PROGRESO.md`.
 
 ## Estados que la lista original describía y hoy no existen
 
@@ -81,8 +80,8 @@ mediciones a la IA. Audio retirado del alcance; T-24 ya estaba cerrado. El estad
   `addon::i18n` resuelve preferencia → idioma del juego → inglés, aplica el override de Ctrl
   derecho (`ffi::keys`, `GetAsyncKeyState` + proceso en primer plano) y registra las claves en
   Nexus con `set_translation`. Tests: 9 en `core` (incluida la completitud de las cuatro
-  columnas), 3 en el addon. Falta la prueba en juego (T-35) y que T-41 confirme la
-  terminología de tipos con nativos. (T-03) — RF-44, RF-45, RNF-08
+  columnas), 3 en el addon. La prueba previa en juego T-35 se aceptó y la revisión por nativos
+  T-41 se deprecó; se mantienen los cuatro idiomas. (T-03) — RF-44, RF-45, RNF-08
 
 - **T-12 ✔ (2026-10-31, parcial)** `context` + `config`: activación solo en WvW, persistencia y export real. Hecho: `export!` con `Direct` + `DisableHotloading` + URL de distribución (verificada dentro de la DLL), lectura de `NexusLink::is_gameplay` y del mapa de Mumble en `ffi/`, `config.json` con valores por defecto, saneo y copia `.corrupt-*` ante JSON dañado (5 tests), y ventana de estado mínima que respeta `core::gate`. Falta: selector de equipo (T-30), ventana de configuración (T-17) y la prueba dentro del juego (T-35). (T-01, T-05) — RF-01, RF-02, RF-02a, RF-03a/c, RF-40, RF-41
 
@@ -252,7 +251,8 @@ mediciones a la IA. Audio retirado del alcance; T-24 ya estaba cerrado. El estad
   No implica una medición nueva por la IA ni la aceptación del nuevo seguimiento B (MT-21).
 - **T-20 ✔ (2026-10-31, parcial)** README, CHANGELOG, `docs/` de usuario, instalación, limitaciones conocidas (RNF-05), empaquetado de la DLL.
 - **T-28 ✔ (2026-10-31)** Módulo `theme`: herencia del estilo de Nexus, tema propio opcional aplicado solo a ventanas del addon (stack de estilo push/pop), colores de equipo fijos y fondo del widget configurable. (T-13, T-17) — RF-60..63
-- **T-21 (S) ✔ (2026-10-31, parcial)** RF-11, RF-15, RF-19b, RF-19c, RF-35, atajo/icono de Quick Access.
+- **T-21 (S) — deprecada (2026-11-02)** El jugador retira la ampliación pendiente de RF-11 y
+  RF-15. Las partes previamente implementadas de RF-19b, RF-19c, RF-35 y Quick Access se mantienen.
 - **T-22 (C) ✔ (2026-10-31, parcial)** RF-19d, RF-36, reproducción animada de la ruta.
   Ampliación B — Estela completada en T-51..T-53 (0.26.6). Audio retirado por el jugador.
 
@@ -296,8 +296,8 @@ tarea indica de qué depende.
    Texto de rutas entre mapas junto al dibujo, con «salto a <mapa>» y aviso de inferencia (ADR-005).
    Tests con fixtures reales y medición CPU manual; el frame completo requiere GW2.
    (T-38) — RF-32a
-10. **T-41 (S)** Cerrar i18n: terminología de tipos con hablantes nativos de fr/de. (T-31)
-    — RF-44, RNF-08
+10. **T-41 (S) — deprecada (2026-11-02)** Se retira la revisión pendiente de terminología fr/de
+    con hablantes nativos; las traducciones existentes y RF-44/RNF-08 se mantienen. (T-31)
 
 ## Fase 7 – B: Estela (implementada en 0.26.6; prueba nueva en juego MT-21)
 

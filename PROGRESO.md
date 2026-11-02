@@ -46,6 +46,31 @@ Reglas:
   verificarlos (403 entre carpetas, no redimensiona el viewport): se probaron con Edge del sistema
   y `playwright-core` (hay que reinstalarlo; no queda nada en el repo).
 
+## HECHO – 2026-11-02 · Aviso de API parada a 5 min y selector de equipo en ventana propia
+
+- Aviso de API congelada: el umbral **ya era 5 min** (ahora constante `FROZEN_AFTER_MIN` en
+  `ui/status.rs`). `matchup::digest` se deja como estaba, **con puntos**: mide si la API publica
+  algo. Quitar los puntos se probó y se descartó: avisaba con el marcador aún moviéndose. Si el
+  jugador lo vio a los «30 min», era el contador de minutos de una congelación larga o la copia
+  sí cambiaba; no hay ningún umbral de 30 min en el código.
+- Selector en ventana propia centrada `ui/team_picker.rs` (RF-03j, nuevo en la spec; excepción
+  anotada en ADR-014 y RF-46). Ajustes solo tiene «Cambiar de equipo». Lógica pura en
+  `core::prompt` (`matchup_key` = `match:ids ordenados`, `prompt` → NoTeam/Stale/NewMatchup);
+  `confirmed_matchups` por equipo en `settings.json`. Se comprueba una vez por entrada, 5 s
+  después de cargar el mapa (la cuenta de arcdps llega tarde). Sin clave guardada se apunta la
+  actual sin preguntar (actualizaciones y equipos recién elegidos). Cerrar con × no confirma.
+- Tests: `rf03j_*` en core y en `team_picker/tests.rs`; los de estrechamiento se movieron de
+  `settings/tests.rs`. `validate.ps1` completo en verde (373 tests).
+- **No verificado (requiere juego):** posición centrada, que se abra al entrar y el retraso de
+  la cuenta de arcdps. Sin commit ni versión todavía.
+- `gen_modelo.ps1` usa `git ls-files`: los ficheros nuevos se marcaron con `git add -N`.
+
+## HECHO – 2026-11-02 · Deprecar T-21 y T-41
+
+- El jugador retira T-21 y T-41 del listado activo; se conservan como deprecadas en el historial.
+- RF-11/RF-15 y D-13 alineados; avisos y traducciones existentes sin cambios. MT-21 sigue pendiente.
+- Trazabilidad y `git diff --check` correctos; bugs sin cambios. Solo documentación, sin versión ni commit.
+
 ## HECHO – 2026-11-02 · B — Estela publicada en 0.26.6 para probar
 
 - Petición: retirar el pendiente de audio, aceptar las pruebas anteriores en juego por indicación

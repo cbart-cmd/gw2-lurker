@@ -26,7 +26,7 @@ memoria (ADR-015).
 | D-10 | Objetivo presente en S0 y ausente en S1 | diff | Sin panic; se ignora y se registra aviso de anomalía |
 | D-11 | Objetivo nuevo en S1 que no estaba en S0 | diff | Sin `Flip`; se trata como línea base de ese objetivo |
 | D-12 | Objetivo no reclamable (sin campos de claim) | diff | Sin eventos de claim; no falla el parseo |
-| D-13 | Cambia solo `yaks_delivered` o `guild_upgrades` | diff | Sin `Flip`/`Claim` (solo candidato a RF-11) |
+| D-13 | Cambia solo `yaks_delivered` o `guild_upgrades` | diff | Sin `Flip`/`Claim`; la ampliación RF-11 está deprecada |
 | D-14 | `claimed_at` anterior a `S0.taken_at` y `claimed_by` nuevo | diff | `Claim` con `late:true` (reloj o caché desfasados) |
 
 ## B – Línea base, cambio de match y huecos
@@ -40,7 +40,7 @@ memoria (ADR-015).
 | B-05 | `S1.taken_at - S0.taken_at` > umbral | diff | `Gap{from,to}` (RF-26) |
 | B-06 | Hueco y claim de guild seguida con `claimed_at` dentro del hueco | diff | `Gap` + `Claim{late:true}` |
 | B-07 | Hueco y claim con `claimed_at` anterior al hueco | diff | Sin claim duplicado si ya estaba registrado |
-| B-08 | Mismo snapshot repetido por API atascada (huella idéntica, tiempo avanza) | diff + worker | Sin eventos; `matchup::digest` + `payload_since` marcan la partida como congelada y el widget lo dice (RF-43) |
+| B-08 | Mismo snapshot repetido por API atascada (huella idéntica, puntos incluidos; tiempo avanza) | diff + worker | Sin eventos; `matchup::digest` + `payload_since` marcan la partida como congelada a los 5 min y el widget lo dice (RF-43) |
 | B-09 | `taken_at` no monótono (S1 anterior a S0) | diff | Sin panic; S1 se descarta y se registra |
 | B-10 | `claimed_by` puesto, `last_flipped` **posterior** a `claimed_at` | diff | Claim **caducado**: se descarta y no se pinta (`matchup::claim_holds`; bug de 2026-10-31, «un clan en un campa de otro color») |
 | B-11 | Vence `teamAssignment` y el match observado desaparece de `overview` | worker | `ids=all` revalida el equipo; si la selección cambia o queda obsoleta, vacía historial/alertas y reinicia el baseline (RF-03d, RF-24); si el match sigue activo, no limpia nada |

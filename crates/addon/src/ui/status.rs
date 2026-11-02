@@ -9,6 +9,11 @@ use crate::i18n;
 
 use super::{map, Tabbed, WIDGET};
 
+/// Minutos con la copia de la partida idéntica (puntos incluidos, `matchup::digest`) a partir de
+/// los cuales se avisa (RF-43). En MvM el marcador cambia cada pocos segundos; 5 min sin ningún
+/// cambio es la API de ArenaNet parada (petición del jugador, 2026-11-02).
+const FROZEN_AFTER_MIN: i64 = 5;
+
 pub(super) fn draw_health(
     ui: &nexus::imgui::Ui,
     config: &mut crate::config::Config,
@@ -152,7 +157,7 @@ pub(super) fn draw_health(
                     .signed_duration_since(since)
                     .num_minutes()
                     .max(0);
-                if minutes >= 5 {
+                if minutes >= FROZEN_AFTER_MIN {
                     // Del `config` que ya tiene el candado, **nunca** de `crate::runtime()`: pedirlo
                     // aquí volvía a bloquear el mismo mutex no reentrante y congelaba el juego
                     // (crash del jugador, 2026-11-01 00:40; es el mismo fallo del 2026-10-31).

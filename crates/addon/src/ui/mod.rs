@@ -13,6 +13,7 @@ mod navigation;
 mod popup;
 mod settings;
 mod status;
+mod team_picker;
 mod theme;
 mod window;
 
@@ -148,6 +149,9 @@ pub fn register() {
                 // crashed the game once (reported 2026-10-31).
                 guard("widget", || draw_widget(ui));
             }
+            // Ventana propia del selector (RF-03j): se abre sola al entrar en MvM o en el
+            // Bastión si falta equipo o cambió el emparejamiento, y desde Ajustes a mano.
+            guard("picker", || team_picker::draw(ui, gate));
             // El selector de equipo y el buscador de clanes encienden `set_teams_needed` mientras
             // se dibujan (y el worker lo recuerda unos segundos): antes se pedía «por si acaso» en
             // cada sondeo —`gate.settings_available()` es cierto casi siempre—, lo que a 5 s
@@ -173,16 +177,7 @@ pub fn register() {
 /// everything that the mouse cannot reach (RF-02).
 fn draw_options(ui: &nexus::imgui::Ui) {
     draw_openers(ui);
-    let (candidates, worlds) = {
-        let board = crate::worker::dashboard();
-        (board.candidates.clone(), board.world_names.clone())
-    };
-    let change = settings::draw_inline(ui, &candidates, &worlds);
-    match change {
-        Some(settings::TeamChange::Pick(team_id)) => crate::team::remember(team_id),
-        Some(settings::TeamChange::Clear) => crate::team::forget(),
-        None => {}
-    }
+    settings::draw_inline(ui);
 }
 
 /// Runs one render callback, turning a panic into a log line instead of a dead game.
@@ -192,11 +187,12 @@ fn draw_options(ui: &nexus::imgui::Ui) {
 /// that surface for the rest of the session: repeating the same panic every frame is noise.
 fn guard(name: &'static str, draw: impl FnOnce()) {
     static BROKEN_WIDGET: AtomicBool = AtomicBool::new(false);
+    static BROKEN_PICKER: AtomicBool = AtomicBool::new(false);
     static BROKEN_OPTIONS: AtomicBool = AtomicBool::new(false);
-    let broken = if name == "widget" {
-        &BROKEN_WIDGET
-    } else {
-        &BROKEN_OPTIONS
+    let broken = match name {
+        "widget" => &BROKEN_WIDGET,
+        "picker" => &BROKEN_PICKER,
+        _ => &BROKEN_OPTIONS,
     };
     if broken.load(Ordering::Relaxed) {
         return;
@@ -240,18 +236,7 @@ fn draw_widget(ui: &nexus::imgui::Ui) {
         return;
     }
 
-    let (
-        candidates,
-        guilds,
-        names,
-        claims,
-        states,
-        alerts,
-        objectives,
-        maps,
-        worlds,
-        history_since,
-    ) = {
+    let (candidates, guilds, names, claims, states, alerts, objectives, maps, history_since) = {
         let board = crate::worker::dashboard();
         (
             board.candidates.clone(),
@@ -262,7 +247,6 @@ fn draw_widget(ui: &nexus::imgui::Ui) {
             board.recent_alerts(&alerts_cfg, &follow, current, 50),
             board.names.clone(),
             board.maps.clone(),
-            board.world_names.clone(),
             board.history_since,
         )
     };
@@ -272,7 +256,6 @@ fn draw_widget(ui: &nexus::imgui::Ui) {
     let wanted_visible = state.visible;
     let wanted_locked = state.locked;
     let wanted_through = state.click_through;
-    let mut change = None;
     let mut filters = filters.lock().unwrap_or_else(|error| error.into_inner());
 
     let still_open = window::draw(
@@ -287,7 +270,7 @@ fn draw_widget(ui: &nexus::imgui::Ui) {
             background: config.widget_background,
         },
         |ui| {
-            change = draw_tabs(
+            draw_tabs(
                 ui,
                 &mut config,
                 &mut filters,
@@ -304,7 +287,6 @@ fn draw_widget(ui: &nexus::imgui::Ui) {
                     history_since,
                     objectives: &objectives,
                     maps: &maps,
-                    worlds: &worlds,
                 },
             );
         },
@@ -332,12 +314,6 @@ fn draw_widget(ui: &nexus::imgui::Ui) {
     slot.size = state.size;
     drop(config);
 
-    match change {
-        Some(settings::TeamChange::Pick(team_id)) => crate::team::remember(team_id),
-        Some(settings::TeamChange::Clear) => crate::team::forget(),
-        None => {}
-    }
-
     // The pop-up is drawn outside the window on purpose: it has to appear even when the widget
     // itself is closed, which is what the pop-up switch is for.
     popup::draw(ui, &alerts, now);
@@ -361,8 +337,6 @@ pub(super) struct Tabbed<'a> {
     objectives: &'a [gw2lurker_core::ObjectiveInfo],
     /// Boxes of the four WvW maps (RF-30).
     maps: &'a [gw2lurker_core::WvwMap],
-    /// Legacy world id → name, para que el selector de equipo se pueda reconocer (RF-03a).
-    worlds: &'a std::collections::BTreeMap<u32, String>,
 }
 
 /// Draws the tab bar and the body of the tab the player picked. The last tab is the settings.
@@ -371,10 +345,9 @@ fn draw_tabs(
     config: &mut crate::config::Config,
     filters: &mut matchup::Filters,
     data: &Tabbed,
-) -> Option<settings::TeamChange> {
+) {
     use nexus::imgui::{TabBar, TabBarFlags, TabItem, TabItemFlags};
 
-    let mut change = None;
     // Clan clicado en un aviso o en la lista de seguidos: se selecciona para la ruta.
     let mut clicked: Option<String> = None;
 
@@ -552,7 +525,7 @@ fn draw_tabs(
                         clicked = alerts::log_body(ui, data.alerts);
                     }
                     _ => {
-                        change = settings::body(ui, config, data.candidates, data.worlds);
+                        settings::body(ui, config);
                     }
                 }
             });
@@ -591,8 +564,6 @@ fn draw_tabs(
     }
 
     LAST_TAB.store(shown, Ordering::Relaxed);
-
-    change
 }
 
 /// Tab index of the *Map* tab inside [`TABS`].

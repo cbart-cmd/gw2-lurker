@@ -185,6 +185,10 @@ pub struct Config {
     /// not installed). The `by_character` map of versions up to 0.26.5 is not read. The manual
     /// `team_id` wins over it.
     pub roster: gw2lurker_core::Roster,
+    /// Último emparejamiento confirmado por equipo (id de equipo → `prompt::matchup_key`), para
+    /// abrir solo el selector cuando cambian los rivales (RF-03j).
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub confirmed_matchups: BTreeMap<String, String>,
     /// Draws the overlay outside WvW too. Diagnostic only: `false` in normal use (RF-01).
     pub debug_show_everywhere: bool,
     /// Ventanas con el estilo de Nexus o con el tema propio del addon (RF-60, RF-61).
@@ -277,6 +281,7 @@ impl Default for Config {
             widget_locked: true,
             windows: BTreeMap::new(),
             roster: gw2lurker_core::Roster::default(),
+            confirmed_matchups: BTreeMap::new(),
             debug_show_everywhere: false,
             theme: Theme::default(),
             widget_background: WidgetBackground::default(),

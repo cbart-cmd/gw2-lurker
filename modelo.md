@@ -103,7 +103,7 @@ Estado global (en `addon/src/lib.rs` y `worker.rs`):
 
 <!-- GENERADO: no editar debajo; se rehace con scripts/gen_modelo.ps1 -->
 
-Generado el 2026-11-02 00:52 desde el commit `b840e17`.
+Generado el 2026-11-02 18:07 desde el commit `628a492`.
 
 ## Crate `core`
 
@@ -254,7 +254,7 @@ When the addon may draw and poll (RF-01, RF-02, RF-02a).
 **Tests (7):** `rf01_playable_wvw_maps_show_and_poll`, `rf02a_loading_screen_wins_over_map_data`, `rf02a_character_select_and_redirect_are_transitions`, `rf02a_without_any_data_nothing_is_drawn`, `rf02_outside_wvw_hides_but_allows_settings`, `rf01_wvw_maps_without_objectives_are_excluded`, `rf01_the_lounge_shows_the_window_so_it_can_be_configured`
 
 
-### `crates/core/src/i18n.rs` (308 líneas)
+### `crates/core/src/i18n.rs` (309 líneas)
 
 Translation table (RF-44).
 
@@ -283,13 +283,14 @@ Translation table (RF-44).
 **Tests (12):** `rf44_every_column_is_filled`, `rf44_the_table_stays_inside_latin_1`, `rf44_keys_are_unique`, `rf44_unknown_key_is_returned_as_is`, `rf44_both_halves_of_the_table_are_looked_up`, `rf44_empty_cell_falls_back_to_english`, `rf44_format_substitutes_every_placeholder`, `rf44_widget_id_does_not_change_with_language`, `rf44_game_language_codes_match_nexus`, `rf44_windows_language_is_only_a_fallback`, `rf44_language_codes_round_trip`, `rf44_spanish_column_is_actually_spanish`
 
 
-### `crates/core/src/i18n/table.rs` (435 líneas)
+### `crates/core/src/i18n/table.rs` (436 líneas)
 
 The translation table itself (RF-44).
 
 **Contenido:**
 
 - `pub mod more`
+- `pub mod picker`
 - `pub mod trail`
 - `pub const TEXT` — The table: `(english key, [es, en, fr, de])`.
 
@@ -307,6 +308,17 @@ The second half of the translation table (RF-44).
 **Usa (interno):** `super::COLUMNS`
 
 
+### `crates/core/src/i18n/table/picker.rs` (70 líneas)
+
+Team picker window (RF-03a, RF-03j).
+
+**Contenido:**
+
+- `pub const TEXT` — The picker window and why it opens by itself, with their complete translations.
+
+**Usa (interno):** `super::COLUMNS`
+
+
 ### `crates/core/src/i18n/table/trail.rs` (51 líneas)
 
 B - Estela messages (RF-32, RF-33, RF-36, RF-44).
@@ -318,7 +330,7 @@ B - Estela messages (RF-32, RF-33, RF-36, RF-44).
 **Usa (interno):** `super::COLUMNS`
 
 
-### `crates/core/src/lib.rs` (39 líneas)
+### `crates/core/src/lib.rs` (40 líneas)
 
 Pure domain logic: snapshots, diff, rules, guild following and history queries.
 
@@ -333,13 +345,14 @@ Pure domain logic: snapshots, diff, rules, guild following and history queries.
 - `pub mod matchup`
 - `pub mod model`
 - `pub mod project`
+- `pub mod prompt`
 - `pub mod resolver`
 - `pub mod route`
 - `pub mod select`
 - `pub mod teams`
 
 
-### `crates/core/src/matchup.rs` (680 líneas)
+### `crates/core/src/matchup.rs` (692 líneas)
 
 Claim-centric view models: what is claimed right now across the matchup (RF-70), which guilds are active and how recently (RF-71) and how a guild's history splits between the player's map and the others (RF-72).
 
@@ -349,7 +362,7 @@ Claim-centric view models: what is claimed right now across the matchup (RF-70),
 - `impl ClaimRow`
   - `pub fn is_high_value(&self) -> bool` — Whether the objective scores enough to be marked (RF-30b, threshold in [`crate::model::HIGH_VALUE_TICK`]).
 - `pub fn claim_holds(objective: &crate::model::MatchObjective) -> bool` — Whether the guild that claimed the objective still holds it.
-- `pub fn digest(m: &Match) -> u64` — Huella de lo que se enseña de una partida: puntos, y por objetivo el dueño, el clan y la hora del último cambio.
+- `pub fn digest(m: &Match) -> u64` — Huella de lo que se captura en una partida: por objetivo, el dueño, el clan y la hora del último cambio.
 - `pub fn claims(m: &Match, names: &[ObjectiveInfo]) -> Vec<ClaimRow>` — Flattens every claimed objective of the match (RF-70).
 - `pub struct ObjectiveState` — Estado de un objetivo en el snapshot: **dueño siempre**, claim solo si lo hay (RF-30b).
 - `impl ObjectiveState`
@@ -434,6 +447,21 @@ Projection of WvW coordinates onto the rectangle of a window (T-14, RF-30).
 **Usa (interno):** `crate::model`
 
 **Tests (7):** `rf30_the_corners_and_the_centre_land_where_they_should`, `rf30_north_is_up_on_screen`, `rf30_the_real_orientation_matches_the_continent_data`, `rf30_a_degenerate_box_has_no_projection`, `rf30_the_tile_grid_covers_the_whole_map`, `rf30_a_degenerate_box_asks_for_no_tiles`, `rf30_every_real_objective_of_eternals_falls_inside_the_box`
+
+
+### `crates/core/src/prompt.rs` (176 líneas)
+
+When the team picker has to open by itself (RF-03j).
+
+**Contenido:**
+
+- `pub enum Prompt` — Why the picker opened by itself.
+- `pub fn matchup_key(all: &[Candidate], team_id: u32) -> Option<String>` — Identity of the matchup a team plays: the match id and the three teams in it.
+- `pub fn prompt(…)` — Whether the picker has to open, and why.
+
+**Usa (interno):** `crate::select`
+
+**Tests (4):** `rf03j_the_key_names_the_match_and_its_three_teams`, `rf03j_new_rivals_are_a_new_matchup_with_the_same_match_id`, `rf03j_nothing_confirmed_or_no_data_is_not_a_change`, `rf03j_a_new_player_and_a_relinked_team_are_asked`
 
 
 ### `crates/core/src/resolver.rs` (76 líneas)
@@ -791,7 +819,7 @@ Clock times as the player sees them.
 **Tests (2):** `rf19_the_clock_uses_the_players_timezone_and_not_utc`, `rf19_the_same_instant_is_formatted_the_same_way_twice`
 
 
-### `crates/addon/src/config/mod.rs` (551 líneas)
+### `crates/addon/src/config/mod.rs` (556 líneas)
 
 Addon configuration, stored as JSON in the addon directory (RF-41).
 
@@ -1642,7 +1670,7 @@ Matchup claims view (T-36, RF-70): what is claimed right now, grouped by map.
 **Tests (6):** `rf73_the_claims_view_can_show_only_followed_guilds`, `rf30b_high_value_is_the_tick_of_this_snapshot_not_the_kind`, `rf70_all_kinds_are_visible_by_default`, `rf70_kind_filters_remove_rows`, `rf70_high_value_hides_camps_but_keeps_castles`, `rf70_rows_are_grouped_by_map`
 
 
-### `crates/addon/src/ui/mod.rs` (777 líneas)
+### `crates/addon/src/ui/mod.rs` (748 líneas)
 
 Windows of the addon. Every one of them goes through [`window::draw`] (RF-46).
 
@@ -1658,6 +1686,7 @@ Windows of the addon. Every one of them goes through [`window::draw`] (RF-46).
 - `mod popup`
 - `mod settings`
 - `mod status`
+- `mod team_picker`
 - `mod theme`
 - `mod window`
 - `pub const WIDGET` — Translation key (and stable id) of the only window of the addon (T-42).
@@ -1734,69 +1763,51 @@ El aviso emergente (RF-19a): encima de la pantalla, **de uno en uno**.
 **Tests (1):** `rf19a_a_test_popup_is_shown_without_a_real_alert`
 
 
-### `crates/addon/src/ui/settings.rs` (748 líneas)
+### `crates/addon/src/ui/settings.rs` (466 líneas)
 
-Settings window (T-17, T-30): the team picker, language, polling interval and alert scope.
+Settings window (T-17, T-30): language, polling interval, alert scope and the button that opens the team picker, which is a window of its own since 2026-11-02 (`team_picker`, RF-03j).
 
 **Contenido:**
 
 - `pub const KEY` — Translation key (and stable id) of this window.
-- `pub enum TeamChange` — A change to the team selection, decided here and applied by the caller.
-- `struct Narrowing` — Which region and colour the player has already narrowed down to.
-- `static NARROWING` — Lee `NARROWING`.
-- `fn narrowing() -> Narrowing` — Lee `NARROWING`.
-- `fn set_narrowing(value: Narrowing)` — Guarda `NARROWING`.
 - `struct Edits` — Working copy of everything this window can edit.
-- `pub fn body(…)` — Body of the *Settings* tab: the whole form, without window chrome (T-42).
-- `pub fn draw_inline(…)` — Draws the settings inline, without window chrome.
-- `fn team_change(before: Option<u32>, now: Option<u32>) -> Option<TeamChange>` — Qué cambió en el equipo elegido: quitarlo, elegir otro o nada.
-- `fn initial_narrowing(…)` — Where the narrowing starts: the saved team's own region and colour when we know them, and otherwise the region of the first candidate, so the picker is never a blank wall.
+- `pub fn body(ui: &Ui, config: &mut crate::config::Config)` — Body of the *Settings* tab: the whole form, without window chrome (T-42).
+- `pub fn draw_inline(ui: &Ui)` — Draws the settings inline, without window chrome.
 - `const POPUP_MAX_SECS` — Everything the label of a control can say, so the control never eats the label.
 - `const POPUP_DEFAULT_SECS` — Lo que dura cada aviso del pop-up cuando se activa (segundos). El mismo defecto que en `config`, para que encenderlo desde aquí no ponga una duración distinta a la de fábrica.
 - `const LABELS` — Etiquetas de los controles de Ajustes; con ellas se mide la columna de etiquetas en el idioma activo.
 - `fn label_column(ui: &Ui) -> f32` — Width of the widest label of the form, in the current language, plus a margin.
-- `fn draw_body(…)` — Cuerpo de Ajustes: región, color, equipo, traducción, idioma, sondeo, avisos, popup, ventana y mapa.
+- `fn draw_body(ui: &Ui, edits: &mut Edits, team: Option<&str>)` — Cuerpo de Ajustes: región, color, equipo, traducción, idioma, sondeo, avisos, popup, ventana y mapa.
 - `fn draw_theme(ui: &Ui, edits: &mut Edits)` — Estilo y tamaño del texto de las ventanas, y qué se enseña en el widget (RF-19c, RF-60 a RF-63).
 - `fn draw_alert_filters(ui: &Ui, edits: &mut Edits)` — Which maps and guilds deserve an alert (RF-19a), plus how long the pop-up lasts.
 - `fn draw_guild_index(ui: &Ui, edits: &mut Edits)` — Índice de nombres de clan: estado y descarga (RF-20).
-- `fn draw_region(ui: &Ui, edits: &mut Edits, candidates: &[Candidate])` — Desplegable de región (Europa/Norteamérica); ambas siempre elegibles aunque aún no haya equipos.
-- `fn draw_colour(ui: &Ui, edits: &mut Edits)` — Desplegable de color de equipo, cada opción teñida de su color.
-- `fn draw_team(…)` — Desplegable de equipo filtrado por región y color, con mundos y traducción propia del jugador.
-- `fn worlds_label(ids: &[u32], worlds: &std::collections::BTreeMap<u32, String>) -> String` — ` · Lutgardis, Vabbi` con los mundos antiguos del equipo, o vacío si no se saben.
 - `fn initial_translation(…)` — The translation the field starts with: what the player saved, or the automatic name.
 - `fn remember_translation(config: &mut crate::config::Config, written: &str, language: &str)` — Stores what the player left in the field. Writing the automatic name back is not an override: the configuration drops the entry so the bundled translations keep applying.
 - `fn draw_language(ui: &Ui, edits: &mut Edits)` — Desplegable de idioma (automático, español, inglés, francés, alemán).
 - `fn draw_scope(ui: &Ui, edits: &mut Edits)` — Desplegable de alcance de avisos: solo el mapa actual o todos los del emparejamiento.
-- `fn region_label(region: Region) -> &'static str` — Nombre traducido de una región.
-- `fn region_code(region: Region) -> &'static str` — Código corto de región («eu»/«na») para ids de widget.
-- `fn colour_label(colour: TeamColor) -> &'static str` — Nombre traducido de un color de equipo.
-- `fn colour_rgba(colour: TeamColor) -> [f32; 4]` — Same colours as the in-game WvW panel, so the list is recognisable at a glance.
 - `mod tests`
 
-**Usa (interno):** `crate::config`, `crate::guild_index`, `crate::i18n`, `crate::keybinds`, `crate::names`, `crate::runtime`, `crate::team`, `crate::ui`, `crate::worker`, `gw2lurker_core::bundled`, `gw2lurker_core::model`, `super::status`
+**Usa (interno):** `crate::config`, `crate::guild_index`, `crate::i18n`, `crate::keybinds`, `crate::names`, `crate::runtime`, `crate::team`, `crate::ui`, `gw2lurker_core::bundled`, `super::team_picker`
 
-**APIs externas:** `nexus::imgui`, `nexus::imgui::ComboBoxHeight`, `imgui::ComboBoxHeight`, `imgui (dibuja con &Ui)`
+**APIs externas:** `nexus::imgui`, `imgui (dibuja con &Ui)`
 
 
-### `crates/addon/src/ui/settings/tests.rs` (131 líneas)
+### `crates/addon/src/ui/settings/tests.rs` (33 líneas)
 
-Tests of the settings window: the picker, the label column and the translated names.
-
-**Contenido:**
-
-- `fn candidate(team_id: u32, match_id: &str, color: TeamColor) -> Candidate` — Crea un `Candidate` de prueba con equipo, match y color.
+Tests of the settings window: the translated names (RF-03f).
 
 **Usa (interno):** `crate::config`, `gw2lurker_core::bundled`
 
-**Tests (6):** `rf03a_narrowing_starts_at_the_saved_team`, `rf03a_both_regions_are_always_offered`, `rf03a_the_colour_is_offered_before_any_data`, `rf03a_narrowing_is_remembered_between_frames`, `rf03f_the_field_starts_with_the_automatic_translation`, `rf03a_three_steps_bring_the_list_down_to_a_handful`
+**Tests (1):** `rf03f_the_field_starts_with_the_automatic_translation`
 
 
-### `crates/addon/src/ui/status.rs` (234 líneas)
+### `crates/addon/src/ui/status.rs` (239 líneas)
 
 La línea de estado de la ventana: salud del sondeo, partida, equipo y origen del empate.
 
 **Contenido:**
 
+- `const FROZEN_AFTER_MIN` — Minutos sin ningún cambio en los objetivos a partir de los cuales se avisa (RF-43). En MvM cambia algo cada pocos segundos; 5 min quietos casi siempre es la API de ArenaNet parada (petición del jugado…
 - `pub fn draw_health(…)` — Bloque de estado: salud del sondeo, mapa del jugador, equipo (del juego o configurado), región y equipos del match, última actualización.
 - `pub fn colour_label(colour: TeamColor) -> &'static str` — Nombre del color del equipo, el mismo que usa el panel de WvW del juego.
 - `pub fn region_of(match_id: &str) -> Option<gw2lurker_core::model::Region>` — Region of a matchup id: `1-x` is North America and `2-x` is Europe.
@@ -1805,6 +1816,58 @@ La línea de estado de la ventana: salud del sondeo, partida, equipo y origen de
 **Usa (interno):** `crate::clock`, `crate::config`, `crate::context`, `crate::i18n`, `crate::keybinds`, `crate::loaded_version`, `crate::runtime`, `crate::stale_dll`, `crate::team`, `crate::worker`, `gw2lurker_core::model`, `gw2lurker_core::select`
 
 **APIs externas:** `nexus::imgui::Ui`, `nexus::imgui::StyleColor`, `imgui::Ui`, `imgui::StyleColor`, `imgui (dibuja con &Ui)`
+
+
+### `crates/addon/src/ui/team_picker.rs` (536 líneas)
+
+The team picker, a window of its own (RF-03a, RF-03j).
+
+**Contenido:**
+
+- `pub const KEY` — Translation key (and stable id) of the window.
+- `const WIDTH` — Width the window opens with; it grows with its content.
+- `const GRACE` — Wait after entering a map before deciding: arcdps says which **account** we are in a moment after the map loads, and until then the team is looked up by character and is not found, which would open th…
+- `pub enum TeamChange` — A change to the team selection, decided while drawing and applied once the lock is released.
+- `struct Narrowing` — Which region and colour the player has already narrowed down to.
+- `struct Picker` — Whether the window is open and why it opened.
+- `struct Entry` — The map the player entered last, and whether that entry was already checked.
+- `impl Entry`
+  - `fn due(&mut self, map_id: u32, in_wvw: bool, now: Instant) -> bool` — Whether this entry still has to be checked. A new map re-arms it; only maps where the window may open (WvW and Armistice Bastion) count, and only after [`GRACE`].
+- `enum Step` — What to do with one entry once its grace is over.
+- `fn step(…)` — Decide qué hacer al entrar en un mapa: abrir el selector, apuntar el emparejamiento sin preguntar, esperar datos o nada.
+- `static PICKER` — Bloquea `PICKER` recuperándose de un mutex envenenado.
+- `static ENTRY` — Último mapa en que se entró y si esa entrada ya se comprobó (RF-03j).
+- `fn picker() -> std::sync::MutexGuard<'static, Picker>` — Bloquea `PICKER` recuperándose de un mutex envenenado.
+- `pub fn open(reason: Option<Prompt>)` — Opens the window. `reason` is `None` when the player asked for it (the *Settings* button).
+- `fn auto_open(gate: Gate)` — Opens the window by itself when entering WvW or Armistice Bastion has something to ask.
+- `pub fn draw(ui: &Ui, gate: Gate)` — Draws the window when it is open, after deciding whether it has to open by itself.
+- `fn draw_reason(ui: &Ui, reason: Option<Prompt>)` — Why the window opened by itself, in the colour of a warning.
+- `fn team_change(before: Option<u32>, now: Option<u32>) -> Option<TeamChange>` — Qué cambió en el equipo elegido: quitarlo, elegir otro o nada.
+- `fn initial_narrowing(…)` — Where the narrowing starts: the saved team's own region and colour when we know them, and otherwise the region of the first candidate, so the picker is never a blank wall.
+- `fn draw_region(ui: &Ui, narrowing: &mut Narrowing, candidates: &[Candidate])` — Desplegable de región (Europa/Norteamérica); ambas siempre elegibles aunque aún no haya equipos.
+- `fn draw_colour(ui: &Ui, narrowing: &mut Narrowing)` — Desplegable de color de equipo, cada opción teñida de su color.
+- `fn draw_team(…)` — Desplegable de equipo filtrado por región y color, con mundos y traducción propia del jugador.
+- `fn draw_rivals(…)` — The other two teams of the chosen team's matchup, to check it is the right one (RF-03g).
+- `fn worlds_label(ids: &[u32], worlds: &std::collections::BTreeMap<u32, String>) -> String` — ` · Lutgardis, Vabbi` con los mundos antiguos del equipo, o vacío si no se saben.
+- `fn region_label(region: Region) -> &'static str` — Nombre traducido de una región.
+- `fn region_code(region: Region) -> &'static str` — Código corto de región («eu»/«na») para ids de widget.
+- `fn colour_rgba(colour: TeamColor) -> [f32; 4]` — Same colours as the in-game WvW panel, so the list is recognisable at a glance.
+- `mod tests`
+
+**Usa (interno):** `crate::config`, `crate::context`, `crate::i18n`, `crate::runtime`, `crate::team`, `crate::worker`, `gw2lurker_core::bundled`, `gw2lurker_core::model`, `gw2lurker_core::prompt`, `super::status`, `super::theme`
+
+**APIs externas:** `nexus::imgui`, `nexus::imgui::ComboBoxHeight`, `imgui::ComboBoxHeight`, `imgui (dibuja con &Ui)`
+
+
+### `crates/addon/src/ui/team_picker/tests.rs` (179 líneas)
+
+Tests of the team picker: the narrowing and when it opens by itself (RF-03a, RF-03j).
+
+**Contenido:**
+
+- `fn candidate(team_id: u32, match_id: &str, color: TeamColor) -> Candidate` — Crea un `Candidate` de prueba con equipo, match y color.
+
+**Tests (8):** `rf03a_narrowing_starts_at_the_saved_team`, `rf03a_both_regions_are_always_offered`, `rf03a_the_colour_is_offered_before_any_data`, `rf03a_narrowing_is_remembered_between_frames`, `rf03a_three_steps_bring_the_list_down_to_a_handful`, `rf03a_picking_and_clearing_are_told_apart`, `rf03j_each_map_entry_is_checked_once_after_the_grace`, `rf03j_an_entry_waits_for_data_and_records_the_first_matchup_silently`
 
 
 ### `crates/addon/src/ui/theme.rs` (119 líneas)
@@ -1978,7 +2041,7 @@ Off-thread writer for the settings file.
 - `bugs.md` — Bugs — Bandeja de entrada de fallos. **No se borra**: cada bug se queda con su marca. `[x]` cuando creo que está arreglado, con la versión en la que sale el arreglo, para que el jugador pueda comprobarlo y tacharlo del todo si…
 - `Cargo.lock`
 - `Cargo.toml`
-- `CHANGELOG.md` — Changelog — Formato [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/), versionado [SemVer](https://semver.org/lang/es/). selección de paso y anillos de intervalo. Cronología proporcional a las horas reales, ventanas Todo/1…
+- `CHANGELOG.md` — Changelog — Formato [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/), versionado [SemVer](https://semver.org/lang/es/). MvM o en el Bastión del Armisticio si aún no has elegido equipo, si tu equipo ya no juega o si ha cam…
 - `CLAUDE.md` —  — Lee y sigue `AGENTS.md` (instrucciones completas para agentes de IA de este repositorio).
 - `deny.toml` — RUSTSEC-2024-0384 (instant) y RUSTSEC-2024-0436 (paste): avisos de "sin mantenimiento" en crates que arrastra `nexus-rs`. No son vulnerabilidades, están fuera de nuestro control y no podemos actualizarlos por separado: s…
 - `docs/agents/lecciones.md` — Lecciones con contexto (referencia de AGENTS.md) — Texto completo de las reglas que en `AGENTS.md` van en una línea. Cada punto sale de un fallo real. Léelo cuando la tarea toque tests, imgui, el candado `RUNTIME` o `settings.json`; no hace falta cargarlo en cada sesión.
@@ -2046,7 +2109,7 @@ Off-thread writer for the settings file.
 - `specs/ADR-011-limites-y-fondo-de-mapa.md` — ADR-011 – Límites del mapa por `continent_rect` y fondo opcional con teselas — 1. Límites del mapa a partir del rectángulo de continente de `/v2/maps`, con respaldo por mínimo/máximo de objetivos. 2. Fondo con teselas y iconos oficiales, **opcional y desactivado por defecto** (RF-37, RF-38): descar…
 - `specs/ADR-012-historial-por-sesion.md` — ADR-012 – Historial por sesión: se descarta al arrancar — 1. El historial de eventos es **de la sesión**: al cargar el addon se empieza con el historial vacío y se construye en memoria. 2. El primer snapshot de la sesión es baseline (RF-04) y registra **todos** los claims vigen…
 - `specs/ADR-013-presupuesto-de-tamano-2-2-mb.md` — ADR-013 – Objetivo de tamaño de la DLL: 2,2 MB — límite duro de CI sigue en **2,5 MB** (`2 621 440`). ADR-008 fijó 1,5 MB antes de conocer el coste real del addon, dejándolo «a recalibrar con la medición del spike T-01». La medición llegó, y con ella el addon:
-- `specs/ADR-014-una-sola-ventana-con-pestanas.md` — ADR-014 · Una sola ventana con pestañas — El addon acabó con cinco ventanas sueltas (estado, avisos, objetivos del matchup, clanes y registro), cada una con su propio estado guardado. Funciona, pero no se parece al boceto aprobado —una sola ventana con pestañas—…
+- `specs/ADR-014-una-sola-ventana-con-pestanas.md` — ADR-014 · Una sola ventana con pestañas — ventana aparte, centrada, que se abre sola al entrar en MvM o en el Bastión (RF-03j), por petición expresa del jugador. Es la única excepción; el resto sigue en la ventana con pestañas. El addon acabó con cinco ventanas…
 - `specs/ADR-015-sin-historial-en-disco.md` — ADR-015 – No hay historial en disco — en ADR-003 y complementa ADR-012. la sesión anterior. Aun así se seguían escribiendo los reclamos de los clanes seguidos en que tiene en memoria, y leer el fichero habría sido una segunda fuente de verdad que además se
 - `specs/ADR-016-indice-de-nombres-distribuido.md` — ADR-016 – El índice de nombres de clan se distribuye aparte y no vive en memoria — disco; el historial no) y RF-20b/RF-20c/RF-20d. (medido: «die» → *Die*, «a ne» → nada). Se construyó `guild-names.json` con **9 886** nombres (675 KB) y en la 0.24.0 se cargaba **entero en memoria al arrancar**, se clona…
 - `specs/glossary.md` — Glosario — 
