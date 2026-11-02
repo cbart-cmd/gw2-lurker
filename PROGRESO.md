@@ -62,7 +62,8 @@ Reglas:
 - Tests: `rf03j_*` en core y en `team_picker/tests.rs`; los de estrechamiento se movieron de
   `settings/tests.rs`. `validate.ps1` completo en verde (373 tests).
 - **No verificado (requiere juego):** posición centrada, que se abra al entrar y el retraso de
-  la cuenta de arcdps. Sin commit ni versión todavía.
+  la cuenta de arcdps. Commit `b026eef`, publicado como **0.26.7** (MD5 `73fa0baa…`, descarga
+  verificada por `release.ps1`).
 - `gen_modelo.ps1` usa `git ls-files`: los ficheros nuevos se marcaron con `git add -N`.
 
 ## HECHO – 2026-11-02 · Deprecar T-21 y T-41
