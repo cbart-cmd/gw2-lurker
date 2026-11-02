@@ -4,6 +4,17 @@ Bitácora para continuar el trabajo, incluso si quien lo retoma no es la misma I
 misma sesión. **Lo más reciente va arriba.** Cada entrada dice qué se pretendía, qué se
 hizo, cómo se verificó y qué quedó pendiente.
 
+## EN CURSO – 2026-11-02 · Buscador de clanes: índice protegido, tamaño visible y etiqueta primero
+
+- Informe: «AIS» solo mostraba *[AiS] Asian In Spirit* en una sesión anterior; el índice local
+  tenía entonces muy pocos nombres (con el completo hay 36 coincidencias).
+- Plan (RF-20b/RF-20d, T-44): `names::append_at` no escribe si el índice existe pero no se puede
+  leer o está mal formado (antes lo tomaba por vacío y lo sobrescribía con un solo clan; la
+  carpeta está en OneDrive). El buscador dice cuántos clanes tiene el índice. Orden: etiqueta
+  exacta, etiqueta que empieza por el texto, nombre que empieza, resto; luego longitud.
+- `[AIS] All In Squadron` no figura en `/v2/wvw/guilds/eu`: añadido a mano al índice publicado
+  (distribución `cd32bed`, código `1d39819`).
+
 ## HECHO – 2026-11-02 · Publicación 0.26.9 (T-54 y T-56)
 
 - Código `6a8eb9e`; distribución `6f3066f`, tag `gw2-lurker-v0.26.9`.

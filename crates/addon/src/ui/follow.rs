@@ -324,6 +324,15 @@ fn search_block(
     // el debounce; aquí solo Enter y el botón.
     ui.same_line();
     go |= ui.button(i18n::widget("Search"));
+    // Cuántos clanes tiene el índice: si se quedara corto, el jugador lo ve aquí y no solo en los
+    // ajustes (informe de 2026-11-02: «AIS» daba un solo resultado).
+    let known = crate::names::index_len();
+    if known > 0 {
+        ui.text_disabled(i18n::format(
+            "{0} guild names ready to search",
+            &[&known.to_string()],
+        ));
+    }
 
     let needle = text.trim().to_owned();
     drop(text);

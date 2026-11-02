@@ -103,7 +103,7 @@ Estado global (en `addon/src/lib.rs` y `worker.rs`):
 
 <!-- GENERADO: no editar debajo; se rehace con scripts/gen_modelo.ps1 -->
 
-Generado el 2026-11-02 21:24 desde el commit `b373394`.
+Generado el 2026-11-02 21:49 desde el commit `1d39819`.
 
 ## Crate `core`
 
@@ -1224,7 +1224,7 @@ MD5 en hexadecimal, para verificar lo que se descarga.
 **Tests (2):** `rf20_md5_matches_the_published_vectors`, `rf20_a_published_md5_is_read_with_or_without_a_line_ending`
 
 
-### `crates/addon/src/names.rs` (383 líneas)
+### `crates/addon/src/names.rs` (454 líneas)
 
 Índice de nombres de clan (`guild-names.json`): una **caché de búsqueda**, no un dato vivo.
 
@@ -1238,9 +1238,11 @@ MD5 en hexadecimal, para verificar lo que se descarga.
 - `pub fn index_len() -> usize` — Size of the index, as last seen by a reader or a writer. `0` means «not read yet».
 - `pub fn read() -> BTreeMap<String, String>` — Reads the index. **Call it from a thread that is not the render one**, and drop the result when the search is done: it is several thousand entries.
 - `fn read_at(path: &std::path::Path) -> BTreeMap<String, String>` — [`read`] from a given file.
+- `fn read_strict(path: &std::path::Path) -> std::io::Result<BTreeMap<String, String>>` — Reads the index, telling «there is no file» (empty) apart from «there is one I cannot read».
 - `fn normalize_names(names: BTreeMap<String, String>) -> BTreeMap<String, String>` — Normaliza los ids de un mapa id→nombre; si dos ids normalizan igual, gana el primero.
 - `pub fn search_in(…)` — Clanes del índice cuya etiqueta (nombre o tag) contiene `needle`, sin distinguir mayúsculas.
-- `fn starts_with_needle(label: &str, needle: &str) -> bool` — Whether the name (not the tag) begins with what the player typed.
+- `fn rank(label: &str, needle: &str) -> u8` — How well an entry matches: `0` exact tag, `1` tag prefix, `2` name prefix, `3` anything else.
+- `fn split_label(label: &str) -> (Option<&str>, &str)` — `[TAG] Name` → (`Some("TAG")`, `"Name"`); a label without a tag is all name.
 - `pub fn matches_text(label: &str, id: &str, needle: &str) -> bool` — Whether an entry matches what the player typed. Pure, so the rule can be tested.
 - `fn matches_normalized_text(label: &str, id: &str, needle: &str) -> bool` — Coincidencia de búsqueda: el nombre contiene el texto o el id empieza por él (en minúsculas); texto vacío no coincide.
 - `pub fn append_async(entries: Vec<(String, String)>)` — Añade nombres que faltaban al índice, en su propio hilo.
@@ -1252,7 +1254,7 @@ MD5 en hexadecimal, para verificar lo que se descarga.
 
 **APIs externas:** `disco: fs::read`, `disco: fs::write`, `disco: fs::rename`, `serde_json::from_slice`, `serde_json::to_vec`
 
-**Tests (9):** `t44_the_search_is_a_substring_and_ignores_case`, `t44_two_letters_are_the_minimum`, `t44_a_single_multibyte_character_is_still_one_character`, `t44_die_finds_the_three_and_the_shortest_come_first`, `t44_names_that_start_with_the_text_come_before_the_rest`, `t44_the_limit_is_respected`, `rf20d_a_new_guild_is_added_to_the_index_and_never_duplicated`, `rf20d_index_guild_ids_are_normalized_before_storage`, `rf20_concurrent_download_and_append_preserve_both_indexes`
+**Tests (11):** `t44_the_search_is_a_substring_and_ignores_case`, `t44_two_letters_are_the_minimum`, `t44_a_single_multibyte_character_is_still_one_character`, `t44_die_finds_the_three_and_the_shortest_come_first`, `t44_names_that_start_with_the_text_come_before_the_rest`, `t44_the_limit_is_respected`, `t44_an_exact_tag_comes_before_names_that_contain_the_text`, `rf20d_an_unreadable_index_is_never_overwritten`, `rf20d_a_new_guild_is_added_to_the_index_and_never_duplicated`, `rf20d_index_guild_ids_are_normalized_before_storage`, `rf20_concurrent_download_and_append_preserve_both_indexes`
 
 
 ### `crates/addon/src/net.rs` (54 líneas)
@@ -1391,7 +1393,7 @@ Alert widget (T-13, RF-19): the recent captures and claims, newest first.
 **Tests (11):** `rf19d_placement_remembers_the_popup_position_not_the_parent`, `rnf01_popup_stack_and_native_draw_budget`, `rf19_the_widget_forgets_what_is_old`, `rf19d_every_alert_the_player_follows_can_be_interrupted`, `rf19_a_flip_names_both_colours`, `rf21_claims_name_the_guild`, `rf19_unclaim_says_released`, `rf19_the_map_is_drawn_in_its_own_colour_and_the_rest_in_grey`, `rf19f_line_uses_my_team_and_marks_high_value`, `rf19f_relative_age_uses_seconds_minutes_and_hours`, `rf19_the_owner_colours_are_told_apart`
 
 
-### `crates/addon/src/ui/follow.rs` (618 líneas)
+### `crates/addon/src/ui/follow.rs` (627 líneas)
 
 Followed guilds selector (T-44).
 
@@ -2067,7 +2069,7 @@ Off-thread writer for the settings file.
 - `bugs.md` — Bugs — Bandeja de entrada de fallos. **No se borra**: cada bug se queda con su marca. `[x]` cuando creo que está arreglado, con la versión en la que sale el arreglo, para que el jugador pueda comprobarlo y tacharlo del todo si…
 - `Cargo.lock`
 - `Cargo.toml`
-- `CHANGELOG.md` — Changelog — Formato [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/), versionado [SemVer](https://semver.org/lang/es/). alto valor, antigüedad en vivo y hora exacta en el registro y el tooltip. individual desde su llegada…
+- `CHANGELOG.md` — Changelog — Formato [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/), versionado [SemVer](https://semver.org/lang/es/). salen primero; después las etiquetas que empiezan así y luego los nombres. Bajo el buscador se ve cuá…
 - `CLAUDE.md` —  — Lee y sigue `AGENTS.md` (instrucciones completas para agentes de IA de este repositorio).
 - `deny.toml` — RUSTSEC-2024-0384 (instant) y RUSTSEC-2024-0436 (paste): avisos de "sin mantenimiento" en crates que arrastra `nexus-rs`. No son vulnerabilidades, están fuera de nuestro control y no podemos actualizarlos por separado: s…
 - `docs/agents/lecciones.md` — Lecciones con contexto (referencia de AGENTS.md) — Texto completo de las reglas que en `AGENTS.md` van en una línea. Cada punto sale de un fallo real. Léelo cuando la tarea toque tests, imgui, el candado `RUNTIME` o `settings.json`; no hace falta cargarlo en cada sesión.

@@ -58,20 +58,26 @@ pub fn read() -> BTreeMap<String, String> {
 
 /// [`read`] from a given file.
 fn read_at(path: &std::path::Path) -> BTreeMap<String, String> {
+    read_strict(path).unwrap_or_else(|error| {
+        log::warn!("índice de nombres de clan ilegible ({error}); se busca solo en el API");
+        BTreeMap::new()
+    })
+}
+
+/// Reads the index, telling «there is no file» (empty) apart from «there is one I cannot read».
+///
+/// Writers need the difference: taking an unreadable index for an empty one and writing it back
+/// replaced thousands of names with a single guild (2026-11-02; the folder lives in OneDrive,
+/// which can lock or blank a file while it syncs).
+fn read_strict(path: &std::path::Path) -> std::io::Result<BTreeMap<String, String>> {
     let raw = match std::fs::read(path) {
         Ok(raw) => raw,
-        Err(error) => {
-            log::warn!("índice de nombres de clan ilegible ({error})");
-            return BTreeMap::new();
-        }
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(BTreeMap::new()),
+        Err(error) => return Err(error),
     };
-    match serde_json::from_slice::<BTreeMap<String, String>>(&raw) {
-        Ok(names) => normalize_names(names),
-        Err(error) => {
-            log::warn!("índice de nombres de clan mal formado ({error}); se busca solo en el API");
-            BTreeMap::new()
-        }
-    }
+    serde_json::from_slice::<BTreeMap<String, String>>(&raw)
+        .map(normalize_names)
+        .map_err(|error| std::io::Error::new(std::io::ErrorKind::InvalidData, error))
 }
 
 fn normalize_names(names: BTreeMap<String, String>) -> BTreeMap<String, String> {
@@ -103,23 +109,36 @@ pub fn search_in(
         .filter(|(id, label)| matches_normalized_text(label, id, &needle))
         .map(|(id, label)| (id.clone(), label.clone()))
         .collect();
-    // Primero los que **empiezan** por lo escrito (sin contar el `[TAG]`), y entre ellos los más
-    // cortos: quien busca «die» quiere *Die Gäng* y *Die Garde* antes que *Never Die*
-    // (2026-11-01). Después el resto por longitud, que sigue siendo más útil que el orden del id.
-    out.sort_by_cached_key(|(id, label)| {
-        (!starts_with_needle(label, &needle), label.len(), id.clone())
-    });
+    // Primero la etiqueta exacta: «ais» es *[AIS] All In Squadron* aunque haya 36 nombres que lo
+    // contengan (2026-11-02). Después las etiquetas que empiezan por lo escrito, luego los nombres
+    // que empiezan por ello —quien busca «die» quiere *Die Gäng* antes que *Never Die*
+    // (2026-11-01)— y al final el resto; dentro de cada grupo, los más cortos.
+    out.sort_by_cached_key(|(id, label)| (rank(label, &needle), label.len(), id.clone()));
     out.truncate(limit);
     out
 }
 
-/// Whether the name (not the tag) begins with what the player typed.
-fn starts_with_needle(label: &str, needle: &str) -> bool {
-    let name = match label.split_once("] ") {
-        Some((_, name)) => name,
-        None => label,
-    };
-    name.to_lowercase().starts_with(needle)
+/// How well an entry matches: `0` exact tag, `1` tag prefix, `2` name prefix, `3` anything else.
+fn rank(label: &str, needle: &str) -> u8 {
+    let (tag, name) = split_label(label);
+    let tag = tag.map(str::to_lowercase);
+    if tag.as_deref() == Some(needle) {
+        0
+    } else if tag.is_some_and(|tag| tag.starts_with(needle)) {
+        1
+    } else if name.to_lowercase().starts_with(needle) {
+        2
+    } else {
+        3
+    }
+}
+
+/// `[TAG] Name` → (`Some("TAG")`, `"Name"`); a label without a tag is all name.
+fn split_label(label: &str) -> (Option<&str>, &str) {
+    label
+        .strip_prefix('[')
+        .and_then(|rest| rest.split_once("] "))
+        .map_or((None, label), |(tag, name)| (Some(tag), name))
 }
 
 /// Whether an entry matches what the player typed. Pure, so the rule can be tested.
@@ -166,7 +185,7 @@ pub fn append(entries: &[(String, String)]) -> std::io::Result<usize> {
 /// [`append`] against a given file, so it can be tested without touching the player's index.
 pub fn append_at(path: &std::path::Path, entries: &[(String, String)]) -> std::io::Result<usize> {
     let _guard = INDEX_IO.lock().unwrap_or_else(|error| error.into_inner());
-    let mut names = read_at(path);
+    let mut names = read_strict(path)?;
     let before = names.len();
     for (id, label) in entries {
         if id.trim().is_empty() || label.trim().is_empty() {
@@ -286,6 +305,62 @@ mod tests {
     #[test]
     fn t44_the_limit_is_respected() {
         assert_eq!(search_in(&index(), "die", 2).len(), 2);
+    }
+
+    #[test]
+    fn t44_an_exact_tag_comes_before_names_that_contain_the_text() {
+        // Nombres reales del índice publicado: con «ais», *All In Squadron* salía el 8.º de 36,
+        // detrás de nombres más cortos que solo contienen las letras (informe de 2026-11-02).
+        let names = BTreeMap::from([
+            ("A".to_owned(), "[EN] Ered Nimrais".to_owned()),
+            ("B".to_owned(), "[NV] Nano Vaisseau".to_owned()),
+            ("C".to_owned(), "[AiS] Asian In Spirit".to_owned()),
+            ("D".to_owned(), "[AIS] All In Squadron".to_owned()),
+            ("E".to_owned(), "[AISx] Longer Tag".to_owned()),
+            ("F".to_owned(), "[Z] Aisle Runners".to_owned()),
+        ]);
+        let found: Vec<String> = search_in(&names, "AIS", 8)
+            .into_iter()
+            .map(|(_, label)| label)
+            .collect();
+        assert_eq!(
+            found,
+            vec![
+                "[AiS] Asian In Spirit".to_owned(),
+                "[AIS] All In Squadron".to_owned(),
+                "[AISx] Longer Tag".to_owned(),
+                "[Z] Aisle Runners".to_owned(),
+                "[EN] Ered Nimrais".to_owned(),
+                "[NV] Nano Vaisseau".to_owned(),
+            ],
+            "etiqueta exacta, etiqueta que empieza, nombre que empieza y el resto"
+        );
+    }
+
+    #[test]
+    fn rf20d_an_unreadable_index_is_never_overwritten() {
+        // Tomar un índice ilegible por vacío y reescribirlo dejaba un solo clan donde había miles
+        // (2026-11-02). Un fichero vacío es lo que deja OneDrive mientras sincroniza.
+        let dir = std::env::temp_dir().join(format!("gw2lurker-names-bad-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let path = dir.join(FILE);
+        for broken in [&b""[..], &br#"{"A":"[DG] Die Ga"#[..]] {
+            std::fs::write(&path, broken).unwrap();
+            let outcome = append_at(&path, &[("B".to_owned(), "[DK] Hunde".to_owned())]);
+            assert!(outcome.is_err(), "{outcome:?}");
+            assert_eq!(
+                std::fs::read(&path).unwrap(),
+                broken,
+                "el fichero no se toca"
+            );
+        }
+
+        // Sin fichero sí se crea: es el primer clan que se aprende.
+        std::fs::remove_file(&path).unwrap();
+        let added = append_at(&path, &[("B".to_owned(), "[DK] Hunde".to_owned())]).unwrap();
+        assert_eq!(added, 1);
+
+        let _ = std::fs::remove_dir_all(&dir);
     }
 
     #[test]

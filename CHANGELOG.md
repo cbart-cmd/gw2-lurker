@@ -3,6 +3,17 @@ Formato [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/), versionado 
 
 ## [Unreleased]
 
+## [0.26.10] - 2026-11-02
+### Cambiado
+- Buscador de clanes: con lo que escribes igual a una etiqueta (por ejemplo «ais»), esos clanes
+  salen primero; después las etiquetas que empiezan así y luego los nombres. Bajo el buscador se
+  ve cuántos clanes tiene el índice.
+### Corregido
+- Si el índice de nombres no se puede leer (por ejemplo, mientras OneDrive lo sincroniza), seguir
+  un clan ya no lo sobrescribe con ese único clan.
+- El índice publicado incluye *[AIS] All In Squadron*, que no figura en la lista de clanes de WvW
+  del API.
+
 ## [0.26.9] - 2026-11-02
 ### Añadido
 - Avisos con el formato de RF-19f: verbo desde tu equipo, mapa con su nombre completo, marca de
