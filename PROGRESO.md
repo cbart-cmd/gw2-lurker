@@ -4,7 +4,7 @@ Bitácora para continuar el trabajo, incluso si quien lo retoma no es la misma I
 misma sesión. **Lo más reciente va arriba.** Cada entrada dice qué se pretendía, qué se
 hizo, cómo se verificó y qué quedó pendiente.
 
-## EN CURSO – 2026-11-02 · Buscador de clanes: índice protegido, tamaño visible y etiqueta primero
+## HECHO – 2026-11-02 · Buscador de clanes: índice protegido, tamaño visible y etiqueta primero (0.26.10)
 
 - Informe: «AIS» solo mostraba *[AiS] Asian In Spirit* en una sesión anterior; el índice local
   tenía entonces muy pocos nombres (con el completo hay 36 coincidencias).
@@ -14,6 +14,13 @@ hizo, cómo se verificó y qué quedó pendiente.
   exacta, etiqueta que empieza por el texto, nombre que empieza, resto; luego longitud.
 - `[AIS] All In Squadron` no figura en `/v2/wvw/guilds/eu`: añadido a mano al índice publicado
   (distribución `cd32bed`, código `1d39819`).
+- Hecho en `4c364f0`: `names::read_strict` (fichero ausente = vacío; ilegible o mal formado =
+  error y `append_at` no escribe), `names::rank` y el recuento bajo el buscador (reutiliza la
+  clave i18n de los ajustes; aparece tras la primera búsqueda). Tests
+  `rf20d_an_unreadable_index_is_never_overwritten` y
+  `t44_an_exact_tag_comes_before_names_that_contain_the_text`. `validate.ps1 -Release` en verde:
+  385 tests, DLL 1 634 816 bytes. Publicado con `release.ps1` (MD5 `4c86d048…`), 0.26.8 retirada.
+- No verificado en el juego: el orden con «ais» y el recuento visible.
 
 ## HECHO – 2026-11-02 · Publicación 0.26.9 (T-54 y T-56)
 
