@@ -1,4 +1,5 @@
 # gw2-lurker
+Releases: https://github.com/cbart-cmd/gw2addonsreleases/releases
 
 Addon de [Raidcore Nexus](https://raidcore.gg/nexus) para Guild Wars 2, escrito en Rust. Solo
 funciona en Mundo contra Mundo.
