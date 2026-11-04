@@ -1,5 +1,6 @@
 # gw2-lurker
 Releases: https://github.com/cbart-cmd/gw2addonsreleases/releases
+Known issues: GW2 matchup APIs do not work 50% of the time.
 
 Addon de [Raidcore Nexus](https://raidcore.gg/nexus) para Guild Wars 2, escrito en Rust. Solo
 funciona en Mundo contra Mundo.
