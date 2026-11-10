@@ -18,7 +18,10 @@ hizo, cómo se verificó y qué quedó pendiente.
 - `scripts/validate.ps1`: fmt, clippy, LOC, trazabilidad, versión y tests en verde (391 pasados,
   4 ignorados). `-Release`: DLL de 1 641 984 bytes, dentro del límite. `modelo.md` regenerado;
   sin descripciones pendientes. `check_bugs.ps1` y `git diff --check` limpios.
-- No probado dentro del juego; no commit ni publicación. Nexus seguirá distribuyendo la 0.26.14.
+- Versión 0.26.15 subida a `main` (`df8ec4b`). Release `gw2-lurker-v0.26.15` publicada;
+  commit de distribución `fa8731d`. Descarga real: 1 641 984 bytes, `MZ`, MD5
+  `3cc4f761e5098b59191184bdbc8d1f18` coincidente.
+- La consulta de CI por el commit no devolvió ejecuciones. No probado dentro del juego.
 
 ## HECHO – 2026-11-10 · Incluir Seared Borderlands 1654 en el selector
 
