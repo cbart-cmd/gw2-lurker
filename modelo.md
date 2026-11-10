@@ -103,7 +103,7 @@ Estado global (en `addon/src/lib.rs` y `worker.rs`):
 
 <!-- GENERADO: no editar debajo; se rehace con scripts/gen_modelo.ps1 -->
 
-Generado el 2026-11-02 21:49 desde el commit `1d39819`.
+Generado el 2026-11-10 21:58 desde el commit `14d674b`.
 
 ## Crate `core`
 
@@ -233,7 +233,7 @@ When the addon may draw and poll (RF-01, RF-02, RF-02a).
 
 **Contenido:**
 
-- `pub mod map_type` — `map_type` values that mean "in a playable WvW map" (RF-01).
+- `pub mod map_type` — `map_type` values that identify a WvW map (RF-01).
   - `pub const ETERNAL_BATTLEGROUNDS` — Eternal Battlegrounds.
   - `pub const BLUE_BORDERLANDS` — Blue borderlands.
   - `pub const GREEN_BORDERLANDS` — Green borderlands.
@@ -248,12 +248,12 @@ When the addon may draw and poll (RF-01, RF-02, RF-02a).
 - `pub enum Hidden` — Why the overlay is hidden.
 - `pub struct Gate` — Decision for the current frame.
 - `impl Gate`
-  - `const CONFIG_ONLY` — The overlay is there but the worker stays quiet.
   - `fn hidden(reason: Hidden) -> Self` — Estado de la puerta con la UI oculta y sin sondeo, guardando el motivo (`Hidden`).
   - `pub fn settings_available(&self) -> bool` — Whether the settings window may still be opened (RF-02 keeps it available).
+- `pub fn is_wvw_map_type(kind: u32) -> bool` — Whether Mumble reports one of the WvW map types, including modes without matchup objectives.
 - `pub fn evaluate(state: GameState) -> Gate` — Evaluates the gate. Order matters: the loading screen wins over any map data.
 
-**Tests (7):** `rf01_playable_wvw_maps_show_and_poll`, `rf02a_loading_screen_wins_over_map_data`, `rf02a_character_select_and_redirect_are_transitions`, `rf02a_without_any_data_nothing_is_drawn`, `rf02_outside_wvw_hides_but_allows_settings`, `rf01_wvw_maps_without_objectives_are_excluded`, `rf01_the_lounge_shows_the_window_so_it_can_be_configured`
+**Tests (7):** `rf01_playable_wvw_maps_show_and_poll`, `rf02a_loading_screen_wins_over_map_data`, `rf02a_character_select_and_redirect_are_transitions`, `rf02a_without_any_data_nothing_is_drawn`, `rf02_outside_wvw_hides_but_allows_settings`, `rf01_the_lounge_shows_and_polls_like_other_wvw_maps`, `rf01_beta_seared_borderlands_1652_is_watched_by_map_type`
 
 
 ### `crates/core/src/i18n.rs` (309 líneas)
@@ -285,7 +285,7 @@ Translation table (RF-44).
 **Tests (12):** `rf44_every_column_is_filled`, `rf44_the_table_stays_inside_latin_1`, `rf44_keys_are_unique`, `rf44_unknown_key_is_returned_as_is`, `rf44_both_halves_of_the_table_are_looked_up`, `rf44_empty_cell_falls_back_to_english`, `rf44_format_substitutes_every_placeholder`, `rf44_widget_id_does_not_change_with_language`, `rf44_game_language_codes_match_nexus`, `rf44_windows_language_is_only_a_fallback`, `rf44_language_codes_round_trip`, `rf44_spanish_column_is_actually_spanish`
 
 
-### `crates/core/src/i18n/table.rs` (436 líneas)
+### `crates/core/src/i18n/table.rs` (454 líneas)
 
 The translation table itself (RF-44).
 
@@ -385,7 +385,7 @@ Claim-centric view models: what is claimed right now across the matchup (RF-70),
 **Tests (14):** `rf71_the_map_button_matches_the_latest_current_claim_in_the_list`, `rf72_current_claims_remain_visible_after_history_eviction_without_duplicates`, `rf70_a_claim_that_flipped_away_is_not_listed`, `rf70_the_fixture_claims_are_all_current`, `rf70_every_claim_of_the_match_is_listed`, `rf30b_an_objective_without_claim_keeps_its_owner`, `rf30b_every_objective_of_the_fixture_has_an_owner_state`, `rf70_rows_are_grouped_by_map_in_a_stable_order`, `rf19_a_frozen_payload_is_told_apart_from_a_quiet_matchup`, `rf30a_filter_keeps_only_the_requested_kinds`, `rf71_guilds_are_ranked_by_most_recent_claim`, `rf71_ranking_is_deterministic_for_ties`, `rf72_history_splits_current_map_from_the_rest`, `rf72_timeline_is_oldest_first`
 
 
-### `crates/core/src/model.rs` (498 líneas)
+### `crates/core/src/model.rs` (549 líneas)
 
 Serde model of the public WvW endpoints of the GW2 API.
 
@@ -405,7 +405,9 @@ Serde model of the public WvW endpoints of the GW2 API.
 - `pub const HIGH_VALUE_TICK` — `points_tick` at or above which an objective is "high value" (RF-30b).
 - `pub enum MapRole` — Role of a map inside the matchup (`type` of the entry in `maps`).
 - `impl MapRole`
-  - `pub fn from_map_id(map_id: u32) -> Self` — Role of a WvW map by its Mumble `map_id`.
+  - `pub fn from_map_id(map_id: u32) -> Self` — Role of a WvW map by its Mumble `map_id`, where the id is unambiguous.
+  - `pub fn from_map_type(map_type: u32) -> Self` — Role of a WvW map from Mumble `map_type`.
+  - `pub fn from_mumble(map_id: u32, map_type: u32) -> Self` — Mumble's role is authoritative when a map id is shared by multiple borderlands.
 - `pub struct MatchObjective` — One objective as it appears inside a match snapshot.
 - `fn normalize_claimed_guild_id<'de, D>(deserializer: D) -> Result<Option<String>, D::Error>` — Deserializador de `claimed_by`: normaliza el id del clan que manda la API para que coincida con el de los seguidos.
 - `impl MatchObjective`
@@ -422,6 +424,8 @@ Serde model of the public WvW endpoints of the GW2 API.
   - `pub fn objectives_total(&self) -> usize` — Total objectives across every map of the matchup.
 - `pub struct ObjectiveInfo` — Static objective metadata from `/v2/wvw/objectives`.
 - `pub struct WvwMap` — A WvW map from `/v2/maps`, with the boxes the projection needs (ADR-011).
+- `impl WvwMap`
+  - `pub fn is_seared_borderlands(&self) -> bool` — Whether the API currently identifies this map as the beta Seared Borderlands.
 
 **Usa (interno):** `crate::normalize_guild_id`
 
@@ -637,9 +641,9 @@ Team identity and the bundled `data/wvw-teams.json` table (ADR-010).
 ## Crate `api`
 
 - `crates/api/Cargo.toml`
-- Fixtures de tests (8): `guild.json`, `maps_wvw.json`, `match_2-2.json`, `matches_all.json`, `matches_all_20261102.json`, `matches_overview.json`, `objectives_all.json`, `timers_team_assignment.json`
+- Fixtures de tests (9): `guild.json`, `maps_wvw.json`, `match_2-2.json`, `matches_all.json`, `matches_all_20261102.json`, `matches_overview.json`, `objectives_all.json`, `objectives_seared_borderlands.json`, `timers_team_assignment.json`
 
-### `crates/api/src/lib.rs` (635 líneas)
+### `crates/api/src/lib.rs` (653 líneas)
 
 HTTP client for the public GW2 API and its response parsing.
 
@@ -666,7 +670,7 @@ HTTP client for the public GW2 API and its response parsing.
   - `pub fn guild(&self, id: &str) -> Result<GuildInfo, ApiError>` — Public guild data.
   - `pub fn guild_search(&self, text: &str) -> Result<Vec<String>, ApiError>` — Ids of the guilds whose name **starts with** `text` (T-44).
   - `pub fn wvw_guilds(…)` — Guild id → team id for a region, the official source of "which team is this guild on".
-  - `pub fn maps(&self) -> Result<Vec<gw2lurker_core::WvwMap>, ApiError>` — The four WvW maps with the boxes the projection needs (RF-30, ADR-011).
+  - `pub fn maps(&self) -> Result<Vec<gw2lurker_core::WvwMap>, ApiError>` — WvW map geometries used by the matchup and beta borderlands (RF-30, ADR-011).
   - `pub fn worlds(&self) -> Result<std::collections::BTreeMap<u32, String>, ApiError>` — Legacy world id → name, to say which old worlds fight for each team (RF-03a).
 - `struct World` — One entry of `/v2/worlds`: the old servers, still in `all_worlds` for compatibility.
 - `enum TeamRef` — The team of a guild in `/v2/wvw/guilds/:region`, which arrives as text.
@@ -770,7 +774,7 @@ Detects scheduled WvW team reassignment without polling global match data every 
 - `fn log_join_failure(handle: JoinHandle<()>)` — Hace join de un hilo y registra en el log si terminó con pánico.
 
 
-### `crates/addon/src/catalog.rs` (460 líneas)
+### `crates/addon/src/catalog.rs` (521 líneas)
 
 The static catalogues of the API: objectives, maps and guild names.
 
@@ -787,24 +791,30 @@ The static catalogues of the API: objectives, maps and guild names.
 - `fn static_data_retry_due(last_attempt: Option<Instant>, now: Instant) -> bool` — Si ya toca reintentar un catálogo estático (nunca intentado o hace ≥ 60 s).
 - `pub fn guild_label(info: &gw2lurker_api::GuildInfo) -> String` — `[TAG] Nombre`, the way the game shows a guild.
 - `pub fn resolve_guild_names(…)` — Names of the guilds in the matchup: from **this session's file** (`temp.json`), from the settings, then from the API.
-- `pub fn world_names(api: &Api<WinHttpTransport>) -> std::collections::BTreeMap<u32, String>` — Names of the old servers, fetched once per session.
+- `pub fn world_names(api: &Api<WinHttpTransport>) -> BTreeMap<u32, String>` — Names of the old servers, fetched once per session.
   - `struct WorldCache` — Caché de nombres de mundo (`/v2/worlds`) y hora del último intento.
-- `pub fn maps_for(api: &Api<WinHttpTransport>) -> Vec<gw2lurker_core::WvwMap>` — The four WvW maps, fetched once per session (they never change). `None` means the API has not answered yet: the map tab says so instead of drawing an empty box, and the next attempt follows a short re…
-  - `struct MapCache` — Caché de los cuatro mapas WvW (`/v2/maps`) y hora del último intento.
+- `pub fn maps_for(api: &Api<WinHttpTransport>) -> Vec<gw2lurker_core::WvwMap>` — WvW map geometries, fetched once per session (they never change). `None` means the API has not answered yet: the map tab says so instead of drawing an empty box, and the next attempt follows a short r…
+  - `struct MapCache` — Caché de las geometrías WvW clásicas y beta (`/v2/maps`) y hora del último intento.
 - `pub fn objectives_for(api: &Api<WinHttpTransport>) -> Result<Vec<ObjectiveInfo>, String>` — Objetivos WvW (`/v2/wvw/objectives`) en el idioma activo; se piden una vez por sesión y al cambiar de idioma.
 - `pub fn tiles_dir() -> Option<std::path::PathBuf>` — Directory of the map tiles inside the addon's folder.
 - `const TILE_CONTINENT` — Continent and floor of the WvW maps on the tile server.
 - `const TILE_FLOOR` — Planta del servidor de teselas usada para los mapas WvW («1»).
+- `const TILE_CACHE_TTL` — Edad máxima de caché de una tesela normal antes de pedirla de nuevo (24 h).
+- `pub const MIN_TILE_BYTES` — Tamaño mínimo de un fichero para tratarlo como tesela completa (1 KB).
+- `static TILE_REVISION` — Generación actual de la caché de teselas para invalidar texturas sin E/S en cada fotograma.
+- `pub fn tile_revision() -> u64` — Generación actual de la caché de teselas para invalidar texturas sin E/S en cada fotograma.
 - `pub fn tile_path(x: u32, y: u32) -> Option<std::path::PathBuf>` — File of one tile. The name has every coordinate so a cache can be inspected by hand, and the continent is in it too: a tile of another continent is not the same tile.
 - `pub fn tile_url(x: u32, y: u32) -> String` — URL of one tile on the official tile server.
 - `fn forget_stale_tiles(keep_prefix: &str)` — Deletes tiles saved by older versions, whose names did not carry the continent.
-- `pub fn ensure_tiles(maps: &[gw2lurker_core::WvwMap])` — Downloads the tiles of the four maps that are not in the cache yet, on its own thread.
+- `pub fn ensure_tiles(maps: &[gw2lurker_core::WvwMap])` — Downloads the tiles of the maps that are not in the cache yet, on its own thread.
+- `fn tile_needs_refresh(…)` — Si una tesela beta debe renovarse siempre o una normal alcanzó su TTL.
+  - `mod ified`
 
 **Usa (interno):** `crate::background`, `crate::config`, `crate::i18n`, `crate::net`, `crate::request_save`, `crate::runtime`, `crate::session_names`, `crate::worker`, `gw2lurker_api::GuildInfo`, `gw2lurker_api::Transport`, `gw2lurker_core::FollowList`, `gw2lurker_core::Frame`, `gw2lurker_core::matchup`, `gw2lurker_core::model`, `gw2lurker_core::project`, `gw2lurker_core::WvwMap`
 
-**APIs externas:** `https://tiles.guildwars2.com/{TILE_CONTINENT}/{TILE_FLOOR}/{}/{x}/{y}.jpg`, `disco: fs::read_dir`, `disco: fs::remove_file`, `disco: fs::create_dir_all`, `disco: fs::write`, `disco: fs::rename`
+**APIs externas:** `https://tiles.guildwars2.com/{TILE_CONTINENT}/{TILE_FLOOR}/{}/{x}/{y}.jpg`, `disco: fs::read_dir`, `disco: fs::remove_file`, `disco: fs::metadata`, `disco: fs::create_dir_all`, `disco: fs::write`, `disco: fs::rename`
 
-**Tests (4):** `rf20_a_guild_is_named_with_its_tag`, `rf20_transient_guild_lookup_errors_are_retried_after_a_cooldown`, `rf20_non_retryable_guild_errors_are_not_requested_again`, `rf20_static_catalogues_retry_after_a_cooldown_not_every_poll`
+**Tests (6):** `rf20_a_guild_is_named_with_its_tag`, `rf20_transient_guild_lookup_errors_are_retried_after_a_cooldown`, `rf20_non_retryable_guild_errors_are_not_requested_again`, `rf20_static_catalogues_retry_after_a_cooldown_not_every_poll`, `p05_seared_map_tiles_are_always_refreshed`, `p06_cached_tiles_expire_daily_but_recent_tiles_are_reused`
 
 
 ### `crates/addon/src/clock.rs` (62 líneas)
@@ -891,7 +901,7 @@ Glue between Nexus/Mumble and the pure gate in `core`.
 
 - `pub fn snapshot() -> GameState` — Current game state as the core understands it.
 - `pub fn gate() -> Gate` — Whether the UI may draw and the worker may poll (RF-01, RF-02, RF-02a).
-- `pub fn current_map_role() -> Option<gw2lurker_core::MapRole>` — Map role the player is standing on, for the "only my map" alert option (RF-19a).
+- `pub fn map_role(state: GameState) -> Option<gw2lurker_core::MapRole>` — Map role in a Mumble snapshot, for the "only my map" alert option (RF-19a).
 - `pub fn log_gate(gate: Gate)` — Logs the gate decision, but only when it changes.
 
 **Usa (interno):** `crate::ffi`, `gw2lurker_core::gate`, `gw2lurker_core::MapRole`
@@ -1224,7 +1234,7 @@ MD5 en hexadecimal, para verificar lo que se descarga.
 **Tests (2):** `rf20_md5_matches_the_published_vectors`, `rf20_a_published_md5_is_read_with_or_without_a_line_ending`
 
 
-### `crates/addon/src/names.rs` (454 líneas)
+### `crates/addon/src/names.rs` (458 líneas)
 
 Índice de nombres de clan (`guild-names.json`): una **caché de búsqueda**, no un dato vivo.
 
@@ -1480,7 +1490,7 @@ Objective glyphs drawn with primitives: the little drawing inside the team-colou
 **Tests (5):** `rf30_the_four_objectives_that_score_have_their_own_drawing`, `rf30_each_objective_is_told_apart_by_its_drawing_and_not_only_by_colour`, `rf30_a_tower_is_taller_than_a_camp_and_a_keep_wider_than_a_tower`, `rf38_a_generic_kind_still_gets_a_mark`, `rf38_the_glyph_is_centred_where_it_was_asked_to_be`
 
 
-### `crates/addon/src/ui/map.rs` (774 líneas)
+### `crates/addon/src/ui/map.rs` (612 líneas)
 
 Simplified map of one WvW map (T-14, RF-30).
 
@@ -1488,36 +1498,21 @@ Simplified map of one WvW map (T-14, RF-30).
 
 - `mod route`
 - `mod scene`
+- `mod tiles`
 - `mod timeline`
 - `mod trail_tests`
 - `pub const KEY` — Translation key (and stable id) of this tab.
-- `const MAP_HEIGHT` — Height of the drawing area when the map has no usable proportions.
-- `const MIN_MAP_HEIGHT` — Smallest and biggest height the map may take when it keeps its real proportions.
-- `const MAX_MAP_HEIGHT` — Altura máxima del lienzo del mapa (620 px).
 - `const UNCLAIMED` — Grey of an objective nobody holds.
 - `const FOLLOWED_RING` — Ring drawn around the objectives of a followed guild (RF-31).
 - `pub struct View` — Everything the map tab draws, gathered by the caller (`ui::draw_tabs`).
 - `pub fn body(ui: &Ui, view: &View<'_>, role: &mut MapRole, here: Option<MapRole>) -> Option<String>` — Body of the *Map* tab.
-- `fn map_size(frame: &Frame, avail: [f32; 2]) -> [f32; 2]` — Tamaño en pantalla del mapa, con la **proporción real** de `continent_rect`.
-- `fn draw_tiles(…)` — The real map: the official tiles, drawn one by one with the opacity of the window (T-29).
-- `static TILE_TEXTURES` — Loaded tiles, by coordinates. They never change, so the session keeps them.
-- `const TILES_PER_FRAME` — How many tiles may be created in one frame. The first time the tab is opened the map fills in over a few frames instead of stalling the game.
-- `static TILE_BUDGET` — What is left of that allowance in the current frame. Reset by [`draw_tiles`].
-- `fn tile_texture(x: u32, y: u32) -> Option<nexus::imgui::TextureId>` — Texture of one tile, loading it from the disk cache the first time it is needed.
-- `const MIN_TILE_BYTES` — Smallest file that can be a tile: anything less is a download in progress.
-- `const TILE_RETRY` — How long a tile that failed is left alone before trying again.
-- `fn failures() -> &'static std::sync::Mutex<BTreeMap<(u32, u32), std::time::Instant>>` — When each tile failed last, so neither the budget nor the log repeats it every frame.
-- `fn failed_recently(x: u32, y: u32) -> bool` — Si la descarga de esa tesela falló hace menos de `TILE_RETRY` (no reintentar aún).
-- `fn remember_failure(x: u32, y: u32) -> bool` — Marks the tile as failed. Returns `true` when it was already failing (so the log says it once).
-- `fn draw_frame(list: &nexus::imgui::DrawListMut<'_>, origin: [f32; 2], size: [f32; 2], name: &str)` — Border and name over whatever the background is.
-- `fn draw_background(…)` — Dark board with a grid and the map name: no textures (ADR-002), but the objectives are not floating on nothing either (report of 2026-10-31). The real map is [`draw_tiles`].
 - `fn tag_of(label: &str) -> Option<&str>` — `[TAG] Nombre` → `TAG`, which is what fits next to a ring.
 - `fn inside(point: [f32; 2], origin: [f32; 2], size: [f32; 2]) -> bool` — Inside the drawing area?
 - `fn nearest(spots: &[[f32; 2]], mouse: [f32; 2], max_distance: f32) -> Option<usize>` — Index of the spot closest to `mouse`, if there is one within `max_distance` pixels.
 - `fn detail_line(…)` — Una línea con lo que dice el hover, **sin el nombre del sitio**: el jugador ya sabe dónde está y el nombre alargaba la caja hasta tapar los objetivos vecinos (petición del jugador, 2026-11-01).
 - `const MAP_COMBO_WIDTH` — Ancho del desplegable de mapa. Antes ocupaba todo el ancho de la ventana para enseñar cuatro palabras («Eternos», «Alpino azul»…) y dejaba sin sitio al de clan (petición del jugador, 2026-11-01).
 - `const GUILD_COMBO_WIDTH` — Ancho del desplegable de clan: `[TAG] Nombre` no cabe en menos.
-- `fn draw_selector(ui: &Ui, role: &mut MapRole, here: Option<MapRole>, maps: &[WvwMap])` — Desplegable de mapa (Eternos/alpinos/desierto): omite los que aún no llegaron de la API y resalta en azul el mapa donde está el jugador.
+- `fn draw_selector(…)` — Desplegable de mapa (Eternos/alpinos/desierto): omite los que aún no llegaron de la API y resalta en azul el mapa donde está el jugador.
 - `fn guild_choices(…)` — Los clanes del desplegable: primero los que sigue el jugador (en el orden en que los añadió) y después los que han reclamado algo **en la sesión**, el más reciente primero, sin repetir los que ya sale…
 - `fn draw_guild_choice(…)` — Desplegable de clan, al lado del de mapa. Devuelve el que el jugador acaba de elegir, si hay uno.
 - `const GUILDS_IN_MENU` — Cuántos clanes **no seguidos** ofrece el desplegable del mapa.
@@ -1525,14 +1520,17 @@ Simplified map of one WvW map (T-14, RF-30).
 - `fn is_drawable(kind: ObjectiveType) -> bool` — Objectives worth drawing: the ones that score (RF-30a hides ruins, mercenaries and spawns).
 - `fn has_high_value_ring(state: Option<&ObjectiveState>) -> bool` — Si el objetivo merece el anillo de alto valor.
 - `fn resolved_map_role(role: MapRole, here: Option<MapRole>) -> MapRole` — Mapa a mostrar: el elegido o, si no hay, el del jugador o Eternos.
+- `fn map_for_role<'a>(…)` — Prefiere la geometría del `map_id` actual y, si no, el mapa del rol según el estado live o el catálogo clásico.
+- `fn has_live_state_for_map(states: &[ObjectiveState], map_id: u32) -> bool` — Indica si el emparejamiento publicó estado live para el mapa mostrado.
+- `pub fn map_label_for_map(map: &WvwMap, role: MapRole) -> String` — Etiqueta traducida a partir del nombre de mapa vigente en la API y el rol Mumble.
 - `fn draw_objective(…)` — Dibuja un objetivo en el mapa: círculo del color del dueño con tamaño por tipo, anillo de alto valor y marca de clan seguido.
 - `fn colour_rgba(colour: TeamColor) -> [f32; 4]` — Los colores de equipo salen del mismo sitio en todo el addon (RF-62).
 - `pub fn map_label(role: MapRole) -> &'static str` — El nombre del mapa en el idioma activo: lo comparten la pestaña y la cabecera del widget.
 - `mod tests`
 
-**Usa (interno):** `crate::catalog`, `crate::clock`, `crate::i18n`, `gw2lurker_core::i18n`, `gw2lurker_core::matchup`, `gw2lurker_core::model`, `gw2lurker_core::project`, `gw2lurker_core::route`, `super::icons`, `super::navigation`, `super::theme`
+**Usa (interno):** `crate::clock`, `crate::i18n`, `gw2lurker_core::i18n`, `gw2lurker_core::matchup`, `gw2lurker_core::model`, `gw2lurker_core::project`, `gw2lurker_core::route`, `super::icons`, `super::navigation`, `super::theme`
 
-**APIs externas:** `nexus::imgui`, `nexus::imgui::DrawListMut`, `nexus::imgui::TextureId`, `nexus::texture::get_texture_or_create_from_file`, `disco: fs::metadata`, `imgui::DrawListMut`, `imgui::TextureId`, `imgui (dibuja con &Ui)`
+**APIs externas:** `nexus::imgui`, `nexus::imgui::DrawListMut`, `imgui::DrawListMut`, `imgui (dibuja con &Ui)`
 
 
 ### `crates/addon/src/ui/map/route.rs` (273 líneas)
@@ -1578,18 +1576,44 @@ Prepared geometry for B - Estela (T-52), independent of Nexus.
 **Usa (interno):** `gw2lurker_core::Route`, `super::ClaimRow`, `super::project`, `super::route`
 
 
-### `crates/addon/src/ui/map/tests.rs` (500 líneas)
+### `crates/addon/src/ui/map/tests.rs` (690 líneas)
 
 Tests of the map tab: projection, hover, tiles and proportions.
 
-**Usa (interno):** `crate::clock`, `crate::worker`, `gw2lurker_core::i18n`, `gw2lurker_core::Match`, `gw2lurker_core::matchup`, `gw2lurker_core::Route`, `gw2lurker_core::RouteOrigin`, `gw2lurker_core::RouteStep`, `super::route`, `super::scene`
+**Usa (interno):** `crate::clock`, `crate::worker`, `gw2lurker_core::i18n`, `gw2lurker_core::Match`, `gw2lurker_core::matchup`, `gw2lurker_core::project`, `gw2lurker_core::Route`, `gw2lurker_core::RouteOrigin`, `gw2lurker_core::RouteStep`, `super::route`, `super::scene`
 
 **APIs externas:** `serde_json::from_str`
 
-**Tests (15):** `rf32a_the_drawn_route_includes_zero_and_keeps_claim_numbering`, `rf30_the_map_keeps_the_real_proportions`, `rf32_the_heading_is_the_last_jump_and_only_when_it_means_something`, `rf30_the_closest_objective_wins_the_hover`, `rf30_only_the_inside_of_the_board_has_hover`, `rf30a_scoring_objectives_are_the_only_ones_drawn`, `rf30b_missing_objective_state_does_not_get_a_high_value_ring`, `rf30_the_unknown_map_defaults_to_center_before_drawing_the_selector`, `rf30_the_hover_says_who_and_when_and_leaves_the_name_out`, `rf30_the_hover_without_a_claim_only_says_unclaimed`, `rf30b_an_objective_owned_without_claim_keeps_its_colour_on_the_hover`, `rf31_the_guild_menu_is_the_followed_ones_and_then_the_latest_five`, `rf31_the_guild_menu_without_anything_to_offer_is_empty`, `rf35_a_route_that_crosses_maps_says_jump_to`, `rf32_the_cross_map_summary_lists_claims_without_inventing_an_origin`
+**Tests (19):** `rf32a_the_drawn_route_includes_zero_and_keeps_claim_numbering`, `rf30_the_map_keeps_the_real_proportions`, `p05_seared_borderlands_static_objectives_fit_the_verified_map_box`, `p05_seared_borderlands_map_id_supports_all_three_mumble_roles`, `p05_seared_borderlands_1654_is_offered_for_blue_and_green_roles`, `p05_seared_borderlands_1651_is_detected_as_green_from_api_name`, `rf32_the_heading_is_the_last_jump_and_only_when_it_means_something`, `rf30_the_closest_objective_wins_the_hover`, `rf30_only_the_inside_of_the_board_has_hover`, `rf30a_scoring_objectives_are_the_only_ones_drawn`, `rf30b_missing_objective_state_does_not_get_a_high_value_ring`, `rf30_the_unknown_map_defaults_to_center_before_drawing_the_selector`, `rf30_the_hover_says_who_and_when_and_leaves_the_name_out`, `rf30_the_hover_without_a_claim_only_says_unclaimed`, `rf30b_an_objective_owned_without_claim_keeps_its_colour_on_the_hover`, `rf31_the_guild_menu_is_the_followed_ones_and_then_the_latest_five`, `rf31_the_guild_menu_without_anything_to_offer_is_empty`, `rf35_a_route_that_crosses_maps_says_jump_to`, `rf32_the_cross_map_summary_lists_claims_without_inventing_an_origin`
 
 
-### `crates/addon/src/ui/map/timeline_tests.rs` (127 líneas)
+### `crates/addon/src/ui/map/tiles.rs` (219 líneas)
+
+**Contenido:**
+
+- `const MAP_HEIGHT` — Height of the drawing area when the map has no usable proportions.
+- `const MIN_MAP_HEIGHT` — Smallest and biggest height the map may take when it keeps its real proportions.
+- `const MAX_MAP_HEIGHT` — Altura máxima del lienzo del mapa (620 px).
+- `pub fn map_size(frame: &Frame, avail: [f32; 2]) -> [f32; 2]` — Tamaño en pantalla del mapa, con la **proporción real** de `continent_rect`.
+- `pub fn draw_tiles(…)` — The real map: the official tiles, drawn one by one with the opacity of the window (T-29).
+- `type TileTextureCache` — Loaded tile texture and the file version it represents.
+- `static TILE_TEXTURES` — Texturas ImGui por coordenada y generación de los ficheros en caché.
+- `const TILES_PER_FRAME` — How many tiles may be created in one frame. The first time the tab is opened the map fills in over a few frames instead of stalling the game.
+- `static TILE_BUDGET` — What is left of that allowance in the current frame. Reset by [`draw_tiles`].
+- `fn tile_texture(x: u32, y: u32) -> Option<nexus::imgui::TextureId>` — Texture of one tile, loading it from the disk cache the first time it is needed.
+- `const TILE_RETRY` — How long a tile that failed is left alone before trying again.
+- `fn failures() -> &'static std::sync::Mutex<BTreeMap<(u32, u32), std::time::Instant>>` — When each tile failed last, so neither the budget nor the log repeats it every frame.
+- `fn failed_recently(x: u32, y: u32) -> bool` — Si la carga de esa tesela falló hace menos de `TILE_RETRY` (no reintentar aún).
+- `fn remember_failure(x: u32, y: u32) -> bool` — Marks the tile as failed. Returns `true` when it was already failing (so the log says it once).
+- `pub fn draw_frame(…)` — Border and name over whatever the background is.
+- `pub fn draw_background(…)` — Dark board with a grid and the map name: no textures (ADR-002), but the objectives are not floating on nothing either (report of 2026-10-31). The real map is [`draw_tiles`].
+
+**Usa (interno):** `crate::catalog`, `gw2lurker_core::project`
+
+**APIs externas:** `nexus::imgui::DrawListMut`, `nexus::imgui::TextureId`, `nexus::texture::get_texture_or_create_from_file`, `disco: fs::metadata`, `imgui::DrawListMut`, `imgui::TextureId`
+
+
+### `crates/addon/src/ui/map/timeline_tests.rs` (128 líneas)
 
 Native timeline state tests without Nexus or a running game.
 
@@ -1675,7 +1699,7 @@ Matchup claims view (T-36, RF-70): what is claimed right now, grouped by map.
 **Tests (6):** `rf73_the_claims_view_can_show_only_followed_guilds`, `rf30b_high_value_is_the_tick_of_this_snapshot_not_the_kind`, `rf70_all_kinds_are_visible_by_default`, `rf70_kind_filters_remove_rows`, `rf70_high_value_hides_camps_but_keeps_castles`, `rf70_rows_are_grouped_by_map`
 
 
-### `crates/addon/src/ui/mod.rs` (790 líneas)
+### `crates/addon/src/ui/mod.rs` (795 líneas)
 
 Windows of the addon. Every one of them goes through [`window::draw`] (RF-46).
 
@@ -1829,7 +1853,7 @@ Tests of the settings window: the translated names (RF-03f).
 **Tests (1):** `rf03f_the_field_starts_with_the_automatic_translation`
 
 
-### `crates/addon/src/ui/status.rs` (239 líneas)
+### `crates/addon/src/ui/status.rs` (241 líneas)
 
 La línea de estado de la ventana: salud del sondeo, partida, equipo y origen del empate.
 
@@ -1841,7 +1865,7 @@ La línea de estado de la ventana: salud del sondeo, partida, equipo y origen de
 - `pub fn region_of(match_id: &str) -> Option<gw2lurker_core::model::Region>` — Region of a matchup id: `1-x` is North America and `2-x` is Europe.
 - `fn region_of_matchup(match_id: &str) -> &'static str` — «NA»/«EU»/«?» según el prefijo del id del match.
 
-**Usa (interno):** `crate::clock`, `crate::config`, `crate::context`, `crate::i18n`, `crate::keybinds`, `crate::loaded_version`, `crate::runtime`, `crate::stale_dll`, `crate::team`, `crate::worker`, `gw2lurker_core::model`, `gw2lurker_core::select`
+**Usa (interno):** `crate::clock`, `crate::config`, `crate::context`, `crate::i18n`, `crate::keybinds`, `crate::loaded_version`, `crate::runtime`, `crate::stale_dll`, `crate::team`, `crate::worker`, `gw2lurker_core::gate`, `gw2lurker_core::model`, `gw2lurker_core::select`
 
 **APIs externas:** `nexus::imgui::Ui`, `nexus::imgui::StyleColor`, `imgui::Ui`, `imgui::StyleColor`, `imgui (dibuja con &Ui)`
 
@@ -2069,7 +2093,7 @@ Off-thread writer for the settings file.
 - `bugs.md` — Bugs — Bandeja de entrada de fallos. **No se borra**: cada bug se queda con su marca. `[x]` cuando creo que está arreglado, con la versión en la que sale el arreglo, para que el jugador pueda comprobarlo y tacharlo del todo si…
 - `Cargo.lock`
 - `Cargo.toml`
-- `CHANGELOG.md` — Changelog — Formato [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/), versionado [SemVer](https://semver.org/lang/es/). salen primero; después las etiquetas que empiezan así y luego los nombres. Bajo el buscador se ve cuá…
+- `CHANGELOG.md` — Changelog — Formato [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/), versionado [SemVer](https://semver.org/lang/es/). las demás teselas caducan a las 24 horas para adaptarse a cambios de mapa. objetivos estáticos se mue…
 - `CLAUDE.md` —  — Lee y sigue `AGENTS.md` (instrucciones completas para agentes de IA de este repositorio).
 - `deny.toml` — RUSTSEC-2024-0384 (instant) y RUSTSEC-2024-0436 (paste): avisos de "sin mantenimiento" en crates que arrastra `nexus-rs`. No son vulnerabilidades, están fuera de nuestro control y no podemos actualizarlos por separado: s…
 - `docs/agents/lecciones.md` — Lecciones con contexto (referencia de AGENTS.md) — Texto completo de las reglas que en `AGENTS.md` van en una línea. Cada punto sale de un fallo real. Léelo cuando la tarea toque tests, imgui, el candado `RUNTIME` o `settings.json`; no hace falta cargarlo en cada sesión.
@@ -2098,7 +2122,7 @@ Off-thread writer for the settings file.
 - `modelo.md` — Modelo del código: dónde tocar cuando algo falla — Mapa del repositorio para localizar el código sin leerlo entero. **Uso:** busca con `grep` el síntoma en la tabla de abajo o el nombre del fichero o de la función (`### \`crates/...` abre la ficha de cada fichero) y abre…
 - `PRODUCT.md` — PRODUCT.md — Contexto de producto para las herramientas de diseño (`impeccable`). Escrito a partir del brief del usuario y de la spec; **las suposiciones están marcadas**. **gw2-lurker**: addon para Guild Wars 2 (WvW) que avisa de ca…
 - `PROGRESO.md` — Progreso: gw2-lurker — Bitácora para continuar el trabajo, incluso si quien lo retoma no es la misma IA ni la misma sesión. **Lo más reciente va arriba.** Cada entrada dice qué se pretendía, qué se hizo, cómo se verificó y qué quedó pendiente.
-- `README.md` — gw2-lurker — Addon de [Raidcore Nexus](https://raidcore.gg/nexus) para Guild Wars 2, escrito en Rust. Solo funciona en Mundo contra Mundo. (las ruinas nunca avisan), con un aviso emergente opcional.
+- `README.md` — gw2-lurker — Releases: https://github.com/cbart-cmd/gw2addonsreleases/releases Known issues: GW2 matchup APIs do not work 50% of the time. Addon de [Raidcore Nexus](https://raidcore.gg/nexus) para Guild Wars 2, escrito en Rust. Solo
 - `rust-toolchain.toml` — Se usa "stable" hasta que el spike T-01 compile con éxito. Entonces: fija aquí la versión exacta que funcionó (p. ej. channel = "1.xx.0") y copia ese número en `rust-version` del workspace, para builds reproducibles.
 - `rustfmt.toml`
 - `scripts/bump-version.ps1` — Sube la versión a la vez en Cargo.toml, las dependencias internas de los crates, Cargo.lock y CHANGELOG.md.

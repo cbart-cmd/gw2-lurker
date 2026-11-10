@@ -3,6 +3,12 @@ Formato [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/), versionado 
 
 ## [Unreleased]
 
+## [0.26.15] - 2026-11-10
+### Corregido
+- El mapa verde Seared Borderlands (1651) se reconoce por el nombre de la API y muestra sus objetivos.
+- Las teselas beta se actualizan en segundo plano y las texturas recargan los ficheros renovados;
+  las demás teselas caducan a las 24 horas para adaptarse a cambios de mapa.
+
 ## [0.26.14] - 2026-11-10
 - El selector de mapa incluye la variante beta Seared Borderlands 1654, usada por las fronteras azul y verde.
 ### Técnico

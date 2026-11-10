@@ -103,15 +103,15 @@ impl MapRole {
     /// Role of a WvW map by its Mumble `map_id`, where the id is unambiguous.
     ///
     /// Verified ids: Eternal Battlegrounds 38, green borderlands 95, blue borderlands 96,
-    /// red desert 1099. Beta Seared Borderlands maps 1652 and 1654 are deliberately not mapped
-    /// here: their role comes from Mumble `map_type` or the match payload.
+    /// red desert 1099. Beta Seared Borderlands maps 1651, 1652 and 1654 are deliberately not
+    /// mapped here: their role comes from Mumble `map_type` or the match payload.
     pub fn from_map_id(map_id: u32) -> Self {
         match map_id {
             38 => Self::Center,
             95 => Self::GreenHome,
             96 => Self::BlueHome,
             1099 => Self::RedHome,
-            1652 | 1654 => Self::Unknown,
+            1651 | 1652 | 1654 => Self::Unknown,
             _ => Self::Unknown,
         }
     }
@@ -295,6 +295,16 @@ pub struct WvwMap {
     pub continent_rect: [[f64; 2]; 2],
 }
 
+impl WvwMap {
+    /// Whether the API currently identifies this map as the beta Seared Borderlands.
+    ///
+    /// The name, not the temporary map id, distinguishes this layout so it can later become an
+    /// Alpine Borderlands map without leaving beta-specific behavior attached to its id.
+    pub fn is_seared_borderlands(&self) -> bool {
+        self.name.trim().eq_ignore_ascii_case("Seared Borderlands")
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -307,6 +317,7 @@ mod tests {
         assert_eq!(MapRole::from_map_id(1099), MapRole::RedHome);
         assert_eq!(MapRole::from_map_id(1652), MapRole::Unknown);
         assert_eq!(MapRole::from_map_id(1654), MapRole::Unknown);
+        assert_eq!(MapRole::from_map_id(1651), MapRole::Unknown);
         assert_eq!(MapRole::from_map_type(9), MapRole::Center);
         assert_eq!(MapRole::from_map_type(10), MapRole::BlueHome);
         assert_eq!(MapRole::from_map_type(11), MapRole::GreenHome);
@@ -314,6 +325,7 @@ mod tests {
         assert_eq!(MapRole::from_mumble(1652, 10), MapRole::BlueHome);
         assert_eq!(MapRole::from_mumble(1652, 11), MapRole::GreenHome);
         assert_eq!(MapRole::from_mumble(1652, 12), MapRole::RedHome);
+        assert_eq!(MapRole::from_mumble(1651, 11), MapRole::GreenHome);
         assert_eq!(MapRole::from_mumble(1654, 10), MapRole::BlueHome);
         assert_eq!(MapRole::from_mumble(1654, 11), MapRole::GreenHome);
         assert_eq!(MapRole::from_mumble(0, 12), MapRole::Unknown);
@@ -503,7 +515,7 @@ mod tests {
     #[test]
     fn rf30_map_bounds_come_from_continent_rect() {
         let maps: Vec<WvwMap> = serde_json::from_str(MAPS).unwrap();
-        assert_eq!(maps.len(), 7);
+        assert_eq!(maps.len(), 8);
 
         let ebg = maps.iter().find(|m| m.id == 38).unwrap();
         assert_eq!(ebg.name, "Eternal Battlegrounds");

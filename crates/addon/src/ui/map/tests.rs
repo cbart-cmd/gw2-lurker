@@ -239,6 +239,74 @@ fn p05_seared_borderlands_1654_is_offered_for_blue_and_green_roles() {
 }
 
 #[test]
+fn p05_seared_borderlands_1651_is_detected_as_green_from_api_name() {
+    let maps: Vec<WvwMap> = serde_json::from_str(include_str!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../api/tests/fixtures/maps_wvw.json"
+    )))
+    .unwrap();
+    let objectives: Vec<ObjectiveInfo> = serde_json::from_str(include_str!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../api/tests/fixtures/objectives_seared_borderlands.json"
+    )))
+    .unwrap();
+    let matchup: gw2lurker_core::Match = serde_json::from_str(include_str!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../api/tests/fixtures/match_2-2.json"
+    )))
+    .unwrap();
+    let states = gw2lurker_core::matchup::states(&matchup);
+    let map = maps.iter().find(|map| map.id == 1651).unwrap();
+    let frame = Frame::of(map);
+    let static_objectives: Vec<_> = objectives
+        .iter()
+        .filter(|objective| objective.map_id == map.id)
+        .collect();
+    let located: Vec<_> = static_objectives
+        .iter()
+        .filter_map(|objective| objective.coord.map(|coord| (*objective, coord)))
+        .collect();
+
+    assert!(map.is_seared_borderlands());
+    assert_eq!(static_objectives.len(), 21);
+    assert_eq!(located.len(), 18);
+    assert_eq!(
+        located
+            .iter()
+            .filter(|(objective, _)| is_drawable(objective.kind))
+            .count(),
+        13
+    );
+    assert_eq!(
+        MapRole::from_mumble(1651, 11),
+        MapRole::GreenHome,
+        "Mumble map_type 11 is the green borderland"
+    );
+    assert_eq!(
+        map_for_role(
+            &maps,
+            &states,
+            MapRole::GreenHome,
+            Some(MapRole::GreenHome),
+            1651,
+        )
+        .map(|map| map.id),
+        Some(1651),
+        "the live green map id must take precedence over the classic green map"
+    );
+    assert_eq!(located.len(), 18);
+    assert!(located
+        .iter()
+        .all(|(_, coord)| frame.normalise([coord[0], coord[1]]).is_some()));
+
+    let classic_green = maps.iter().find(|map| map.id == 95).unwrap();
+    assert!(
+        !classic_green.is_seared_borderlands(),
+        "map naming from the API must let classic Alpine Borderlands return without a beta-id rule"
+    );
+}
+
+#[test]
 fn rf32_the_heading_is_the_last_jump_and_only_when_it_means_something() {
     // Hacia dónde va: la dirección del último salto, no el camino (ADR-005).
     let (ux, uy) = heading([0.0, 0.0], [100.0, 0.0]).expect("hay salto");

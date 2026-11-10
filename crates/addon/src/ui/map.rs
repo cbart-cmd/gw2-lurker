@@ -205,15 +205,9 @@ pub fn body(ui: &Ui, view: &View<'_>, role: &mut MapRole, here: Option<MapRole>)
     list.with_clip_rect_intersect(origin, [origin[0] + size[0], origin[1] + size[1]], || {
         if real_map {
             draw_tiles(&list, &frame, origin, size, opacity);
-            draw_frame(&list, origin, size, &map_label_for_id(map.id, *role));
+            draw_frame(&list, origin, size, &map_label_for_map(map, *role));
         } else {
-            draw_background(
-                &list,
-                origin,
-                size,
-                &frame,
-                &map_label_for_id(map.id, *role),
-            );
+            draw_background(&list, origin, size, &frame, &map_label_for_map(map, *role));
         }
 
         for (index, (point, objective, state)) in drawn.iter().enumerate() {
@@ -390,7 +384,7 @@ fn draw_selector(
 ) {
     *role = resolved_map_role(*role, here);
     let current = map_for_role(maps, states, *role, here, current_map_id)
-        .map(|map| map_label_for_id(map.id, *role))
+        .map(|map| map_label_for_map(map, *role))
         .unwrap_or_else(|| map_label(*role).to_owned());
     let _width = ui.push_item_width(MAP_COMBO_WIDTH);
     ComboBox::new(i18n::widget("Map"))
@@ -405,7 +399,7 @@ fn draw_selector(
                 let Some(map) = map_for_role(maps, states, candidate, here, current_map_id) else {
                     continue;
                 };
-                let label = map_label_for_id(map.id, candidate);
+                let label = map_label_for_map(map, candidate);
                 let _tint = if here == Some(candidate) {
                     Some(ui.push_style_color(StyleColor::Text, [0.6, 0.9, 1.0, 1.0]))
                 } else {
@@ -552,8 +546,8 @@ fn has_live_state_for_map(states: &[ObjectiveState], map_id: u32) -> bool {
     states.iter().any(|state| state.map_id == map_id)
 }
 
-pub(super) fn map_label_for_id(map_id: u32, role: MapRole) -> String {
-    if matches!(map_id, 1652 | 1654) {
+pub(super) fn map_label_for_map(map: &WvwMap, role: MapRole) -> String {
+    if map.is_seared_borderlands() {
         let color = match role {
             MapRole::BlueHome => i18n::text("Blue"),
             MapRole::GreenHome => i18n::text("Green"),

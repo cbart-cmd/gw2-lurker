@@ -6,7 +6,8 @@
 //!
 //! Split out of [`crate::worker`] when that file crossed 800 lines (AGENTS §2.8).
 
-use std::collections::{HashMap, HashSet};
+use std::collections::{BTreeMap, HashMap, HashSet};
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Mutex, OnceLock};
 use std::time::{Duration, Instant};
 
@@ -100,7 +101,7 @@ pub fn resolve_guild_names(
     api: &Api<WinHttpTransport>,
     guilds: &[GuildSummary],
     followed: &gw2lurker_core::FollowList,
-) -> std::collections::BTreeMap<String, String> {
+) -> BTreeMap<String, String> {
     let saved = crate::runtime().guild_names.clone();
     let mut known = saved.clone();
     known.extend(crate::session_names::all());
@@ -161,7 +162,7 @@ pub fn resolve_guild_names(
         let mut config = crate::runtime();
         let followed_now: std::collections::BTreeSet<String> =
             config.followed.iter().map(str::to_owned).collect();
-        let mut wanted: std::collections::BTreeMap<String, String> = config
+        let mut wanted: BTreeMap<String, String> = config
             .guild_names
             .iter()
             .filter(|(id, _)| followed_now.contains(*id))
@@ -183,15 +184,15 @@ pub fn resolve_guild_names(
 ///
 /// They are shown next to each team in the picker: the team names are new, the world names are
 /// what the player has known for years (report of 2026-10-31).
-pub fn world_names(api: &Api<WinHttpTransport>) -> std::collections::BTreeMap<u32, String> {
+pub fn world_names(api: &Api<WinHttpTransport>) -> BTreeMap<u32, String> {
     struct WorldCache {
-        names: std::collections::BTreeMap<u32, String>,
+        names: BTreeMap<u32, String>,
         last_attempt: Option<Instant>,
     }
     static WORLDS: OnceLock<Mutex<WorldCache>> = OnceLock::new();
     let cache = WORLDS.get_or_init(|| {
         Mutex::new(WorldCache {
-            names: std::collections::BTreeMap::new(),
+            names: BTreeMap::new(),
             last_attempt: None,
         })
     });
@@ -262,6 +263,13 @@ pub fn tiles_dir() -> Option<std::path::PathBuf> {
 /// answers an ocean tile for any coordinate, which fails silently (measured 2026-10-31).
 const TILE_CONTINENT: &str = "2";
 const TILE_FLOOR: &str = "1";
+const TILE_CACHE_TTL: Duration = Duration::from_secs(24 * 60 * 60);
+pub(crate) const MIN_TILE_BYTES: u64 = 1024;
+static TILE_REVISION: AtomicU64 = AtomicU64::new(0);
+
+pub(crate) fn tile_revision() -> u64 {
+    TILE_REVISION.load(Ordering::Relaxed)
+}
 
 /// File of one tile. The name has every coordinate so a cache can be inspected by hand, and the
 /// continent is in it too: a tile of another continent is not the same tile.
@@ -323,18 +331,35 @@ pub fn ensure_tiles(maps: &[gw2lurker_core::WvwMap]) {
     }
     forget_stale_tiles(&format!("{TILE_CONTINENT}-{TILE_FLOOR}-"));
 
-    let mut jobs = Vec::new();
-    let mut queued = HashSet::new();
+    let now = std::time::SystemTime::now();
+    let mut queued: BTreeMap<(u32, u32), bool> = BTreeMap::new();
     for map in maps {
         let frame = gw2lurker_core::Frame::of(map);
+        let refresh = map.is_seared_borderlands();
         for (x, y) in gw2lurker_core::project::tiles_of(&frame, gw2lurker_core::project::TILE_ZOOM)
         {
-            let Some(path) = tile_path(x, y) else {
-                return;
-            };
-            if !path.exists() && queued.insert((x, y)) {
-                jobs.push((path, tile_url(x, y)));
+            queued
+                .entry((x, y))
+                .and_modify(|force| *force |= refresh)
+                .or_insert(refresh);
+        }
+    }
+    let mut jobs = Vec::new();
+    for ((x, y), force) in queued {
+        let Some(path) = tile_path(x, y) else {
+            return;
+        };
+        let metadata = std::fs::metadata(&path).ok();
+        let is_stale = metadata.as_ref().is_none_or(|metadata| {
+            if metadata.len() < MIN_TILE_BYTES {
+                return true;
             }
+            metadata
+                .modified()
+                .map_or(true, |modified| tile_needs_refresh(modified, now, force))
+        });
+        if is_stale {
+            jobs.push((path, tile_url(x, y)));
         }
     }
     if jobs.is_empty() {
@@ -383,6 +408,9 @@ pub fn ensure_tiles(maps: &[gw2lurker_core::WvwMap]) {
                 Err(error) => log::warn!("tiles: {url} ({error})"),
             }
         }
+        if saved > 0 {
+            TILE_REVISION.fetch_add(1, Ordering::Relaxed);
+        }
         log::info!("tiles: {saved} teselas del mapa en caché");
     });
     match spawned {
@@ -393,6 +421,17 @@ pub fn ensure_tiles(maps: &[gw2lurker_core::WvwMap]) {
             log::warn!("tiles: no se pudo lanzar la descarga ({error})");
         }
     }
+}
+
+fn tile_needs_refresh(
+    modified: std::time::SystemTime,
+    now: std::time::SystemTime,
+    force: bool,
+) -> bool {
+    force
+        || now
+            .duration_since(modified)
+            .map_or(true, |age| age >= TILE_CACHE_TTL)
 }
 
 #[cfg(test)]
@@ -457,5 +496,26 @@ mod tests {
         assert!(static_data_retry_due(None, now));
         assert!(!static_data_retry_due(Some(now), now));
         assert!(static_data_retry_due(Some(now - STATIC_DATA_RETRY), now));
+    }
+
+    #[test]
+    fn p05_seared_map_tiles_are_always_refreshed() {
+        let now = std::time::UNIX_EPOCH + Duration::from_secs(10 * 24 * 60 * 60);
+        assert!(tile_needs_refresh(now - Duration::from_secs(60), now, true));
+    }
+
+    #[test]
+    fn p06_cached_tiles_expire_daily_but_recent_tiles_are_reused() {
+        let now = std::time::UNIX_EPOCH + Duration::from_secs(10 * 24 * 60 * 60);
+        assert!(tile_needs_refresh(
+            now - Duration::from_secs(25 * 60 * 60),
+            now,
+            false
+        ));
+        assert!(!tile_needs_refresh(
+            now - Duration::from_secs(23 * 60 * 60),
+            now,
+            false
+        ));
     }
 }

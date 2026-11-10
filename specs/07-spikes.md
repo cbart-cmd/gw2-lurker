@@ -301,6 +301,11 @@ Medido descargando imágenes reales con `curl` (una a una, comparando tamaños y
 - Se descargan en el **worker** (`catalog::ensure_tiles`, hilo propio) y el render solo pide texturas
   ya presentes (4 por frame como máximo), con `add_image(..).col([1,1,1,opacidad])` para heredar la
   opacidad de la ventana.
+- Reconsulta `[API]` 2026-11-10: `/v2/maps/1651` = `Seared Borderlands`, `GreenHome`,
+  `continent_rect` `[[5630,11518],[8190,15102]]`; `/v2/wvw/objectives?ids=all` incluye 21
+  objetivos (18 con coordenadas). El tile URL sigue siendo por continente/piso/zoom/coordenadas,
+  no por `map_id`; por eso el addon actualiza en segundo plano la caché de esa zona cuando la API
+  identifica un mapa Seared.
 ### Notas de verificación: nombres de equipo desde gw2mists con el navegador (T-45, 2026-10-31)
 
 La API de gw2mists da **403** a `curl` y la web es una SPA, así que `curl` sobre el HTML no ve nada.

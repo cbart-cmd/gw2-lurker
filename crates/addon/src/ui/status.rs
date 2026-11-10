@@ -60,10 +60,13 @@ pub(super) fn draw_health(
         };
         ui.text_disabled(i18n::format(label, &[&map_id]));
     } else {
-        ui.text_disabled(i18n::format(
-            "You are in {0}",
-            &[&map::map_label_for_id(state.map_id, role)],
-        ));
+        let map_label = data
+            .maps
+            .iter()
+            .find(|map| map.id == state.map_id)
+            .map(|map| map::map_label_for_map(map, role))
+            .unwrap_or_else(|| map::map_label(role).to_owned());
+        ui.text_disabled(i18n::format("You are in {0}", &[&map_label]));
     }
     match team_id.map(|id| crate::team::display_name(config, language, id)) {
         Some(label) => {

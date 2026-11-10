@@ -201,7 +201,7 @@ impl<T: Transport> Api<T> {
     pub fn maps(&self) -> Result<Vec<gw2lurker_core::WvwMap>, ApiError> {
         let body = self
             .transport
-            .get(&format!("{BASE}/maps?ids=38,95,96,1099,1652,1654"))?;
+            .get(&format!("{BASE}/maps?ids=38,95,96,1099,1651,1652,1654"))?;
         parse(&body)
     }
 
@@ -575,15 +575,15 @@ mod tests {
 
     #[test]
     fn rf30_maps_come_with_the_boxes_of_the_projection() {
-        let url = format!("{BASE}/maps?ids=38,95,96,1099,1652,1654");
+        let url = format!("{BASE}/maps?ids=38,95,96,1099,1651,1652,1654");
         let api = Api::new(Fake::with(&url, MAPS));
         let maps = api.maps().unwrap();
 
         assert!(
-            maps.len() >= 6,
-            "la fixture incluye las seis variantes conocidas de mapas de MvM"
+            maps.len() >= 7,
+            "la fixture incluye las siete variantes conocidas de mapas de MvM"
         );
-        for id in [38, 95, 96, 1099, 1652, 1654] {
+        for id in [38, 95, 96, 1099, 1651, 1652, 1654] {
             assert!(
                 maps.iter().any(|map| map.id == id),
                 "falta el mapa {id} en la respuesta"
@@ -602,6 +602,12 @@ mod tests {
         assert_eq!(
             seared_blue.continent_rect,
             [[12798.0, 10878.0], [15358.0, 14462.0]]
+        );
+        let seared_green = maps.iter().find(|map| map.id == 1651).unwrap();
+        assert_eq!(seared_green.name.trim(), "Seared Borderlands");
+        assert_eq!(
+            seared_green.continent_rect,
+            [[5630.0, 11518.0], [8190.0, 15102.0]]
         );
         assert_eq!(api.transport().asked.borrow().as_slice(), [url]);
     }

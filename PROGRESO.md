@@ -4,6 +4,22 @@ Bitácora para continuar el trabajo, incluso si quien lo retoma no es la misma I
 misma sesión. **Lo más reciente va arriba.** Cada entrada dice qué se pretendía, qué se
 hizo, cómo se verificó y qué quedó pendiente.
 
+## HECHO – 2026-11-10 · Detectar las tres fronteras Seared y renovar sus fondos
+
+- Diagnóstico confirmado: `Nexus.log` registra `map 1651 tipo 11`; `/v2/maps/1651` es Seared
+  Borderlands, `GreenHome`, con `continent_rect` [[5630,11518],[8190,15102]] y 21 objetivos
+  oficiales (18 con coordenadas). Al faltar 1651 en el catálogo, la UI caía al mapa verde 95.
+- Añadidos 1651, geometría y objetivos a la consulta/fixtures; rol de Mumble 10/11/12 y nombre
+  de `/v2/maps` deciden rol y etiqueta, no una asociación permanente del ID beta. Así puede volver
+  a Alpine/Desert o renombrarse sin conservar una etiqueta Seared fija.
+- Las teselas oficiales son globales por coordenada, no por ID: se renuevan en segundo plano para
+  mapas que la API llame Seared, las demás caducan a las 24 h y una generación de caché recarga
+  las texturas sin comprobar metadatos de disco cada fotograma.
+- `scripts/validate.ps1`: fmt, clippy, LOC, trazabilidad, versión y tests en verde (391 pasados,
+  4 ignorados). `-Release`: DLL de 1 641 984 bytes, dentro del límite. `modelo.md` regenerado;
+  sin descripciones pendientes. `check_bugs.ps1` y `git diff --check` limpios.
+- No probado dentro del juego; no commit ni publicación. Nexus seguirá distribuyendo la 0.26.14.
+
 ## HECHO – 2026-11-10 · Incluir Seared Borderlands 1654 en el selector
 
 - El `Nexus.log` del jugador informa `map 1654 tipo 10`; la API oficial tiene geometría propia
@@ -156,6 +172,9 @@ Reglas:
 - MumbleLink `name` = «Guild Wars 2», **no** el personaje: el personaje está en `identity`
   (`{"name":"Jhoin",…}`). Y `shard_id` en WvW vale `0x80000001` (medido 2026-10-31): no es el mundo
   ni la partida, así que no sirve para detectar el emparejamiento.
+- `map_id` de Mumble puede cambiar durante una beta: usa `map_type` para el rol y el nombre/geometría
+  vigentes de `/v2/maps` para identificar la variante. Las teselas son globales por coordenada; la
+  caché no debe quedar fijada para siempre a la imagen obtenida en la primera instalación.
 - Un reclamo del API sigue ahí aunque el objetivo cambie de color: hay que comparar `last_flipped`
   con `claimed_at` o el mapa pinta un anillo en un campa de otro color (0.22.10).
 - Publicar: `UpdateProvider::Direct` + `DisableHotloading`, MD5 de 32 hex sin BOM, excepción
@@ -458,6 +477,8 @@ Reglas:
 
 - **T-01, T-02b, T-25**: requieren ejecutar dentro de GW2 (carga, click-through, tamaño de
   DLL con TLS, comportamiento de actualización). No se simulan.
+- El soporte Seared 1651/1652/1654 necesita publicación antes de validar en GW2; el código local no
+  sustituye la DLL que Nexus descarga al arrancar.
 - **T-29 y T-30**: la matriz de trazabilidad las cita y no existen en `03-tasks.md`.
 
 ---

@@ -130,7 +130,8 @@ clanes seguidos en cualquier mapa, y **solo de estructuras reclamables** (RF-19e
 | P-02 | Punto proyectado y des-proyectado | ida y vuelta | Igual con tolerancia (propiedad) |
 | P-03 | Mapa con un solo objetivo | límites | Caja mínima no degenerada, sin división por cero |
 | P-04 | Ventana de tamaño cero | proyección | Sin panic, devuelve punto fuera de pantalla |
-| P-05 | Mumble informa Seared Borderlands (1652 o 1654), ausente de los matches vivos | mapa | El desplegable ofrece la caja del `map_id` actual con rol de `map_type`; dibuja objetivos estáticos y avisa que no hay estado live |
+| P-05 | Mumble informa Seared Borderlands (1651, 1652 o 1654), ausente de los matches vivos | mapa | El desplegable ofrece la caja del `map_id` actual con rol de `map_type`; reconoce el mapa por el nombre de `/v2/maps`, dibuja objetivos estáticos y avisa que no hay estado live; renueva teselas beta en segundo plano |
+| P-06 | La API cambia el nombre/geometría de una frontera al terminar la beta | siguiente sesión | Selector usa nombre y geometría vigentes de la API; las teselas cacheadas caducan en 24 h y no perpetúan el fondo beta |
 
 ## Cómo se usan
 

@@ -67,10 +67,11 @@ pub(super) fn draw_tiles(
     }
 }
 
-/// Loaded tiles, by coordinates. They never change, so the session keeps them.
-static TILE_TEXTURES: std::sync::OnceLock<
-    std::sync::Mutex<BTreeMap<(u32, u32), nexus::imgui::TextureId>>,
-> = std::sync::OnceLock::new();
+/// Loaded tile texture and the file version it represents.
+type TileTextureCache = BTreeMap<(u32, u32), (u64, nexus::imgui::TextureId)>;
+
+static TILE_TEXTURES: std::sync::OnceLock<std::sync::Mutex<TileTextureCache>> =
+    std::sync::OnceLock::new();
 
 /// How many tiles may be created in one frame. The first time the tab is opened the map fills in
 /// over a few frames instead of stalling the game.
@@ -87,21 +88,18 @@ static TILE_BUDGET: std::sync::atomic::AtomicU8 = std::sync::atomic::AtomicU8::n
 /// other tile of the map (log of 2026-10-31: «no se pudo cargar la textura» in a loop).
 fn tile_texture(x: u32, y: u32) -> Option<nexus::imgui::TextureId> {
     let cache = TILE_TEXTURES.get_or_init(|| std::sync::Mutex::new(BTreeMap::new()));
-    if let Some(id) = cache
+    let revision = crate::catalog::tile_revision();
+    let cached = cache
         .lock()
         .unwrap_or_else(|error| error.into_inner())
         .get(&(x, y))
-    {
-        return Some(*id);
-    }
-    if TILE_BUDGET.load(std::sync::atomic::Ordering::Relaxed) == 0 {
-        return None;
-    }
-    if failed_recently(x, y) {
-        return None;
+        .copied();
+    if let Some((cached_revision, id)) = cached {
+        if cached_revision == revision {
+            return Some(id);
+        }
     }
     let path = crate::catalog::tile_path(x, y)?;
-    // Un fichero de cero bytes es una descarga a medias: no es que falte, es que no se puede leer.
     let meta = match std::fs::metadata(&path) {
         Ok(meta) => meta,
         Err(_) => {
@@ -109,30 +107,30 @@ fn tile_texture(x: u32, y: u32) -> Option<nexus::imgui::TextureId> {
             return None;
         }
     };
-    if meta.len() < MIN_TILE_BYTES {
+    if meta.len() < crate::catalog::MIN_TILE_BYTES {
         remember_failure(x, y);
         return None;
     }
+    if TILE_BUDGET.load(std::sync::atomic::Ordering::Relaxed) == 0 || failed_recently(x, y) {
+        return cached.map(|(_, id)| id);
+    }
     TILE_BUDGET.fetch_sub(1, std::sync::atomic::Ordering::Relaxed);
-    let identifier = format!("gw2lurker-tile-{x}-{y}");
+    let identifier = format!("gw2lurker-tile-{x}-{y}-{revision}");
     let Some(texture) = nexus::texture::get_texture_or_create_from_file(&identifier, &path) else {
         // Sin esta línea, «el mapa no es real» no se puede distinguir de «las teselas no están».
         // Una vez por tesela y reintento: no una línea por frame.
         if !remember_failure(x, y) {
             log::warn!("tiles: no se pudo cargar la textura de {path:?}");
         }
-        return None;
+        return cached.map(|(_, id)| id);
     };
     let id = texture.id();
     cache
         .lock()
         .unwrap_or_else(|error| error.into_inner())
-        .insert((x, y), id);
+        .insert((x, y), (revision, id));
     Some(id)
 }
-
-/// Smallest file that can be a tile: anything less is a download in progress.
-const MIN_TILE_BYTES: u64 = 1024;
 
 /// How long a tile that failed is left alone before trying again.
 const TILE_RETRY: std::time::Duration = std::time::Duration::from_secs(5);
