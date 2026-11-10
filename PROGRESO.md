@@ -4,13 +4,23 @@ Bitácora para continuar el trabajo, incluso si quien lo retoma no es la misma I
 misma sesión. **Lo más reciente va arriba.** Cada entrada dice qué se pretendía, qué se
 hizo, cómo se verificó y qué quedó pendiente.
 
+## EN CURSO – 2026-11-10 · Restaurar UI en Armistice Bastion (0.26.13)
+
+- Corrección del diagnóstico por el jugador: el cierre era por ArcDPS, no por el addon ni por
+  `map_type` 18. El `arcdps.log` nuevo muestra `received incompatible imgui context, using
+  standalone` y carga `ImguiLegacy`; la coincidencia temporal con la activación del widget fue
+  insuficiente para atribuir la causa.
+- Decisión: retirar la excepción de 0.26.12, restaurar el comportamiento de 0.26.11 y publicar
+  0.26.13. La investigación de ArcDPS queda fuera de este hotfix.
+- Test `rf01_the_lounge_shows_and_polls_like_other_wvw_maps`: falló antes de revertir la excepción
+  y pasó después. `scripts/validate.ps1`: todo en verde (387 pasados, 4 ignorados). Build release:
+  1 638 400 bytes, MD5 `5a39a0d15db1bfca4adf0b3e9fce4cec`.
+- Pendiente: push y publicación/verificación de 0.26.13.
+
 ## HECHO – 2026-11-10 · Mitigación del cierre en Armistice Bastion (0.26.12)
 
-- Diagnóstico: al entrar al mapa 1315 (`map_type` 18), la 0.26.11 pasó a `show_ui true`; a
-  continuación se registró un cierre de GW2 (`0xc0000409`) y eventos GPU 117/141. Los logs
-  actuales de ArcDPS no contienen una traza del cierre; su `lastcrash` es del 30 de octubre.
-- Decisión del jugador: desactivar UI y polling solo para `map_type` 18, conservando el acceso
-  a Ajustes, y preparar un hotfix.
+- Diagnóstico inicial incorrecto: se atribuyó relevancia causal a la coincidencia entre la UI
+  en tipo 18 y el cierre. El jugador aclaró que el culpable era ArcDPS; se revierte en 0.26.13.
 - Test `rf01_the_lounge_hides_overlay_and_polling_but_keeps_settings_available`: falla antes del
   cambio, pasa después; `rf01_playable_wvw_maps` confirma que 13/14 siguen activos. Excepción
   implementada en `core::gate`, documentada en RF-01.
@@ -19,8 +29,8 @@ hizo, cómo se verificó y qué quedó pendiente.
 - Código `5da6573`; release `gw2-lurker-v0.26.12` publicada. Distribución `3205bc2`; descarga
   real: 1 638 912 bytes, `MZ`, MD5 coincidente `4981cfce08d21ffc1d929db34ce6e5da`.
 - Diagnóstico no concluyente: Windows reportó `0xc0000409` y eventos GPU 117/141; ArcDPS no tiene
-  una traza actual (`arcdps_lastcrash.log` es del 30 de octubre). La mitigación elimina la UI y el
-  sondeo en el tipo 18, pero no demuestra que esa UI causara el cierre.
+  una traza actual en el `lastcrash` (archivo del 30 de octubre); el log reciente sí señala
+  contexto ImGui incompatible y carga de `ImguiLegacy`.
 - No probado dentro del juego; la CI de GitHub no devolvió ejecuciones para el commit consultado.
 
 ## HECHO – 2026-11-10 · Detección ampliada y Seared Borderlands (1652)

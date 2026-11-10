@@ -3,6 +3,12 @@ Formato [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/), versionado 
 
 ## [Unreleased]
 
+## [0.26.13] - 2026-11-10
+### Corregido
+- Restaurado el comportamiento para Armistice Bastion (`map_type` 18): vuelve a activar UI y polling.
+### Técnico
+- DLL release: 1 638 400 bytes (1 638 912 bytes en la versión anterior).
+
 ## [0.26.12] - 2026-11-10
 ### Corregido
 - Mitigación: Armistice Bastion (`map_type` 18) ya no activa UI ni polling; Ajustes sigue accesible.
