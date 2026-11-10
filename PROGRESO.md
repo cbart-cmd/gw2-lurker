@@ -4,7 +4,7 @@ Bitácora para continuar el trabajo, incluso si quien lo retoma no es la misma I
 misma sesión. **Lo más reciente va arriba.** Cada entrada dice qué se pretendía, qué se
 hizo, cómo se verificó y qué quedó pendiente.
 
-## EN CURSO – 2026-11-10 · Restaurar UI en Armistice Bastion (0.26.13)
+## HECHO – 2026-11-10 · Restaurar UI en Armistice Bastion (0.26.13)
 
 - Corrección del diagnóstico por el jugador: el cierre era por ArcDPS, no por el addon ni por
   `map_type` 18. El `arcdps.log` nuevo muestra `received incompatible imgui context, using
@@ -15,7 +15,13 @@ hizo, cómo se verificó y qué quedó pendiente.
 - Test `rf01_the_lounge_shows_and_polls_like_other_wvw_maps`: falló antes de revertir la excepción
   y pasó después. `scripts/validate.ps1`: todo en verde (387 pasados, 4 ignorados). Build release:
   1 638 400 bytes, MD5 `5a39a0d15db1bfca4adf0b3e9fce4cec`.
-- Pendiente: push y publicación/verificación de 0.26.13.
+- Código `9312fb7`; release `gw2-lurker-v0.26.13` publicada, distribución `584625b`. Descarga
+  real verificada: 1 638 400 bytes, cabecera `MZ`, MD5 coincidente
+  `5a39a0d15db1bfca4adf0b3e9fce4cec`.
+- `arcdps.log` del 20:54 muestra `received incompatible imgui context, using standalone`, carga
+  de `ImguiLegacy` (style delta +32) y varias extensiones. Este turno revierte solo la mitigación
+  errónea de tipo 18; no se ha aislado ni corregido ArcDPS.
+- No probado dentro del juego; la consulta de CI no devolvió ejecuciones para el commit.
 
 ## HECHO – 2026-11-10 · Mitigación del cierre en Armistice Bastion (0.26.12)
 
