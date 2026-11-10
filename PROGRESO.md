@@ -4,7 +4,7 @@ Bitácora para continuar el trabajo, incluso si quien lo retoma no es la misma I
 misma sesión. **Lo más reciente va arriba.** Cada entrada dice qué se pretendía, qué se
 hizo, cómo se verificó y qué quedó pendiente.
 
-## EN CURSO – 2026-11-10 · Mitigación del cierre en Armistice Bastion (hotfix 0.26.12)
+## HECHO – 2026-11-10 · Mitigación del cierre en Armistice Bastion (0.26.12)
 
 - Diagnóstico: al entrar al mapa 1315 (`map_type` 18), la 0.26.11 pasó a `show_ui true`; a
   continuación se registró un cierre de GW2 (`0xc0000409`) y eventos GPU 117/141. Los logs
@@ -16,8 +16,12 @@ hizo, cómo se verificó y qué quedó pendiente.
   implementada en `core::gate`, documentada en RF-01.
 - `scripts/validate.ps1`: todo en verde (387 pasados, 4 ignorados). Build release 0.26.12: 1 638 912
   bytes, dentro del límite, MD5 local `4981cfce08d21ffc1d929db34ce6e5da`.
-- Siguiente: subir el código y publicar/verificar el hotfix. La relación causal entre el addon y el
-  cierre sigue sin demostrarse.
+- Código `5da6573`; release `gw2-lurker-v0.26.12` publicada. Distribución `3205bc2`; descarga
+  real: 1 638 912 bytes, `MZ`, MD5 coincidente `4981cfce08d21ffc1d929db34ce6e5da`.
+- Diagnóstico no concluyente: Windows reportó `0xc0000409` y eventos GPU 117/141; ArcDPS no tiene
+  una traza actual (`arcdps_lastcrash.log` es del 30 de octubre). La mitigación elimina la UI y el
+  sondeo en el tipo 18, pero no demuestra que esa UI causara el cierre.
+- No probado dentro del juego; la CI de GitHub no devolvió ejecuciones para el commit consultado.
 
 ## HECHO – 2026-11-10 · Detección ampliada y Seared Borderlands (1652)
 
