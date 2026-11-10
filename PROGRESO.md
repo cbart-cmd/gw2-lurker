@@ -4,6 +4,18 @@ Bitácora para continuar el trabajo, incluso si quien lo retoma no es la misma I
 misma sesión. **Lo más reciente va arriba.** Cada entrada dice qué se pretendía, qué se
 hizo, cómo se verificó y qué quedó pendiente.
 
+## HECHO – 2026-11-10 · Incluir Seared Borderlands 1654 en el selector
+
+- El `Nexus.log` del jugador informa `map 1654 tipo 10`; la API oficial tiene geometría propia
+  para 1654 (`continent_rect` [[12798,10878],[15358,14462]]) y 21 objetivos, 18 con coordenadas;
+  `/v2/maps` del addon solo pedía IDs hasta 1652.
+- Añadido 1654 al catálogo consultado y a las fixtures; el selector lo etiqueta Seared Borderlands
+  con el color de Mumble. La prueba cubre la opción azul y el rol verde beta, geometría y objetivos.
+- `scripts/validate.ps1`: fmt, clippy, LOC, trazabilidad, versión y tests en verde (388 pasados,
+  4 ignorados). Build release: 1 638 400 bytes, MD5 `7caa425e43b2b3f968ed516f12dc68df`.
+- Versión 0.26.14; pendiente subir el commit y publicar/verificar la DLL.
+- No probado dentro del juego.
+
 ## HECHO – 2026-11-10 · Restaurar UI en Armistice Bastion (0.26.13)
 
 - Corrección del diagnóstico por el jugador: el cierre era por ArcDPS, no por el addon ni por

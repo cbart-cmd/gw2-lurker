@@ -130,7 +130,7 @@ clanes seguidos en cualquier mapa, y **solo de estructuras reclamables** (RF-19e
 | P-02 | Punto proyectado y des-proyectado | ida y vuelta | Igual con tolerancia (propiedad) |
 | P-03 | Mapa con un solo objetivo | límites | Caja mínima no degenerada, sin división por cero |
 | P-04 | Ventana de tamaño cero | proyección | Sin panic, devuelve punto fuera de pantalla |
-| P-05 | Mumble informa Seared Borderlands (1652), ausente de los matches vivos | mapa | Selecciona su caja y objetivos estáticos por `map_id`; avisa que no hay estado live, sin inventar dueño ni claim |
+| P-05 | Mumble informa Seared Borderlands (1652 o 1654), ausente de los matches vivos | mapa | El desplegable ofrece la caja del `map_id` actual con rol de `map_type`; dibuja objetivos estáticos y avisa que no hay estado live |
 
 ## Cómo se usan
 

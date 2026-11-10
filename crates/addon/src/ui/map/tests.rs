@@ -192,6 +192,53 @@ fn p05_seared_borderlands_map_id_supports_all_three_mumble_roles() {
 }
 
 #[test]
+fn p05_seared_borderlands_1654_is_offered_for_blue_and_green_roles() {
+    let maps: Vec<WvwMap> = serde_json::from_str(include_str!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../api/tests/fixtures/maps_wvw.json"
+    )))
+    .unwrap();
+    let objectives: Vec<ObjectiveInfo> = serde_json::from_str(include_str!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../api/tests/fixtures/objectives_seared_borderlands.json"
+    )))
+    .unwrap();
+    let matchup: gw2lurker_core::Match = serde_json::from_str(include_str!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../api/tests/fixtures/match_2-2.json"
+    )))
+    .unwrap();
+    let states = gw2lurker_core::matchup::states(&matchup);
+    let map = maps.iter().find(|map| map.id == 1654).unwrap();
+    let frame = Frame::of(map);
+    let located: Vec<_> = objectives
+        .iter()
+        .filter(|objective| objective.map_id == map.id)
+        .filter_map(|objective| objective.coord.map(|coord| (objective, coord)))
+        .collect();
+
+    assert_eq!(located.len(), 18);
+    assert!(located
+        .iter()
+        .all(|(_, coord)| frame.normalise([coord[0], coord[1]]).is_some()));
+    assert_eq!(
+        located
+            .iter()
+            .filter(|(objective, _)| is_drawable(objective.kind))
+            .count(),
+        13
+    );
+
+    for role in [MapRole::BlueHome, MapRole::GreenHome] {
+        assert_eq!(
+            map_for_role(&maps, &states, role, Some(role), 1654).map(|map| map.id),
+            Some(1654),
+            "map 1654 must appear in the {role:?} selector"
+        );
+    }
+}
+
+#[test]
 fn rf32_the_heading_is_the_last_jump_and_only_when_it_means_something() {
     // Hacia dónde va: la dirección del último salto, no el camino (ADR-005).
     let (ux, uy) = heading([0.0, 0.0], [100.0, 0.0]).expect("hay salto");

@@ -14,8 +14,8 @@ crate-type = ["cdylib"]
 
 [dependencies]
 chrono = { version = "0.4", default-features = false, features = ["std", "serde", "clock"] }
-gw2lurker-api = { path = "../api", version = "0.26.13" }
-gw2lurker-core = { path = "../core", version = "0.26.13" }
+gw2lurker-api = { path = "../api", version = "0.26.14" }
+gw2lurker-core = { path = "../core", version = "0.26.14" }
 # `max_level_info` drops debug!/trace! at compile time. It replaces nexus' `log_filter: "info"`,
 # whose `env_filter` pulled in `regex` (~390 KiB of the DLL) just to parse one level.
 log = { version = "0.4", features = ["max_level_info"] }

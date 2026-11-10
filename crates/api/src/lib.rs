@@ -201,7 +201,7 @@ impl<T: Transport> Api<T> {
     pub fn maps(&self) -> Result<Vec<gw2lurker_core::WvwMap>, ApiError> {
         let body = self
             .transport
-            .get(&format!("{BASE}/maps?ids=38,95,96,1099,1652"))?;
+            .get(&format!("{BASE}/maps?ids=38,95,96,1099,1652,1654"))?;
         parse(&body)
     }
 
@@ -575,15 +575,15 @@ mod tests {
 
     #[test]
     fn rf30_maps_come_with_the_boxes_of_the_projection() {
-        let url = format!("{BASE}/maps?ids=38,95,96,1099,1652");
+        let url = format!("{BASE}/maps?ids=38,95,96,1099,1652,1654");
         let api = Api::new(Fake::with(&url, MAPS));
         let maps = api.maps().unwrap();
 
         assert!(
-            maps.len() >= 5,
-            "la fixture incluye las cinco variantes conocidas de mapas de MvM"
+            maps.len() >= 6,
+            "la fixture incluye las seis variantes conocidas de mapas de MvM"
         );
-        for id in [38, 95, 96, 1099, 1652] {
+        for id in [38, 95, 96, 1099, 1652, 1654] {
             assert!(
                 maps.iter().any(|map| map.id == id),
                 "falta el mapa {id} en la respuesta"
@@ -596,6 +596,12 @@ mod tests {
         assert_eq!(
             seared.continent_rect,
             [[9214.0, 8958.0], [11774.0, 12542.0]]
+        );
+        let seared_blue = maps.iter().find(|map| map.id == 1654).unwrap();
+        assert_eq!(seared_blue.name.trim(), "Seared Borderlands");
+        assert_eq!(
+            seared_blue.continent_rect,
+            [[12798.0, 10878.0], [15358.0, 14462.0]]
         );
         assert_eq!(api.transport().asked.borrow().as_slice(), [url]);
     }

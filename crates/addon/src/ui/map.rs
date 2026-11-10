@@ -553,7 +553,7 @@ fn has_live_state_for_map(states: &[ObjectiveState], map_id: u32) -> bool {
 }
 
 pub(super) fn map_label_for_id(map_id: u32, role: MapRole) -> String {
-    if map_id == 1652 {
+    if matches!(map_id, 1652 | 1654) {
         let color = match role {
             MapRole::BlueHome => i18n::text("Blue"),
             MapRole::GreenHome => i18n::text("Green"),

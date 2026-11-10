@@ -3,6 +3,11 @@ Formato [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/), versionado 
 
 ## [Unreleased]
 
+## [0.26.14] - 2026-11-10
+- El selector de mapa incluye la variante beta Seared Borderlands 1654, usada por las fronteras azul y verde.
+### Técnico
+- DLL release: 1 638 400 bytes (sin aumento frente a la versión anterior).
+
 ## [0.26.13] - 2026-11-10
 ### Corregido
 - Restaurado el comportamiento para Armistice Bastion (`map_type` 18): vuelve a activar UI y polling.
