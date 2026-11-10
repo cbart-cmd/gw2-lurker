@@ -13,7 +13,10 @@ hizo, cómo se verificó y qué quedó pendiente.
   con el color de Mumble. La prueba cubre la opción azul y el rol verde beta, geometría y objetivos.
 - `scripts/validate.ps1`: fmt, clippy, LOC, trazabilidad, versión y tests en verde (388 pasados,
   4 ignorados). Build release: 1 638 400 bytes, MD5 `7caa425e43b2b3f968ed516f12dc68df`.
-- Versión 0.26.14; pendiente subir el commit y publicar/verificar la DLL.
+- Versión 0.26.14 subida en `main` (`5b132e2`). Release `gw2-lurker-v0.26.14`
+  publicada; commit de distribución `cdaaf08`. Descarga real verificada: 1 638 400 bytes,
+  cabecera `MZ`, MD5 coincidente `7caa425e43b2b3f968ed516f12dc68df`.
+- La consulta de CI por el commit no devolvió ejecuciones.
 - No probado dentro del juego.
 
 ## HECHO – 2026-11-10 · Restaurar UI en Armistice Bastion (0.26.13)
