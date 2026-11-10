@@ -36,9 +36,10 @@ Comprobado el **2026-10-31** contra la API real, el código fuente de `nexus-rs`
 
 ## A. Activación y contexto
 
-**RF-01 (M)** Cuando el MumbleLink indique que el jugador está en un mapa de WvW, el addon deberá activar polling y UI. La detección se hará por **`Context::map_type`** ∈ {9 EBG, 10 frontera azul, 11 verde, 12 roja, 13 Fortaleza del Valor, 14 Sagrario de Obsidiana, 15 EotM, 18 Bastión del Armisticio}, no por una lista de `map_id`, para no romperse si ArenaNet añade mapas.
+**RF-01 (M)** Cuando el MumbleLink indique que el jugador está en un mapa jugable de WvW, el addon deberá activar polling y UI. La detección se hará por **`Context::map_type`** ∈ {9 EBG, 10 frontera azul, 11 verde, 12 roja, 13 Fortaleza del Valor, 14 Sagrario de Obsidiana, 15 EotM}, no por una lista de `map_id`, para no romperse si ArenaNet añade mapas. El Bastión del Armisticio (18) es WvW, pero no activa UI ni polling porque es un lounge sin objetivos; Ajustes sigue accesible.
 - GWT: *Given* el jugador está en Ojos de Aguas Eternas (`map_type` 9), *When* el addon recibe el contexto por Mumble, *Then* arranca el polling en ≤ 1 intervalo.
-- GWT *(decisión del 2026-11-10, a petición del usuario; misma clasificación que `gw2-timers`)*: *Given* el jugador entra en la Fortaleza del Valor (13), el Sagrario de Obsidiana (14) o el Bastión del Armisticio (18), *When* el addon lee un `map_id` válido, *Then* muestra la UI y activa el polling.
+- GWT *(decisión del 2026-11-10, a petición del usuario; misma clasificación que `gw2-timers`)*: *Given* el jugador entra en la Fortaleza del Valor (13) o el Sagrario de Obsidiana (14), *When* el addon lee un `map_id` válido, *Then* muestra la UI y activa el polling.
+- GWT *(mitigación del 2026-11-10 tras el cierre de GW2; causalidad no confirmada)*: *Given* el jugador está en el Bastión del Armisticio (18), *When* Mumble informa gameplay y un `map_id` válido, *Then* no muestra la UI ni sondea, pero permite abrir Ajustes.
 
 **RF-02 (M)** Cuando el jugador salga de un mapa de WvW, el addon deberá detener el polling y ocultar toda su UI (excepto la ventana de configuración si está abierta).
 - GWT: *Given* el polling activo, *When* el jugador viaja a una ciudad, *Then* no se emiten peticiones de red y no se dibuja nada.

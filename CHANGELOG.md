@@ -3,6 +3,12 @@ Formato [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/), versionado 
 
 ## [Unreleased]
 
+## [0.26.12] - 2026-11-10
+### Corregido
+- Mitigación: Armistice Bastion (`map_type` 18) ya no activa UI ni polling; Ajustes sigue accesible.
+### Técnico
+- DLL release: 1 638 912 bytes (sin aumento frente a la versión anterior).
+
 ## [0.26.11] - 2026-11-10
 ### Añadido
 - La detección de WvW también activa la UI y el sondeo en los tipos de mapa 13, 14 y 18.

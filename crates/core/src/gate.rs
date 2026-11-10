@@ -49,6 +49,8 @@ pub enum Hidden {
     NoMap,
     /// Character creation / redirect.
     Transition,
+    /// Armistice Bastion: no overlay or polling, but settings remain accessible.
+    WvwLounge,
     /// Anywhere else: PvE, cities, PvP.
     OutsideWvw,
 }
@@ -114,6 +116,9 @@ pub fn evaluate(state: GameState) -> Gate {
     ) {
         return Gate::hidden(Hidden::Transition);
     }
+    if state.map_type == map_type::WVW_LOUNGE {
+        return Gate::hidden(Hidden::WvwLounge);
+    }
     if is_wvw_map_type(state.map_type) {
         Gate::SHOWN
     } else {
@@ -143,7 +148,6 @@ mod tests {
             map_type::WVW_REWARD,
             map_type::WVW_OBSIDIAN_SANCTUM,
             map_type::EDGE_OF_THE_MISTS,
-            map_type::WVW_LOUNGE,
         ] {
             let g = evaluate(wvw(t));
             assert!(g.show_ui && g.poll, "map_type {t} must be watched");
@@ -205,11 +209,11 @@ mod tests {
     }
 
     #[test]
-    fn rf01_the_lounge_shows_and_polls_like_other_wvw_maps() {
+    fn rf01_the_lounge_hides_overlay_and_polling_but_keeps_settings_available() {
         let g = evaluate(wvw(map_type::WVW_LOUNGE));
-        assert!(g.show_ui && g.poll);
+        assert!(!g.show_ui && !g.poll);
         assert!(g.settings_available());
-        assert_eq!(g.hidden, None);
+        assert!(g.hidden.is_some());
     }
 
     #[test]
