@@ -17,6 +17,9 @@ hizo, cómo se verificó y qué quedó pendiente.
   Se mantiene el CDN oficial; sus teselas aún muestran el fondo compartido/alpino, no hay una
   fuente oficial identificada para imágenes beta distintas. El jugador confirma que gw2mists
   también muestra el mapa alpino y no autoriza cambiar a esa fuente.
+- Publicado como 0.26.16: código `8aaac49`, release `gw2-lurker-v0.26.16`, distribución
+  `06fbe2f`. Descarga real verificada: 1 641 472 bytes, `MZ`, MD5
+  `b08ee83ddb4198b3f7b5c622b895ba33`. CI estaba en curso al cerrar la publicación.
 
 ## HECHO – 2026-11-10 · Detectar las tres fronteras Seared y renovar sus fondos
 
