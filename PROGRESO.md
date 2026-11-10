@@ -18,8 +18,9 @@ hizo, cómo se verificó y qué quedó pendiente.
   geometría/objetivos estáticos por ID, teselas únicas y aviso explícito cuando no hay estado live.
 - `scripts/validate.ps1`: fmt, clippy, LOC, trazabilidad, versión y tests en verde (387 pasados,
   4 ignorados). Versión 0.26.11; build release de 1 638 912 bytes con `MZ` y tamaño dentro del límite.
-- Pendiente al iniciar esta actualización: push del commit y publicación/verificación en
-  `gw2addonsreleases`.
+- Código subido a `main` (`8b25f87`, integrado con los cambios remotos de README en `ab61dbb`).
+  Release `gw2-lurker-v0.26.11` publicada; commit de distribución `adbbc5b`. Descarga real
+  verificada: 1 638 912 bytes, MD5 `48d2e874c1fa809e024ceb5ea6d9dafd`, cabecera `MZ`.
 - Pendiente de verificar dentro del juego. La API de los 9 matches consultados no expuso estado
   live para 1652; no se infieren propietarios ni reclamos. Tampoco se verificó si el API futuro
   distinguirá las tres variantes de mapa en los payloads de match.
