@@ -3,11 +3,16 @@ Formato [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/), versionado 
 
 ## [Unreleased]
 
+## [0.26.16] - 2026-11-10
+### Corregido
+- Las teselas se preparan en memoria desde el worker y Nexus recibe sus bytes al crear texturas;
+  el render ya no intenta abrir los JPG desde disco.
+
 ## [0.26.15] - 2026-11-10
 ### Corregido
 - El mapa verde Seared Borderlands (1651) se reconoce por el nombre de la API y muestra sus objetivos.
-- Las teselas beta se actualizan en segundo plano y las texturas recargan los ficheros renovados;
-  las demás teselas caducan a las 24 horas para adaptarse a cambios de mapa.
+- Las teselas beta se intentan actualizar en segundo plano y las demás caducan a las 24 horas;
+  Nexus no cargaba correctamente las texturas renovadas desde archivo (corregido en [Unreleased]).
 ### Técnico
 - DLL release: 1 641 984 bytes (dentro del límite de 2,5 MB).
 

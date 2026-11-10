@@ -4,6 +4,20 @@ Bitácora para continuar el trabajo, incluso si quien lo retoma no es la misma I
 misma sesión. **Lo más reciente va arriba.** Cada entrada dice qué se pretendía, qué se
 hizo, cómo se verificó y qué quedó pendiente.
 
+## HECHO – 2026-11-10 · Corregir la carga de texturas de teselas
+
+- El `Nexus.log` de 0.26.15 muestra que `get_texture_or_create_from_file` devuelve `None` con las
+  JPG locales. `ensure_tiles` ahora precarga caché y descargas en un hilo de fondo; el render pasa
+  instantáneas inmutables de bytes a `get_texture_or_create_from_memory`, sin E/S de disco.
+- Test `rf37_renderer_keeps_a_safe_snapshot_while_worker_replaces_tile_bytes`: pasa. La validación
+  completa detectó solo formato, corregido y repetido; fmt, clippy, LOC, trazabilidad, versión y
+  tests en verde (392 pasados, 4 ignorados). Build release: DLL de 1 641 472 bytes. `check_bugs.ps1`
+  y `git diff --check` limpios.
+- No probado dentro del juego: falta confirmar que Nexus crea las texturas JPG desde memoria.
+  Se mantiene el CDN oficial; sus teselas aún muestran el fondo compartido/alpino, no hay una
+  fuente oficial identificada para imágenes beta distintas. El jugador confirma que gw2mists
+  también muestra el mapa alpino y no autoriza cambiar a esa fuente.
+
 ## HECHO – 2026-11-10 · Detectar las tres fronteras Seared y renovar sus fondos
 
 - Diagnóstico confirmado: `Nexus.log` registra `map 1651 tipo 11`; `/v2/maps/1651` es Seared

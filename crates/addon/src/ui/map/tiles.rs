@@ -80,12 +80,10 @@ const TILES_PER_FRAME: u8 = 4;
 /// What is left of that allowance in the current frame. Reset by [`draw_tiles`].
 static TILE_BUDGET: std::sync::atomic::AtomicU8 = std::sync::atomic::AtomicU8::new(TILES_PER_FRAME);
 
-/// Texture of one tile, loading it from the disk cache the first time it is needed.
+/// Texture of one tile, loading its bytes prepared by the background worker.
 ///
 /// A tile that fails is remembered for [`TILE_RETRY`] so the per-frame budget reaches the rest
-/// instead of burning itself on the same four files: with the download writing straight to the
-/// final name, the render could read a half-written JPEG, and those four failures starved every
-/// other tile of the map (log of 2026-10-31: «no se pudo cargar la textura» in a loop).
+/// instead of burning itself on the same files. The renderer never reads the disk.
 fn tile_texture(x: u32, y: u32) -> Option<nexus::imgui::TextureId> {
     let cache = TILE_TEXTURES.get_or_init(|| std::sync::Mutex::new(BTreeMap::new()));
     let revision = crate::catalog::tile_revision();
@@ -99,28 +97,21 @@ fn tile_texture(x: u32, y: u32) -> Option<nexus::imgui::TextureId> {
             return Some(id);
         }
     }
-    let path = crate::catalog::tile_path(x, y)?;
-    let meta = match std::fs::metadata(&path) {
-        Ok(meta) => meta,
-        Err(_) => {
-            remember_failure(x, y);
-            return None;
-        }
-    };
-    if meta.len() < crate::catalog::MIN_TILE_BYTES {
-        remember_failure(x, y);
-        return None;
-    }
     if TILE_BUDGET.load(std::sync::atomic::Ordering::Relaxed) == 0 || failed_recently(x, y) {
         return cached.map(|(_, id)| id);
     }
+    let Some(bytes) = crate::catalog::tile_bytes(x, y) else {
+        return cached.map(|(_, id)| id);
+    };
     TILE_BUDGET.fetch_sub(1, std::sync::atomic::Ordering::Relaxed);
     let identifier = format!("gw2lurker-tile-{x}-{y}-{revision}");
-    let Some(texture) = nexus::texture::get_texture_or_create_from_file(&identifier, &path) else {
-        // Sin esta línea, «el mapa no es real» no se puede distinguir de «las teselas no están».
-        // Una vez por tesela y reintento: no una línea por frame.
+    let Some(texture) = nexus::texture::get_texture_or_create_from_memory(&identifier, &bytes)
+    else {
         if !remember_failure(x, y) {
-            log::warn!("tiles: no se pudo cargar la textura de {path:?}");
+            log::warn!(
+                "tiles: Nexus no pudo crear la textura ({x},{y}, {} bytes)",
+                bytes.len()
+            );
         }
         return cached.map(|(_, id)| id);
     };

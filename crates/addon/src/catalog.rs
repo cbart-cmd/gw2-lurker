@@ -267,6 +267,36 @@ const TILE_CACHE_TTL: Duration = Duration::from_secs(24 * 60 * 60);
 pub(crate) const MIN_TILE_BYTES: u64 = 1024;
 static TILE_REVISION: AtomicU64 = AtomicU64::new(0);
 
+#[derive(Default)]
+struct TileDataCache(HashMap<(u32, u32), std::sync::Arc<[u8]>>);
+
+impl TileDataCache {
+    fn get(&self, x: u32, y: u32) -> Option<std::sync::Arc<[u8]>> {
+        self.0.get(&(x, y)).cloned()
+    }
+
+    fn insert(&mut self, x: u32, y: u32, bytes: Vec<u8>) -> bool {
+        if (bytes.len() as u64) < MIN_TILE_BYTES {
+            return false;
+        }
+        self.0.insert((x, y), std::sync::Arc::from(bytes));
+        true
+    }
+}
+
+static TILE_DATA: OnceLock<Mutex<TileDataCache>> = OnceLock::new();
+
+fn tile_data() -> &'static Mutex<TileDataCache> {
+    TILE_DATA.get_or_init(|| Mutex::new(TileDataCache::default()))
+}
+
+pub(crate) fn tile_bytes(x: u32, y: u32) -> Option<std::sync::Arc<[u8]>> {
+    tile_data()
+        .lock()
+        .unwrap_or_else(|error| error.into_inner())
+        .get(x, y)
+}
+
 pub(crate) fn tile_revision() -> u64 {
     TILE_REVISION.load(Ordering::Relaxed)
 }
@@ -317,10 +347,9 @@ fn forget_stale_tiles(keep_prefix: &str) {
     }
 }
 
-/// Downloads the tiles of the maps that are not in the cache yet, on its own thread.
+/// Loads cached tiles into memory and downloads stale ones on a background thread.
 ///
-/// Once per session. The render callback must never touch the network (rule 6), so the window
-/// only reads the files afterwards; whatever is still missing simply is not drawn yet.
+/// Once per session. The render callback reads the in-memory snapshots only; it does no file I/O.
 pub fn ensure_tiles(maps: &[gw2lurker_core::WvwMap]) {
     static STARTED: OnceLock<()> = OnceLock::new();
     // Sin cajas de mapa no hay nada que pedir, y marcarlo como hecho dejaría el mapa real vacío
@@ -358,39 +387,64 @@ pub fn ensure_tiles(maps: &[gw2lurker_core::WvwMap]) {
                 .modified()
                 .map_or(true, |modified| tile_needs_refresh(modified, now, force))
         });
-        if is_stale {
-            jobs.push((path, tile_url(x, y)));
+        if is_stale || tile_bytes(x, y).is_none() {
+            jobs.push((x, y, path, is_stale));
         }
     }
     if jobs.is_empty() {
-        log::info!("tiles: las del mapa ya estaban en caché");
+        log::info!("tiles: las teselas ya estaban listas en memoria");
         let _ = STARTED.set(());
         return;
     }
     log::info!(
-        "tiles: {} teselas del mapa pedidas a {TILE_CONTINENT}/{TILE_FLOOR}",
+        "tiles: {} teselas del mapa por preparar desde {TILE_CONTINENT}/{TILE_FLOOR}",
         jobs.len()
     );
 
     let spawned = crate::background::spawn("gw2lurker-tiles", move || {
         let transport = WinHttpTransport::default();
+        let mut prepared = 0;
         let mut saved = 0;
-        for (path, url) in jobs {
+        for (x, y, path, refresh) in jobs {
             if crate::background::is_stopping() {
                 break;
             }
+            if let Ok(bytes) = std::fs::read(&path) {
+                if tile_data()
+                    .lock()
+                    .unwrap_or_else(|error| error.into_inner())
+                    .insert(x, y, bytes)
+                {
+                    prepared += 1;
+                }
+            }
+            if !refresh && tile_bytes(x, y).is_some() {
+                continue;
+            }
+
+            let url = tile_url(x, y);
             match gw2lurker_api::Transport::get(&transport, &url) {
                 Ok(bytes) => {
                     if crate::background::is_stopping() {
                         break;
                     }
+                    let inserted = tile_data()
+                        .lock()
+                        .unwrap_or_else(|error| error.into_inner())
+                        .insert(x, y, bytes.clone());
+                    if !inserted {
+                        log::warn!("tiles: respuesta demasiado pequeña de {url}");
+                        continue;
+                    }
+                    prepared += 1;
                     if let Some(dir) = path.parent() {
-                        let _ = std::fs::create_dir_all(dir);
+                        if let Err(error) = std::fs::create_dir_all(dir) {
+                            log::warn!("tiles: no se pudo crear {dir:?} ({error})");
+                            continue;
+                        }
                     }
                     // A un nombre temporal y luego renombrar: si se escribe directo, el
-                    // render ve el fichero a medias y la textura falla (log de 2026-10-31,
-                    // «no se pudo cargar la textura»). El `.part` no se confunde con una
-                    // tesela buena porque solo se buscan `.jpg`.
+                    // addon puede ver el fichero a medias y guardar una tesela dañada.
                     let part = path.with_extension("part");
                     match std::fs::write(&part, &bytes) {
                         Ok(()) => match std::fs::rename(&part, &path) {
@@ -408,10 +462,10 @@ pub fn ensure_tiles(maps: &[gw2lurker_core::WvwMap]) {
                 Err(error) => log::warn!("tiles: {url} ({error})"),
             }
         }
-        if saved > 0 {
+        if prepared > 0 {
             TILE_REVISION.fetch_add(1, Ordering::Relaxed);
         }
-        log::info!("tiles: {saved} teselas del mapa en caché");
+        log::info!("tiles: {prepared} teselas listas en memoria, {saved} guardadas en caché");
     });
     match spawned {
         Ok(()) => {
@@ -517,5 +571,19 @@ mod tests {
             now,
             false
         ));
+    }
+
+    #[test]
+    fn rf37_renderer_keeps_a_safe_snapshot_while_worker_replaces_tile_bytes() {
+        let mut cache = TileDataCache::default();
+        let original = vec![1; MIN_TILE_BYTES as usize];
+        let refreshed = vec![2; MIN_TILE_BYTES as usize];
+
+        assert!(cache.insert(5, 11, original.clone()));
+        let render_snapshot = cache.get(5, 11).expect("worker inserted tile bytes");
+        assert!(cache.insert(5, 11, refreshed.clone()));
+
+        assert_eq!(render_snapshot.as_ref(), original);
+        assert_eq!(cache.get(5, 11).as_deref(), Some(refreshed.as_slice()));
     }
 }
