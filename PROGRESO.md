@@ -4,6 +4,26 @@ Bitácora para continuar el trabajo, incluso si quien lo retoma no es la misma I
 misma sesión. **Lo más reciente va arriba.** Cada entrada dice qué se pretendía, qué se
 hizo, cómo se verificó y qué quedó pendiente.
 
+## HECHO – 2026-11-10 · Detección ampliada y Seared Borderlands (1652)
+
+- Plan acordado con el jugador: admitir también `map_type` 13, 14 y 18 para UI y polling,
+  siguiendo la clasificación de `gw2-timers`; dibujar los objetivos estáticos de Seared
+  Borderlands (1652) sin inventar estado mientras los matches activos no lo publiquen.
+- Aclaración del jugador: en la beta el mismo mapa 1652 sirve de frontera azul, verde y roja; el
+  rol actual se deriva de `map_type` 10/11/12, nunca de `map_id` ni del tipo `RedHome` del catálogo.
+- Hechos verificados contra la API oficial: `/v2/maps/1652` da la geometría y lo cataloga como
+  `RedHome`; `/v2/wvw/objectives?ids=all` incluye 21 objetivos, 18 con coordenadas; las teselas oficiales
+  responden. Ninguno de los 9 matches activos consultados contiene el mapa.
+- RF-01/RF-30 y P-05 implementados: puerta igual a `gw2-timers`, rol por `map_type`,
+  geometría/objetivos estáticos por ID, teselas únicas y aviso explícito cuando no hay estado live.
+- `scripts/validate.ps1`: fmt, clippy, LOC, trazabilidad, versión y tests en verde (387 pasados,
+  4 ignorados). Versión 0.26.11; build release de 1 638 912 bytes con `MZ` y tamaño dentro del límite.
+- Pendiente al iniciar esta actualización: push del commit y publicación/verificación en
+  `gw2addonsreleases`.
+- Pendiente de verificar dentro del juego. La API de los 9 matches consultados no expuso estado
+  live para 1652; no se infieren propietarios ni reclamos. Tampoco se verificó si el API futuro
+  distinguirá las tres variantes de mapa en los payloads de match.
+
 ## HECHO – 2026-11-02 · Buscador de clanes: índice protegido, tamaño visible y etiqueta primero (0.26.10)
 
 - Informe: «AIS» solo mostraba *[AiS] Asian In Spirit* en una sesión anterior; el índice local

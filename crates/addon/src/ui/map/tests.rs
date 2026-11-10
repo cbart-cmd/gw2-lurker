@@ -5,6 +5,7 @@
 use super::route::heading;
 use super::route::route_steps;
 use super::*;
+use gw2lurker_core::project::{tiles_of, TILE_ZOOM};
 
 #[test]
 fn rf32a_the_drawn_route_includes_zero_and_keeps_claim_numbering() {
@@ -114,6 +115,80 @@ fn rf30_the_map_keeps_the_real_proportions() {
         y: [0.0, 100.0],
     };
     assert_eq!(map_size(&flat, [300.0, 1000.0]), [300.0, 300.0]);
+}
+
+#[test]
+fn p05_seared_borderlands_static_objectives_fit_the_verified_map_box() {
+    let maps: Vec<WvwMap> = serde_json::from_str(include_str!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../api/tests/fixtures/maps_wvw.json"
+    )))
+    .unwrap();
+    let objectives: Vec<ObjectiveInfo> = serde_json::from_str(include_str!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../api/tests/fixtures/objectives_seared_borderlands.json"
+    )))
+    .unwrap();
+    let map = maps.iter().find(|map| map.id == 1652).unwrap();
+    let frame = Frame::of(map);
+    let static_objectives: Vec<_> = objectives
+        .iter()
+        .filter(|objective| objective.map_id == map.id)
+        .collect();
+    let located: Vec<_> = static_objectives
+        .iter()
+        .filter_map(|objective| objective.coord.map(|coord| (*objective, coord)))
+        .collect();
+
+    assert_eq!(map.name.trim(), "Seared Borderlands");
+    assert_eq!(static_objectives.len(), 21);
+    assert_eq!(located.len(), 18);
+    for (objective, coord) in &located {
+        assert!(
+            frame.normalise([coord[0], coord[1]]).is_some(),
+            "{} must be inside the map projection",
+            objective.id
+        );
+    }
+    assert_eq!(
+        located
+            .iter()
+            .filter(|(objective, _)| is_drawable(objective.kind))
+            .count(),
+        13
+    );
+    assert_eq!(tiles_of(&frame, TILE_ZOOM).len(), 20);
+    assert!(!has_live_state_for_map(&[], map.id));
+}
+
+#[test]
+fn p05_seared_borderlands_map_id_supports_all_three_mumble_roles() {
+    let maps: Vec<WvwMap> = serde_json::from_str(include_str!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../api/tests/fixtures/maps_wvw.json"
+    )))
+    .unwrap();
+    let matchup: gw2lurker_core::Match = serde_json::from_str(include_str!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../api/tests/fixtures/match_2-2.json"
+    )))
+    .unwrap();
+    let states = gw2lurker_core::matchup::states(&matchup);
+    assert!(states.iter().any(|state| state.map_id == 1099));
+    assert!(!has_live_state_for_map(&states, 1652));
+
+    for (map_type, role) in [
+        (10, MapRole::BlueHome),
+        (11, MapRole::GreenHome),
+        (12, MapRole::RedHome),
+    ] {
+        let current_role = MapRole::from_mumble(1652, map_type);
+        assert_eq!(current_role, role);
+        assert_eq!(
+            map_for_role(&maps, &states, role, Some(role), 1652).map(|map| map.id),
+            Some(1652)
+        );
+    }
 }
 
 #[test]

@@ -231,7 +231,9 @@ fn draw_widget(ui: &nexus::imgui::Ui) {
     }
 
     let filters = FILTERS.get_or_init(|| std::sync::Mutex::new(matchup::Filters::all_kinds()));
-    let current = crate::context::current_map_role();
+    let game = crate::context::snapshot();
+    let current_map_id = game.map_id;
+    let current = crate::context::map_role(game);
     let now = chrono::Utc::now();
     if !visible {
         let alerts = {
@@ -305,6 +307,7 @@ fn draw_widget(ui: &nexus::imgui::Ui) {
                     alerts: &alerts,
                     follow: &follow,
                     current,
+                    current_map_id,
                     now,
                     team_id: selected_team,
                     player_team,
@@ -355,6 +358,7 @@ pub(super) struct Tabbed<'a> {
     alerts: &'a [crate::worker::AlertLine],
     follow: &'a gw2lurker_core::FollowList,
     current: Option<MapRole>,
+    current_map_id: u32,
     now: chrono::DateTime<chrono::Utc>,
     team_id: Option<u32>,
     player_team: Option<gw2lurker_core::model::TeamColor>,
@@ -470,6 +474,7 @@ fn draw_tabs(
                                 states: data.states,
                                 names: data.objectives,
                                 maps: data.maps,
+                                current_map_id: data.current_map_id,
                                 follow: data.follow,
                                 guild_names: data.names,
                                 opacity: config.window(WIDGET).opacity,

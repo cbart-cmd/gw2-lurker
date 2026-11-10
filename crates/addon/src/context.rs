@@ -19,9 +19,9 @@ pub fn gate() -> Gate {
     gate::evaluate(snapshot())
 }
 
-/// Map role the player is standing on, for the "only my map" alert option (RF-19a).
-pub fn current_map_role() -> Option<gw2lurker_core::MapRole> {
-    match gw2lurker_core::MapRole::from_map_id(snapshot().map_id) {
+/// Map role in a Mumble snapshot, for the "only my map" alert option (RF-19a).
+pub fn map_role(state: GameState) -> Option<gw2lurker_core::MapRole> {
+    match gw2lurker_core::MapRole::from_mumble(state.map_id, state.map_type) {
         gw2lurker_core::MapRole::Unknown => None,
         role => Some(role),
     }

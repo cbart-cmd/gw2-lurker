@@ -3,6 +3,14 @@ Formato [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/), versionado 
 
 ## [Unreleased]
 
+## [0.26.11] - 2026-11-10
+### Añadido
+- La detección de WvW también activa la UI y el sondeo en los tipos de mapa 13, 14 y 18.
+- Seared Borderlands (mapa 1652) se dibuja en los roles azul, verde y rojo según `map_type`; sus
+  objetivos estáticos se muestran sin inventar estados mientras la API de match no los publique.
+### Técnico
+- DLL release: 1 638 912 bytes (1 634 816 bytes en la versión anterior).
+
 ## [0.26.10] - 2026-11-02
 ### Cambiado
 - Buscador de clanes: con lo que escribes igual a una etiqueta (por ejemplo «ais»), esos clanes

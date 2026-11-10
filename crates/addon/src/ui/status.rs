@@ -50,12 +50,20 @@ pub(super) fn draw_health(
     // El jugador reconoce el mapa por su nombre, no por el id de Mumble: el id solo se enseña
     // cuando no hay rol, que es cuando de verdad hace falta para diagnosticar (informe de
     // 2026-10-31, «no sé qué es mapa 95»).
-    let role = MapRole::from_map_id(state.map_id);
+    let role = MapRole::from_mumble(state.map_id, state.map_type);
     if role == MapRole::Unknown {
         let map_id = state.map_id.to_string();
-        ui.text_disabled(i18n::format("Outside WvW (map {0})", &[&map_id]));
+        let label = if gw2lurker_core::gate::is_wvw_map_type(state.map_type) {
+            "WvW map outside the matchup (map {0})"
+        } else {
+            "Outside WvW (map {0})"
+        };
+        ui.text_disabled(i18n::format(label, &[&map_id]));
     } else {
-        ui.text_disabled(i18n::format("You are in {0}", &[map::map_label(role)]));
+        ui.text_disabled(i18n::format(
+            "You are in {0}",
+            &[&map::map_label_for_id(state.map_id, role)],
+        ));
     }
     match team_id.map(|id| crate::team::display_name(config, language, id)) {
         Some(label) => {
@@ -195,15 +203,6 @@ pub(super) fn draw_health(
         if ui.is_item_hovered() {
             ui.tooltip_text(path);
         }
-    }
-
-    // El Bastión del Armisticio: se dibuja pero no hay partida que mirar, y conviene decirlo en
-    // vez de enseñar pestañas vacías sin explicación (petición de 2026-10-31).
-    let gate = crate::context::gate();
-    if gate.show_ui && !gate.poll {
-        ui.text_disabled(i18n::text(
-            "Nothing to watch on this map, but the settings work here.",
-        ));
     }
 }
 

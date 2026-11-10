@@ -1,0 +1,23 @@
+[
+  {"id":"1652-62","name":"Tilly's Encampment","type":"Ruins","map_id":1652,"coord":[10481.1,11419.5,-1168]},
+  {"id":"1652-35","name":"Parched Outpost","type":"Tower","map_id":1652,"coord":[10104.9,11419,-1892.9]},
+  {"id":"1652-103","name":"Border","type":"Spawn","map_id":1652,"coord":null},
+  {"id":"1652-32","name":"Osprey's Palace","type":"Keep","map_id":1652,"coord":[11668.2,10960.7,-3107.91]},
+  {"id":"1652-33","name":"Blistering Undercroft","type":"Keep","map_id":1652,"coord":[9451.06,11036.6,-300.694]},
+  {"id":"1652-65","name":"Zak's Overlook","type":"Ruins","map_id":1652,"coord":[10743.1,10837,-711]},
+  {"id":"1652-38","name":"O'del Academy","type":"Tower","map_id":1652,"coord":[9860.77,10158.2,-3758.65]},
+  {"id":"1652-39","name":"Hamm's Lab","type":"Camp","map_id":1652,"coord":[10498.8,9308.41,-3676.89]},
+  {"id":"1652-64","name":"Bearce's Dwelling","type":"Ruins","map_id":1652,"coord":[10275.2,10783.1,-393]},
+  {"id":"1652-37","name":"Stoic Rampart","type":"Keep","map_id":1652,"coord":[10472.6,10510.9,-2800.76]},
+  {"id":"1652-53","name":"McLain's Encampment","type":"Camp","map_id":1652,"coord":[9678.29,11537.1,-687.909]},
+  {"id":"1652-111","name":"Citadel","type":"Spawn","map_id":1652,"coord":null},
+  {"id":"1652-112","name":"Border","type":"Spawn","map_id":1652,"coord":null},
+  {"id":"1652-52","name":"Boettiger's Hideaway","type":"Camp","map_id":1652,"coord":[9627.87,10275.7,-46.1562]},
+  {"id":"1652-51","name":"Roy's Refuge","type":"Camp","map_id":1652,"coord":[11441.5,10248.3,-1533.33]},
+  {"id":"1652-66","name":"Higgins's Ascent","type":"Ruins","map_id":1652,"coord":[10778.3,11192.1,-2742]},
+  {"id":"1652-34","name":"Dustwhisper Well","type":"Camp","map_id":1652,"coord":[10499.2,12113.2,-307.1]},
+  {"id":"1652-36","name":"Crankshaft Depot","type":"Tower","map_id":1652,"coord":[10997,11489.9,-1821.91]},
+  {"id":"1652-50","name":"Bauer Farmstead","type":"Camp","map_id":1652,"coord":[11431.7,11582.9,-10.3619]},
+  {"id":"1652-63","name":"Darra's Maze","type":"Ruins","map_id":1652,"coord":[10177,11154.7,-0.649902]},
+  {"id":"1652-40","name":"Eternal Necropolis","type":"Tower","map_id":1652,"coord":[11099.4,10110.3,-4839.9]}
+]

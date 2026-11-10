@@ -206,7 +206,7 @@ pub fn world_names(api: &Api<WinHttpTransport>) -> std::collections::BTreeMap<u3
     guard.names.clone()
 }
 
-/// The four WvW maps, fetched once per session (they never change).
+/// WvW map geometries, fetched once per session (they never change).
 /// `None` means the API has not answered yet: the map tab says so instead of drawing an empty
 /// box, and the next attempt follows a short retry cooldown.
 pub fn maps_for(api: &Api<WinHttpTransport>) -> Vec<gw2lurker_core::WvwMap> {
@@ -309,7 +309,7 @@ fn forget_stale_tiles(keep_prefix: &str) {
     }
 }
 
-/// Downloads the tiles of the four maps that are not in the cache yet, on its own thread.
+/// Downloads the tiles of the maps that are not in the cache yet, on its own thread.
 ///
 /// Once per session. The render callback must never touch the network (rule 6), so the window
 /// only reads the files afterwards; whatever is still missing simply is not drawn yet.
@@ -324,6 +324,7 @@ pub fn ensure_tiles(maps: &[gw2lurker_core::WvwMap]) {
     forget_stale_tiles(&format!("{TILE_CONTINENT}-{TILE_FLOOR}-"));
 
     let mut jobs = Vec::new();
+    let mut queued = HashSet::new();
     for map in maps {
         let frame = gw2lurker_core::Frame::of(map);
         for (x, y) in gw2lurker_core::project::tiles_of(&frame, gw2lurker_core::project::TILE_ZOOM)
@@ -331,7 +332,7 @@ pub fn ensure_tiles(maps: &[gw2lurker_core::WvwMap]) {
             let Some(path) = tile_path(x, y) else {
                 return;
             };
-            if !path.exists() {
+            if !path.exists() && queued.insert((x, y)) {
                 jobs.push((path, tile_url(x, y)));
             }
         }

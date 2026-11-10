@@ -194,14 +194,14 @@ impl<T: Transport> Api<T> {
             .collect())
     }
 
-    /// The four WvW maps with the boxes the projection needs (RF-30, ADR-011).
+    /// WvW map geometries used by the matchup and beta borderlands (RF-30, ADR-011).
     ///
-    /// Asking for the four ids instead of `ids=all` keeps the answer at a couple of kilobytes;
-    /// the map list never changes, so the worker fetches it once per session.
+    /// Asking for known ids instead of `ids=all` keeps the answer small; the map list never
+    /// changes, so the worker fetches it once per session.
     pub fn maps(&self) -> Result<Vec<gw2lurker_core::WvwMap>, ApiError> {
         let body = self
             .transport
-            .get(&format!("{BASE}/maps?ids=38,95,96,1099"))?;
+            .get(&format!("{BASE}/maps?ids=38,95,96,1099,1652"))?;
         parse(&body)
     }
 
@@ -575,15 +575,15 @@ mod tests {
 
     #[test]
     fn rf30_maps_come_with_the_boxes_of_the_projection() {
-        let url = format!("{BASE}/maps?ids=38,95,96,1099");
+        let url = format!("{BASE}/maps?ids=38,95,96,1099,1652");
         let api = Api::new(Fake::with(&url, MAPS));
         let maps = api.maps().unwrap();
 
         assert!(
-            maps.len() >= 4,
-            "la fixture trae los cuatro mapas de MvM y algo más"
+            maps.len() >= 5,
+            "la fixture incluye las cinco variantes conocidas de mapas de MvM"
         );
-        for id in [38, 95, 96, 1099] {
+        for id in [38, 95, 96, 1099, 1652] {
             assert!(
                 maps.iter().any(|map| map.id == id),
                 "falta el mapa {id} en la respuesta"
@@ -591,6 +591,12 @@ mod tests {
         }
         let ebg = maps.iter().find(|map| map.id == 38).unwrap();
         assert_eq!(ebg.continent_rect, [[8958.0, 12798.0], [12030.0, 15870.0]]);
+        let seared = maps.iter().find(|map| map.id == 1652).unwrap();
+        assert_eq!(seared.name.trim(), "Seared Borderlands");
+        assert_eq!(
+            seared.continent_rect,
+            [[9214.0, 8958.0], [11774.0, 12542.0]]
+        );
         assert_eq!(api.transport().asked.borrow().as_slice(), [url]);
     }
 

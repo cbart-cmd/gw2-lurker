@@ -45,6 +45,7 @@ impl Data {
             states: &[],
             names: &self.names,
             maps: &self.maps,
+            current_map_id: 0,
             follow: &self.follow,
             guild_names: &self.guild_names,
             opacity: 1.0,

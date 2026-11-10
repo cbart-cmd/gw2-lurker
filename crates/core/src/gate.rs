@@ -4,7 +4,7 @@
 //! whether to show the overlay and whether to hit the network. Keeping it pure means
 //! the loading-screen and character-select cases are testable without the game.
 
-/// `map_type` values that mean "in a playable WvW map" (RF-01).
+/// `map_type` values that identify a WvW map (RF-01).
 pub mod map_type {
     /// Eternal Battlegrounds.
     pub const ETERNAL_BATTLEGROUNDS: u32 = 9;
@@ -49,8 +49,6 @@ pub enum Hidden {
     NoMap,
     /// Character creation / redirect.
     Transition,
-    /// A WvW map we deliberately do not watch: Fortune's Vale, Obsidian Sanctum or the lounge.
-    WvwWithoutObjectives,
     /// Anywhere else: PvE, cities, PvP.
     OutsideWvw,
 }
@@ -73,16 +71,6 @@ impl Gate {
         hidden: None,
     };
 
-    /// The overlay is there but the worker stays quiet.
-    ///
-    /// Armistice Bastion has no objectives to watch, but the window is where the settings live, so
-    /// hiding it left the addon impossible to configure from the lounge (request of 2026-10-31).
-    const CONFIG_ONLY: Self = Self {
-        show_ui: true,
-        poll: false,
-        hidden: Some(Hidden::WvwWithoutObjectives),
-    };
-
     fn hidden(reason: Hidden) -> Self {
         Self {
             show_ui: false,
@@ -97,6 +85,21 @@ impl Gate {
     }
 }
 
+/// Whether Mumble reports one of the WvW map types, including modes without matchup objectives.
+pub fn is_wvw_map_type(kind: u32) -> bool {
+    matches!(
+        kind,
+        map_type::ETERNAL_BATTLEGROUNDS
+            | map_type::BLUE_BORDERLANDS
+            | map_type::GREEN_BORDERLANDS
+            | map_type::RED_BORDERLANDS
+            | map_type::WVW_REWARD
+            | map_type::WVW_OBSIDIAN_SANCTUM
+            | map_type::EDGE_OF_THE_MISTS
+            | map_type::WVW_LOUNGE
+    )
+}
+
 /// Evaluates the gate. Order matters: the loading screen wins over any map data.
 pub fn evaluate(state: GameState) -> Gate {
     if state.is_gameplay == Some(false) {
@@ -105,20 +108,16 @@ pub fn evaluate(state: GameState) -> Gate {
     if state.map_id == 0 {
         return Gate::hidden(Hidden::NoMap);
     }
-    match state.map_type {
-        map_type::AUTO_REDIRECT | map_type::CHARACTER_CREATION => Gate::hidden(Hidden::Transition),
-        map_type::ETERNAL_BATTLEGROUNDS
-        | map_type::BLUE_BORDERLANDS
-        | map_type::GREEN_BORDERLANDS
-        | map_type::RED_BORDERLANDS
-        | map_type::EDGE_OF_THE_MISTS => Gate::SHOWN,
-        map_type::WVW_REWARD | map_type::WVW_OBSIDIAN_SANCTUM => {
-            Gate::hidden(Hidden::WvwWithoutObjectives)
-        }
-        // El Bastión del Armisticio no tiene objetivos, pero es donde uno se entera de lo que
-        // pasa y donde quiere tocar los ajustes: se dibuja el widget y no se sondea nada.
-        map_type::WVW_LOUNGE => Gate::CONFIG_ONLY,
-        _ => Gate::hidden(Hidden::OutsideWvw),
+    if matches!(
+        state.map_type,
+        map_type::AUTO_REDIRECT | map_type::CHARACTER_CREATION
+    ) {
+        return Gate::hidden(Hidden::Transition);
+    }
+    if is_wvw_map_type(state.map_type) {
+        Gate::SHOWN
+    } else {
+        Gate::hidden(Hidden::OutsideWvw)
     }
 }
 
@@ -141,7 +140,10 @@ mod tests {
             map_type::BLUE_BORDERLANDS,
             map_type::GREEN_BORDERLANDS,
             map_type::RED_BORDERLANDS,
+            map_type::WVW_REWARD,
+            map_type::WVW_OBSIDIAN_SANCTUM,
             map_type::EDGE_OF_THE_MISTS,
+            map_type::WVW_LOUNGE,
         ] {
             let g = evaluate(wvw(t));
             assert!(g.show_ui && g.poll, "map_type {t} must be watched");
@@ -203,22 +205,21 @@ mod tests {
     }
 
     #[test]
-    fn rf01_wvw_maps_without_objectives_are_excluded() {
-        for t in [map_type::WVW_REWARD, map_type::WVW_OBSIDIAN_SANCTUM] {
-            let g = evaluate(wvw(t));
-            assert!(!g.show_ui && !g.poll, "map_type {t} must not be watched");
-            assert_eq!(g.hidden, Some(Hidden::WvwWithoutObjectives));
-        }
+    fn rf01_the_lounge_shows_and_polls_like_other_wvw_maps() {
+        let g = evaluate(wvw(map_type::WVW_LOUNGE));
+        assert!(g.show_ui && g.poll);
+        assert!(g.settings_available());
+        assert_eq!(g.hidden, None);
     }
 
     #[test]
-    fn rf01_the_lounge_shows_the_window_so_it_can_be_configured() {
-        // Cambio pedido el 2026-10-31: en el Bastión del Armisticio no hay objetivos que vigilar,
-        // pero es donde el jugador quiere tocar los ajustes. Se dibuja y no se sondea nada.
-        let g = evaluate(wvw(map_type::WVW_LOUNGE));
-        assert!(g.show_ui, "el widget se ve en el Bastión");
-        assert!(!g.poll, "pero no se gasta red: no hay partida que mirar");
-        assert!(g.settings_available(), "los equipos se pueden listar igual");
-        assert_eq!(g.hidden, Some(Hidden::WvwWithoutObjectives));
+    fn rf01_beta_seared_borderlands_1652_is_watched_by_map_type() {
+        let g = evaluate(GameState {
+            is_gameplay: Some(true),
+            map_id: 1652,
+            map_type: map_type::RED_BORDERLANDS,
+        });
+        assert!(g.show_ui && g.poll);
+        assert_eq!(g.hidden, None);
     }
 }

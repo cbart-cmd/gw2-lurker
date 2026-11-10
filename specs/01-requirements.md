@@ -28,7 +28,7 @@ Comprobado el **2026-10-31** contra la API real, el código fuente de `nexus-rs`
 **Mumble / Nexus**
 
 - `[src]` `Identity::world_id` es un *shard id* y está documentado como **no usable** desde el megaservidor: **no** identifica el equipo (`gw2-mumble-rs`, `src/identity.rs`).
-- `[src]` Sí son fiables `Context::map_id`, `Context::map_type`, `Context::shard_id` y `UiState::IS_IN_COMPETITIVE_MODE`. `map_type` vale 9 (EBG), 10/11/12 (fronteras), 14 (Obsidian Sanctum), 15 (EotM), 13 (Fortune's Vale) y **18 (Armisticio)** (`gw2-mumble-rs`, `src/map_type.rs`).
+- `[src]` Sí son fiables `Context::map_id`, `Context::map_type`, `Context::shard_id` y `UiState::IS_IN_COMPETITIVE_MODE`. `map_type` vale 9 (EBG), 10/11/12 (fronteras), 14 (Obsidian Sanctum), 15 (EotM), 13 (Fortune's Vale) y **18 (Armisticio)** (`gw2-mumble-rs`, `src/map_type.rs`). En la beta reportada el nuevo mapa 1652 se usa como las tres fronteras; su rol actual viene de `map_type` 10/11/12, no del `map_id`.
 - `[src]` `Context::player_x/y` y `map_center_x/y` están documentados como *"not updated in competitive modes"*: no se puede contar con la posición del jugador sin verificar en WvW.
 - `[src]` `nexus-rs` **0.12.0** (`rust-version = 1.87.0`, ImGui vía `arcdps-imgui` 0.8.0). Logs en `<juego>/addons/Nexus/Nexus.log` y datos del addon en `<juego>/addons/<nombre>/`.
 - `[src]` `AddonFlags::DisableHotloading` implica que la actualización exige reiniciar (ADR-007).
@@ -36,9 +36,9 @@ Comprobado el **2026-10-31** contra la API real, el código fuente de `nexus-rs`
 
 ## A. Activación y contexto
 
-**RF-01 (M)** Cuando el MumbleLink indique que el jugador está en un mapa de WvW, el addon deberá activar polling y UI. La detección se hará por **`Context::map_type`** ∈ {9 EBG, 10 frontera azul, 11 verde, 12 roja, 15 EotM}, no por una lista de `map_id`, para no romperse si ArenaNet añade mapas.
+**RF-01 (M)** Cuando el MumbleLink indique que el jugador está en un mapa de WvW, el addon deberá activar polling y UI. La detección se hará por **`Context::map_type`** ∈ {9 EBG, 10 frontera azul, 11 verde, 12 roja, 13 Fortaleza del Valor, 14 Sagrario de Obsidiana, 15 EotM, 18 Bastión del Armisticio}, no por una lista de `map_id`, para no romperse si ArenaNet añade mapas.
 - GWT: *Given* el jugador está en Ojos de Aguas Eternas (`map_type` 9), *When* el addon recibe el contexto por Mumble, *Then* arranca el polling en ≤ 1 intervalo.
-- GWT *(cambio del 2026-10-31, a petición del usuario)*: *Given* el jugador entra en el Bastión del Armisticio (`map_type` 18, `map_id` 1315), *When* el addon lee el contexto, *Then* **dibuja la ventana** (es donde se configuran los ajustes) y **no** activa el polling. La Fortaleza del Valor (13) y el Sagrario de Obsidiana (14) sí se siguen ocultando.
+- GWT *(decisión del 2026-11-10, a petición del usuario; misma clasificación que `gw2-timers`)*: *Given* el jugador entra en la Fortaleza del Valor (13), el Sagrario de Obsidiana (14) o el Bastión del Armisticio (18), *When* el addon lee un `map_id` válido, *Then* muestra la UI y activa el polling.
 
 **RF-02 (M)** Cuando el jugador salga de un mapa de WvW, el addon deberá detener el polling y ocultar toda su UI (excepto la ventana de configuración si está abierta).
 - GWT: *Given* el polling activo, *When* el jugador viaja a una ciudad, *Then* no se emiten peticiones de red y no se dibuja nada.
@@ -137,7 +137,7 @@ El click-through **no tiene casilla en los ajustes** (se quitó el 2026-11-01: e
 - Además hay un **aviso emergente** que desaparece tras `popup_secs` segundos (por defecto **15**, rango **0–20**; `0` lo desactiva), mientras el aviso **sigue en la lista** del widget, que conserva hasta 50 líneas (`max_lines` configura cuántas se ven). Los claims descubiertos en el baseline (`late`) no hacen pop-up, salvo que sean de un clan seguido y de los últimos 10 minutos.
 - Las cuatro estructuras (campamento, torre, fortaleza/garita y castillo) vienen marcadas; ruinas y mercenarios nunca avisan (RF-19e).
 - Hay un interruptor «**solo los clanes que sigo**» (`only_followed`) que manda sobre las casillas de mapa: con él marcado, lo demás no cuenta.
-- El mapa actual sale del `map_id` de Mumble: 38 Eternos, 95 alpino verde, 96 alpino azul, 1099 desierto. Cualquier otro (Cañón, salón, PvE) no cuenta como «mapa actual».
+- El mapa actual sale de `map_id` y `map_type` de Mumble: 38 Eternos, 95 alpino verde, 96 alpino azul, 1099 Desierto rojo; en la beta, 1652 puede ser frontera azul, verde o roja según `map_type` 10/11/12. Cualquier otro (Cañón, salón, PvE) no cuenta como «mapa actual».
 
 **RF-19b (S)** Clic en una línea (widget desbloqueado) abrirá el mapa simplificado centrado en ese objetivo.
 
@@ -246,7 +246,8 @@ El click-through **no tiene casilla en los ajustes** (se quitó el 2026-11-01: e
 
 ## D. Vistas de mapa
 
-**RF-30 (M)** Mapa simplificado por mapa de WvW: objetivos como figuras coloreadas por equipo (forma por tipo) sobre un fondo esquemático, sin texturas del juego (ADR-002). Selector de mapa. Los límites se toman de `continent_rect` de `/v2/maps` (ADR-011) y los objetivos con `coord: null` se omiten del dibujo en lugar de dibujarse en (0,0).
+**RF-30 (M)** Mapa simplificado por mapa de WvW: objetivos como figuras coloreadas por equipo (forma por tipo) sobre un fondo esquemático, sin texturas del juego (ADR-002). Selector de mapa. Los límites se toman de `continent_rect` de `/v2/maps` (ADR-011) y los objetivos con `coord: null` se omiten del dibujo en lugar de dibujarse en (0,0). Si la API de match aún no incluye un mapa, se podrán dibujar sus objetivos estáticos, pero se indicará que su estado live no está disponible; no se inferirán dueño ni claims.
+- GWT *(Seared Borderlands, API verificada el 2026-11-10)*: *Given* el mapa 1652 está en Mumble pero no en los matches activos, *When* se abre *Mapa*, *Then* se dibujan su fondo y objetivos estáticos con coordenadas, se omiten los que no tienen coordenadas y se indica que falta el estado live; el rol de frontera se obtiene de `map_type` (10 azul, 11 verde, 12 rojo).
 - GWT: *Given* el jugador cambia de mapa en el juego, *When* entra en la pestaña *Mapa* desde otra, *Then* se abre en el mapa en el que está (petición del jugador, 2026-11-01). Quedarse en la pestaña no cambia el mapa elegido a mano, y llegar desde un clic de clan (RF-32a) abre el mapa de ese clan, no el del jugador.
 
 **RF-30a (M)** El mapa tendrá filtros por tipo de objetivo (campamento, torre, fortaleza, castillo) activables individualmente y **persistentes** entre sesiones. Los tipos sin valor de puntuación (`Ruins`, `Mercenary`, `Spawn`, `Resource`, `Generic`) estarán ocultos por defecto.

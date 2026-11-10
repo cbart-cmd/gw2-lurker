@@ -11,7 +11,6 @@ use std::collections::BTreeMap;
 
 use gw2lurker_core::matchup::{ClaimRow, ObjectiveState};
 use gw2lurker_core::model::{MapRole, ObjectiveInfo, ObjectiveType, TeamColor, WvwMap};
-use gw2lurker_core::project::{tile_box, tiles_of, TILE_ZOOM};
 use gw2lurker_core::{project, FollowList, Frame};
 use nexus::imgui::{ComboBox, Selectable, StyleColor, Ui};
 
@@ -21,12 +20,14 @@ use super::navigation;
 
 mod route;
 mod scene;
+mod tiles;
 mod timeline;
 
 #[cfg(test)]
 mod trail_tests;
 
 use route::{draw_route, RouteCanvas};
+use tiles::{draw_background, draw_frame, draw_tiles, map_size};
 
 pub(super) use timeline::pause_unless_drawn;
 
@@ -35,12 +36,6 @@ pub(crate) use route::summary;
 
 /// Translation key (and stable id) of this tab.
 pub const KEY: &str = "Map";
-
-/// Height of the drawing area when the map has no usable proportions.
-const MAP_HEIGHT: f32 = 280.0;
-/// Smallest and biggest height the map may take when it keeps its real proportions.
-const MIN_MAP_HEIGHT: f32 = 160.0;
-const MAX_MAP_HEIGHT: f32 = 620.0;
 
 /// Grey of an objective nobody holds.
 const UNCLAIMED: [f32; 4] = [0.55, 0.57, 0.6, 1.0];
@@ -59,8 +54,10 @@ pub struct View<'a> {
     pub states: &'a [ObjectiveState],
     /// Objectives of the player's language, with the `coord` the drawing needs.
     pub names: &'a [ObjectiveInfo],
-    /// Boxes of the four maps (RF-30).
+    /// Boxes of known WvW maps, including alternate borderland geometry (RF-30).
     pub maps: &'a [WvwMap],
+    /// Mumble map id, used because beta borderland instances share id 1652.
+    pub current_map_id: u32,
     /// Guilds the player follows: their objectives get a ring (RF-31).
     pub follow: &'a FollowList,
     /// Guild id → `[TAG] Nombre`, to label the objectives of the followed guilds (RF-31).
@@ -91,6 +88,7 @@ pub fn body(ui: &Ui, view: &View<'_>, role: &mut MapRole, here: Option<MapRole>)
         states,
         names,
         maps,
+        current_map_id,
         follow,
         guild_names,
         opacity,
@@ -115,7 +113,7 @@ pub fn body(ui: &Ui, view: &View<'_>, role: &mut MapRole, here: Option<MapRole>)
         );
     }
 
-    draw_selector(ui, role, here, maps);
+    draw_selector(ui, role, here, current_map_id, states, maps);
     // Desplegable de clan justo al lado del de mapa: los que sigues primero y después los últimos
     // que han reclamado algo, para no tener que ir a la pestaña *Clanes* a buscarlos (petción del
     // jugador, 2026-11-01). Elegir uno dibuja su ruta, igual que clicarlo en esa pestaña.
@@ -128,10 +126,7 @@ pub fn body(ui: &Ui, view: &View<'_>, role: &mut MapRole, here: Option<MapRole>)
     let chosen = pick.and_then(|pick| navigation::guild_from_pick(&pick));
     let mut route_state = timeline::prepare(ui, view);
 
-    let Some(map) = maps
-        .iter()
-        .find(|map| MapRole::from_map_id(map.id) == *role)
-    else {
+    let Some(map) = map_for_role(maps, states, *role, here, current_map_id) else {
         ui.text_disabled(i18n::text("No map data yet"));
         return chosen;
     };
@@ -139,6 +134,11 @@ pub fn body(ui: &Ui, view: &View<'_>, role: &mut MapRole, here: Option<MapRole>)
     if !frame.is_usable() {
         ui.text_disabled(i18n::text("No map data yet"));
         return chosen;
+    }
+    if !has_live_state_for_map(states, map.id) {
+        ui.text_disabled(i18n::text(
+            "Live objective status is unavailable for this map yet.",
+        ));
     }
 
     let width = ui.content_region_avail()[0].max(140.0);
@@ -205,9 +205,15 @@ pub fn body(ui: &Ui, view: &View<'_>, role: &mut MapRole, here: Option<MapRole>)
     list.with_clip_rect_intersect(origin, [origin[0] + size[0], origin[1] + size[1]], || {
         if real_map {
             draw_tiles(&list, &frame, origin, size, opacity);
-            draw_frame(&list, origin, size, map_label(*role));
+            draw_frame(&list, origin, size, &map_label_for_id(map.id, *role));
         } else {
-            draw_background(&list, origin, size, &frame, map_label(*role));
+            draw_background(
+                &list,
+                origin,
+                size,
+                &frame,
+                &map_label_for_id(map.id, *role),
+            );
         }
 
         for (index, (point, objective, state)) in drawn.iter().enumerate() {
@@ -271,212 +277,6 @@ pub fn body(ui: &Ui, view: &View<'_>, role: &mut MapRole, here: Option<MapRole>)
         route::caption(ui, &route_state, names);
     }
     chosen
-}
-
-/// Tamaño en pantalla del mapa, con la **proporción real** de `continent_rect`.
-///
-/// Se dibujaba `ancho × 280` y los mapas salían chafados: la frontera alpina es 2560×3584
-/// (1,4 veces más alta que ancha) y Eternos es cuadrada (medido en `/v2/maps`). Con la proporción
-/// de verdad el mapa se parece al de gw2mists (informe de 2026-10-31).
-fn map_size(frame: &Frame, avail: [f32; 2]) -> [f32; 2] {
-    let width = avail[0].max(140.0);
-    let (wide, tall) = (frame.x[1] - frame.x[0], frame.y[1] - frame.y[0]);
-    let aspect = (tall / wide) as f32;
-    if !aspect.is_finite() || !(0.25..=4.0).contains(&aspect) {
-        return [width, MAP_HEIGHT];
-    }
-    // Que quepa: si la proporción pide más alto de lo que hay, se encoge el ancho y se mantiene.
-    let cap = avail[1].clamp(MIN_MAP_HEIGHT, MAX_MAP_HEIGHT);
-    let height = width * aspect;
-    if height > cap {
-        [((cap / aspect).max(140.0)), height.min(cap)]
-    } else {
-        [width, height]
-    }
-}
-
-/// The real map: the official tiles, drawn one by one with the opacity of the window (T-29).
-///
-/// A tile that is not on disk yet is simply skipped: the download runs in the worker thread and
-/// the next frame will have it. Nothing blocks the render callback.
-fn draw_tiles(
-    list: &nexus::imgui::DrawListMut<'_>,
-    frame: &Frame,
-    origin: [f32; 2],
-    size: [f32; 2],
-    opacity: f32,
-) {
-    // El presupuesto de texturas es **por frame**: sin reiniciarlo se gastaba una vez por sesión
-    // y el mapa se quedaba con las cuatro primeras teselas y nada más (informe de 2026-10-31,
-    // «el mapa no es real»).
-    TILE_BUDGET.store(TILES_PER_FRAME, std::sync::atomic::Ordering::Relaxed);
-    for (x, y) in tiles_of(frame, TILE_ZOOM) {
-        let Some(texture) = tile_texture(x, y) else {
-            continue;
-        };
-        let [x0, y0, x1, y1] = tile_box(x, y, TILE_ZOOM);
-        let (Some(a), Some(b)) = (
-            project(frame, [x0, y0], origin, size),
-            project(frame, [x1, y1], origin, size),
-        ) else {
-            continue;
-        };
-        // Las dos esquinas se proyectan igual: continente e imgui crecen hacia el sur, así que no
-        // hay que invertir nada y la imagen de la tesela se coloca con su norte arriba.
-        let p_min = [a[0].min(b[0]), a[1].min(b[1])];
-        let p_max = [a[0].max(b[0]), a[1].max(b[1])];
-        list.add_image(texture, p_min, p_max)
-            .col([1.0, 1.0, 1.0, opacity])
-            .build();
-    }
-}
-
-/// Loaded tiles, by coordinates. They never change, so the session keeps them.
-static TILE_TEXTURES: std::sync::OnceLock<
-    std::sync::Mutex<BTreeMap<(u32, u32), nexus::imgui::TextureId>>,
-> = std::sync::OnceLock::new();
-
-/// How many tiles may be created in one frame. The first time the tab is opened the map fills in
-/// over a few frames instead of stalling the game.
-const TILES_PER_FRAME: u8 = 4;
-
-/// What is left of that allowance in the current frame. Reset by [`draw_tiles`].
-static TILE_BUDGET: std::sync::atomic::AtomicU8 = std::sync::atomic::AtomicU8::new(TILES_PER_FRAME);
-
-/// Texture of one tile, loading it from the disk cache the first time it is needed.
-///
-/// A tile that fails is remembered for [`TILE_RETRY`] so the per-frame budget reaches the rest
-/// instead of burning itself on the same four files: with the download writing straight to the
-/// final name, the render could read a half-written JPEG, and those four failures starved every
-/// other tile of the map (log of 2026-10-31: «no se pudo cargar la textura» in a loop).
-fn tile_texture(x: u32, y: u32) -> Option<nexus::imgui::TextureId> {
-    let cache = TILE_TEXTURES.get_or_init(|| std::sync::Mutex::new(BTreeMap::new()));
-    if let Some(id) = cache
-        .lock()
-        .unwrap_or_else(|error| error.into_inner())
-        .get(&(x, y))
-    {
-        return Some(*id);
-    }
-    if TILE_BUDGET.load(std::sync::atomic::Ordering::Relaxed) == 0 {
-        return None;
-    }
-    if failed_recently(x, y) {
-        return None;
-    }
-    let path = crate::catalog::tile_path(x, y)?;
-    // Un fichero de cero bytes es una descarga a medias: no es que falte, es que no se puede leer.
-    let meta = match std::fs::metadata(&path) {
-        Ok(meta) => meta,
-        Err(_) => {
-            remember_failure(x, y);
-            return None;
-        }
-    };
-    if meta.len() < MIN_TILE_BYTES {
-        remember_failure(x, y);
-        return None;
-    }
-    TILE_BUDGET.fetch_sub(1, std::sync::atomic::Ordering::Relaxed);
-    let identifier = format!("gw2lurker-tile-{x}-{y}");
-    let Some(texture) = nexus::texture::get_texture_or_create_from_file(&identifier, &path) else {
-        // Sin esta línea, «el mapa no es real» no se puede distinguir de «las teselas no están».
-        // Una vez por tesela y reintento: no una línea por frame.
-        if !remember_failure(x, y) {
-            log::warn!("tiles: no se pudo cargar la textura de {path:?}");
-        }
-        return None;
-    };
-    let id = texture.id();
-    cache
-        .lock()
-        .unwrap_or_else(|error| error.into_inner())
-        .insert((x, y), id);
-    Some(id)
-}
-
-/// Smallest file that can be a tile: anything less is a download in progress.
-const MIN_TILE_BYTES: u64 = 1024;
-
-/// How long a tile that failed is left alone before trying again.
-const TILE_RETRY: std::time::Duration = std::time::Duration::from_secs(5);
-
-/// When each tile failed last, so neither the budget nor the log repeats it every frame.
-fn failures() -> &'static std::sync::Mutex<BTreeMap<(u32, u32), std::time::Instant>> {
-    static FAILURES: std::sync::OnceLock<
-        std::sync::Mutex<BTreeMap<(u32, u32), std::time::Instant>>,
-    > = std::sync::OnceLock::new();
-    FAILURES.get_or_init(|| std::sync::Mutex::new(BTreeMap::new()))
-}
-
-fn failed_recently(x: u32, y: u32) -> bool {
-    failures()
-        .lock()
-        .unwrap_or_else(|error| error.into_inner())
-        .get(&(x, y))
-        .is_some_and(|at| at.elapsed() < TILE_RETRY)
-}
-
-/// Marks the tile as failed. Returns `true` when it was already failing (so the log says it once).
-fn remember_failure(x: u32, y: u32) -> bool {
-    let mut map = failures().lock().unwrap_or_else(|error| error.into_inner());
-    map.insert((x, y), std::time::Instant::now()).is_some()
-}
-
-/// Border and name over whatever the background is.
-fn draw_frame(list: &nexus::imgui::DrawListMut<'_>, origin: [f32; 2], size: [f32; 2], name: &str) {
-    let corner = [origin[0] + size[0], origin[1] + size[1]];
-    list.add_rect(origin, corner, [0.0, 0.0, 0.0, 0.75])
-        .thickness(1.0)
-        .build();
-    list.add_text(
-        [origin[0] + 6.0, origin[1] + 4.0],
-        [1.0, 1.0, 1.0, 0.9],
-        name,
-    );
-}
-
-/// Dark board with a grid and the map name: no textures (ADR-002), but the objectives are not
-/// floating on nothing either (report of 2026-10-31). The real map is [`draw_tiles`].
-fn draw_background(
-    list: &nexus::imgui::DrawListMut<'_>,
-    origin: [f32; 2],
-    size: [f32; 2],
-    frame: &Frame,
-    name: &str,
-) {
-    let corner = [origin[0] + size[0], origin[1] + size[1]];
-    list.add_rect(origin, corner, [0.10, 0.11, 0.13, 0.9])
-        .filled(true)
-        .build();
-
-    // A line every 512 continent units, which is a quarter of a borderland.
-    let step_x = (512.0 / (frame.x[1] - frame.x[0])) as f32 * size[0];
-    let step_y = (512.0 / (frame.y[1] - frame.y[0])) as f32 * size[1];
-    if step_x > 6.0 && step_y > 6.0 {
-        let colour = [1.0, 1.0, 1.0, 0.06];
-        let mut x = origin[0] + step_x;
-        while x < corner[0] {
-            list.add_line([x, origin[1]], [x, corner[1]], colour)
-                .build();
-            x += step_x;
-        }
-        let mut y = origin[1] + step_y;
-        while y < corner[1] {
-            list.add_line([origin[0], y], [corner[0], y], colour)
-                .build();
-            y += step_y;
-        }
-    }
-
-    list.add_rect(origin, corner, [0.32, 0.34, 0.38, 1.0])
-        .thickness(1.0)
-        .build();
-    list.add_text(
-        [origin[0] + 6.0, origin[1] + 4.0],
-        [0.75, 0.78, 0.82, 1.0],
-        name,
-    );
 }
 
 /// `[TAG] Nombre` → `TAG`, which is what fits next to a ring.
@@ -575,17 +375,26 @@ fn detail_line(
 /// Ancho del desplegable de mapa. Antes ocupaba todo el ancho de la ventana para enseñar cuatro
 /// palabras («Eternos», «Alpino azul»…) y dejaba sin sitio al de clan (petición del jugador,
 /// 2026-11-01).
-const MAP_COMBO_WIDTH: f32 = 120.0;
+const MAP_COMBO_WIDTH: f32 = 200.0;
 
 /// Ancho del desplegable de clan: `[TAG] Nombre` no cabe en menos.
 const GUILD_COMBO_WIDTH: f32 = 210.0;
 
-fn draw_selector(ui: &Ui, role: &mut MapRole, here: Option<MapRole>, maps: &[WvwMap]) {
+fn draw_selector(
+    ui: &Ui,
+    role: &mut MapRole,
+    here: Option<MapRole>,
+    current_map_id: u32,
+    states: &[ObjectiveState],
+    maps: &[WvwMap],
+) {
     *role = resolved_map_role(*role, here);
-    let current = map_label(*role);
+    let current = map_for_role(maps, states, *role, here, current_map_id)
+        .map(|map| map_label_for_id(map.id, *role))
+        .unwrap_or_else(|| map_label(*role).to_owned());
     let _width = ui.push_item_width(MAP_COMBO_WIDTH);
     ComboBox::new(i18n::widget("Map"))
-        .preview_value(current)
+        .preview_value(current.as_str())
         .build(ui, || {
             for candidate in [
                 MapRole::Center,
@@ -593,19 +402,16 @@ fn draw_selector(ui: &Ui, role: &mut MapRole, here: Option<MapRole>, maps: &[Wvw
                 MapRole::GreenHome,
                 MapRole::RedHome,
             ] {
-                let known = maps
-                    .iter()
-                    .any(|map| MapRole::from_map_id(map.id) == candidate);
-                if !known {
+                let Some(map) = map_for_role(maps, states, candidate, here, current_map_id) else {
                     continue;
-                }
-                let label = map_label(candidate);
+                };
+                let label = map_label_for_id(map.id, candidate);
                 let _tint = if here == Some(candidate) {
                     Some(ui.push_style_color(StyleColor::Text, [0.6, 0.9, 1.0, 1.0]))
                 } else {
                     None
                 };
-                if Selectable::new(label)
+                if Selectable::new(label.as_str())
                     .selected(*role == candidate)
                     .build(ui)
                 {
@@ -719,6 +525,44 @@ fn resolved_map_role(role: MapRole, here: Option<MapRole>) -> MapRole {
         here.unwrap_or(MapRole::Center)
     } else {
         role
+    }
+}
+
+fn map_for_role<'a>(
+    maps: &'a [WvwMap],
+    states: &[ObjectiveState],
+    role: MapRole,
+    here: Option<MapRole>,
+    current_map_id: u32,
+) -> Option<&'a WvwMap> {
+    if here == Some(role) {
+        if let Some(map) = maps.iter().find(|map| map.id == current_map_id) {
+            return Some(map);
+        }
+    }
+
+    states
+        .iter()
+        .find(|state| state.map_role == role)
+        .and_then(|state| maps.iter().find(|map| map.id == state.map_id))
+        .or_else(|| maps.iter().find(|map| MapRole::from_map_id(map.id) == role))
+}
+
+fn has_live_state_for_map(states: &[ObjectiveState], map_id: u32) -> bool {
+    states.iter().any(|state| state.map_id == map_id)
+}
+
+pub(super) fn map_label_for_id(map_id: u32, role: MapRole) -> String {
+    if map_id == 1652 {
+        let color = match role {
+            MapRole::BlueHome => i18n::text("Blue"),
+            MapRole::GreenHome => i18n::text("Green"),
+            MapRole::RedHome => i18n::text("Red"),
+            _ => i18n::text("Unknown map"),
+        };
+        format!("{} ({color})", i18n::text("Seared Borderlands"))
+    } else {
+        map_label(role).to_owned()
     }
 }
 

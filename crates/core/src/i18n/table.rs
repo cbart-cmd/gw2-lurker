@@ -345,12 +345,30 @@ pub const TEXT: &[(&str, [&str; COLUMNS])] = &[
         ],
     ),
     (
-        "Nothing to watch on this map, but the settings work here.",
+        "WvW map outside the matchup (map {0})",
         [
-            "En este mapa no hay nada que vigilar, pero los ajustes funcionan.",
-            "Nothing to watch on this map, but the settings work here.",
-            "Rien à surveiller sur cette carte, mais les réglages fonctionnent.",
-            "Auf dieser Karte gibt es nichts zu beobachten, die Einstellungen gehen aber.",
+            "Mapa de WvW fuera del emparejamiento (mapa {0})",
+            "WvW map outside the matchup (map {0})",
+            "Carte McM hors du match (carte {0})",
+            "WvW-Karte außerhalb des Matchups (Karte {0})",
+        ],
+    ),
+    (
+        "Seared Borderlands",
+        [
+            "Tierras fronterizas calcinadas",
+            "Seared Borderlands",
+            "Territoires frontaliers brûlés",
+            "Versengte Grenzlande",
+        ],
+    ),
+    (
+        "Live objective status is unavailable for this map yet.",
+        [
+            "El estado actual de los objetivos aún no está disponible para este mapa.",
+            "Live objective status is unavailable for this map yet.",
+            "L'état actuel des objectifs n'est pas encore disponible pour cette carte.",
+            "Der aktuelle Zielstatus ist für diese Karte noch nicht verfügbar.",
         ],
     ),
     (
